@@ -10,12 +10,12 @@ long_description = readme_file.read_text(encoding="utf-8") if readme_file.exists
 setup(
     name="kmhelpers",
     version="0.0.1",
-    author="",  # Add author information
-    author_email="",  # Add email
-    description="A Python toolkit for managing, compressing, and querying k-mer indices",
+    author="Sébastien BELLENOUS",  
+    author_email="sebastien.bellenous@inria.fr",  
+    description="A Python toolkit for managing, compressing, and querying indexes with kmindex",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="",  # Add repository URL
+    url="https://gitlab.inria.fr/omicfinder/kmhelpers", 
     packages=find_packages(),
     classifiers=[
         "Development Status :: 3 - Alpha",
