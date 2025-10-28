@@ -53,13 +53,16 @@ def process_index(source_dir, output_dir, index_id):
 
     kmhelpers.Kmindex.register_index_in_json(output_data_dir, output_register_dir, index_id)
 
-    cmd_output = kmhelpers.BlockCompressorZSTD.compress_index(
-        source_dir, output_data_dir, index_id
-    )
+    # cmd_output = kmhelpers.BlockCompressorZSTD.compress_index(
+    #     source_dir, output_data_dir, index_id
+    # )
 
 
 
 def main():
+
+    raise DeprecationWarning("Deprecated... use Compressor class instead")
+
     parser = argparse.ArgumentParser(
         description="Reorder index")
     parser.add_argument(
