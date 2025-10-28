@@ -1,7 +1,8 @@
 from dataclasses import dataclass
-from index import Index
-from kmhelpers import BlockCompressorZSTD
 import os
+
+from kmhelpers.core.index import Index
+from kmhelpers.core.utils import BlockCompressorZSTD
 
 @dataclass
 class CompressionParams:

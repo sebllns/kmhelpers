@@ -6,12 +6,9 @@ import queue
 import re
 import subprocess
 import threading
-import subprocess
 import psutil
 import time
-import threading
-from typing import Any, Dict, List, Optional, Tuple
-from typing import Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 import shutil
 
 

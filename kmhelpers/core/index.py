@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
-from kmhelpers import Kmindex, Toolbox
+from kmhelpers.core.utils import Kmindex, Toolbox
 
 
 class Index:

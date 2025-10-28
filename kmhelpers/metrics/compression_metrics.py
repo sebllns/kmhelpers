@@ -2,7 +2,7 @@ import json
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 
-from index import Index
+from kmhelpers.core.index import Index
 
 @dataclass
 class PermutationData:
@@ -54,56 +54,6 @@ class PermutationData:
             time_reorder_s=data.get("3_time_reorder(s)", 0.0),
         )
 
-@dataclass
-class CompressionData:
-    from_permutation: str = ""
-    input_path: str = ""
-    invert_permutation: bool = False
-    is_compressed: bool = False
-    output_ef_path: str = ""
-    output_path: str = ""
-    user_permutation: bool = False
-    blocksize_bytes: int = 0
-    groupsize: int = 0
-    nb_blocks: int = 0
-    nb_cols: int = 0
-    nb_rows: int = 0
-    rows_per_block: int = 0
-    target_blocksize_bytes: int = 0
-    time_compression_s: float = 0.0
-    time_reorder_s: float = 0.0
-    histogram_original: List[int] = None
-    histogram_reordered: List[int] = None
-    
-    def __post_init__(self):
-        if self.histogram_original is None:
-            self.histogram_original = []
-        if self.histogram_reordered is None:
-            self.histogram_reordered = []
-    
-    @classmethod
-    def from_json(cls, data: dict) -> 'CompressionData':
-        return cls(
-            from_permutation=data.get("0_from_permutation", ""),
-            input_path=data.get("0_input_path", ""),
-            invert_permutation=data.get("0_invert_permutation", False),
-            is_compressed=data.get("0_is_compressed", False),
-            output_ef_path=data.get("0_output_ef_path", ""),
-            output_path=data.get("0_output_path", ""),
-            user_permutation=data.get("0_user_permutation", False),
-            blocksize_bytes=data.get("1_blocksize(bytes)", 0),
-            groupsize=data.get("1_groupsize", 0),
-            nb_blocks=data.get("1_nb_blocks", 0),
-            nb_cols=data.get("1_nb_cols", 0),
-            nb_rows=data.get("1_nb_rows", 0),
-            rows_per_block=data.get("1_rows_per_block", 0),
-            target_blocksize_bytes=data.get("1_target_blocksize(bytes)", 0),
-            time_compression_s=data.get("3_time_compression(s)", 0.0),
-            time_reorder_s=data.get("3_time_reorder(s)", 0.0),
-            histogram_original=data.get("4_histogram_original", []),
-            histogram_reordered=data.get("4_histogram_reordered", [])
-        )
-    
 @dataclass
 class CompressionData:
     from_permutation: Optional[str] = None

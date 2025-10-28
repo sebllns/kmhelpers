@@ -3,7 +3,8 @@
 import argparse
 import json
 import os
-import kmhelpers
+
+from kmhelpers.core import utils as kmhelpers
 
 
 def main():

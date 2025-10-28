@@ -3,7 +3,8 @@ import argparse
 import json
 import os
 import shutil
-import kmhelpers
+
+from kmhelpers.core import utils as kmhelpers
 
 
 def process_index(source_dir, output_dir, index_id):
