@@ -9,16 +9,21 @@ This example demonstrates:
 4. Basic operations
 """
 
+import argparse
 from kmhelpers import Main, IndexRegistry
 
 def main():
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description="Basic usage example for kmhelpers")
+    parser.add_argument("index_path", help="Path to the index directory")
+    args = parser.parse_args()
+
     # Initialize kmhelpers environment
     print("Initializing kmhelpers...")
     Main.init()
 
     # Example: Working with an index registry
-    # Replace with your actual index path
-    index_path = "/path/to/your/indices"
+    index_path = args.index_path
 
     try:
         # Load the index registry
