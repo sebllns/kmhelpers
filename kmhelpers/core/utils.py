@@ -649,9 +649,12 @@ class Kmindex:
     ####################################################
     @staticmethod
     def get_bytes_per_matrix(index_path, partition, is_compressed=False):
-        return os.path.getsize(
+        size = os.path.getsize(
             Kmindex.get_matrix_path(index_path, partition, is_compressed)
         )
+        if is_compressed:
+            size += os.path.getsize(Kmindex.get_ef_path(index_path, partition))
+        return size
 
     ####################################################
     @staticmethod
@@ -708,28 +711,45 @@ class Kmindex:
 
     ####################################################
     @staticmethod
+    def get_ef_path(index_path, partition):
+        return Kmindex.get_matrix_path(index_path, partition, True) + ".ef"
+
+    ####################################################
+    @staticmethod
+    def get_compressed_files_path(index_path, partition):
+        return Kmindex.get_matrix_path(
+            index_path, partition, True
+        ), Kmindex.get_ef_path(index_path, partition)
+
+    ####################################################
+    @staticmethod
     def get_index_path(root, index):
         return Toolbox.get_canonical_path(os.path.join(root, index))
 
     ####################################################
     @staticmethod
+    def get_path_inside_index(root, file):
+        return Toolbox.get_canonical_path(os.path.join(root, file))
+
+    ####################################################
+    @staticmethod
     def get_build_info_path(root):
-        return Toolbox.get_canonical_path(os.path.join(root, "build_infos.txt"))
+        return Kmindex.get_path_inside_index(root, "build_infos.txt")
 
     ####################################################
     @staticmethod
     def get_fof_path(root):
-        return Toolbox.get_canonical_path(os.path.join(root, "kmtricks.fof"))
+        return Kmindex.get_path_inside_index(root, "kmtricks.fof")
 
     ####################################################
     @staticmethod
     def get_options_path(root):
-        return Toolbox.get_canonical_path(os.path.join(root, "options.txt"))
+        return Kmindex.get_path_inside_index(root, "options.txt")
 
     ####################################################
     @staticmethod
     def get_json_path(root):
-        return Toolbox.get_canonical_path(os.path.join(root, "index.json"))
+        return Kmindex.get_path_inside_index(root, "index.json")
 
     ####################################################
     @staticmethod
