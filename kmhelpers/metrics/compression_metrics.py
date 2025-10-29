@@ -2,7 +2,7 @@ import json
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 
-from kmhelpers.core.index import Index
+from kmhelpers.core.index import KmtricksIndex
 
 @dataclass
 class PermutationData:

@@ -21,7 +21,7 @@ class IndexCompressionState(Enum):
     BOTH = 3
 
 
-class Index:
+class KmtricksIndex:
     """
     Object-oriented wrapper for kmindex operations.
 
@@ -288,7 +288,7 @@ class Index:
         return f"Index(root_path='{self.parent_dir}', index_id='{self.index_id}')"
 
 
-class IndexRegistry:
+class KmindexRegistry:
     """
     Manager class for working with multiple indices in a directory.
 
@@ -336,7 +336,7 @@ class IndexRegistry:
     def get_index_properties(self, index_id: str) -> Dict[str, Any]:
         return self._json_data["index"][index_id]
 
-    def get_index(self, index_id: str) -> Index:
+    def get_index(self, index_id: str) -> KmtricksIndex:
         """
         Get an Index object for a specific index ID.
 
@@ -356,7 +356,7 @@ class IndexRegistry:
             )
 
         # Create empty Index instance and load properties from JSON
-        index = Index(Toolbox.get_canonical_path(self.root_path), index_id)
+        index = KmtricksIndex(Toolbox.get_canonical_path(self.root_path), index_id)
         index.import_properties(self.get_index_properties(index_id))
 
         return index
@@ -373,7 +373,7 @@ class IndexRegistry:
         """
         return index_id in self._json_data["index"]
 
-    def add_index(self, index: Index) -> bool:
+    def add_index(self, index: KmtricksIndex) -> bool:
         if self.has_index(index.index_id):
             return False
         Kmindex.register_index_in_json(index.dir_path, self.root_path, index.index_id)

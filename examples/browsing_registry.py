@@ -10,7 +10,7 @@ This example demonstrates:
 """
 
 import argparse
-from kmhelpers import Main, IndexRegistry
+from kmhelpers import Main, KmindexRegistry
 
 def main():
     # Parse command-line arguments
@@ -27,7 +27,7 @@ def main():
 
     try:
         # Load the index registry
-        registry = IndexRegistry(index_path)
+        registry = KmindexRegistry(index_path)
 
         # List all available indices
         print(f"\nAvailable indices: {len(registry)} total")

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import os
 from pathlib import Path
-from kmhelpers.core.index import Index, IndexCompressionState
+from kmhelpers.core.index import KmtricksIndex, IndexCompressionState
 from kmhelpers.core.utils import BlockCompressorZSTD
 
 
@@ -77,7 +77,7 @@ class Compressor:
                 ),
             )
 
-    def compress_full_index(self, params: CompressionParams, idx: Index):
+    def compress_full_index(self, params: CompressionParams, idx: KmtricksIndex):
         print(
             f"Compressing index {idx.index_id} with {idx.nb_partitions} partitions..."
         )
@@ -88,7 +88,7 @@ class Compressor:
     def compress_index_selection(
         self,
         params: CompressionParams,
-        idx: Index,
+        idx: KmtricksIndex,
         ref_matrix: int,
         matrix_list: list[int] = [],
     ):
