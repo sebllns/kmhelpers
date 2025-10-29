@@ -271,11 +271,20 @@ class KmtricksIndex:
             print(f"An error occurred: {e}")
 
     def load_kmtricks_index(self):
+        # Check required files exist
+        options_path = Kmindex.get_options_path(self.dir_path)
+        if not os.path.exists(options_path):
+            raise FileNotFoundError(f"Options file not found: {options_path}")
+
+        fof_path = Kmindex.get_fof_path(self.dir_path)
+        if not os.path.exists(fof_path):
+            raise FileNotFoundError(f"FOF file not found: {fof_path}")
+
         self.import_properties(
-            Kmindex.load_options_file(Kmindex.get_options_path(self.dir_path))
+            Kmindex.load_options_file(options_path)
         )
         # load samples
-        samples = Kmindex.load_fof_file(Kmindex.get_fof_path(self.dir_path))
+        samples = Kmindex.load_fof_file(fof_path)
         self._properties["samples"] = samples
         self._properties["nb_samples"] = len(samples)
 
