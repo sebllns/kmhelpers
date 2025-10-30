@@ -16,8 +16,8 @@ import shutil
 class Main:
     ####################################################
     @staticmethod
-    def init():
-        Bin.set_bin_path("./bin")
+    def init(path = "./bin"):
+        Bin.set_bin_path(path)
         Bin.add_bin_dir_to_syspath()
         print(f"Bin dir is: {Bin.get_bin_dir()}")
         Bin.check_all()
