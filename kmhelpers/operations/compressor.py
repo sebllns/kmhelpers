@@ -91,27 +91,28 @@ class Compressor:
         idx: KmtricksIndex,
         ref_matrix: int,
         matrix_list: list[int] = [],
+        output_dir: str = ""
     ):
         # Reference matrix
         if self.enable_metrics:
             Path(idx.metrics_dir_path).mkdir(parents=False, exist_ok=True)
 
-            compressed_path = idx.get_matrix_path(
-                partition=ref_matrix, is_compressed=False
-            )
-            self.compress_file(
-                params,
-                compressed_path,
-                idx.nb_samples,
-                idx.permutation_path,
-                idx.get_matrix_path(ref_matrix, True),
-                idx.get_path_inside_index("config.cfg"),
-                (
-                    str(Path(idx.metrics_dir_path) / "ref.json")
-                    if self.enable_metrics
-                    else ""
-                ),
-            )
+        compressed_path = idx.get_matrix_path(
+            partition=ref_matrix, is_compressed=False
+        )
+        self.compress_file(
+            params,
+            compressed_path,
+            idx.nb_samples,
+            idx.permutation_path,
+            idx.get_matrix_path(ref_matrix, True),
+            idx.get_path_inside_index("config.cfg"),
+            (
+                str(Path(idx.metrics_dir_path) / "ref.json")
+                if self.enable_metrics
+                else ""
+            ),
+        )
 
         # Other matrices
         for i in matrix_list:
