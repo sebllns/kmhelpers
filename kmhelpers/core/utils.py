@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import sys
 from pathlib import Path
 import queue
 import re
@@ -16,9 +17,8 @@ class Main:
     ####################################################
     @staticmethod
     def init():
-        os.environ.setdefault(
-            "KMHELPERS_BIN_PATH", Toolbox.get_canonical_path("./bin/")
-        )
+        Bin.set_bin_path("./bin")
+        Bin.add_bin_dir_to_syspath()
         print(f"Bin dir is: {Bin.get_bin_dir()}")
         Bin.check_all()
 
@@ -30,32 +30,55 @@ class Main:
 class Bin:
     ####################################################
     @staticmethod
+    def set_bin_path(path):
+        os.environ.setdefault("KMHELPERS_BIN_PATH", Toolbox.get_canonical_path(path))
+
+    ####################################################
+    @staticmethod
     def get_bin_dir():
         if "KMHELPERS_BIN_PATH" not in os.environ:
             raise RuntimeError(
                 "Main.init() must be called at program startup before using get_bin_dir()"
             )
         return Toolbox.get_canonical_path(os.environ["KMHELPERS_BIN_PATH"])
+    
+    ####################################################
+    @staticmethod
+    def get_bin_path(binary):
+        return os.path.join(Bin.get_bin_dir(), binary)
 
     ####################################################
     @staticmethod
-    def get_kmindex_path():
-        return os.path.join(Bin.get_bin_dir(), "kmindex")
+    def add_bin_dir_to_syspath():
+        sys.path.insert(0, Bin.get_bin_dir())
 
     ####################################################
     @staticmethod
-    def get_compressor_path():
-        return os.path.join(Bin.get_bin_dir(), "block_compressor")
+    def kmindex():
+        return "kmindex"
 
     ####################################################
     @staticmethod
-    def get_decompressor_path():
-        return os.path.join(Bin.get_bin_dir(), "block_decompressor")
+    def compressor():
+        return "block_compressor"
 
     ####################################################
     @staticmethod
-    def get_reorderer_path():
-        return os.path.join(Bin.get_bin_dir(), "bitmatrix_shuffle")
+    def decompressor():
+        return "block_decompressor"
+
+    ####################################################
+    @staticmethod
+    def reorderer():
+        return "bitmatrix_shuffle"
+
+    ####################################################
+    @staticmethod
+    def check_bin(binary_path):
+        if not os.path.isfile(binary_path):
+            print(f"Warning: {binary_path} not found")
+        elif not os.access(binary_path, os.X_OK):
+            print(f"Warning: {binary_path} exists but is not executable")
 
     ####################################################
     @staticmethod
@@ -65,18 +88,18 @@ class Bin:
             raise NotADirectoryError(f"Binaries directory not found: {bin_path}")
 
         binaries = [
-            Bin.get_kmindex_path(),
-            Bin.get_reorderer_path(),
-            Bin.get_compressor_path(),
-            Bin.get_decompressor_path(),
+            Bin.kmindex(),
+            Bin.reorderer(),
+            Bin.compressor(),
+            Bin.decompressor(),
         ]
 
         missing_binaries = []
         for binary in binaries:
-            binary_path = os.path.join(bin_path, binary)
-            if not os.path.isfile(binary_path):
+            bin_path = Bin.get_bin_path(binary)
+            if not os.path.isfile(bin_path):
                 print(f"Warning: {binary} not found")
-            elif not os.access(binary_path, os.X_OK):
+            elif not os.access(bin_path, os.X_OK):
                 print(f"Warning: {binary} exists but is not executable")
 
         return missing_binaries
@@ -865,7 +888,7 @@ class Kmindex:
             )
 
         cmd = [
-            Bin.get_kmindex_path(),
+            Bin.kmindex(),
             "query",
             "--index",
             index_path,
@@ -1109,7 +1132,7 @@ class BitmatrixShuffle:
             print("Starting subprocess...")
 
             cmd = [
-                Bin.get_reorderer_path(),
+                Bin.reorderer(),
                 "-i",
                 output_register_dir,
                 "-n",
@@ -1221,7 +1244,7 @@ class BlockCompressorZSTD:
         Returns:
             Output of the compression script.
         """
-        return Toolbox.run_cmd([Bin.get_compressor_path()] + list(args))
+        return Toolbox.run_cmd([Bin.compressor()] + list(args))
 
     ####################################################
     @DeprecationWarning
