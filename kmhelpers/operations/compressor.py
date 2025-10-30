@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import os
 from pathlib import Path
 from kmhelpers.core.index import KmtricksIndex, IndexCompressionState
-from kmhelpers.core.utils import BlockCompressorZSTD
+from kmhelpers.core.utils import Kmindex, BlockCompressorZSTD
 
 
 @dataclass
@@ -77,12 +77,14 @@ class Compressor:
                 ),
             )
 
-    def compress_full_index(self, params: CompressionParams, idx: KmtricksIndex):
+    def compress_full_index(
+        self, params: CompressionParams, idx: KmtricksIndex, output_dir: str = ""
+    ):
         print(
             f"Compressing index {idx.index_id} with {idx.nb_partitions} partitions..."
         )
         self.compress_index_selection(
-            params, idx, 1, list(range(0, idx.nb_partitions + 1))
+            params, idx, 1, list(range(0, idx.nb_partitions + 1)), output_dir
         )
 
     def compress_index_selection(
@@ -91,14 +93,26 @@ class Compressor:
         idx: KmtricksIndex,
         ref_matrix: int,
         matrix_list: list[int] = [],
-        output_dir: str = ""
+        output_dir: str = "",
     ):
+        metrics_path = Path(idx.metrics_dir_path)
+
+        if output_dir:
+            Path(output_dir).mkdir(parents=True, exist_ok=True)
+            Path(output_dir, "metrics").mkdir(parents=True, exist_ok=True)
+            Path(output_dir, "matrices").mkdir(parents=True, exist_ok=True)
+            metrics_path = Path(output_dir, "metrics")
+
         # Reference matrix
         if self.enable_metrics:
-            Path(idx.metrics_dir_path).mkdir(parents=False, exist_ok=True)
+            metrics_path.mkdir(parents=False, exist_ok=True)           
 
-        compressed_path = idx.get_matrix_path(
-            partition=ref_matrix, is_compressed=False
+        compressed_path = (
+            Kmindex.get_matrix_path(
+                index_path=output_dir, partition=ref_matrix, is_compressed=True
+            )
+            if output_dir
+            else idx.get_matrix_path(partition=ref_matrix, is_compressed=True)
         )
         self.compress_file(
             params,
@@ -108,7 +122,7 @@ class Compressor:
             idx.get_matrix_path(ref_matrix, True),
             idx.get_path_inside_index("config.cfg"),
             (
-                str(Path(idx.metrics_dir_path) / "ref.json")
+                str(metrics_path / "ref.json")
                 if self.enable_metrics
                 else ""
             ),
@@ -116,7 +130,13 @@ class Compressor:
 
         # Other matrices
         for i in matrix_list:
-            compressed_path = idx.get_matrix_path(partition=i, is_compressed=False)
+            compressed_path = (
+                Kmindex.get_matrix_path(
+                    index_path=output_dir, partition=i, is_compressed=True
+                )
+                if output_dir
+                else idx.get_matrix_path(partition=i, is_compressed=True)
+            )
             self.compress_file(
                 params,
                 compressed_path,
@@ -125,7 +145,7 @@ class Compressor:
                 idx.get_matrix_path(i, True),
                 idx.get_path_inside_index("config.cfg"),
                 (
-                    str(Path(idx.metrics_dir_path) / f"{compressed_path}.json")
+                    str(metrics_path / f"{compressed_path}.json")
                     if self.enable_metrics
                     else ""
                 ),
