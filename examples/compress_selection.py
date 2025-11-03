@@ -23,10 +23,6 @@ def main():
 
     Main.init(os.path.join(script_dir, "bin"))
 
-    parser = argparse.ArgumentParser(description="Basic usage example for kmhelpers")
-    parser.add_argument("index_root", help="Path to the index root directory")
-    args = parser.parse_args()
-
     # Configuration
     index_root = os.path.join(script_dir, "data")
     index_id = "SYNTHETIC_ROD_10" 
@@ -41,12 +37,13 @@ def main():
         subsample_size=20000,
         threshold=0.0,
         enable_check=True,
-        enable_overwrite=False,
+        enable_overwrite=True,
         force_permutation=False,
     )
 
     # Load index
     idx = KmtricksIndex(index_root, index_id)
+    idx.load_kmtricks_index()
 
     # Compress selection
     compressor = Compressor(enable_metrics=True)

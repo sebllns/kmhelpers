@@ -1,8 +1,6 @@
 import datetime
 import json
 import os
-import sys
-from pathlib import Path
 import queue
 import re
 import subprocess
@@ -17,9 +15,9 @@ class Main:
     ####################################################
     @staticmethod
     def init(path = "./bin"):
-        Bin.set_bin_path(path)
+        Bin.set_default_bin_path(path)
         Bin.add_bin_dir_to_syspath()
-        print(f"Bin dir is: {Bin.get_bin_dir()}")
+        print(f"KMHELPERS_BIN_PATH={Bin.get_bin_dir()}")
         Bin.check_all()
 
 
@@ -30,7 +28,7 @@ class Main:
 class Bin:
     ####################################################
     @staticmethod
-    def set_bin_path(path):
+    def set_default_bin_path(path):
         os.environ.setdefault("KMHELPERS_BIN_PATH", Toolbox.get_canonical_path(path))
 
     ####################################################
@@ -50,7 +48,7 @@ class Bin:
     ####################################################
     @staticmethod
     def add_bin_dir_to_syspath():
-        sys.path.insert(0, Bin.get_bin_dir())
+         os.environ['PATH'] = f"{Bin.get_bin_dir()}{os.pathsep}{os.environ.get('PATH', '')}"
 
     ####################################################
     @staticmethod
@@ -230,7 +228,7 @@ class Toolbox:
                 print(f"2: {line}")
 
         if result.returncode != 0:
-            print(f"Error running cmd: {result.returncode}")
+            print(f"error_code={result.returncode}")
             return result.stderr
 
         return result.stdout
@@ -1244,7 +1242,7 @@ class BlockCompressorZSTD:
         Returns:
             Output of the compression script.
         """
-        return Toolbox.run_cmd([Bin.compressor()] + list(args))
+        return Toolbox.run_cmd([Bin.reorderer()] + list(args))
 
     ####################################################
     @DeprecationWarning

@@ -59,23 +59,37 @@ class Compressor:
 
         if do_compress:
             print(f"Compress {input_matrix_path}...")
-            BlockCompressorZSTD.compress_matrix(
-                f"-i {input_matrix_path}",
-                "--header 49",
-                f"-c {matrix_columns_count}",
-                f"-g {params.group_size}",
-                f"-s {params.subsample_size}",
-                f"-b {params.block_size}",
-                f"--threshold {params.threshold}",
-                f"--config-path {config_path}",
-                f"-{s} {permutation_path}" if not params.force_permutation else "",
-                f"-z {output_compressed_path}" if output_compressed_path else "",
-                (
-                    f"-j {output_metric_path}"
-                    if (self.enable_metrics and output_metric_path)
-                    else ""
-                ),
-            )
+            args = [
+                "-i",
+                input_matrix_path,
+                "--header",
+                "49",
+                "-c",
+                str(matrix_columns_count),
+                "-g",
+                str(params.group_size),
+                "-s",
+                str(params.subsample_size),
+                "-b",
+                str(params.block_size),
+            ]
+
+            if not params.force_permutation:
+                args.extend([f"-{s}", permutation_path])
+
+            if output_compressed_path:
+                args.extend(["-z", output_compressed_path])
+
+            if self.enable_metrics and output_metric_path:
+                args.extend(["-j", output_metric_path])
+
+            if config_path:
+                args.extend(["--config-path", config_path])
+
+            if params.threshold > 0:
+                args.extend(["--threshold", str(params.threshold)])
+
+            return BlockCompressorZSTD.compress_matrix(*args)
 
     def compress_full_index(
         self, params: CompressionParams, idx: KmtricksIndex, output_dir: str = ""
@@ -105,7 +119,7 @@ class Compressor:
 
         # Reference matrix
         if self.enable_metrics:
-            metrics_path.mkdir(parents=False, exist_ok=True)           
+            metrics_path.mkdir(parents=False, exist_ok=True)
 
         compressed_path = (
             Kmindex.get_matrix_path(
@@ -116,16 +130,12 @@ class Compressor:
         )
         self.compress_file(
             params,
-            compressed_path,
+            idx.get_matrix_path(ref_matrix, False),
             idx.nb_samples,
             idx.permutation_path,
-            idx.get_matrix_path(ref_matrix, True),
+            compressed_path,
             idx.get_path_inside_index("config.cfg"),
-            (
-                str(metrics_path / "ref.json")
-                if self.enable_metrics
-                else ""
-            ),
+            (str(metrics_path / "ref.json") if self.enable_metrics else ""),
         )
 
         # Other matrices
@@ -139,10 +149,10 @@ class Compressor:
             )
             self.compress_file(
                 params,
-                compressed_path,
+                idx.get_matrix_path(i, True),
                 idx.nb_samples,
                 idx.permutation_path,
-                idx.get_matrix_path(i, True),
+                compressed_path,
                 idx.get_path_inside_index("config.cfg"),
                 (
                     str(metrics_path / f"{compressed_path}.json")
