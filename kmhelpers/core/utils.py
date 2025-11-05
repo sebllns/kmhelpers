@@ -94,11 +94,9 @@ class Bin:
 
         missing_binaries = []
         for binary in binaries:
-            bin_path = Bin.get_bin_path(binary)
-            if not os.path.isfile(bin_path):
-                print(f"Warning: {binary} not found")
-            elif not os.access(bin_path, os.X_OK):
-                print(f"Warning: {binary} exists but is not executable")
+            if shutil.which(binary) is None:
+                print(f"Warning: {binary} not found in PATH")
+                missing_binaries.append(binary)
 
         return missing_binaries
 
@@ -826,7 +824,7 @@ class Kmindex:
             return
 
         return Toolbox.run_cmd(
-            ["kmindex", "register", "-i", output_dir, "-p", input_dir, "-n", index_id]
+            [Bin.kmindex(), "register", "-i", output_dir, "-p", input_dir, "-n", index_id]
         )
 
     ####################################################

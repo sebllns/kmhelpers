@@ -28,14 +28,14 @@ def main():
     index_id = "SYNTHETIC_ROD_10" 
 
     ref_matrix = 1  # Reference matrix partition number
-    matrix_list = [7, 12, 123, 541]  # List of matrix partitions to compress
+    matrix_list = [7, 12, 123]  # List of matrix partitions to compress
 
     # Compression parameters
     params = CompressionParams(
         block_size=8388608,
         group_size=0,
         subsample_size=20000,
-        threshold=0.0,
+        threshold=0,
         enable_check=True,
         enable_overwrite=True,
         force_permutation=False,

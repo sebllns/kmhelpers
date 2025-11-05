@@ -118,8 +118,13 @@ class KmtricksIndex:
 
     @property
     def smer_size(self) -> int:
-        """K-mer size."""
+        """S-mer size."""
         return self._properties["smer_size"]
+
+    @property
+    def kmer_size(self) -> int:
+        """K-mer size."""
+        return self._properties["kmer_size"]
 
     @property
     def minim_size(self) -> int:
@@ -320,9 +325,7 @@ class KmindexRegistry:
         if not self.json_exists:
             Kmindex.create_empty_index_json(self.root_path)
 
-        # Load the JSON data
-        with open(self.json_path, "r") as f:
-            self._json_data = json.load(f)
+        self.load_json()
 
     @property
     def json_path(self) -> str:
@@ -332,6 +335,11 @@ class KmindexRegistry:
     @property
     def json_exists(self) -> bool:
         return Kmindex.b_json_exists(self.root_path)
+    
+    def load_json(self) -> None:
+        # Load the JSON data
+        with open(self.json_path, "r") as f:
+            self._json_data = json.load(f)
 
     def list_indices(self) -> List[str]:
         """
@@ -385,7 +393,9 @@ class KmindexRegistry:
     def add_index(self, index: KmtricksIndex) -> bool:
         if self.has_index(index.index_id):
             return False
-        Kmindex.register_index_in_json(index.dir_path, self.root_path, index.index_id)
+        Kmindex.register_index_in_json(index.parent_dir, self.root_path, index.index_id)
+        # Reload json after kmindex modified it
+        self.load_json()
         return True
 
     def __iter__(self):

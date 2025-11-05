@@ -44,7 +44,7 @@ def main():
             print(f"  ID: {index.index_id}")
             print(f"  Samples: {index.nb_samples}")
             print(f"  Partitions: {index.nb_partitions}")
-            print(f"  K-mer size: {index.smer_size}")
+            print(f"  K-mer size: {index.kmer_size}")
             print(f"  Minimizer size: {index.minim_size}")
             print(f"  Bytes per row: {index.bytes_per_row}")
 

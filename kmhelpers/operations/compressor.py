@@ -11,7 +11,7 @@ class CompressionParams:
     block_size: int = 8388608
     group_size: int = 0
     subsample_size: int = 20000
-    threshold: float = 0.0
+    threshold: int = 0
     enable_check: bool = False
     enable_overwrite: bool = False
     # use_hash: bool = True
