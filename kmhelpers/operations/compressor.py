@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import os
+import sys
 from pathlib import Path
 from kmhelpers.core.index import KmtricksIndex, IndexCompressionState
 from kmhelpers.core.utils import Toolbox, Kmindex, BlockCompressorZSTD
@@ -143,7 +144,7 @@ class Compressor:
                 str(json_path),
             )
         except:
-            print(f"FATAL: Could not compress reference matrix {ref_matrix}")
+            print(f"FATAL: Could not compress reference matrix {ref_matrix}", file=sys.stderr)
             raise
 
         # Other matrices
@@ -167,8 +168,8 @@ class Compressor:
                     json_path,
                 )
             except Exception as error:
-                print(f"ERROR: Could not compress matrix {i}")
-                print(error)
+                print(f"ERROR: Could not compress matrix {i}", file=sys.stderr)
+                print(error, file=sys.stderr)
 
         if output_dir == idx.dir_path:
             idx.compress_state = IndexCompressionState.BOTH
