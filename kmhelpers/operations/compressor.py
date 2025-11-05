@@ -48,12 +48,6 @@ class Compressor:
         if matrix_columns_count <= 0:
             raise ValueError("Matrix columns count must be greater than zero")
 
-        s = ""
-        if os.path.isfile(permutation_path):
-            s = "f"
-        else:
-            s = "t"
-
         do_compress = params.enable_overwrite or not os.path.isfile(
             output_compressed_path
         )
@@ -76,7 +70,7 @@ class Compressor:
             ]
 
             if not params.force_permutation:
-                args.extend([f"-{s}", permutation_path])
+                args.extend(["-f" if os.path.isfile(permutation_path) else "-t", permutation_path])
 
             if output_compressed_path:
                 args.extend(["-z", output_compressed_path])
