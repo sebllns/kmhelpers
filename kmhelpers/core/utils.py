@@ -14,7 +14,7 @@ import shutil
 class Main:
     ####################################################
     @staticmethod
-    def init(path = "./bin"):
+    def init(path="./bin"):
         Bin.set_default_bin_path(path)
         Bin.add_bin_dir_to_syspath()
         print(f"KMHELPERS_BIN_PATH={Bin.get_bin_dir()}")
@@ -39,7 +39,7 @@ class Bin:
                 "Main.init() must be called at program startup before using get_bin_dir()"
             )
         return Toolbox.get_canonical_path(os.environ["KMHELPERS_BIN_PATH"])
-    
+
     ####################################################
     @staticmethod
     def get_bin_path(binary):
@@ -48,7 +48,9 @@ class Bin:
     ####################################################
     @staticmethod
     def add_bin_dir_to_syspath():
-         os.environ['PATH'] = f"{Bin.get_bin_dir()}{os.pathsep}{os.environ.get('PATH', '')}"
+        os.environ["PATH"] = (
+            f"{Bin.get_bin_dir()}{os.pathsep}{os.environ.get('PATH', '')}"
+        )
 
     ####################################################
     @staticmethod
@@ -228,7 +230,9 @@ class Toolbox:
                     print(f"2: {line}")
 
         if result.returncode != 0:
-            raise subprocess.SubprocessError(f"Command {cmd[0]} returned code {result.returncode}\nLog: {result.stderr}")
+            raise subprocess.SubprocessError(
+                f"Command {cmd[0]} returned code {result.returncode}\nLog: {result.stderr}"
+            )
 
         return result.stdout
 
@@ -824,7 +828,16 @@ class Kmindex:
             return
 
         return Toolbox.run_cmd(
-            [Bin.kmindex(), "register", "-i", output_dir, "-p", input_dir, "-n", index_id]
+            [
+                Bin.kmindex(),
+                "register",
+                "-i",
+                output_dir,
+                "-p",
+                input_dir,
+                "-n",
+                index_id,
+            ]
         )
 
     ####################################################
@@ -1233,7 +1246,19 @@ class BlockCompressorZSTD:
 
     ####################################################
     @staticmethod
-    def compress_matrix(*args):
+    def compress_matrix(
+        input_matrix_path: str,
+        matrix_columns_count: int,
+        permutation_path: str,
+        output_compressed_path: str,
+        config_path: str,
+        output_metric_path: str = "",
+        block_size: int = 8388608,
+        group_size: int = 0,
+        subsample_size: int = 0,
+        threshold: int = 0,
+        disable_reorder: bool = False,
+    ):
         """
         Run the BlockCompressorZSTD compression script with the specified arguments.
         Args:
@@ -1241,7 +1266,54 @@ class BlockCompressorZSTD:
         Returns:
             Output of the compression script.
         """
-        return Toolbox.run_cmd([Bin.reorderer()] + list(args))
+
+        # Check input_matrix_path exists
+        if not os.path.exists(input_matrix_path):
+            raise FileNotFoundError(f"Input matrix file not found: {input_matrix_path}")
+
+        if matrix_columns_count <= 0:
+            raise ValueError("Matrix columns count must be greater than zero")
+
+        cmd = [
+            Bin.reorderer(),
+            "-i",
+            input_matrix_path,
+            "-c",
+            str(matrix_columns_count),
+            "--header",
+            "49",
+        ]
+
+        if group_size > 0:
+            cmd.extend(["-g", str(group_size)])
+
+        if subsample_size > 0:
+            cmd.extend(["-s", str(subsample_size)])
+
+        if block_size > 0:
+            cmd.extend(["-b", str(block_size)])
+
+        if disable_reorder:
+            cmd.append("-n")
+
+        if permutation_path:
+            cmd.extend(
+                ["-f" if os.path.isfile(permutation_path) else "-t", permutation_path]
+            )
+
+        if output_compressed_path:
+            cmd.extend(["-z", output_compressed_path])
+
+        if output_metric_path:
+            cmd.extend(["-j", output_metric_path])
+
+        if config_path:
+            cmd.extend(["--config-path", config_path])
+
+        if threshold > 0:
+            cmd.extend(["--threshold", str(threshold)])
+
+        return Toolbox.run_cmd(cmd)
 
     ####################################################
     @DeprecationWarning

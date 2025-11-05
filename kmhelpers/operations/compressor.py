@@ -54,37 +54,26 @@ class Compressor:
 
         if do_compress:
             print(f"Compress {input_matrix_path}...")
-            args = [
-                "-i",
+
+            if params.force_permutation:
+                permutation_path = ""
+
+            if not self.enable_metrics:
+                output_metric_path = ""
+
+            return BlockCompressorZSTD.compress_matrix(
                 input_matrix_path,
-                "--header",
-                "49",
-                "-c",
-                str(matrix_columns_count),
-                "-g",
-                str(params.group_size),
-                "-s",
-                str(params.subsample_size),
-                "-b",
-                str(params.block_size),
-            ]
-
-            if not params.force_permutation:
-                args.extend(["-f" if os.path.isfile(permutation_path) else "-t", permutation_path])
-
-            if output_compressed_path:
-                args.extend(["-z", output_compressed_path])
-
-            if self.enable_metrics and output_metric_path:
-                args.extend(["-j", output_metric_path])
-
-            if config_path:
-                args.extend(["--config-path", config_path])
-
-            if params.threshold > 0:
-                args.extend(["--threshold", str(params.threshold)])
-
-            return BlockCompressorZSTD.compress_matrix(*args)
+                matrix_columns_count,
+                permutation_path,
+                output_compressed_path,
+                config_path,
+                output_metric_path,
+                params.block_size,
+                params.group_size,
+                params.subsample_size,
+                params.threshold,
+                False,
+            )
 
     def compress_full_index(
         self, params: CompressionParams, idx: KmtricksIndex, output_dir: str = ""
@@ -138,7 +127,10 @@ class Compressor:
                 str(json_path),
             )
         except:
-            print(f"FATAL: Could not compress reference matrix {ref_matrix}", file=sys.stderr)
+            print(
+                f"FATAL: Could not compress reference matrix {ref_matrix}",
+                file=sys.stderr,
+            )
             raise
 
         # Other matrices
