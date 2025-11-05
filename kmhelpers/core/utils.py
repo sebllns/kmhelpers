@@ -210,26 +210,27 @@ class Toolbox:
 
     ####################################################
     @staticmethod
-    def run_cmd(cmd: list):
+    def run_cmd(cmd: list, trace: bool = True):
         """
         Run a command using subprocess and capture its output.
         """
+        if trace:
+            print("Running command:", *cmd)
 
-        print("Running command:", *cmd)
         result = subprocess.run(
             [str(arg) for arg in cmd], capture_output=True, text=True
         )
 
-        for line in result.stdout.strip().split("\n"):
-            if line:
-                print(f"1: {line}")
-        for line in result.stderr.strip().split("\n"):
-            if line:
-                print(f"2: {line}")
+        if trace:
+            for line in result.stdout.strip().split("\n"):
+                if line:
+                    print(f"1: {line}")
+            for line in result.stderr.strip().split("\n"):
+                if line:
+                    print(f"2: {line}")
 
         if result.returncode != 0:
-            print(f"error_code={result.returncode}")
-            return result.stderr
+            raise subprocess.SubprocessError(f"Command {cmd[0]} returned code {result.returncode}\nLog: {result.stderr}")
 
         return result.stdout
 
@@ -727,7 +728,7 @@ class Kmindex:
         """
         return os.path.join(
             Kmindex.get_matrix_dir(index_path),
-            f"blocks{partition}" if is_compressed else f"matrix_{partition}.cmbf",
+            f"blocks_{partition}" if is_compressed else f"matrix_{partition}.cmbf",
         )
 
     ####################################################

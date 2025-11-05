@@ -13,8 +13,8 @@ from kmhelpers.operations.compressor import Compressor, CompressionParams
 
 def main():
 
-    short_hash = subprocess.check_output(['git', 'rev-parse', '--short=7', 'HEAD']).decode('ascii').strip()
-    print(f"commit={short_hash}") 
+    # short_hash = subprocess.check_output(['git', 'rev-parse', '--short=7', 'HEAD']).decode('ascii').strip()
+    # print(f"commit={short_hash}") 
 
     # Initialize kmhelpers environment
     print("Initializing kmhelpers...")
@@ -28,7 +28,7 @@ def main():
     index_id = "SYNTHETIC_ROD_10" 
 
     ref_matrix = 1  # Reference matrix partition number
-    matrix_list = []  # List of matrix partitions to compress
+    matrix_list = [7, 12, 123, 541]  # List of matrix partitions to compress
 
     # Compression parameters
     params = CompressionParams(
@@ -47,10 +47,11 @@ def main():
 
     # Compress selection
     compressor = Compressor(enable_metrics=True)
-    compressor.compress_index_selection(params, idx, ref_matrix, matrix_list)
+    compressor.compress_index_selection(params, idx, ref_matrix, matrix_list) 
+    print(f"Inplace compression completed for index {index_id}")
 
-    print(f"Compression completed for index {index_id}")
-
+    compressor.compress_index_selection(params, idx, ref_matrix, matrix_list, os.path.join(index_root, "compression")) 
+    print(f"External compression completed for index {index_id}")
 
 if __name__ == "__main__":
     main()

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import os
 from pathlib import Path
 from kmhelpers.core.index import KmtricksIndex, IndexCompressionState
-from kmhelpers.core.utils import Kmindex, BlockCompressorZSTD
+from kmhelpers.core.utils import Toolbox, Kmindex, BlockCompressorZSTD
 
 
 @dataclass
@@ -109,56 +109,66 @@ class Compressor:
         matrix_list: list[int] = [],
         output_dir: str = "",
     ):
-        metrics_path = Path(idx.metrics_dir_path)
 
-        if output_dir:
-            Path(output_dir).mkdir(parents=True, exist_ok=True)
-            Path(output_dir, "metrics").mkdir(parents=True, exist_ok=True)
-            Path(output_dir, "matrices").mkdir(parents=True, exist_ok=True)
-            metrics_path = Path(output_dir, "metrics")
+        if not output_dir:
+            output_dir = idx.dir_path
 
-        # Reference matrix
+        output_dir = Toolbox.get_canonical_path(output_dir)
+
+        metrics_path = Path(output_dir, "metrics")
+        matrices_path = Path(output_dir, "matrices")
+        permutation_path = Path(output_dir, "permutation.bin")
+        config_path = Path(output_dir, "config.cfg")
+
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        matrices_path.mkdir(parents=True, exist_ok=True)
+
         if self.enable_metrics:
             metrics_path.mkdir(parents=False, exist_ok=True)
 
-        compressed_path = (
-            Kmindex.get_matrix_path(
-                index_path=output_dir, partition=ref_matrix, is_compressed=True
+        # Reference matrix
+        compressed_path = Kmindex.get_matrix_path(
+            index_path=output_dir, partition=ref_matrix, is_compressed=True
+        )
+        json_path = str(metrics_path / "ref.json") if self.enable_metrics else ""
+
+        try:
+            self.compress_file(
+                params,
+                idx.get_matrix_path(ref_matrix, False),
+                idx.nb_samples,
+                str(permutation_path),
+                compressed_path,
+                str(config_path),
+                str(json_path),
             )
-            if output_dir
-            else idx.get_matrix_path(partition=ref_matrix, is_compressed=True)
-        )
-        self.compress_file(
-            params,
-            idx.get_matrix_path(ref_matrix, False),
-            idx.nb_samples,
-            idx.permutation_path,
-            compressed_path,
-            idx.get_path_inside_index("config.cfg"),
-            (str(metrics_path / "ref.json") if self.enable_metrics else ""),
-        )
+        except:
+            print(f"FATAL: Could not compress reference matrix {ref_matrix}")
+            raise
 
         # Other matrices
         for i in matrix_list:
-            compressed_path = (
-                Kmindex.get_matrix_path(
-                    index_path=output_dir, partition=i, is_compressed=True
+            compressed_path = Kmindex.get_matrix_path(
+                index_path=output_dir, partition=i, is_compressed=True
+            )
+            json_path = (
+                str(metrics_path / f"{compressed_path}.json")
+                if self.enable_metrics
+                else ""
+            )
+            try:
+                self.compress_file(
+                    params,
+                    idx.get_matrix_path(i, False),
+                    idx.nb_samples,
+                    str(permutation_path),
+                    compressed_path,
+                    str(config_path),
+                    json_path,
                 )
-                if output_dir
-                else idx.get_matrix_path(partition=i, is_compressed=True)
-            )
-            self.compress_file(
-                params,
-                idx.get_matrix_path(i, True),
-                idx.nb_samples,
-                idx.permutation_path,
-                compressed_path,
-                idx.get_path_inside_index("config.cfg"),
-                (
-                    str(metrics_path / f"{compressed_path}.json")
-                    if self.enable_metrics
-                    else ""
-                ),
-            )
+            except Exception as error:
+                print(f"ERROR: Could not compress matrix {i}")
+                print(error)
 
-        idx.compress_state = IndexCompressionState.BOTH
+        if output_dir == idx.dir_path:
+            idx.compress_state = IndexCompressionState.BOTH
