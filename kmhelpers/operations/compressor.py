@@ -5,7 +5,7 @@ from pathlib import Path
 from kmhelpers.core.index import KmtricksIndex, IndexCompressionState
 from kmhelpers.core.utils import Toolbox, Kmindex, BlockCompressorZSTD
 from enum import Enum
-
+import filecmp
 
 class PermutationFlag(Enum):
     PERMUTATION_ENABLED = 0
@@ -179,7 +179,9 @@ class Compressor:
         if do_compress:
             print(f"Compress {input_matrix_path}...")
 
-            BlockCompressorZSTD.compress_matrix(
+            # TODO
+           # tmp_file = output_compressed_path + ".tmp"
+            BlockCompressorZSTD.compress(
                 input_matrix_path,
                 matrix_columns_count,
                 permutation_path,
@@ -192,9 +194,18 @@ class Compressor:
                 params.threshold,
                 disable_permutation,
             )
+    
+            assert os.path.isfile(output_compressed_path), f"{output_compressed_path} not found"
+            assert os.path.isfile(output_compressed_path + ".ef"), f"{output_compressed_path}.ef not found"
 
-            assert os.path.isfile(output_compressed_path), ""
-            assert os.path.isfile(output_compressed_path + ".ef"), ""
+            if params.enable_check:
+                tmp_file = f"{output_compressed_path}_tmp"
+                BlockCompressorZSTD.decompress(output_compressed_path, matrix_columns_count, tmp_file, config_path)
+                assert os.path.isfile(tmp_file), f"{tmp_file} not found"
+                BlockCompressorZSTD.reverse_permutation(tmp_file, matrix_columns_count, permutation_path)
+                assert filecmp.cmp(input_matrix_path, tmp_file, shallow=False), "Could not reverse permutation"
+                os.remove(tmp_file)
+
 
     def compress_partition(
         self,

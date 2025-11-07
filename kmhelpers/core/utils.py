@@ -1078,7 +1078,7 @@ class BlockCompressorZSTD:
 
     ####################################################
     @staticmethod
-    def compress_matrix(
+    def compress(
         input_matrix_path: str,
         matrix_columns_count: int,
         permutation_path: str,
@@ -1144,5 +1144,53 @@ class BlockCompressorZSTD:
 
         if threshold > 0:
             cmd.extend(["--threshold", str(threshold)])
+
+        return Toolbox.run_cmd(cmd)
+
+    ####################################################
+    @staticmethod
+    def decompress(
+        input: str,
+        matrix_columns_count: int,
+        output: str,
+        config_path: str,
+    ):
+        # Check input_matrix_path exists
+        if not os.path.exists(input):
+            raise FileNotFoundError(f"Input matrix file not found: {input}")
+
+        if matrix_columns_count <= 0:
+            raise ValueError("Matrix columns count must be greater than zero")
+
+        cmd = [
+            Bin.decompressor(),
+            config_path,
+            input,
+            BlockCompressorZSTD.get_ef_path(input),
+            "49",
+            output,
+        ]
+
+        return Toolbox.run_cmd(cmd)
+
+    ####################################################
+    @staticmethod
+    def reverse_permutation(
+        input_matrix_path: str,
+        matrix_columns_count: int,
+        permutation_path: str,
+    ):
+        cmd = [
+            Bin.reorderer(),
+            "-i",
+            input_matrix_path,
+            "-f",
+            permutation_path,
+            "-c",
+            str(matrix_columns_count),
+            "--header",
+            "49",
+            "-r",
+        ]
 
         return Toolbox.run_cmd(cmd)
