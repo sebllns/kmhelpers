@@ -14,10 +14,11 @@ import shutil
 class Main:
     ####################################################
     @staticmethod
-    def init(path="./bin"):
-        Bin.set_default_bin_path(path)
+    def init(default_bin_path="./bin"):
+        Bin.set_default_bin_path(default_bin_path)
         Bin.add_bin_dir_to_syspath()
         print(f"KMHELPERS_BIN_PATH={Bin.get_bin_dir()}")
+        os.makedirs(Bin.get_bin_dir(), exist_ok=True)
         Bin.check_all()
 
 
@@ -30,6 +31,16 @@ class Bin:
     @staticmethod
     def set_default_bin_path(path):
         os.environ.setdefault("KMHELPERS_BIN_PATH", Toolbox.get_canonical_path(path))
+
+    ####################################################
+    @staticmethod
+    def fetch(binary, path):
+        """"""
+        bin_path = Bin.get_bin_path(binary)
+        if not os.path.isfile(bin_path):
+            assert os.path.isfile(path), f"Binary not found: {path}"
+            print(f"Linking {path} to {bin_path}")
+            os.symlink(path, bin_path)
 
     ####################################################
     @staticmethod
@@ -60,33 +71,27 @@ class Bin:
     ####################################################
     @staticmethod
     def compressor():
-        return "block_compressor"
+        return "block_compressor_bin"
 
     ####################################################
     @staticmethod
     def decompressor():
-        return "block_decompressor"
+        return "block_decompressor_bin"
 
     ####################################################
     @staticmethod
     def reorderer():
-        return "bitmatrix_shuffle"
+        return "main_bitmatrixshuffle"
 
     ####################################################
     @staticmethod
-    def check_bin(binary_path):
-        if not os.path.isfile(binary_path):
-            print(f"Warning: {binary_path} not found")
-        elif not os.access(binary_path, os.X_OK):
-            print(f"Warning: {binary_path} exists but is not executable")
+    def check_bin(binary_name):
+        if not shutil.which(binary_name):
+            print(f"Warning: {binary_name} command not found in PATH")
 
     ####################################################
     @staticmethod
     def check_all():
-        bin_path = Bin.get_bin_dir()
-        if not os.path.isdir(bin_path):
-            raise NotADirectoryError(f"Binaries directory not found: {bin_path}")
-
         binaries = [
             Bin.kmindex(),
             Bin.reorderer(),
@@ -94,13 +99,8 @@ class Bin:
             Bin.decompressor(),
         ]
 
-        missing_binaries = []
         for binary in binaries:
-            if shutil.which(binary) is None:
-                print(f"Warning: {binary} not found in PATH")
-                missing_binaries.append(binary)
-
-        return missing_binaries
+            Bin.check_bin(binary)
 
 
 #########################################################
@@ -112,7 +112,12 @@ class Toolbox:
 
     ####################################################
     @staticmethod
-    def save_to_json_file(data, filename, pretty=True):
+    def get_size(filename):
+        return os.stat(filename).st_size
+
+    ####################################################
+    @staticmethod
+    def json_serialize(data, filename, pretty=True):
         """
         Save JSON data directly to a file.
 
@@ -673,12 +678,9 @@ class Kmindex:
     ####################################################
     @staticmethod
     def get_bytes_per_matrix(index_path, partition, is_compressed=False):
-        size = os.path.getsize(
-            Kmindex.get_matrix_path(index_path, partition, is_compressed)
+        return BlockCompressorZSTD.get_file_byte_size(
+            Kmindex.get_matrix_path(index_path, partition, is_compressed), is_compressed
         )
-        if is_compressed:
-            size += os.path.getsize(Kmindex.get_ef_path(index_path, partition))
-        return size
 
     ####################################################
     @staticmethod
@@ -736,7 +738,9 @@ class Kmindex:
     ####################################################
     @staticmethod
     def get_ef_path(index_path, partition):
-        return Kmindex.get_matrix_path(index_path, partition, True) + ".ef"
+        return BlockCompressorZSTD.get_ef_path(
+            Kmindex.get_matrix_path(index_path, partition, True)
+        )
 
     ####################################################
     @staticmethod
@@ -1024,196 +1028,10 @@ class Kmindex:
         return val1 == val2
 
 
-#########################################################
-# BitmatrixShuffle class
-# Contains methods for handling matrix reordering operations
-########################################################
-class BitmatrixShuffle:
-    """Helper class for BitmatrixShuffle (reorder) operations."""
-
-    ####################################################
-    @staticmethod
-    def parse_ordering_output(lines):
-        """
-        Parse the bloom matrix reordering output into structured JSON format.
-
-        Args:
-            output_text (str): The raw output text from the bitmatrixshuffle processing program
-
-        Returns:
-            dict: Parsed data in the specified JSON structure
-        """
-        result = {}
-        matrix_durations = []
-
-        # Parse parameters section
-        for i, line in enumerate(lines):
-            line = line.strip()
-
-            # Extract basic parameters
-            if line.startswith("Index name:"):
-                result["index_name"] = line.split(":", 1)[1].strip()
-            elif line.startswith("Samples:"):
-                result["samples"] = int(line.split(":", 1)[1].strip())
-            elif line.startswith("Group size:"):
-                result["group_size"] = int(line.split(":", 1)[1].strip())
-            elif line.startswith("Subsampled rows:"):
-                result["subsampled_rows"] = int(line.split(":", 1)[1].strip())
-            elif line.startswith("Block size:"):
-                result["block_size"] = int(line.split(":", 1)[1].strip())
-            elif line.startswith("Rows per block:"):
-                result["rows_per_block"] = int(line.split(":", 1)[1].strip())
-            elif line.startswith("Number of blocks:"):
-                result["number_of_blocks"] = int(line.split(":", 1)[1].strip())
-
-            # Extract reference matrix number
-            elif line.startswith("Transpose submatrix from reference submatrix"):
-                # Extract matrix number from path like '/tmp/data/index_1/reordered_GENOMIC_HUMAN_19/matrices/matrix_171.cmbf'
-                matrix_match = re.search(r"matrix_(\d+)\.cmbf", line)
-                if matrix_match:
-                    result["reference_matrix"] = int(matrix_match.group(1))
-
-            # Extract VPTree & NN path duration
-            elif line.startswith("VPTree & NN path:"):
-                duration_str = line.split(":", 1)[1].strip().replace("s", "")
-                result["vptree_nn_duration"] = float(duration_str)
-
-            # Extract matrix reordering durations
-            elif line.startswith("Reordering matrix"):
-                # The duration is on the next line
-                if i + 1 < len(lines):
-                    next_line = lines[i + 1].strip()
-                    duration_match = re.search(r"(\d+\.?\d*)s", next_line)
-                    if duration_match:
-                        duration = float(duration_match.group(1))
-                        matrix_durations.append(duration)
-
-        # Add matrix ordering data
-        result["matrix_ordering_duration"] = matrix_durations
-        result["total_ordering_duration"] = sum(matrix_durations)
-
-        return result
-
-    ####################################################
-    @staticmethod
-    def reorder_index(output_register_dir, index_id, subsamples_rows):
-
-        sample_count = Kmindex.get_sample_count(output_register_dir, index_id)
-        matrix_byte_size = Kmindex.get_bytes_per_matrix(
-            Kmindex.get_index_path(output_register_dir, index_id), 1, False
-        )
-        row_byte_size = Kmindex.get_bytes_per_row(sample_count)
-        header_byte_size = Kmindex.get_header_byte_size()
-
-        row_count = Kmindex.get_row_count(
-            matrix_byte_size, row_byte_size, header_byte_size
-        )
-
-        print(
-            f"row_count=({matrix_byte_size} - {header_byte_size}) / {row_byte_size} = {row_count}"
-        )
-
-        if subsamples_rows > row_count:
-            subsamples_rows = row_count
-            print(
-                f"Warning: subsamples_rows exceeds max rows {row_count}, using {row_count} instead."
-            )
-
-        # Make divisible by 8 (round down)
-        if subsamples_rows % 8 != 0:
-            original_subsamples = subsamples_rows
-            subsamples_rows = (subsamples_rows // 8) * 8
-            print(
-                f"Warning: subsamples_rows adjusted from {original_subsamples} to {subsamples_rows} (divisible by 8)."
-            )
-
-        # Use queues to collect output from threads
-        stdout_queue = queue.Queue()
-        stderr_queue = queue.Queue()
-
-        def read_stream(stream, prefix, output_queue):
-            for line in stream:
-                line_stripped = line.rstrip()
-                print(f"{prefix} {line_stripped}")  # LIVE OUTPUT IN CONSOLE
-                output_queue.put(line_stripped)
-            output_queue.put(None)  # Signal end of stream
-
-        try:
-            print("Starting subprocess...")
-
-            cmd = [
-                Bin.reorderer(),
-                "-i",
-                output_register_dir,
-                "-n",
-                index_id,
-                "-s",
-                str(subsamples_rows),
-            ]
-
-            print(f"Running command: {' '.join(cmd)}")
-
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-            )
-
-            # Start threads to read both streams
-            stdout_thread = threading.Thread(
-                target=read_stream, args=(process.stdout, "     1:", stdout_queue)
-            )
-            stderr_thread = threading.Thread(
-                target=read_stream, args=(process.stderr, "     2:", stderr_queue)
-            )
-
-            stdout_thread.start()
-            stderr_thread.start()
-
-            # Wait for process to complete
-            return_code = process.wait()
-
-            # Wait for all output to be read
-            stdout_thread.join()
-            stderr_thread.join()
-
-            # Collect all output from queues
-            stdout_lines = []
-            stderr_lines = []
-
-            while True:
-                line = stdout_queue.get()
-                if line is None:
-                    break
-                stdout_lines.append(line)
-
-            while True:
-                line = stderr_queue.get()
-                if line is None:
-                    break
-                stderr_lines.append(line)
-
-            print(f"Process completed with return code: {return_code}")
-
-            return {
-                "returncode": return_code,
-                "stdout": stdout_lines,
-                "stderr": stderr_lines,
-            }
-
-        except Exception as e:
-            print(f"Error: {e}")
-            return None
-
-
 ##########################################################
 # BlockCompressorZSTD class
 # Contains methods for handling matrix compression operations
 ##########################################################
-
-
 class BlockCompressorZSTD:
     """Helper class for BlockCompressorZSTD (compression) operations."""
 
@@ -1243,6 +1061,20 @@ class BlockCompressorZSTD:
             f.write("preset = 3\n")  # Default Zstd preset
 
         return rows
+
+    ####################################################
+    @staticmethod
+    def get_ef_path(path: str):
+        return path + ".ef"
+
+    ####################################################
+    @staticmethod
+    def get_file_byte_size(path: str, is_compressed: bool):
+        return Toolbox.get_size(path) + (
+            Toolbox.get_size(BlockCompressorZSTD.get_ef_path(path))
+            if is_compressed
+            else 0
+        )
 
     ####################################################
     @staticmethod
@@ -1314,103 +1146,3 @@ class BlockCompressorZSTD:
             cmd.extend(["--threshold", str(threshold)])
 
         return Toolbox.run_cmd(cmd)
-
-    ####################################################
-    @DeprecationWarning
-    @staticmethod
-    def compress_index(input_dir, output_dir, index_id, full_check_enabled=True):
-        """
-        Compress the matrices of a given index using BlockCompressorZSTD.
-        Args:
-            input_dir (str): Path to the input directory containing the index to compress.
-            index_id (str): The ID of the index to compress.
-            full_check_enabled (bool): Whether to perform full validation checks before compression.
-        Returns:
-            None
-        Raises:
-            FileNotFoundError: If input_dir or output_dir does not exist.
-            NotADirectoryError: If input_dir or output_dir is not a directory.
-            FileNotFoundError: If index.json does not exist in input_dir.
-            NotADirectoryError: If the specified index does not exist in input_dir.
-        """
-
-        raise NotImplementedError("Deprecated... Use class Compressor instead")
-
-        input_dir = Toolbox.get_canonical_path(input_dir)
-        output_dir = Toolbox.get_canonical_path(output_dir)
-
-        if not os.path.isdir(input_dir):
-            raise NotADirectoryError(
-                f"Input directory {input_dir} does not exist or is not a directory"
-            )
-
-        if not os.path.isdir(output_dir):
-            raise NotADirectoryError(
-                f"Output directory {output_dir} does not exist or is not a directory"
-            )
-
-        input_index_path = Kmindex.get_index_path(input_dir, index_id)
-        output_index_path = Kmindex.get_index_path(output_dir, index_id)
-
-        if not Kmindex.b_json_exists(input_dir):
-            raise FileNotFoundError(f"index.json not found in {input_dir}")
-
-        if not Kmindex.b_index_exists(input_dir, index_id):
-            raise NotADirectoryError(
-                f"Index ID {index_id} does not exist in input directory {input_dir}"
-            )
-
-        if not os.path.isdir(Kmindex.get_matrix_dir(input_index_path)):
-            raise NotADirectoryError(
-                f"Input directory {input_index_path} does not contain a matrices subdirectory"
-            )
-
-        if not os.path.isdir(Kmindex.get_matrix_dir(output_index_path)):
-            raise NotADirectoryError(
-                f"Output directory {output_index_path} does not contain a matrices subdirectory"
-            )
-
-        if full_check_enabled:
-            Kmindex.validate_index_ids(
-                [index_id],
-                Kmindex.read_index_ids_from_json(Kmindex.get_json_path(input_dir)),
-            )
-            Kmindex.check_index_structure(input_index_path)
-
-        # if os.path.exists(output_index_path):
-        #     raise FileExistsError(
-        #         f"Output index path {output_index_path} already exists"
-        # )
-
-        nb_samples = Kmindex.read_index_value(input_dir, index_id, "nb_samples")
-        np_partitions = Kmindex.read_index_value(input_dir, index_id, "nb_partitions")
-
-        config_file_path = os.path.join(output_index_path, "config.cfg")
-        BlockCompressorZSTD.create_config_file(nb_samples, config_file_path)
-
-        for partition in range(np_partitions):
-            print(f"Compressing partition {partition}...")
-
-            original_path = Kmindex.get_matrix_path(output_index_path, partition)
-            compressed_path = Kmindex.get_matrix_path(
-                output_index_path, partition, is_compressed=True
-            )
-
-            res = BlockCompressorZSTD.compress_matrix(
-                original_path,
-                config_file_path,
-                Kmindex.get_header_byte_size(),
-                compressed_path,
-            )
-
-            original_size = os.path.getsize(original_path)
-            compressed_size = os.path.getsize(compressed_path)
-
-            if compressed_size >= original_size:
-                print(
-                    f"Warning: Compressed file ({compressed_size} bytes) is not smaller than original ({original_size} bytes) for partition {partition}"
-                )
-
-            os.remove(original_path)
-
-            print(res)

@@ -116,7 +116,7 @@ def main():
         with open(os.path.join(query_output, ".cmd_output.log"), "w") as f:
             f.write(km_output)
 
-        kmhelpers.Toolbox.save_to_json_file(
+        kmhelpers.Toolbox.json_serialize(
             km_monitor, os.path.join(query_output, args.report)
         )
 

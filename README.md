@@ -15,7 +15,7 @@ A Python toolkit for managing, compressing, and querying k-mer indices efficient
 
 - 🗂️ **Object-oriented index management** with properties and metadata
 - 🗜️ **ZSTD-based compression** with configurable block sizes
-- 🔄 **Intelligent row reordering** using VP-tree nearest neighbor clustering
+- 🔄 **Intelligent column reordering** using VP-tree nearest neighbor clustering
 - 📊 **Resource monitoring** (CPU, memory, execution time)
 - 🔍 **Query system** with FASTA/FASTQ support
 - 📈 **Compression metrics** with histograms and performance tracking
@@ -53,7 +53,7 @@ You need the following external binaries in a `bin/` directory:
 - `kmindex`: Core indexing tool
 - `block_compressor`: Matrix compression tool
 - `block_decompressor`: Decompression tool
-- `bitmatrix_shuffle`: Row reordering algorithm
+- `bitmatrix_shuffle`: Column reordering algorithm
 
 ### Install from source
 
@@ -110,22 +110,33 @@ for idx in registry:
 ### 3. Compression workflow
 
 ```python
-from kmhelpers import Compressor, CompressionParams
+from kmhelpers import Compressor, CompressionParams, PermutationFlag
 
 # Create compression parameters
 params = CompressionParams(
-    block_size=8388608,      # 8MB blocks
-    group_size=0,            # Auto-calculate
-    subsample_size=20000,    # Rows to sample for clustering
+    block_size=8388608,           # 8MB blocks
+    group_size=0,                 # All columns
+    subsample_size=20000,         # Rows to sample for computing distances
     threshold=0.0,
-    enable_overwrite=False
+    enable_overwrite=False,
+    with_size_comparison=True     # Enable size comparison CSV
 )
 
-# Initialize compressor
+# Initialize compressor with metrics
 compressor = Compressor(enable_metrics=True)
 
-# Compress an index
-compressor.compress_index(params, index)
+# Compress all partitions of an index
+compressor.compress_full_index(params, index, output_dir="/path/to/output")
+
+# Or compress selected partitions
+compressor.compress_index_selection(
+    params,
+    index,
+    ref_matrix=1,                          # Reference partition for permutation
+    matrix_list=[2, 3, 4],                 # Other partitions to compress
+    permutation_flag=PermutationFlag.PERMUTATION_ENABLED,
+    compare_unordered=True                 # Compare with unordered compression
+)
 ```
 
 ### 4. Query an index
@@ -156,20 +167,27 @@ print(f"Peak memory: {resource_stats['max_memory_mb']}MB")
 
 A k-mer index consists of:
 - **Partitions**: 256 matrix files (default) splitting k-mer space
-- **Matrices**: Bit matrices where rows = k-mers, columns = samples
+- **Matrices**: Bit matrices (Bloom Filters) where rows = k-mers, columns = samples  
+Each row is a bit vector indicating k-mer presence across samples  
 - **Metadata**: Stored in `index.json` with sample counts, parameters, etc.
-
-Each matrix file has:
-- **Header**: 49 bytes of metadata
-- **Rows**: Each row is a bit vector indicating k-mer presence across samples
-- **Bytes per row**: `(nb_samples + 7) // 8`
 
 ### Compression Pipeline
 
-1. **Reordering**: Group similar rows together using VP-tree clustering
-2. **Blocking**: Split matrix into fixed-size blocks
-3. **Compression**: Apply ZSTD compression to each block
-4. **Metrics**: Track histogram changes and compression ratios
+The compression workflow consists of:
+
+1. **Reference Selection**: Choose one partition as the reference matrix
+2. **Permutation Computation**: Analyze the reference matrix to find optimal column (sample) ordering using VP-tree clustering
+3. **Reference Compression**: Compress the reference matrix with the computed column permutation
+4. **Permutation Application**: Apply the same column permutation to other partitions
+5. **Block Compression**: Split matrices into fixed-size blocks and compress with ZSTD
+6. **Metrics Collection**: Track compression ratios, histograms, and optional size comparisons
+
+**Key Features:**
+- Single column permutation computed from reference matrix, applied to all partitions
+- Reorders columns (samples) to group similar patterns together for better compression
+- Optional size comparison between ordered and unordered compression
+- Detailed metrics in JSON format for each partition
+- CSV summary with original, ordered, and optionally unordered sizes
 
 ### Index Registry
 
@@ -259,17 +277,32 @@ Methods:
 ### Operations
 
 #### `Compressor`
-- `compressor.compute_permutation(...)`: Calculate row reordering
-- `compressor.compress_index(params, index)`: Compress entire index
+
+The `Compressor` class provides methods for compressing k-mer indices with optional permutation-based reordering:
+
+**Methods:**
+- `compress_file(params, input_matrix_path, matrix_columns_count, ...)`: Compress a single matrix file
+- `compress_partition(params, idx, partition, ...)`: Compress a single partition with size comparison
+- `compress_index_selection(params, idx, ref_matrix, matrix_list, ...)`: Compress selected partitions
+- `compress_full_index(params, idx, output_dir)`: Compress all partitions of an index
+
+**Features:**
+- Permutation-based column reordering for improved compression ratios
+- Optional size comparison between ordered and unordered compression
+- Metrics collection in JSON format
+- CSV reports for compression statistics
+- Configurable reference partition for permutation computation
 
 #### `CompressionParams`
 Configuration dataclass with fields:
 - `block_size`: Bytes per compression block (default: 8388608)
 - `group_size`: Grouping parameter (default: 0 = auto)
-- `subsample_size`: Rows to sample for clustering (default: 20000)
+- `subsample_size`: Rows to sample for distance calcultation (default: 20000)
 - `threshold`: Compression threshold (default: 0.0)
 - `enable_check`: Validate before compression
 - `enable_overwrite`: Overwrite existing files
+- `with_size_comparison`: Enable size comparison reporting (default: True)
+- `force_permutation`: Force permutation computation (default: False)
 
 ### Metrics
 
@@ -335,10 +368,10 @@ for query_file in queries:
         print(f"{query_name}: {stats['execution_time_ms']}ms")
 ```
 
-### Example 3: Compression with Metrics
+### Example 3: Compression with Metrics and Size Comparison
 
 ```python
-from kmhelpers import Main, IndexRegistry, Compressor, CompressionParams
+from kmhelpers import Main, IndexRegistry, Compressor, CompressionParams, PermutationFlag
 
 Main.init()
 
@@ -348,28 +381,39 @@ index = registry.get_index("my_index")
 params = CompressionParams(
     block_size=8388608,
     subsample_size=50000,
-    enable_overwrite=False
+    enable_overwrite=False,
+    with_size_comparison=True  # Generate sizes.csv
 )
 
 compressor = Compressor(enable_metrics=True)
 
-# Compute permutation for first partition
-compressor.compute_permutation(
+# Compress with size comparison
+output_dir = "/data/compressed"
+compressor.compress_index_selection(
     params,
-    input_matrix_path=index.get_matrix_path(0),
-    matrix_columns_count=index.nb_samples,
-    output_permutation_path="/data/perms/perm_0.txt",
-    output_compressed_path="/data/compressed/matrix_0.zst",
-    output_metric_path="/data/metrics/metrics_0.json"
+    index,
+    ref_matrix=1,
+    matrix_list=list(range(2, 10)),  # Compress partitions 2-9
+    output_dir=output_dir,
+    permutation_flag=PermutationFlag.PERMUTATION_ENABLED,
+    compare_unordered=True  # Also compress without ordering for comparison
 )
+
+# Results will be in:
+# - /data/compressed/matrices/*.zst (compressed matrices)
+# - /data/compressed/permutation.bin (permutation file)
+# - /data/compressed/metrics/*.json (compression metrics)
+# - /data/compressed/metrics/sizes.csv (size comparison data)
 ```
 
 ## Performance Tips
 
 1. **Subsampling**: Use larger `subsample_size` for better reordering (slower but better compression)
 2. **Block size**: Larger blocks = better compression, more memory usage
-3. **Partitions**: Process partitions in parallel for faster compression
-4. **Monitoring**: Disable monitoring for production to reduce overhead
+3. **Reference Matrix**: Choose a representative partition as reference for best permutation quality
+4. **Partitions**: Process partitions in parallel for faster compression
+5. **Monitoring**: Disable monitoring for production to reduce overhead
+6. **Size Comparison**: Disable `with_size_comparison` and `compare_unordered` in production for faster compression
 
 ## Troubleshooting
 
@@ -396,14 +440,6 @@ from kmhelpers import Kmindex
 Kmindex.check_index_structure("/path/to/index", partition_count=256)
 ```
 
-## Contributing
-
-Contributions are welcome! Please:
-1. Follow the existing code structure
-2. Add unit tests for new features
-3. Update documentation
-4. Use type hints
-
 ## License
 
 [Add license information]
@@ -418,5 +454,5 @@ Contributions are welcome! Please:
 
 ---
 
-**Version**: 0.0.1
+**Version**: 0.2.0
 **Status**: Development
