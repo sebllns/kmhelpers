@@ -112,7 +112,7 @@ class Toolbox:
 
     ####################################################
     @staticmethod
-    def get_size(filename):
+    def get_size(filename: str) -> int:
         return os.stat(filename).st_size
 
     ####################################################
@@ -160,7 +160,7 @@ class Toolbox:
 
     ####################################################
     @staticmethod
-    def get_canonical_path(path):
+    def get_canonical_path(path: str) -> str:
         """
         Get the canonical absolute path of a given path.
 
@@ -174,7 +174,7 @@ class Toolbox:
 
     ####################################################
     @staticmethod
-    def get_basename(path):
+    def get_basename(path: str) -> str:
         """
         Get the base name of a given path.
 
@@ -188,7 +188,7 @@ class Toolbox:
 
     ####################################################
     @staticmethod
-    def get_script_dir():
+    def get_script_dir() -> str:
         return os.path.dirname(os.path.abspath(__file__))
 
     ####################################################
@@ -406,7 +406,7 @@ class Kmindex:
 
     ####################################################
     @staticmethod
-    def get_header_byte_size():
+    def get_header_byte_size() -> int:
         return 49
 
     ####################################################
@@ -674,7 +674,9 @@ class Kmindex:
 
     ####################################################
     @staticmethod
-    def get_row_count(matrix_byte_size, row_byte_size, header_byte_size):
+    def get_row_count(
+        matrix_byte_size: int, row_byte_size: int, header_byte_size: int
+    ) -> int:
         assert matrix_byte_size > 0
         assert row_byte_size > 0
         assert header_byte_size >= 0
@@ -682,29 +684,31 @@ class Kmindex:
 
     ####################################################
     @staticmethod
-    def get_bytes_per_matrix(index_path, partition, is_compressed=False):
+    def get_bytes_per_matrix(
+        index_path: str, partition: int, is_compressed: bool = False
+    ) -> int:
         return BlockCompressorZSTD.get_file_byte_size(
             Kmindex.get_matrix_path(index_path, partition, is_compressed), is_compressed
         )
 
     ####################################################
     @staticmethod
-    def get_bytes_per_row(sample_count):
+    def get_bytes_per_row(sample_count: int) -> int:
         return (sample_count + 7) // 8
 
     ####################################################
     @staticmethod
-    def get_partition_count(input_dir, index_id):
+    def get_partition_count(input_dir: str, index_id: str) -> int:
         return Kmindex.read_index_value(input_dir, index_id, "nb_partitions")
 
     ####################################################
     @staticmethod
-    def get_sample_count(input_dir, index_id):
+    def get_sample_count(input_dir: str, index_id: str) -> int:
         return Kmindex.read_index_value(input_dir, index_id, "nb_samples")
 
     ####################################################
     @staticmethod
-    def read_index_value(input_dir, index_id, key):
+    def read_index_value(input_dir: str, index_id: str, key: str) -> Any:
         index_json_path = Kmindex.get_json_path(input_dir)
         if not Kmindex.b_json_exists(input_dir):
             raise FileNotFoundError(f"index.json not found in {input_dir}")
@@ -723,7 +727,7 @@ class Kmindex:
     ####################################################
 
     @staticmethod
-    def get_matrix_dir(index_path):
+    def get_matrix_dir(index_path: str) -> str:
         """
         Constructs the directory path for a matrix based on the index path and partition number.
         """
@@ -731,7 +735,9 @@ class Kmindex:
 
     ####################################################
     @staticmethod
-    def get_matrix_path(index_path, partition, is_compressed=False):
+    def get_matrix_path(
+        index_path: str, partition: int, is_compressed: bool = False
+    ) -> str:
         """
         Constructs the path to a matrix file based on the index path and partition number.
         """
@@ -742,56 +748,56 @@ class Kmindex:
 
     ####################################################
     @staticmethod
-    def get_ef_path(index_path, partition):
+    def get_ef_path(index_path: str, partition: int) -> str:
         return BlockCompressorZSTD.get_ef_path(
             Kmindex.get_matrix_path(index_path, partition, True)
         )
 
     ####################################################
     @staticmethod
-    def get_compressed_files_path(index_path, partition):
+    def get_compressed_files_path(index_path: str, partition: int) -> Tuple[str, str]:
         return Kmindex.get_matrix_path(
             index_path, partition, True
         ), Kmindex.get_ef_path(index_path, partition)
 
     ####################################################
     @staticmethod
-    def get_index_path(root, index):
+    def get_index_path(root: str, index: str) -> str:
         return Toolbox.get_canonical_path(os.path.join(root, index))
 
     ####################################################
     @staticmethod
-    def get_path_inside_index(root, file):
+    def get_path_inside_index(root: str, file: str) -> str:
         return Toolbox.get_canonical_path(os.path.join(root, file))
 
     ####################################################
     @staticmethod
-    def get_build_info_path(root):
+    def get_build_info_path(root: str) -> str:
         return Kmindex.get_path_inside_index(root, "build_infos.txt")
 
     ####################################################
     @staticmethod
-    def get_fof_path(root):
+    def get_fof_path(root: str) -> str:
         return Kmindex.get_path_inside_index(root, "kmtricks.fof")
 
     ####################################################
     @staticmethod
-    def get_options_path(root):
+    def get_options_path(root: str) -> str:
         return Kmindex.get_path_inside_index(root, "options.txt")
 
     ####################################################
     @staticmethod
-    def get_json_path(root):
+    def get_json_path(root: str) -> str:
         return Kmindex.get_path_inside_index(root, "index.json")
 
     ####################################################
     @staticmethod
-    def b_json_exists(root):
+    def b_json_exists(root: str) -> bool:
         return os.path.isfile(Kmindex.get_json_path(root))
 
     ####################################################
     @staticmethod
-    def b_index_exists(root, index):
+    def b_index_exists(root: str, index: str) -> bool:
         return os.path.isdir(Kmindex.get_index_path(root, index))
 
     ####################################################
@@ -1069,12 +1075,12 @@ class BlockCompressorZSTD:
 
     ####################################################
     @staticmethod
-    def get_ef_path(path: str):
+    def get_ef_path(path: str) -> str:
         return path + ".ef"
 
     ####################################################
     @staticmethod
-    def get_file_byte_size(path: str, is_compressed: bool):
+    def get_file_byte_size(path: str, is_compressed: bool) -> int:
         return Toolbox.get_size(path) + (
             Toolbox.get_size(BlockCompressorZSTD.get_ef_path(path))
             if is_compressed
