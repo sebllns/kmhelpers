@@ -48,7 +48,7 @@ class KmtricksIndex:
             "nb_partitions": 0,
             "samples": [],
             "bloom_size": 0,
-            "smer_size": 0,
+            "kmer_size": 0,
             "minim_size": 0,
             "sha1": "",
             "kmindex_version": "",
@@ -99,62 +99,57 @@ class KmtricksIndex:
     @property
     def nb_samples(self) -> int:
         """Number of samples in the index."""
-        return self._properties["nb_samples"]
+        return self._properties.get("nb_samples", 0)
 
     @property
     def nb_partitions(self) -> int:
         """Number of partitions in the index."""
-        return self._properties["nb_partitions"]
+        return self._properties.get("nb_partitions", 0)
 
     @property
     def samples(self) -> List[str]:
         """List of sample names."""
-        return self._properties["samples"]
+        return self._properties.get("samples", [])
 
     @property
     def bloom_size(self) -> int:
         """Bloom filter size."""
-        return self._properties["bloom_size"]
-
-    @property
-    def smer_size(self) -> int:
-        """S-mer size."""
-        return self._properties["smer_size"]
+        return self._properties.get("bloom_size", 0)
 
     @property
     def kmer_size(self) -> int:
         """K-mer size."""
-        return self._properties["kmer_size"]
+        return self._properties.get("kmer_size", 0)
 
     @property
     def minim_size(self) -> int:
         """Minimizer size."""
-        return self._properties["minim_size"]
+        return self._properties.get("minim_size", 0)
 
     @property
     def sha1(self) -> str:
         """SHA1 hash of the index."""
-        return self._properties["sha1"]
+        return self._properties.get("sha1", "")
 
     @property
     def kmindex_version(self) -> str:
         """Version of kmindex used to create this index."""
-        return self._properties["kmindex_version"]
+        return self._properties.get("kmindex_version", "")
 
     @property
     def kmtricks_version(self) -> str:
         """Version of kmtricks used to create this index."""
-        return self._properties["kmtricks_version"]
+        return self._properties.get("kmtricks_version", "")
 
     @property
     def bw(self) -> int:
         """Bandwidth parameter."""
-        return self._properties["bw"]
+        return self._properties.get("bw", 0)
 
     @property
     def index_size(self) -> int:
         """Size of the index."""
-        return self._properties["index_size"]
+        return self._properties.get("index_size", 0)
 
     # Computed properties
     @property
@@ -375,6 +370,7 @@ class KmindexRegistry:
         # Create empty Index instance and load properties from JSON
         index = KmtricksIndex(Toolbox.get_canonical_path(self.root_path), index_id)
         index.import_properties(self.get_index_properties(index_id))
+        index.set_property("kmer_size", index.get_property("smer_size"))
 
         return index
 
