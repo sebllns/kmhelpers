@@ -12,9 +12,17 @@ import shutil
 
 
 class Main:
+    """Main initialization class for kmhelpers."""
+
     ####################################################
     @staticmethod
-    def init(default_bin_path="./bin"):
+    def init(default_bin_path: str = "./bin") -> None:
+        """
+        Initialize kmhelpers by setting up binary paths and checking dependencies.
+
+        Args:
+            default_bin_path: Default path for binary executables (default: "./bin")
+        """
         Bin.set_default_bin_path(default_bin_path)
         Bin.add_bin_dir_to_syspath()
         print(f"KMHELPERS_BIN_PATH={Bin.get_bin_dir()}")
@@ -27,15 +35,32 @@ class Main:
 # Contains methods for binary path management and validation
 ########################################################
 class Bin:
+    """Binary path management and validation utilities."""
+
     ####################################################
     @staticmethod
-    def set_default_bin_path(path):
+    def set_default_bin_path(path: str) -> None:
+        """
+        Set the default binary path if not already set.
+
+        Args:
+            path: Path to the binary directory
+        """
         os.environ.setdefault("KMHELPERS_BIN_PATH", Toolbox.get_canonical_path(path))
 
     ####################################################
     @staticmethod
-    def fetch(binary, path):
-        """"""
+    def fetch(binary: str, path: str) -> None:
+        """
+        Fetch a binary from a given path and create a symlink in the bin directory.
+
+        Args:
+            binary: Name of the binary
+            path: Source path of the binary
+
+        Raises:
+            AssertionError: If the source binary is not found
+        """
         bin_path = Bin.get_bin_path(binary)
         if not os.path.isfile(bin_path):
             assert os.path.isfile(path), f"Binary not found: {path}"
@@ -44,7 +69,16 @@ class Bin:
 
     ####################################################
     @staticmethod
-    def get_bin_dir():
+    def get_bin_dir() -> str:
+        """
+        Get the binary directory path.
+
+        Returns:
+            The canonical path to the binary directory
+
+        Raises:
+            RuntimeError: If Main.init() hasn't been called
+        """
         if "KMHELPERS_BIN_PATH" not in os.environ:
             raise RuntimeError(
                 "Main.init() must be called at program startup before using get_bin_dir()"
@@ -53,45 +87,66 @@ class Bin:
 
     ####################################################
     @staticmethod
-    def get_bin_path(binary):
+    def get_bin_path(binary: str) -> str:
+        """
+        Get the full path to a binary executable.
+
+        Args:
+            binary: Name of the binary
+
+        Returns:
+            Full path to the binary
+        """
         return os.path.join(Bin.get_bin_dir(), binary)
 
     ####################################################
     @staticmethod
-    def add_bin_dir_to_syspath():
+    def add_bin_dir_to_syspath() -> None:
+        """Add the binary directory to the system PATH."""
         os.environ["PATH"] = (
             f"{Bin.get_bin_dir()}{os.pathsep}{os.environ.get('PATH', '')}"
         )
 
     ####################################################
     @staticmethod
-    def kmindex():
+    def kmindex() -> str:
+        """Get the kmindex binary name."""
         return "kmindex"
 
     ####################################################
     @staticmethod
-    def compressor():
+    def compressor() -> str:
+        """Get the compressor binary name."""
         return "block_compressor_bin"
 
     ####################################################
     @staticmethod
-    def decompressor():
+    def decompressor() -> str:
+        """Get the decompressor binary name."""
         return "block_decompressor_bin"
 
     ####################################################
     @staticmethod
-    def reorderer():
+    def reorderer() -> str:
+        """Get the reorderer binary name."""
         return "main_bitmatrixshuffle"
 
     ####################################################
     @staticmethod
-    def check_bin(binary_name):
+    def check_bin(binary_name: str) -> None:
+        """
+        Check if a binary exists in PATH and print a warning if not found.
+
+        Args:
+            binary_name: Name of the binary to check
+        """
         if not shutil.which(binary_name):
             print(f"Warning: {binary_name} command not found in PATH")
 
     ####################################################
     @staticmethod
-    def check_all():
+    def check_all() -> None:
+        """Check all required binaries are available in PATH."""
         binaries = [
             Bin.kmindex(),
             Bin.reorderer(),
@@ -117,14 +172,14 @@ class Toolbox:
 
     ####################################################
     @staticmethod
-    def json_serialize(data, filename, pretty=True):
+    def json_serialize(data: Any, filename: str, pretty: bool = True) -> None:
         """
         Save JSON data directly to a file.
 
         Args:
-            data (str): The JSON data to save
-            filename (str): Path where to save the JSON file
-            pretty (bool): Whether to format JSON with indentation
+            data: The JSON-serializable data to save
+            filename: Path where to save the JSON file
+            pretty: Whether to format JSON with indentation (default: True)
         """
         with open(filename, "w") as f:
             if pretty:
@@ -136,12 +191,16 @@ class Toolbox:
 
     ####################################################
     @staticmethod
-    def json_diff(file1_path, file2_path):
+    def json_diff(file1_path: str, file2_path: str) -> Dict[str, Any]:
         """
         Calculate the difference between two JSON files.
 
+        Args:
+            file1_path: Path to the first JSON file
+            file2_path: Path to the second JSON file
+
         Returns:
-            dict: Differences between the two JSON
+            Dictionary containing the differences between the two JSON files
         """
         with open(file1_path, "r") as f1:
             report1 = json.load(f1)
@@ -193,31 +252,54 @@ class Toolbox:
 
     ####################################################
     @staticmethod
-    def read_stream(stream, prefix):
+    def read_stream(stream: Any, prefix: str) -> None:
+        """
+        Read and print lines from a stream with a prefix.
+
+        Args:
+            stream: Input stream to read from
+            prefix: Prefix to add to each line
+        """
         for line in stream:
             print(f"{prefix}: {line.rstrip()}")
 
     ####################################################
     @staticmethod
-    def get_posix_timestamp():
+    def get_posix_timestamp() -> int:
         """
-        Returns the current POSIX timestamp (seconds since Unix epoch)
+        Get the current POSIX timestamp.
+
+        Returns:
+            Current timestamp in seconds since Unix epoch
         """
         return int(time.time())
 
     ####################################################
     @staticmethod
-    def get_human_readable_timestamp():
+    def get_human_readable_timestamp() -> str:
         """
-        Returns the current timestamp in human-readable format
+        Get the current timestamp in human-readable format.
+
+        Returns:
+            Timestamp formatted as "YYYY-MM-DD HH:MM:SS"
         """
         return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     ####################################################
     @staticmethod
-    def run_cmd(cmd: list, trace: bool = True):
+    def run_cmd(cmd: List[Any], trace: bool = True) -> str:
         """
         Run a command using subprocess and capture its output.
+
+        Args:
+            cmd: Command and arguments as a list (converted to List[str])
+            trace: Whether to print command output (default: True)
+
+        Returns:
+            Standard output from the command
+
+        Raises:
+            subprocess.SubprocessError: If command returns non-zero exit code
         """
         if trace:
             print("Running command:", *cmd)
@@ -243,10 +325,21 @@ class Toolbox:
 
     ####################################################
     @staticmethod
-    def monitor_cmd(cmd: list) -> Optional[Tuple[str, dict]]:
+    def monitor_cmd(cmd: List[str]) -> Optional[Tuple[str, Dict[str, Any]]]:
         """
-        Run a command using subprocess and capture its output along with resource usage.
-        Returns: (stdout, resource_stats) or None if error
+        Run a command and monitor its resource usage.
+
+        Args:
+            cmd: Command and arguments as a list
+
+        Returns:
+            Tuple of (stdout, resource_stats) where resource_stats contains:
+                - start_time: Command start timestamp
+                - execution_time_ms: Execution time in milliseconds
+                - max_cpu_percent: Maximum CPU usage percentage
+                - max_memory_mb: Maximum memory usage in MB
+                - return_code: Command exit code
+            Returns None if an error occurs
         """
         print(f"Running command: {' '.join(cmd)}")
 
@@ -407,6 +500,12 @@ class Kmindex:
     ####################################################
     @staticmethod
     def get_header_byte_size() -> int:
+        """
+        Get the size of the matrix file header.
+
+        Returns:
+            Header size in bytes (49 bytes)
+        """
         return 49
 
     ####################################################
@@ -694,16 +793,47 @@ class Kmindex:
     ####################################################
     @staticmethod
     def get_bytes_per_row(sample_count: int) -> int:
+        """
+        Calculate the number of bytes needed to store one row of bitvectors.
+
+        Each sample is represented by 1 bit, so bytes_per_row = ceil(sample_count / 8).
+
+        Args:
+            sample_count: Number of samples in the index
+
+        Returns:
+            Number of bytes per row
+        """
         return (sample_count + 7) // 8
 
     ####################################################
     @staticmethod
     def get_partition_count(input_dir: str, index_id: str) -> int:
+        """
+        Get the number of partitions for an index.
+
+        Args:
+            input_dir: Directory containing the index.json file
+            index_id: The index ID to query
+
+        Returns:
+            Number of partitions in the index
+        """
         return Kmindex.read_index_value(input_dir, index_id, "nb_partitions")
 
     ####################################################
     @staticmethod
     def get_sample_count(input_dir: str, index_id: str) -> int:
+        """
+        Get the number of samples for an index.
+
+        Args:
+            input_dir: Directory containing the index.json file
+            index_id: The index ID to query
+
+        Returns:
+            Number of samples in the index
+        """
         return Kmindex.read_index_value(input_dir, index_id, "nb_samples")
 
     ####################################################
@@ -729,7 +859,13 @@ class Kmindex:
     @staticmethod
     def get_matrix_dir(index_path: str) -> str:
         """
-        Constructs the directory path for a matrix based on the index path and partition number.
+        Get the path to the matrices directory within an index.
+
+        Args:
+            index_path: Path to the index directory
+
+        Returns:
+            Canonical path to the matrices directory
         """
         return Toolbox.get_canonical_path(os.path.join(index_path, "matrices"))
 
@@ -739,7 +875,15 @@ class Kmindex:
         index_path: str, partition: int, is_compressed: bool = False
     ) -> str:
         """
-        Constructs the path to a matrix file based on the index path and partition number.
+        Get the path to a specific matrix partition file.
+
+        Args:
+            index_path: Path to the index directory
+            partition: Partition number
+            is_compressed: Whether to get the compressed matrix path (default: False)
+
+        Returns:
+            Path to the matrix file (either matrix_N.cmbf or blocks_N for compressed)
         """
         return os.path.join(
             Kmindex.get_matrix_dir(index_path),
@@ -749,6 +893,16 @@ class Kmindex:
     ####################################################
     @staticmethod
     def get_ef_path(index_path: str, partition: int) -> str:
+        """
+        Get the path to the Elias-Fano encoded file for a compressed partition.
+
+        Args:
+            index_path: Path to the index directory
+            partition: Partition number
+
+        Returns:
+            Path to the .ef file
+        """
         return BlockCompressorZSTD.get_ef_path(
             Kmindex.get_matrix_path(index_path, partition, True)
         )
@@ -756,6 +910,16 @@ class Kmindex:
     ####################################################
     @staticmethod
     def get_compressed_files_path(index_path: str, partition: int) -> Tuple[str, str]:
+        """
+        Get paths to both compressed matrix files (blocks and .ef).
+
+        Args:
+            index_path: Path to the index directory
+            partition: Partition number
+
+        Returns:
+            Tuple of (blocks_path, ef_path)
+        """
         return Kmindex.get_matrix_path(
             index_path, partition, True
         ), Kmindex.get_ef_path(index_path, partition)
@@ -763,41 +927,84 @@ class Kmindex:
     ####################################################
     @staticmethod
     def get_index_path(root: str, index: str) -> str:
+        """
+        Get the full path to an index directory.
+
+        Args:
+            root: Root directory containing indices
+            index: Index ID or name
+
+        Returns:
+            Canonical path to the index directory
+        """
         return Toolbox.get_canonical_path(os.path.join(root, index))
 
     ####################################################
     @staticmethod
     def get_path_inside_index(root: str, file: str) -> str:
+        """
+        Get the full path to a file within an index directory.
+
+        Args:
+            root: Index root directory
+            file: Relative file path within the index
+
+        Returns:
+            Canonical path to the file
+        """
         return Toolbox.get_canonical_path(os.path.join(root, file))
 
     ####################################################
     @staticmethod
     def get_build_info_path(root: str) -> str:
+        """Get the path to build_infos.txt within an index directory."""
         return Kmindex.get_path_inside_index(root, "build_infos.txt")
 
     ####################################################
     @staticmethod
     def get_fof_path(root: str) -> str:
+        """Get the path to kmtricks.fof file within an index directory."""
         return Kmindex.get_path_inside_index(root, "kmtricks.fof")
 
     ####################################################
     @staticmethod
     def get_options_path(root: str) -> str:
+        """Get the path to options.txt file within an index directory."""
         return Kmindex.get_path_inside_index(root, "options.txt")
 
     ####################################################
     @staticmethod
     def get_json_path(root: str) -> str:
+        """Get the path to index.json file within a directory."""
         return Kmindex.get_path_inside_index(root, "index.json")
 
     ####################################################
     @staticmethod
     def b_json_exists(root: str) -> bool:
+        """
+        Check if index.json exists in the given directory.
+
+        Args:
+            root: Directory to check
+
+        Returns:
+            True if index.json exists
+        """
         return os.path.isfile(Kmindex.get_json_path(root))
 
     ####################################################
     @staticmethod
     def b_index_exists(root: str, index: str) -> bool:
+        """
+        Check if an index directory exists.
+
+        Args:
+            root: Root directory containing indices
+            index: Index ID to check
+
+        Returns:
+            True if the index directory exists
+        """
         return os.path.isdir(Kmindex.get_index_path(root, index))
 
     ####################################################

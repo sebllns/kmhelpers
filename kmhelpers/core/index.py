@@ -15,6 +15,16 @@ from kmhelpers.core.utils import Kmindex, Toolbox
 
 
 class IndexCompressionState(Enum):
+    """
+    Enum representing the compression state of a kmindex.
+
+    Attributes:
+        UNKNOWN: Compression state is unknown or not determined
+        UNCOMPRESSED: Index contains only uncompressed matrices
+        COMPRESSED: Index contains only compressed matrices
+        BOTH: Index contains both compressed and uncompressed matrices
+    """
+
     UNKNOWN = 0
     UNCOMPRESSED = 1
     COMPRESSED = 2
@@ -37,12 +47,13 @@ class KmtricksIndex:
         compressed_state: IndexCompressionState = IndexCompressionState.UNKNOWN,
     ):
         """
-        Initialize an Index object.
+        Initialize a KmtricksIndex object.
 
         Args:
-            root_path (str): Path to the directory containing index.json
-            index_id (str): The ID of the specific index to work with
-            properties(Dict[str, Any]): properties loaded from index.json
+            parent_dir: Parent directory containing the index
+            index_id: The ID of the specific index to work with
+            compressed_state: Compression state of the index (default: UNKNOWN)
+
         Raises:
             NotADirectoryError: If the index directory doesn't exist
         """
@@ -80,19 +91,23 @@ class KmtricksIndex:
         return Kmindex.get_json_path(self.parent_dir)
 
     @property
-    def fof_path(self):
+    def fof_path(self) -> str:
+        """Get the path to the kmtricks.fof file."""
         return Kmindex.get_fof_path(self.dir_path)
 
     @property
-    def kmtricks_options_path(self):
+    def kmtricks_options_path(self) -> str:
+        """Get the path to the kmtricks options.txt file."""
         return Kmindex.get_options_path(self.dir_path)
 
     @property
-    def permutation_path(self):
+    def permutation_path(self) -> str:
+        """Get the path to the permutation.bin file."""
         return self.get_path_inside_index("permutation.bin")
 
     @property
-    def metrics_dir_path(self):
+    def metrics_dir_path(self) -> str:
+        """Get the path to the metrics directory."""
         return self.get_path_inside_index("metrics")
 
     @property
@@ -168,6 +183,15 @@ class KmtricksIndex:
         return Kmindex.get_header_byte_size()
 
     def get_path_inside_index(self, path: str) -> str:
+        """
+        Get the full path to a file or directory within this index.
+
+        Args:
+            path: Relative path within the index directory
+
+        Returns:
+            Canonical path to the file or directory
+        """
         return Kmindex.get_path_inside_index(self.dir_path, path)
 
     def get_matrix_path(self, partition: int, is_compressed: bool = False) -> str:
@@ -184,6 +208,15 @@ class KmtricksIndex:
         return Kmindex.get_matrix_path(self.dir_path, partition, is_compressed)
 
     def get_compressed_files(self, partition: int) -> tuple[str, str]:
+        """
+        Get the paths to both compression output files for a partition.
+
+        Args:
+            partition: Partition number
+
+        Returns:
+            Tuple of (blocks_path, ef_path)
+        """
         return Kmindex.get_compressed_files_path(self.dir_path, partition)
 
     def get_matrix_byte_size(self, partition: int, is_compressed: bool = False) -> int:
@@ -191,11 +224,11 @@ class KmtricksIndex:
         Get the size in bytes of a specific matrix partition.
 
         Args:
-            partition (int): Partition number
-            is_compressed (bool): Whether to check compressed matrix
+            partition: Partition number
+            is_compressed: Whether to check compressed matrix (default: False)
 
         Returns:
-            int: Size in bytes
+            Size in bytes
         """
         return Kmindex.get_bytes_per_matrix(self.dir_path, partition, is_compressed)
 
@@ -204,27 +237,33 @@ class KmtricksIndex:
         Get the number of elements in a specific matrix partition.
 
         Args:
-            partition (int): Partition number
+            partition: Partition number
 
         Returns:
-            int: Number of elements
+            Total number of elements (rows × samples)
         """
         return self.get_matrix_row_count(partition) * self.nb_samples
 
     def get_matrix_row_count(self, partition: int) -> int:
         """
-        Get the number of rows in a specific matrix partition.
+        Get the number of rows (k-mers) in a specific matrix partition.
 
         Args:
-            partition (int): Partition number
+            partition: Partition number
 
         Returns:
-            int: Number of rows
+            Number of rows in the partition
         """
         matrix_size = self.get_matrix_byte_size(partition)
         return Kmindex.get_row_count(matrix_size, self.bytes_per_row, self.header_size)
 
     def get_matrix_size(self) -> tuple[int, int]:
+        """
+        Get the dimensions of each matrix partition.
+
+        Returns:
+            Tuple of (rows_per_partition, columns) where columns = nb_samples
+        """
         return self.bloom_size // self.nb_partitions, self.nb_samples
 
     def check_structure(self) -> bool:
@@ -287,6 +326,16 @@ class KmtricksIndex:
         return ok
 
     def set_property(self, key: str, value: Any) -> bool:
+        """
+        Set a property value in the index metadata.
+
+        Args:
+            key: Property key to set
+            value: Value to assign
+
+        Returns:
+            True if successful, False otherwise
+        """
         try:
             self._properties[key] = value
             return True
@@ -323,12 +372,27 @@ class KmtricksIndex:
         return self._properties.copy()
 
     def import_properties(self, props: Dict[str, Any]) -> None:
+        """
+        Import properties from a dictionary into the index metadata.
+
+        Args:
+            props: Dictionary of properties to import
+        """
         try:
             self._properties.update(props)
         except TypeError as e:
             print(f"An error occurred: {e}")
 
-    def load_kmtricks_index(self):
+    def load_kmtricks_index(self) -> None:
+        """
+        Load index properties from kmtricks files (options.txt and kmtricks.fof).
+
+        This method reads the options.txt and kmtricks.fof files and populates
+        the index properties accordingly.
+
+        Raises:
+            FileNotFoundError: If required files (options.txt or kmtricks.fof) are not found
+        """
         # Check required files exist
         options_path = Kmindex.get_options_path(self.dir_path)
         if not os.path.exists(options_path):
@@ -395,6 +459,7 @@ class KmindexRegistry:
         return Kmindex.b_json_exists(self.root_path)
 
     def load_json(self) -> None:
+        """Load the index.json file into memory."""
         # Load the JSON data
         with open(self.json_path, "r") as f:
             self._json_data = json.load(f)
@@ -409,6 +474,15 @@ class KmindexRegistry:
         return list(self._json_data["index"].keys())
 
     def get_index_properties(self, index_id: str) -> Dict[str, Any]:
+        """
+        Get the properties dictionary for a specific index.
+
+        Args:
+            index_id: The index ID to retrieve properties for
+
+        Returns:
+            Dictionary containing all properties for the index
+        """
         return self._json_data["index"][index_id]
 
     def get_index(self, index_id: str) -> KmtricksIndex:
@@ -450,6 +524,15 @@ class KmindexRegistry:
         return index_id in self._json_data["index"]
 
     def add_index(self, index: KmtricksIndex) -> bool:
+        """
+        Add a new index to the registry.
+
+        Args:
+            index: KmtricksIndex object to add
+
+        Returns:
+            True if index was added, False if it already exists
+        """
         if self.has_index(index.index_id):
             return False
         Kmindex.register_index_in_json(index.parent_dir, self.root_path, index.index_id)

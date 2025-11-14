@@ -8,12 +8,35 @@ from enum import Enum
 import filecmp
 
 class PermutationFlag(Enum):
+    """
+    Flag to control column permutation during compression.
+
+    Attributes:
+        PERMUTATION_ENABLED: Apply column permutation for improved compression
+        PERMUTATION_DISABLED: Skip column permutation
+    """
+
     PERMUTATION_ENABLED = 0
     PERMUTATION_DISABLED = 1
 
 
 @dataclass
 class CompressionParams:
+    """
+    Configuration parameters for matrix compression.
+
+    Attributes:
+        block_size: Size of compression blocks in bytes (default: 8388608 = 8MB)
+        group_size: Number of columns to group together during permutation (default: 0)
+        subsample_size: Number of rows to subsample for permutation computation (default: 20000)
+        threshold: Threshold parameter for permutation algorithm (default: 0)
+        enable_check: If True, verify decompression by comparing with original (default: False)
+        enable_overwrite: If True, overwrite existing compressed files (default: False)
+        force_permutation: If True, compute new permutation even if one exists (default: False)
+        with_checks: Enable additional validation checks during compression (default: False)
+        with_size_comparison: If True, generate size comparison CSV file (default: True)
+    """
+
     block_size: int = 8388608
     group_size: int = 0
     subsample_size: int = 20000
@@ -52,7 +75,13 @@ class Compressor:
     def _write_csv_header(
         self, size_path: Path, include_unordered: bool
     ) -> None:
-        """Write CSV header if file doesn't exist."""
+        """
+        Write CSV header to size comparison file if it doesn't exist.
+
+        Args:
+            size_path: Path to the CSV file
+            include_unordered: If True, include column for unordered compression size
+        """
         if not os.path.isfile(size_path):
             with open(size_path, "w") as f:
                 if include_unordered:
@@ -72,7 +101,16 @@ class Compressor:
         ordered_size: int,
         unordered_size: int = 0,
     ) -> None:
-        """Write size comparison data to CSV file."""
+        """
+        Append size comparison data to CSV file.
+
+        Args:
+            size_path: Path to the CSV file
+            partition: Partition number
+            original_size: Size of original uncompressed matrix in bytes
+            ordered_size: Size of compressed matrix with permutation in bytes
+            unordered_size: Size of compressed matrix without permutation in bytes (optional)
+        """
         with open(size_path, "a") as f:
             if unordered_size > 0:
                 f.write(
@@ -91,7 +129,23 @@ class Compressor:
         json_path: str,
         unordered_path: str,
     ) -> int:
-        """Compress without ordering and return unordered size."""
+        """
+        Compress a partition without permutation and measure its size.
+
+        This is used for comparison to measure the benefit of column permutation.
+
+        Args:
+            params: Compression parameters
+            idx: KmtricksIndex object
+            partition: Partition number
+            permutation_path: Path to permutation file (not used but required)
+            config_path: Path to configuration file
+            json_path: Path for metrics output
+            unordered_path: Temporary path for compressed output
+
+        Returns:
+            Size of the compressed matrix in bytes
+        """
         self.compress_file(
             params,
             idx.get_matrix_path(partition, False),
