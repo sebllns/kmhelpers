@@ -277,7 +277,7 @@ class Compressor:
         # Handle size comparison
         if params.with_size_comparison:
             original_size = idx.get_matrix_byte_size(partition, False)
-            ordered_size = idx.get_matrix_byte_size(partition, True)
+            ordered_size = Kmindex.get_bytes_per_matrix(output_dir, partition, True)
             should_compare_unordered = (
                 compare_unordered
                 and permutation_flag != PermutationFlag.PERMUTATION_DISABLED
