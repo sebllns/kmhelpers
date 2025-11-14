@@ -7,7 +7,7 @@ import argparse
 import os
 import subprocess
 import sys
-from kmhelpers.core.utils import Main
+from kmhelpers.core.utils import Main, Kmindex
 from kmhelpers.core.index import KmindexRegistry, KmtricksIndex
 
 
@@ -38,6 +38,8 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
     Main.init(os.path.join(script_dir, "bin"))
+
+    print(Kmindex.version())
 
     # Configuration
     registry_path = args.output

@@ -654,6 +654,11 @@ class Kmindex:
 
     ####################################################
     @staticmethod
+    def version():
+        return Toolbox.run_cmd([Bin.kmindex(), "--version"])
+
+    ####################################################
+    @staticmethod
     def read_index_ids_from_json(json_file_path):
         with open(json_file_path, "r") as file:
             data = json.load(file)
