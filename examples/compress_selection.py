@@ -73,8 +73,8 @@ def main():
 
     # Compress selection
     compressor = Compressor(enable_metrics=True)
-    compressor.compress_index_selection(params, idx, ref_matrix, matrix_list)
-    print(f"Inplace compression completed for index {index_id}")
+    # compressor.compress_index_selection(params, idx, ref_matrix, matrix_list)
+    # print(f"Inplace compression completed for index {index_id}")
 
     compressor.compress_index_selection(
         params, idx, ref_matrix, matrix_list, os.path.join(index_root, f"compression/{index_id}_c{short_hash}_b{params.block_size}_g{params.group_size}_s{params.subsample_size}_t{params.threshold}")
