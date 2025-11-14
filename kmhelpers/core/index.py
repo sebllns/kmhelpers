@@ -265,12 +265,12 @@ class KmtricksIndex:
             ok = False
 
         if not Kmindex.check_index_structure(self.dir_path, self.nb_partitions):
-            print("Index is incomplete")
             ok = False
 
         ref_size = self.get_matrix_byte_size(
             0, self.compress_state == IndexCompressionState.COMPRESSED
         )
+
         for p in range(self.nb_partitions):
             size = self.get_matrix_byte_size(
                 p, self.compress_state == IndexCompressionState.COMPRESSED
@@ -280,6 +280,9 @@ class KmtricksIndex:
                     f"Partition {p} size ({size} bytes) does not match reference partition size ({ref_size} bytes)"
                 )
                 ok = False
+
+        if not ok:
+            print(f"[Warning] Index {self.index_id} has incorrect structure")
 
         return ok
 
