@@ -30,7 +30,12 @@ class KmtricksIndex:
     access to common operations.
     """
 
-    def __init__(self, parent_dir: str, index_id: str):
+    def __init__(
+        self,
+        parent_dir: str,
+        index_id: str,
+        compressed_state: IndexCompressionState = IndexCompressionState.UNKNOWN,
+    ):
         """
         Initialize an Index object.
 
@@ -57,7 +62,7 @@ class KmtricksIndex:
             "index_size": 0,
         }
 
-        self.compress_state: IndexCompressionState = IndexCompressionState.UNKNOWN
+        self.compress_state: IndexCompressionState = compressed_state
 
         if not Kmindex.b_index_exists(self.parent_dir, self.index_id):
             raise NotADirectoryError(
@@ -85,7 +90,7 @@ class KmtricksIndex:
     @property
     def permutation_path(self):
         return self.get_path_inside_index("permutation.bin")
-    
+
     @property
     def metrics_dir_path(self):
         return self.get_path_inside_index("metrics")
@@ -164,7 +169,7 @@ class KmtricksIndex:
 
     def get_path_inside_index(self, path: str) -> str:
         return Kmindex.get_path_inside_index(self.dir_path, path)
-    
+
     def get_matrix_path(self, partition: int, is_compressed: bool = False) -> str:
         """
         Get the path to a specific matrix partition.
@@ -219,14 +224,64 @@ class KmtricksIndex:
         matrix_size = self.get_matrix_byte_size(partition)
         return Kmindex.get_row_count(matrix_size, self.bytes_per_row, self.header_size)
 
+    def get_matrix_size(self) -> tuple[int, int]:
+        return self.bloom_size // self.nb_partitions, self.nb_samples
+
     def check_structure(self) -> bool:
         """
-        Check if the index has the expected file structure.
+        Check if the index has the expected file structure and properties.
 
         Returns:
-            bool: True if structure is valid
+            bool: True if structure is valid, False otherwise
         """
-        return Kmindex.check_index_structure(self.dir_path, self.nb_partitions)
+        ok = True
+
+        if self.bloom_size <= 0:
+            print("Bloom size cannot be null")
+            ok = False
+
+        if self.nb_samples <= 0:
+            print("Number of samples cannot be null")
+            ok = False
+
+        if self.nb_partitions <= 0:
+            print("Number of partitions cannot be null")
+            ok = False
+
+        if self.kmer_size <= 0:
+            print("K-mer size cannot be null")
+            ok = False
+
+        if self.minim_size <= 0:
+            print("Minimizer size cannot be null")
+            ok = False
+
+        if len(self.samples) == 0:
+            print("Samples list cannot be empty")
+            ok = False
+
+        if len(self.samples) != self.nb_samples:
+            print("Samples list length must match nb_samples")
+            ok = False
+
+        if not Kmindex.check_index_structure(self.dir_path, self.nb_partitions):
+            print("Index is incomplete")
+            ok = False
+
+        ref_size = self.get_matrix_byte_size(
+            0, self.compress_state == IndexCompressionState.COMPRESSED
+        )
+        for p in range(self.nb_partitions):
+            size = self.get_matrix_byte_size(
+                p, self.compress_state == IndexCompressionState.COMPRESSED
+            )
+            if size != ref_size:
+                print(
+                    f"Partition {p} size ({size} bytes) does not match reference partition size ({ref_size} bytes)"
+                )
+                ok = False
+
+        return ok
 
     def set_property(self, key: str, value: Any) -> bool:
         try:
@@ -280,9 +335,7 @@ class KmtricksIndex:
         if not os.path.exists(fof_path):
             raise FileNotFoundError(f"FOF file not found: {fof_path}")
 
-        self.import_properties(
-            Kmindex.load_options_file(options_path)
-        )
+        self.import_properties(Kmindex.load_options_file(options_path))
         # load samples
         samples = Kmindex.load_fof_file(fof_path)
         self._properties["samples"] = samples
@@ -295,6 +348,13 @@ class KmtricksIndex:
     def __repr__(self) -> str:
         """Detailed representation of the index."""
         return f"Index(root_path='{self.parent_dir}', index_id='{self.index_id}')"
+
+    def __iter__(self):
+        """Iterate over all partitions."""
+        for p in range(self.nb_partitions):
+            yield self.get_matrix_path(
+                p, self.compress_state == IndexCompressionState.COMPRESSED
+            )
 
 
 class KmindexRegistry:
@@ -330,7 +390,7 @@ class KmindexRegistry:
     @property
     def json_exists(self) -> bool:
         return Kmindex.b_json_exists(self.root_path)
-    
+
     def load_json(self) -> None:
         # Load the JSON data
         with open(self.json_path, "r") as f:

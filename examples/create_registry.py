@@ -29,16 +29,8 @@ def main():
     # Load index
     index = KmtricksIndex(index_root, index_id)
     index.load_kmtricks_index()
-
-    print("---------------------------------------------------")
-    print(f"\nIndex Information:")
-    print(f"  ID: {index.index_id}")
-    print(f"  Samples: {index.nb_samples}")
-    print(f"  Partitions: {index.nb_partitions}")
-    print(f"  K-mer size: {index.kmer_size}")
-    print(f"  Minimizer size: {index.minim_size}")
-    print(f"  Bytes per row: {index.bytes_per_row}")
-    print("---------------------------------------------------")
+    print(str(index))
+    index.check_structure()
 
     registry = KmindexRegistry(os.path.join(index_root, "registry"))
 
