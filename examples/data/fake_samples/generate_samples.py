@@ -13,11 +13,11 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 nucleotides = ['A', 'C', 'G', 'T']
 
 sample_names = [
-    "sample_001",
-    "sample_002",
-    "sample_003",
-    "sample_004",
-    "sample_005"
+    "s1/sample_001",
+    "s1/sample_002",
+    "s1/sample_003",
+    "s2/sample_004",
+    "s2/sample_005"
 ]
 
 def generate_random_sequence(length):
