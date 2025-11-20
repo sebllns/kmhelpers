@@ -7,7 +7,7 @@ sample management.
 """
 
 import os
-from typing import List, Dict, Tuple, Optional, Union
+from typing import List, Dict, Tuple, Optional, Union, Sequence
 from pathlib import Path
 
 from ..core.utils import Toolbox, Kmindex
@@ -50,6 +50,98 @@ class FofManager:
     def __init__(self):
         """Initialize the FofManager."""
         pass
+
+    def list_files_in_directory(
+        self,
+        directory: Union[str, Path],
+        recursive: bool = False,
+        extensions: Optional[List[str]] = None,
+    ) -> List[str]:
+        """
+        List all files in a directory matching common bioinformatics extensions.
+
+        Args:
+            directory: Directory path to search.
+            recursive: If True, search recursively in subdirectories.
+            extensions: List of extensions to filter by. If None, uses COMMON_EXTENSIONS.
+
+        Returns:
+            List of file paths matching the extensions.
+
+        Raises:
+            NotADirectoryError: If directory doesn't exist or is not a directory.
+        """
+        directory_str = Toolbox.get_canonical_path(str(directory))
+
+        if not os.path.exists(directory_str):
+            raise NotADirectoryError(f"Directory not found: {directory_str}")
+
+        if not os.path.isdir(directory_str):
+            raise NotADirectoryError(f"Path is not a directory: {directory_str}")
+
+        if extensions is None:
+            extensions = self.COMMON_EXTENSIONS
+
+        matched_files = []
+
+        if recursive:
+            for root, _, files in os.walk(directory_str):
+                for filename in files:
+                    if any(filename.endswith(ext) for ext in extensions):
+                        matched_files.append(os.path.join(root, filename))
+        else:
+            for item in os.listdir(directory_str):
+                item_path = os.path.join(directory_str, item)
+                if os.path.isfile(item_path):
+                    if any(item.endswith(ext) for ext in extensions):
+                        matched_files.append(item_path)
+
+        # Sort for consistent ordering
+        matched_files.sort()
+
+        return matched_files
+
+    def create_fof_from_directory(
+        self,
+        directory: Union[str, Path],
+        fof_path: Union[str, Path],
+        recursive: bool = False,
+        extensions: Optional[List[str]] = None,
+        use_absolute_paths: bool = True,
+    ) -> str:
+        """
+        Create a fof file from all matching files in a directory.
+
+        Args:
+            directory: Directory containing input files.
+            fof_path: Path where the fof file should be created.
+            recursive: If True, search recursively in subdirectories.
+            extensions: List of extensions to filter by. If None, uses COMMON_EXTENSIONS.
+            use_absolute_paths: If True, convert all paths to absolute paths.
+
+        Returns:
+            Absolute path to the created fof file.
+
+        Raises:
+            NotADirectoryError: If directory doesn't exist or is not a directory.
+            ValueError: If no matching files found in directory.
+        """
+        input_files = self.list_files_in_directory(
+            directory=directory, recursive=recursive, extensions=extensions
+        )
+
+        if not input_files:
+            ext_list = ", ".join(extensions if extensions else self.COMMON_EXTENSIONS)
+            raise ValueError(
+                f"No files with extensions [{ext_list}] found in directory: {directory}"
+            )
+
+        return self.create_fof_file(
+            input_files=input_files,
+            fof_path=fof_path,
+            use_absolute_paths=use_absolute_paths,
+            validate_files=True,
+        )
 
     @staticmethod
     def parse_fof_line(line: str) -> Optional[Tuple[str, str]]:
@@ -178,7 +270,7 @@ class FofManager:
 
     def create_fof_file(
         self,
-        input_files: List[Union[str, Path]],
+        input_files: Sequence[Union[str, Path]],
         fof_path: Union[str, Path],
         use_absolute_paths: bool = True,
         validate_files: bool = True,
@@ -264,7 +356,7 @@ class FofManager:
         return True
 
     def validate_input_files(
-        self, file_list: List[Union[str, Path]], raise_on_missing: bool = True
+        self, file_list: Sequence[Union[str, Path]], raise_on_missing: bool = True
     ) -> bool:
         """
         Validate that all input files exist.
@@ -404,7 +496,7 @@ class FofManager:
     def append_to_fof(
         self,
         fof_path: Union[str, Path],
-        new_files: List[Union[str, Path]],
+        new_files: Sequence[Union[str, Path]],
         use_absolute_paths: bool = True,
         validate_files: bool = True,
     ) -> str:

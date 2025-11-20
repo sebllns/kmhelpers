@@ -37,8 +37,12 @@ class KmindexWrapper:
 
     def __init__(self):
         """Initialize the KmindexWrapper."""
-        self.fof_manager = FofManager()
-
+        self._fof_manager = FofManager()
+    
+    @property
+    def fof_manager(self):
+        return self._fof_manager
+    
     def create_fof_file(
         self,
         input_files: List[Union[str, Path]],
@@ -64,7 +68,7 @@ class KmindexWrapper:
         Raises:
             FileNotFoundError: If any input file doesn't exist.
         """
-        return self.fof_manager.create_fof_file(
+        return self._fof_manager.create_fof_file(
             input_files=input_files,
             fof_path=fof_path,
             use_absolute_paths=use_absolute_paths,
@@ -74,8 +78,7 @@ class KmindexWrapper:
     def build(
         self,
         index_path: Union[str, Path],
-        input_files: Optional[List[Union[str, Path]]] = None,
-        fof_file: Optional[Union[str, Path]] = None,
+        fof_file: Optional[Union[str, Path]],
         kmer_size: int = 31,
         minim_size: int = 10,
         bloom_size: Optional[int] = None,
@@ -109,7 +112,7 @@ class KmindexWrapper:
             threads: Number of threads.
             compress_intermediate: Whether to compress intermediate files (--cpr flag).
             register_as: Register index with this name.
-            run_dir: kmtricks runtime directory.
+            run_dir: kmtricks runtime directory. If None, defaults to '.kmindex_run' in index parent dir.
             from_index: Use parameters from a pre-registered index.
             km_path: Path to kmtricks binary (if not in $PATH).
             verbose: Verbosity level (debug|info|warning|error).
@@ -125,9 +128,6 @@ class KmindexWrapper:
             subprocess.CalledProcessError: If kmindex build command fails.
         """
         # Validate inputs
-        if input_files is None and fof_file is None:
-            raise ValueError("Either input_files or fof_file must be provided")
-
         if bloom_size is not None and nb_cell is not None:
             raise ValueError(
                 "bloom_size and nb_cell are mutually exclusive. "
@@ -135,16 +135,17 @@ class KmindexWrapper:
             )
 
         # Handle fof file creation if input_files provided
-        temp_fof = None
-        if input_files is not None:
-            temp_fof = os.path.join(os.path.dirname(str(index_path)), ".tmp_fof.txt")
-            fof_file = self.create_fof_file(input_files, temp_fof)
-        else:
-            fof_file = Toolbox.get_canonical_path(str(fof_file))
-            if not os.path.exists(fof_file):
-                raise FileNotFoundError(f"File-of-filenames not found: {fof_file}")
+        fof_file = Toolbox.get_canonical_path(str(fof_file))
+        if not os.path.exists(fof_file):
+            raise FileNotFoundError(f"File-of-filenames not found: {fof_file}")
 
         index_path = Toolbox.get_canonical_path(str(index_path))
+
+        # Set default run_dir if not provided (required parameter)
+        if run_dir is None:
+            run_dir = os.path.join(os.path.dirname(index_path), ".kmindex_run")
+
+        run_dir = Toolbox.get_canonical_path(str(run_dir))
 
         # Build command
         cmd = [
@@ -154,6 +155,8 @@ class KmindexWrapper:
             index_path,
             "--fof",
             fof_file,
+            "--run-dir",
+            run_dir,
             "--kmer-size",
             str(kmer_size),
             "--minim-size",
@@ -185,9 +188,6 @@ class KmindexWrapper:
         if register_as is not None:
             cmd.extend(["--register-as", register_as])
 
-        if run_dir is not None:
-            cmd.extend(["--run-dir", str(run_dir)])
-
         if from_index is not None:
             cmd.extend(["--from", from_index])
 
@@ -203,10 +203,6 @@ class KmindexWrapper:
         except subprocess.CalledProcessError as e:
             print(f"Error building index: {e.stderr}")
             raise
-        finally:
-            # Cleanup temporary fof file if created
-            if temp_fof is not None and auto_cleanup_fof and os.path.exists(temp_fof):
-                os.remove(temp_fof)
 
         # Return KmtricksIndex object
         # For a newly built index, the index is at index_path and we need to extract

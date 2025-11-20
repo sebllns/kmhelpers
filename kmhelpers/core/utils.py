@@ -16,13 +16,16 @@ class Main:
 
     ####################################################
     @staticmethod
-    def init(default_bin_path: str = "./bin", check_all=True) -> None:
+    def init(default_bin_path: str = "./bin", check_all=True, chdir="") -> None:
         """
         Initialize kmhelpers by setting up binary paths and checking dependencies.
 
         Args:
             default_bin_path: Default path for binary executables (default: "./bin")
         """
+        if chdir:
+            print(f"cd {chdir}")
+            os.chdir(chdir)
         Bin.set_default_bin_path(default_bin_path)
         Bin.add_bin_dir_to_syspath()
         print(f"KMHELPERS_BIN_PATH={Bin.get_bin_dir()}")
@@ -245,11 +248,6 @@ class Toolbox:
             str: The base name of the path.
         """
         return os.path.basename(Toolbox.get_canonical_path(path))
-
-    ####################################################
-    @staticmethod
-    def get_script_dir() -> str:
-        return os.path.dirname(os.path.abspath(__file__))
 
     ####################################################
     @staticmethod

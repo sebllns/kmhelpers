@@ -1,3 +1,5 @@
 *
 !.gitignore
 !*.tar
+!/fake_samples/
+!/fake_samples/*
