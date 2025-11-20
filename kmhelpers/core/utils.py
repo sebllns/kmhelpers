@@ -16,7 +16,7 @@ class Main:
 
     ####################################################
     @staticmethod
-    def init(default_bin_path: str = "./bin") -> None:
+    def init(default_bin_path: str = "./bin", check_all=True) -> None:
         """
         Initialize kmhelpers by setting up binary paths and checking dependencies.
 
@@ -27,7 +27,8 @@ class Main:
         Bin.add_bin_dir_to_syspath()
         print(f"KMHELPERS_BIN_PATH={Bin.get_bin_dir()}")
         os.makedirs(Bin.get_bin_dir(), exist_ok=True)
-        Bin.check_all()
+        if check_all:
+            Bin.check_all()
 
 
 #########################################################
