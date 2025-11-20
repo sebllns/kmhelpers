@@ -2,6 +2,7 @@
 
 from kmhelpers.core.utils import Main, Bin, Toolbox, Kmindex, BlockCompressorZSTD
 from kmhelpers.core.index import KmtricksIndex, KmindexRegistry
+from kmhelpers.core.wrapper import KmindexWrapper
 
 __all__ = [
     "Main",
@@ -11,4 +12,5 @@ __all__ = [
     "BlockCompressorZSTD",
     "KmtricksIndex",
     "KmindexRegistry",
+    "KmindexWrapper",
 ]

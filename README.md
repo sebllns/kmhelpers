@@ -14,6 +14,8 @@ A Python toolkit for managing, compressing, and querying k-mer indices efficient
 ## Features
 
 - 🗂️ **Object-oriented index management** with properties and metadata
+- 🏗️ **High-level index building** with KmindexWrapper for easy index creation
+- 📁 **FOF (File-of-Files) management** for organizing input files
 - 🗜️ **ZSTD-based compression** with configurable block sizes
 - 🔄 **Intelligent column reordering** using VP-tree nearest neighbor clustering
 - 📊 **Resource monitoring** (CPU, memory, execution time)
@@ -27,9 +29,11 @@ kmhelpers/
 ├── kmhelpers/
 │   ├── core/              # Core utilities and index management
 │   │   ├── utils.py       # Binary management, toolbox, kmindex operations
-│   │   └── index.py       # Index and IndexRegistry classes
+│   │   ├── index.py       # Index and IndexRegistry classes
+│   │   └── wrapper.py     # KmindexWrapper high-level interface
 │   ├── operations/        # Compression and manipulation operations
-│   │   └── compressor.py  # Compressor class and parameters
+│   │   ├── compressor.py  # Compressor class and parameters
+│   │   └── fof.py         # FofManager for file-of-files operations
 │   ├── metrics/           # Performance tracking
 │   │   └── compression_metrics.py
 │   └── cli/               # Command-line scripts
@@ -83,7 +87,37 @@ from kmhelpers import Main
 Main.init()
 ```
 
-### 2. Working with indices
+### 2. Building an index (NEW in v0.3.0)
+
+```python
+from kmhelpers import Main, KmindexWrapper
+
+# Initialize
+Main.init()
+
+# Create wrapper
+wrapper = KmindexWrapper()
+
+# Create index from directory of FASTA files
+wrapper.fof_manager.create_fof_from_directory(
+    directory="data/samples",
+    fof_path="samples.fof"
+)
+
+# Build presence/absence index
+index = wrapper.build(
+    index_path="my_index",
+    fof_file="samples.fof",
+    kmer_size=31,
+    bloom_size=10000000
+)
+
+# Access index properties
+print(f"Built index with {index.nb_samples} samples")
+print(f"K-mer size: {index.kmer_size}")
+```
+
+### 3. Working with indices
 
 ```python
 from kmhelpers import IndexRegistry, Index
@@ -139,7 +173,40 @@ compressor.compress_index_selection(
 )
 ```
 
-### 4. Query an index
+### 4. Managing file-of-files (FOF) (NEW in v0.3.0)
+
+```python
+from kmhelpers import FofManager
+
+manager = FofManager()
+
+# Create FOF from a directory
+fof_path = manager.create_fof_from_directory(
+    directory="/path/to/samples",
+    fof_path="samples.fof",
+    recursive=True  # Include subdirectories
+)
+
+# Load sample IDs from FOF
+samples = manager.get_sample_ids("samples.fof")
+print(f"Found {len(samples)} samples")
+
+# Load with paths
+sample_map = manager.load_with_paths("samples.fof")
+for name, path in sample_map.items():
+    print(f"{name}: {path}")
+
+# Validate FOF file
+manager.validate_fof_file("samples.fof")
+
+# List files in directory matching extensions
+files = manager.list_files_in_directory(
+    directory="/path/to/samples",
+    extensions=[".fasta.gz", ".fastq.gz"]
+)
+```
+
+### 5. Query an index
 
 ```python
 from kmhelpers import Kmindex
@@ -256,10 +323,31 @@ python -m kmhelpers.cli.compress_index \
 - `Kmindex.query_index(...)`: Execute k-mer query
 - `Kmindex.register_index_in_json(...)`: Register index in manifest
 
-#### `Index`
+#### `KmindexWrapper` (NEW in v0.3.0)
+High-level interface for building and querying indices:
+- `wrapper.build(index_path, fof_file, kmer_size, bloom_size, ...)`: Build an index
+- `wrapper.query(index, query_file, output_dir, ...)`: Query an index
+- `wrapper.create_fof_file(input_files, fof_path)`: Create FOF from file list
+- `wrapper.fof_manager`: Access to FofManager instance
+
+#### `FofManager` (NEW in v0.3.0)
+Comprehensive file-of-files management:
+- `manager.create_fof_file(input_files, fof_path, ...)`: Create FOF from list
+- `manager.create_fof_from_directory(directory, fof_path, ...)`: Create FOF from directory
+- `manager.list_files_in_directory(directory, recursive, extensions)`: List matching files
+- `manager.load_fof_file(fof_path)`: Load sample IDs
+- `manager.load_with_paths(fof_path)`: Load samples with paths as dict
+- `manager.get_sample_ids(fof_path)`: Get sample IDs
+- `manager.validate_fof_file(fof_path)`: Validate FOF format
+- `manager.validate_input_files(file_list)`: Check files exist
+- `manager.extract_sample_name(file_path)`: Extract name from path
+- `manager.append_to_fof(fof_path, new_files)`: Append files to FOF
+- `manager.copy_fof(source, dest)`: Copy FOF file
+
+#### `KmtricksIndex`
 Properties:
 - `index.nb_samples`, `index.nb_partitions`
-- `index.smer_size`, `index.minim_size`
+- `index.kmer_size`, `index.minim_size`
 - `index.samples`: List of sample IDs
 
 Methods:
@@ -268,7 +356,7 @@ Methods:
 - `index.get_matrix_row_count(partition)`
 - `index.check_structure()`
 
-#### `IndexRegistry`
+#### `KmindexRegistry`
 - `registry.list_indices()`: Get all index IDs
 - `registry.get_index(index_id)`: Load specific index
 - `registry.has_index(index_id)`: Check if index exists
@@ -454,5 +542,9 @@ Kmindex.check_index_structure("/path/to/index", partition_count=256)
 
 ---
 
-**Version**: 0.2.0
+**Version**: 0.3.0
 **Status**: Development
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for detailed version history.

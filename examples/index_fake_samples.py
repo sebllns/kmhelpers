@@ -11,7 +11,7 @@ fof_file = "data/fake_samples.fof"
 # Create wrapper
 wrapper = KmindexWrapper()
 
-wrapper.fof_manager.create_fof_from_directory(sample_dir, fof_file)
+wrapper.fof_manager.create_fof_from_directory(sample_dir, fof_file, recursive=True)
 
 # Build a presence/absence index
 index = wrapper.build(

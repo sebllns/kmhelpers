@@ -5,11 +5,11 @@ This directory contains synthetic FASTA files generated for testing and demonstr
 ## Data Content
 
 The dataset consists of 5 compressed FASTA files:
-- `sample_001.fasta.gz` (9 contigs)
-- `sample_002.fasta.gz` (13 contigs)
-- `sample_003.fasta.gz` (13 contigs)
-- `sample_004.fasta.gz` (9 contigs)
-- `sample_005.fasta.gz` (8 contigs)
+- `s1/sample_001.fasta.gz` (9 contigs)
+- `s1/sample_002.fasta.gz` (13 contigs)
+- `s1/sample_003.fasta.gz` (13 contigs)
+- `s2/sample_004.fasta.gz` (9 contigs)
+- `s2/sample_005.fasta.gz` (8 contigs)
 
 Each file contains randomly generated DNA sequences (contigs) with the following characteristics:
 - Random nucleotide sequences (A, C, G, T)

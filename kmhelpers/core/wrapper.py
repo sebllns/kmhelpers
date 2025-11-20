@@ -111,7 +111,7 @@ class KmindexWrapper:
             nb_partitions: Number of partitions (0=auto).
             threads: Number of threads.
             compress_intermediate: Whether to compress intermediate files (--cpr flag).
-            register_as: Register index with this name.
+            register_as: Register index with this name. If None, defaults to index basename.
             run_dir: kmtricks runtime directory. If None, defaults to '.kmindex_run' in index parent dir.
             from_index: Use parameters from a pre-registered index.
             km_path: Path to kmtricks binary (if not in $PATH).
@@ -147,6 +147,13 @@ class KmindexWrapper:
 
         run_dir = Toolbox.get_canonical_path(str(run_dir))
 
+        if os.path.exists(run_dir):
+             raise FileExistsError(f"run_dir directory already exists: {run_dir}")
+
+        # Set default register_as if not provided (required parameter)
+        if register_as is None:
+            register_as = os.path.basename(index_path)
+
         # Build command
         cmd = [
             Bin.kmindex(),
@@ -157,6 +164,8 @@ class KmindexWrapper:
             fof_file,
             "--run-dir",
             run_dir,
+            "--register-as",
+            register_as,
             "--kmer-size",
             str(kmer_size),
             "--minim-size",
@@ -184,9 +193,6 @@ class KmindexWrapper:
         # Add optional parameters
         if compress_intermediate:
             cmd.append("--cpr")
-
-        if register_as is not None:
-            cmd.extend(["--register-as", register_as])
 
         if from_index is not None:
             cmd.extend(["--from", from_index])
