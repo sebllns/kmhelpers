@@ -5,7 +5,7 @@ import os
 Main.init(chdir=os.path.dirname(os.path.abspath(__file__)))
 
 sample_dir = "data/fake_samples"
-index_id = "data/fake_samples_index"
+registry = "data/fake_index"
 fof_file = "data/fake_samples.fof"
 
 # Create wrapper
@@ -15,7 +15,10 @@ wrapper.fof_manager.create_fof_from_directory(sample_dir, fof_file, recursive=Tr
 
 # Build a presence/absence index
 index = wrapper.build(
-    index_path=index_id, fof_file=fof_file, kmer_size=31, bloom_size=10000000
+    output_registry_path=registry,
+    input_fof_file=fof_file,
+    kmer_size=31,
+    bloom_size=10000000,
 )
 
 # Query the index
