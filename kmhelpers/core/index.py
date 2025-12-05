@@ -529,22 +529,26 @@ class KmindexRegistry:
         Raises:
             FileNotFoundError: If index.json doesn't exist
         """
-        self.root_path = Toolbox.get_canonical_path(root_path)
+        self._root_path = Toolbox.get_canonical_path(root_path)
 
         if not self.json_exists:
-            Kmindex.create_empty_index_json(self.root_path)
+            Kmindex.create_empty_index_json(self._root_path)
 
         self._standby = False
         self.load_json()
 
     @property
+    def root_path(self) -> str:
+        return self._root_path 
+
+    @property
     def json_path(self) -> str:
         """Get path to the index.json file."""
-        return Kmindex.get_json_path(self.root_path)
+        return Kmindex.get_json_path(self._root_path)
 
     @property
     def json_exists(self) -> bool:
-        return Kmindex.b_json_exists(self.root_path)
+        return Kmindex.b_json_exists(self._root_path)
 
     def load_json(self) -> None:
         """Load the index.json file into memory."""
@@ -553,7 +557,7 @@ class KmindexRegistry:
             with open(self.json_path, "r") as f:
                 self._json_data = json.load(f)
             assert (
-                self._json_data["path"] == self.root_path
+                self._json_data["path"] == self._root_path
             ), "Index root paths do not match"
             self.check_dirs()
 
@@ -579,7 +583,7 @@ class KmindexRegistry:
         return self._json_data["index"][index_id]
 
     def get_index_path(self, index_id: str) -> str:
-        return os.path.join(self.root_path, index_id)
+        return os.path.join(self._root_path, index_id)
     
     def is_index_dir(self, index_id: str) -> bool:
         return os.path.isdir(self.get_index_path(index_id))
@@ -604,7 +608,7 @@ class KmindexRegistry:
             )
 
         # Create empty Index instance and load properties from JSON
-        index = KmtricksIndex(self.root_path, index_id)
+        index = KmtricksIndex(self._root_path, index_id)
         index.import_properties(self.get_index_properties(index_id))
         index.set_property("kmer_size", index.get_property("smer_size"))
 
@@ -634,7 +638,7 @@ class KmindexRegistry:
         """
         if self.has_index(index.index_id):
             return False
-        Kmindex.register_index_in_json(index.parent_dir, self.root_path, index.index_id)
+        Kmindex.register_index_in_json(index.parent_dir, self._root_path, index.index_id)
         # Reload json after kmindex modified it
         self.load_json()
         return True
@@ -687,7 +691,7 @@ class KmindexRegistry:
         """String representation."""
         indices = self.list_indices()
         return (
-            f"IndexRegistry(path='{self.root_path}', indices={len(indices)}: {indices})"
+            f"IndexRegistry(path='{self._root_path}', indices={len(indices)}: {indices})"
         )
 
     def __getitem__(self, index_id: str) -> KmtricksIndex | None:

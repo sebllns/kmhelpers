@@ -1,12 +1,20 @@
 from kmhelpers import Main, Toolbox, KmindexWrapper
 import os
+import tempfile
+import shutil
+
+temp_dir = tempfile.mkdtemp(
+    prefix="index_fake_samples_",
+    dir=os.path.join(os.path.dirname(os.path.abspath(__file__)), "data"),
+)
 
 # Initialize the environment
-Main.init(chdir=os.path.dirname(os.path.abspath(__file__)))
+Main.init(chdir=temp_dir)
 
-sample_dir = "data/fake_samples"
-registry = "data/fake_index"
-fof_file = "data/fake_samples.fof"
+sample_dir = "../fake_samples"
+registry = "fake_index"
+fof_file = "fake_samples.fof"
+query_file = "../q_sample_001.fasta"
 
 # Create wrapper
 wrapper = KmindexWrapper()
@@ -22,11 +30,7 @@ index = wrapper.build(
 )
 
 # Query the index
-# results_dir = wrapper.query(
-#     index="my_index",
-#     query_file="query.fasta",
-#     output_dir="query_results"
-# )
+results_dir = wrapper.query(input_registry=registry, query_file=query_file, output_dir="q1")
 
 # Or use the index object directly
 # results_dir = wrapper.query(
@@ -39,3 +43,6 @@ index = wrapper.build(
 print(f"K-mer size: {index.kmer_size}")
 print(f"Number of samples: {index.nb_samples}")
 print(f"Sample names: {index.samples}")
+
+# if os.path.exists(temp_dir):
+#     shutil.rmtree(temp_dir)

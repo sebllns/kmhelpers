@@ -1089,7 +1089,7 @@ class Kmindex:
         """
         Run the kmindex query command with the specified parameters.
         Args:
-            names (list): List of names to query.
+            names (list): List of indexes to query from.
             index_path (str): Path to the index directory.
             output_dir (str): Path to the output directory.
             format (str): Output format (e.g., "json").
@@ -1125,8 +1125,6 @@ class Kmindex:
             index_path,
             "--output",
             output_dir,
-            "--names",
-            ",".join(names),
             "--format",
             format,
             "--fastx",
@@ -1136,6 +1134,14 @@ class Kmindex:
             "--threshold",
             str(threshold),
         ]
+
+        if names:
+            cmd.extend(
+                [
+                    "--names",
+                    ",".join(names),
+                ]
+            )
 
         result = None
 

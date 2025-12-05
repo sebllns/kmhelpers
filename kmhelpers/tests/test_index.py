@@ -431,7 +431,7 @@ class TestKmindexRegistry(TestKmtricksIndexBase):
     def test_init_with_existing_json(self):
         """Test registry initialization with existing index.json."""
         registry = KmindexRegistry(str(self.registry_path))
-        self.assertEqual(registry.root_path, str(self.registry_path))
+        self.assertEqual(registry._root_path, str(self.registry_path))
 
     def test_json_path_property(self):
         """Test json_path property."""

@@ -8,7 +8,7 @@ from typing import List, Optional, Union
 from pathlib import Path
 
 from .utils import Bin, Toolbox, Kmindex
-from .index import KmtricksIndex
+from .index import KmtricksIndex, KmindexRegistry
 from ..operations.fof import FofManager
 
 
@@ -143,7 +143,9 @@ class KmindexWrapper:
 
         # Set default run_dir if not provided (required parameter)
         if output_index_dir is None:
-            output_index_dir = os.path.join(os.path.dirname(output_registry_path), ".kmtricks", register_as)
+            output_index_dir = os.path.join(
+                os.path.dirname(output_registry_path), ".kmtricks", register_as
+            )
 
         output_index_dir = Toolbox.get_canonical_path(str(output_index_dir))
 
@@ -228,12 +230,18 @@ class KmindexWrapper:
 
     def query(
         self,
-        index: Union[str, Path, KmtricksIndex],
+        input_registry: Union[str, Path, KmindexRegistry],
         query_file: Union[str, Path],
-        output_dir: Union[str, Path],
-        names: Optional[List[str]] = None,
+        output_dir: Union[str, Path] = "query_results",
+        names: Optional[
+            List[
+                Union[
+                    str,
+                    KmtricksIndex,
+                ]
+            ]
+        ] = None,
         format: str = "json",
-        fastx: bool = False,
         zvalue: int = 0,
         threshold: float = 0.0,
         monitor: bool = False,
@@ -248,9 +256,9 @@ class KmindexWrapper:
             index: Path to index directory or KmtricksIndex object.
             query_file: Path to query FASTA/FASTQ file.
             output_dir: Path to output directory (must not exist).
-            names: List of sample names to query (if None, queries all).
+            names:  Sub-indexes to query, comma separated. {all}
             format: Output format (e.g., "json").
-            fastx: Whether to use FASTX format.
+            fastx: Input fasta/q file (supports gz/bzip2) containing the sequence(s) to query. 
             zvalue: Z-value parameter for the query.
             threshold: Threshold parameter for the query.
             monitor: Whether to monitor resource usage.
@@ -264,37 +272,31 @@ class KmindexWrapper:
             FileNotFoundError: If index.json or query_file not found.
             IsADirectoryError: If output_dir already exists.
         """
-        # Handle KmtricksIndex object
-        if isinstance(index, KmtricksIndex):
-            index_path = index.dir_path
+
+        registry = None
+
+        if isinstance(input_registry, KmindexRegistry):
+            registry = input_registry
         else:
-            index_path = str(index)
+            registry = KmindexRegistry(str(input_registry))
 
         # Validate query file exists
         query_file = Toolbox.get_canonical_path(str(query_file))
         if not os.path.exists(query_file):
             raise FileNotFoundError(f"Query file not found: {query_file}")
 
-        # If no names provided, get all sample names from index
-        if names is None:
-            if isinstance(index, KmtricksIndex):
-                idx = index
-            else:
-                parent_dir = os.path.dirname(index_path)
-                index_name = os.path.basename(index_path)
-                if not parent_dir:
-                    parent_dir = os.getcwd()
-                idx = KmtricksIndex(parent_dir, index_name)
-
-            names = idx.samples
-
         # Call existing query_index method
+        # TODO:  Add   -b --batch-size   - Size of query batches (0≈nb_seq/nb_thread). {0}
         Kmindex.query_index(
-            names=names,
-            index_path=index_path,
+            names=(
+                [x.index_id if isinstance(x, KmtricksIndex) else x for x in names]
+                if names
+                else None
+            ),
+            index_path=registry.root_path,
             output_dir=str(output_dir),
             format=format,
-            fastx=fastx,
+            fastx=query_file,
             zvalue=zvalue,
             threshold=threshold,
             monitor=monitor,

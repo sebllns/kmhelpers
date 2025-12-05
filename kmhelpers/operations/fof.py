@@ -21,16 +21,36 @@ class FofManager:
     associated sample names. Format: "name: path" where name is the sample
     identifier and path is the file path.
 
+    FofManager maintains an internal dictionary (samples: Dict[str, str])
+    mapping sample IDs to file paths, allowing in-memory management of the
+    fof data before saving to disk.
+
+    Attributes:
+        samples: Dictionary mapping sample IDs to file paths.
+
     Example:
+        >>> # Load and manage a fof file
+        >>> manager = FofManager("samples.fof")
+        >>> print(manager.get_sample_count())  # Number of samples
+        >>>
+        >>> # Modify samples in memory
+        >>> manager.add_sample("new_sample", "/path/to/new_sample.fasta.gz")
+        >>> manager.remove_sample("old_sample")
+        >>>
+        >>> # Save changes to file
+        >>> manager.save("updated_samples.fof")
+        >>>
+        >>> # Create a new fof from scratch
         >>> manager = FofManager()
-        >>> # Create a fof file
-        >>> fof_path = manager.create_fof_file(
+        >>> manager.add_sample("sample1", "sample1.fasta.gz")
+        >>> manager.add_sample("sample2", "sample2.fasta.gz")
+        >>> manager.save("new_samples.fof")
+        >>>
+        >>> # Or use static methods for one-off operations
+        >>> fof_path = FofManager.create_fof_file(
         ...     input_files=["sample1.fasta.gz", "sample2.fasta.gz"],
         ...     fof_path="samples.fof"
         ... )
-        >>> # Load sample IDs
-        >>> samples = manager.get_sample_ids(fof_path)
-        >>> print(samples)  # ['sample1', 'sample2']
     """
 
     # Common file extensions for bioinformatics files
@@ -47,9 +67,18 @@ class FofManager:
         ".fna",
     ]
 
-    def __init__(self):
-        """Initialize the FofManager."""
-        pass
+    def __init__(self, fof_path: Optional[Union[str, Path]] = None):
+        """
+        Initialize the FofManager.
+
+        Args:
+            fof_path: Optional path to a fof file to load initially.
+                     If provided, the samples dict will be populated from this file.
+        """
+        self.samples: Dict[str, str] = {}
+
+        if fof_path:
+            self.load(fof_path)
 
     def list_files_in_directory(
         self,
@@ -100,48 +129,6 @@ class FofManager:
         matched_files.sort()
 
         return matched_files
-
-    def create_fof_from_directory(
-        self,
-        directory: Union[str, Path],
-        fof_path: Union[str, Path],
-        recursive: bool = False,
-        extensions: Optional[List[str]] = None,
-        use_absolute_paths: bool = True,
-    ) -> str:
-        """
-        Create a fof file from all matching files in a directory.
-
-        Args:
-            directory: Directory containing input files.
-            fof_path: Path where the fof file should be created.
-            recursive: If True, search recursively in subdirectories.
-            extensions: List of extensions to filter by. If None, uses COMMON_EXTENSIONS.
-            use_absolute_paths: If True, convert all paths to absolute paths.
-
-        Returns:
-            Absolute path to the created fof file.
-
-        Raises:
-            NotADirectoryError: If directory doesn't exist or is not a directory.
-            ValueError: If no matching files found in directory.
-        """
-        input_files = self.list_files_in_directory(
-            directory=directory, recursive=recursive, extensions=extensions
-        )
-
-        if not input_files:
-            ext_list = ", ".join(extensions if extensions else self.COMMON_EXTENSIONS)
-            raise ValueError(
-                f"No files with extensions [{ext_list}] found in directory: {directory}"
-            )
-
-        return self.create_fof_file(
-            input_files=input_files,
-            fof_path=fof_path,
-            use_absolute_paths=use_absolute_paths,
-            validate_files=True,
-        )
 
     @staticmethod
     def parse_fof_line(line: str) -> Optional[Tuple[str, str]]:
@@ -198,6 +185,197 @@ class FofManager:
 
         return sample_name
 
+    def load(self, fof_path: Union[str, Path]) -> None:
+        """
+        Load a fof file and populate the internal samples dictionary.
+
+        Args:
+            fof_path: Path to the fof file.
+
+        Raises:
+            FileNotFoundError: If fof file doesn't exist.
+        """
+        self.samples = self.load_with_paths(fof_path)
+
+    def load_from_files(
+        self,
+        input_files: Sequence[Union[str, Path]],
+        use_absolute_paths: bool = True,
+        validate_files: bool = True,
+        replace_existing: bool = False,
+        custom_names: Optional[Sequence[str]] = None,
+    ) -> None:
+        """
+        Load samples from a list of input files into the internal dictionary.
+
+        Args:
+            input_files: List of input file paths.
+            use_absolute_paths: If True, convert all paths to absolute paths.
+            validate_files: If True, validate that all input files exist.
+            custom_names: Optional dict mapping file paths to custom sample names.
+
+        Raises:
+            FileNotFoundError: If any input file doesn't exist (when validate_files=True).
+        """
+        self.samples.clear()
+
+        for idx, file_path in enumerate(input_files):
+            file_path_str = str(file_path)
+
+            if use_absolute_paths:
+                file_path_str = Toolbox.get_canonical_path(file_path_str)
+
+            if validate_files and not os.path.exists(file_path_str):
+                print(f"[Warning] Skipping file not found: {file_path_str}")
+
+            # Determine sample name
+            sample_name = (
+                custom_names[idx]
+                if custom_names and idx < len(custom_names)
+                else self.extract_sample_name(file_path_str)
+            )
+
+            if not self.has_sample(sample_name) or replace_existing:
+                self.add_sample(sample_name, file_path_str)
+
+    def load_from_directory(
+        self,
+        directory: Union[str, Path],
+        recursive: bool = False,
+        extensions: Optional[List[str]] = None,
+        use_absolute_paths: bool = True,
+    ) -> None:
+        """
+        Load samples from all matching files in a directory into the internal dictionary.
+
+        Args:
+            directory: Directory containing input files.
+            recursive: If True, search recursively in subdirectories.
+            extensions: List of extensions to filter by. If None, uses COMMON_EXTENSIONS.
+            use_absolute_paths: If True, convert all paths to absolute paths.
+
+        Raises:
+            NotADirectoryError: If directory doesn't exist or is not a directory.
+            ValueError: If no matching files found in directory.
+        """
+        input_files = self.list_files_in_directory(
+            directory=directory, recursive=recursive, extensions=extensions
+        )
+
+        if not input_files:
+            ext_list = ", ".join(extensions if extensions else self.COMMON_EXTENSIONS)
+            raise ValueError(
+                f"No files with extensions [{ext_list}] found in directory: {directory}"
+            )
+
+        self.load_from_files(
+            input_files=input_files,
+            use_absolute_paths=use_absolute_paths,
+            validate_files=True,
+        )
+
+    def clear(self) -> None:
+        """Clear the internal samples dictionary."""
+        self.samples.clear()
+
+    def add_sample(self, sample_id: str, path: str) -> None:
+        """
+        Add or update a sample in the internal dictionary.
+
+        Args:
+            sample_id: Sample identifier.
+            path: File path for the sample.
+        """
+        self.samples[sample_id] = path
+
+    def remove_sample(self, sample_id: str) -> bool:
+        """
+        Remove a sample from the internal dictionary.
+
+        Args:
+            sample_id: Sample identifier to remove.
+
+        Returns:
+            True if sample was removed, False if it didn't exist.
+        """
+        if sample_id in self.samples:
+            del self.samples[sample_id]
+            return True
+        return False
+
+    def get_sample_path(self, sample_id: str) -> Optional[str]:
+        """
+        Get the file path for a sample.
+
+        Args:
+            sample_id: Sample identifier.
+
+        Returns:
+            File path if sample exists, None otherwise.
+        """
+        return self.samples.get(sample_id)
+
+    def has_sample(self, sample_id: str) -> bool:
+        """
+        Check if a sample exists in the internal dictionary.
+
+        Args:
+            sample_id: Sample identifier.
+
+        Returns:
+            True if sample exists.
+        """
+        return sample_id in self.samples
+
+    def get_all_sample_ids(self) -> List[str]:
+        """
+        Get all sample IDs from the internal dictionary.
+
+        Returns:
+            List of sample IDs in insertion order.
+        """
+        return list(self.samples.keys())
+
+    def get_all_paths(self) -> List[str]:
+        """
+        Get all file paths from the internal dictionary.
+
+        Returns:
+            List of file paths in insertion order.
+        """
+        return list(self.samples.values())
+
+    def get_sample_count(self) -> int:
+        """
+        Get the number of samples in the internal dictionary.
+
+        Returns:
+            Number of samples.
+        """
+        return len(self.samples)
+
+    def save(self, fof_path: Union[str, Path], use_absolute_paths: bool = False) -> str:
+        """
+        Save the internal samples dictionary to a fof file.
+
+        Args:
+            fof_path: Path where the fof file should be created.
+            use_absolute_paths: If True, convert all paths to absolute paths.
+
+        Returns:
+            Absolute path to the created fof file.
+        """
+        fof_path_str = Toolbox.get_canonical_path(str(fof_path))
+
+        with open(fof_path_str, "w") as f:
+            for sample_id, file_path in self.samples.items():
+                output_path = file_path
+                if use_absolute_paths:
+                    output_path = Toolbox.get_canonical_path(file_path)
+                f.write(f"{sample_id}: {output_path}\n")
+
+        return fof_path_str
+
     def load_fof_file(self, fof_path: Union[str, Path]) -> List[str]:
         """
         Load sample IDs from a fof file.
@@ -250,7 +428,7 @@ class FofManager:
                 parsed = self.parse_fof_line(line)
                 if parsed:
                     sample_name, file_path = parsed
-                    sample_map[sample_name] = file_path
+                    sample_map[sample_name] = Toolbox.get_canonical_path(file_path)
 
         return sample_map
 
@@ -268,53 +446,6 @@ class FofManager:
         """
         return self.load_fof_file(fof_path)
 
-    def create_fof_file(
-        self,
-        input_files: Sequence[Union[str, Path]],
-        fof_path: Union[str, Path],
-        use_absolute_paths: bool = True,
-        validate_files: bool = True,
-        custom_names: Optional[Dict[str, str]] = None,
-    ) -> str:
-        """
-        Create a file-of-files from a list of input files.
-
-        Args:
-            input_files: List of input file paths.
-            fof_path: Path where the fof file should be created.
-            use_absolute_paths: If True, convert all paths to absolute paths.
-            validate_files: If True, validate that all input files exist.
-            custom_names: Optional dict mapping file paths to custom sample names.
-                         If not provided, names are extracted from filenames.
-
-        Returns:
-            Absolute path to the created fof file.
-
-        Raises:
-            FileNotFoundError: If any input file doesn't exist (when validate_files=True).
-        """
-        fof_path_str = Toolbox.get_canonical_path(str(fof_path))
-
-        with open(fof_path_str, "w") as f:
-            for file_path in input_files:
-                file_path_str = str(file_path)
-
-                if use_absolute_paths:
-                    file_path_str = Toolbox.get_canonical_path(file_path_str)
-
-                if validate_files and not os.path.exists(file_path_str):
-                    raise FileNotFoundError(f"Input file not found: {file_path_str}")
-
-                # Determine sample name
-                if custom_names and str(file_path) in custom_names:
-                    sample_name = custom_names[str(file_path)]
-                else:
-                    sample_name = self.extract_sample_name(file_path_str)
-
-                # Write in "name: path" format
-                f.write(f"{sample_name}: {file_path_str}\n")
-
-        return fof_path_str
 
     def validate_fof_file(self, fof_path: Union[str, Path]) -> bool:
         """
@@ -355,68 +486,6 @@ class FofManager:
 
         return True
 
-    def validate_input_files(
-        self, file_list: Sequence[Union[str, Path]], raise_on_missing: bool = True
-    ) -> bool:
-        """
-        Validate that all input files exist.
-
-        Args:
-            file_list: List of file paths to validate.
-            raise_on_missing: If True, raise FileNotFoundError for missing files.
-
-        Returns:
-            True if all files exist.
-
-        Raises:
-            FileNotFoundError: If any file is missing (when raise_on_missing=True).
-        """
-        missing_files = []
-
-        for file_path in file_list:
-            file_path_str = str(file_path)
-            if not os.path.exists(file_path_str):
-                missing_files.append(file_path_str)
-
-        if missing_files:
-            if raise_on_missing:
-                raise FileNotFoundError(
-                    f"Missing input files: {', '.join(missing_files)}"
-                )
-            return False
-
-        return True
-
-    def validate_samples(
-        self, requested_ids: List[str], available_ids: List[str]
-    ) -> Tuple[bool, List[str]]:
-        """
-        Validate that requested sample IDs exist in the available set.
-
-        Args:
-            requested_ids: List of requested sample IDs.
-            available_ids: List of available sample IDs.
-
-        Returns:
-            Tuple of (all_valid: bool, missing_ids: List[str])
-        """
-        available_set = set(available_ids)
-        missing_ids = [sid for sid in requested_ids if sid not in available_set]
-
-        return (len(missing_ids) == 0, missing_ids)
-
-    def is_valid_fof_format(self, line: str) -> bool:
-        """
-        Check if a line has valid fof format.
-
-        Args:
-            line: Line to check.
-
-        Returns:
-            True if line has valid "name: path" format.
-        """
-        return self.parse_fof_line(line) is not None
-
     @staticmethod
     def get_fof_path(index_dir: Union[str, Path]) -> str:
         """
@@ -430,107 +499,7 @@ class FofManager:
         """
         return Kmindex.get_fof_path(str(index_dir))
 
-    def resolve_paths(
-        self, fof_path: Union[str, Path], make_absolute: bool = True
-    ) -> Dict[str, str]:
-        """
-        Load all file paths from a fof file and optionally resolve to absolute paths.
 
-        Args:
-            fof_path: Path to the fof file.
-            make_absolute: If True, convert all paths to absolute paths.
 
-        Returns:
-            Dictionary mapping sample names to resolved file paths.
-        """
-        sample_map = self.load_with_paths(fof_path)
 
-        if make_absolute:
-            resolved_map = {}
-            for sample_name, file_path in sample_map.items():
-                resolved_map[sample_name] = Toolbox.get_canonical_path(file_path)
-            return resolved_map
-
-        return sample_map
-
-    def copy_fof(
-        self, source_path: Union[str, Path], dest_path: Union[str, Path]
-    ) -> str:
-        """
-        Copy a fof file to a new location.
-
-        Args:
-            source_path: Source fof file path.
-            dest_path: Destination fof file path.
-
-        Returns:
-            Canonical path to the destination file.
-
-        Raises:
-            FileNotFoundError: If source file doesn't exist.
-        """
-        source_str = Toolbox.get_canonical_path(str(source_path))
-        dest_str = Toolbox.get_canonical_path(str(dest_path))
-
-        if not os.path.exists(source_str):
-            raise FileNotFoundError(f"Source FOF file not found: {source_str}")
-
-        # Read from source and write to destination
-        with open(source_str, "r") as src, open(dest_str, "w") as dst:
-            dst.write(src.read())
-
-        return dest_str
-
-    def get_file_count(self, fof_path: Union[str, Path]) -> int:
-        """
-        Get the number of files/samples in a fof file.
-
-        Args:
-            fof_path: Path to the fof file.
-
-        Returns:
-            Number of samples in the fof file.
-        """
-        return len(self.load_fof_file(fof_path))
-
-    def append_to_fof(
-        self,
-        fof_path: Union[str, Path],
-        new_files: Sequence[Union[str, Path]],
-        use_absolute_paths: bool = True,
-        validate_files: bool = True,
-    ) -> str:
-        """
-        Append new files to an existing fof file.
-
-        Args:
-            fof_path: Path to the fof file.
-            new_files: List of new files to append.
-            use_absolute_paths: If True, convert paths to absolute.
-            validate_files: If True, validate that files exist.
-
-        Returns:
-            Path to the fof file.
-
-        Raises:
-            FileNotFoundError: If fof file or any input file doesn't exist.
-        """
-        fof_path_str = Toolbox.get_canonical_path(str(fof_path))
-
-        if not os.path.exists(fof_path_str):
-            raise FileNotFoundError(f"FOF file not found: {fof_path_str}")
-
-        with open(fof_path_str, "a") as f:
-            for file_path in new_files:
-                file_path_str = str(file_path)
-
-                if use_absolute_paths:
-                    file_path_str = Toolbox.get_canonical_path(file_path_str)
-
-                if validate_files and not os.path.exists(file_path_str):
-                    raise FileNotFoundError(f"Input file not found: {file_path_str}")
-
-                sample_name = self.extract_sample_name(file_path_str)
-                f.write(f"{sample_name}: {file_path_str}\n")
-
-        return fof_path_str
+    
