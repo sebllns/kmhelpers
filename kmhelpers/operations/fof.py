@@ -6,6 +6,7 @@ kmindex file-of-files format, including reading, writing, validation, and
 sample management.
 """
 
+import re
 import os
 from typing import List, Dict, Tuple, Optional, Union, Sequence
 from pathlib import Path
@@ -183,6 +184,21 @@ class FofManager:
                 sample_name = sample_name[: -len(ext)]
                 break
 
+        """
+        Clean sample_id by:
+        1. Replace special characters (non-alphanumeric except underscore) with underscore
+        2. Remove duplicate consecutive underscores
+        3. Remove leading underscores
+        """
+        # Replace special characters with underscore
+        sample_name = re.sub(r"[^a-zA-Z0-9_]", "_", sample_name)
+
+        # Remove duplicate consecutive underscores
+        sample_name = re.sub(r"_+", "_", sample_name)
+
+        # Remove leading underscores
+        sample_name = sample_name.lstrip("_")
+
         return sample_name
 
     def load(self, fof_path: Union[str, Path]) -> None:
@@ -236,7 +252,7 @@ class FofManager:
             )
 
             if not self.has_sample(sample_name) or replace_existing:
-                self.add_sample(sample_name, file_path_str)
+                self.add_sample(file_path_str, sample_name)
 
     def load_from_directory(
         self,
@@ -278,7 +294,7 @@ class FofManager:
         """Clear the internal samples dictionary."""
         self.samples.clear()
 
-    def add_sample(self, sample_id: str, path: str) -> None:
+    def add_sample(self, path: str, sample_id: str = "") -> None:
         """
         Add or update a sample in the internal dictionary.
 
@@ -286,7 +302,7 @@ class FofManager:
             sample_id: Sample identifier.
             path: File path for the sample.
         """
-        self.samples[sample_id] = path
+        self.samples[sample_id if sample_id else self.extract_sample_name(path)] = path
 
     def remove_sample(self, sample_id: str) -> bool:
         """
@@ -446,7 +462,6 @@ class FofManager:
         """
         return self.load_fof_file(fof_path)
 
-
     def validate_fof_file(self, fof_path: Union[str, Path]) -> bool:
         """
         Validate the format and existence of a fof file.
@@ -498,8 +513,3 @@ class FofManager:
             Canonical path to kmtricks.fof file.
         """
         return Kmindex.get_fof_path(str(index_dir))
-
-
-
-
-    
