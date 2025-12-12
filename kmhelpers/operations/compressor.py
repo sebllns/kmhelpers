@@ -2,8 +2,8 @@ from dataclasses import dataclass
 import os
 import sys
 from pathlib import Path
-from kmhelpers.core.index import KmtricksIndex, IndexCompressionState
-from kmhelpers.core.utils import Toolbox, Kmindex, BlockCompressorZSTD
+from ..core.index import KmtricksIndex, IndexCompressionState
+from ..core.utils import Toolbox, Kmindex, BlockCompressorZSTD
 from enum import Enum
 import filecmp
 

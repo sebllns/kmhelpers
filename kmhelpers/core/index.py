@@ -587,6 +587,12 @@ class KmindexRegistry:
     
     def is_index_dir(self, index_id: str) -> bool:
         return os.path.isdir(self.get_index_path(index_id))
+    
+    def get_all(self) -> List[KmtricksIndex]:
+        items = []
+        for i in self:
+            items.append(i)
+        return items
 
     def get_index(self, index_id: str) -> KmtricksIndex:
         """

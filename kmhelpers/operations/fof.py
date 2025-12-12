@@ -55,6 +55,7 @@ class FofManager:
     """
 
     # Common file extensions for bioinformatics files
+    # Move this into common or utils
     COMMON_EXTENSIONS = [
         ".fasta.gz",
         ".fastq.gz",

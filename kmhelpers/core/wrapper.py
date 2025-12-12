@@ -43,44 +43,12 @@ class KmindexWrapper:
     def fof_manager(self):
         return self._fof_manager
 
-    def create_fof_file(
-        self,
-        input_files: List[Union[str, Path]],
-        fof_path: Union[str, Path],
-        use_absolute_paths: bool = True,
-    ) -> str:
-        """
-        Create a file-of-files (fof) from a list of input files.
-
-        The fof format is: "name: path" where name is the sample identifier
-        and path is the file path.
-
-        This method delegates to FofManager for consistent fof operations.
-
-        Args:
-            input_files: List of input file paths.
-            fof_path: Path where the fof file should be created.
-            use_absolute_paths: If True, convert all paths to absolute paths.
-
-        Returns:
-            Absolute path to the created fof file.
-
-        Raises:
-            FileNotFoundError: If any input file doesn't exist.
-        """
-        return self._fof_manager.create_fof_file(
-            input_files=input_files,
-            fof_path=fof_path,
-            use_absolute_paths=use_absolute_paths,
-            validate_files=True,
-        )
-
     def build(
         self,
         input_fof_file: Optional[Union[str, Path]],
         output_registry_path: Union[str, Path],
         output_index_dir: Optional[Union[str, Path]] = None,
-        kmer_size: int = 31,
+        k: int = 31,
         minim_size: int = 10,
         bloom_size: Optional[int] = None,
         nb_cell: Optional[int] = None,
@@ -101,7 +69,7 @@ class KmindexWrapper:
             input_fof_file: Path to file-of-filenames containing input FASTA/FASTQ files.
             output_registry_path: Path to the registry directory where index.json will be created/updated.
             output_index_dir: Optional custom directory name for the index. If None, uses register_as value.
-            kmer_size: K-mer size (8-255).
+            k: K-mer size (8-255).
             minim_size: Minimizer size (4-15).
             bloom_size: Bloom filter size in bits for presence/absence indexing (total number of bit positions).
             nb_cell: Number of cells in counting Bloom filter for abundance indexing (mutually exclusive with bloom_size).
@@ -144,7 +112,7 @@ class KmindexWrapper:
         # Set default run_dir if not provided (required parameter)
         if output_index_dir is None:
             output_index_dir = os.path.join(
-                os.path.dirname(output_registry_path), ".kmtricks", register_as
+                os.path.dirname(output_registry_path), ".subindexes", register_as
             )
 
         output_index_dir = Toolbox.get_canonical_path(str(output_index_dir))
@@ -169,7 +137,7 @@ class KmindexWrapper:
             "--register-as",
             register_as,
             "--kmer-size",
-            str(kmer_size),
+            str(k),
             "--minim-size",
             str(minim_size),
             "--hard-min",

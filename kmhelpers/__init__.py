@@ -12,7 +12,7 @@ from kmhelpers.core.index import KmtricksIndex, KmindexRegistry
 from kmhelpers.core.wrapper import KmindexWrapper
 from kmhelpers.operations.compressor import Compressor, CompressionParams
 from kmhelpers.operations.fof import FofManager
-from kmhelpers.metrics.compression_metrics import PermutationData, CompressionData, CompressionMetrics
+from kmhelpers.operations.builder import IndexBuilder
 
 __all__ = [
     # Core utilities
@@ -26,14 +26,10 @@ __all__ = [
     "KmtricksIndex",
     "KmindexRegistry",
     "KmindexWrapper",
+    "IndexBuilder",
 
     # Operations
     "Compressor",
     "CompressionParams",
     "FofManager",
-
-    # Metrics
-    "PermutationData",
-    "CompressionData",
-    "CompressionMetrics",
 ]
