@@ -324,13 +324,14 @@ class Toolbox:
 
     ####################################################
     @staticmethod
-    def monitor_cmd(cmd: List[str]) -> Optional[Tuple[str, Dict[str, Any]]]:
+    def monitor_cmd(
+        cmd: List[str], print_trace: bool = True, log_file: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
         """
         Run a command and monitor its resource usage.
-
         Args:
             cmd: Command and arguments as a list
-
+            log_file: Optional path to write stdout/stderr to
         Returns:
             Tuple of (stdout, resource_stats) where resource_stats contains:
                 - start_time: Command start timestamp
@@ -338,81 +339,102 @@ class Toolbox:
                 - max_cpu_percent: Maximum CPU usage percentage
                 - max_memory_mb: Maximum memory usage in MB
                 - return_code: Command exit code
-            Returns None if an error occurs
+                - error: Error message if command failed
+            Returns None if process cannot be started
         """
         print(f"Running command: {' '.join(cmd)}")
+        if log_file:
+            print(f"Logging output to: {log_file}")
 
-        # Resource monitoring variables
         max_cpu = 0.0
         max_memory = 0.0
         monitoring = True
+        monitor_lock = threading.Lock()
 
         def monitor_resources(process):
             nonlocal max_cpu, max_memory, monitoring
             try:
                 psutil_process = psutil.Process(process.pid)
+                psutil_process.cpu_percent(interval=0.1)
+
                 while monitoring and process.poll() is None:
                     try:
-                        # Get CPU and memory usage
-                        cpu_percent = psutil_process.cpu_percent()
-                        memory_info = psutil_process.memory_info()
-                        memory_mb = memory_info.rss / 1024 / 1024  # Convert to MB
+                        processes = [psutil_process] + psutil_process.children(
+                            recursive=True
+                        )
 
-                        # Update maximums
-                        max_cpu = max(max_cpu, cpu_percent)
-                        max_memory = max(max_memory, memory_mb)
+                        cpu_percent = sum(p.cpu_percent() for p in processes)
+                        memory_bytes = sum(p.memory_info().rss for p in processes)
+                        memory_mb = memory_bytes / 1024 / 1024
 
-                        time.sleep(0.1)  # Sample every 100ms
+                        with monitor_lock:
+                            max_cpu = max(max_cpu, cpu_percent)
+                            max_memory = max(max_memory, memory_mb)
+
+                        time.sleep(0.1)
                     except (psutil.NoSuchProcess, psutil.AccessDenied):
                         break
             except Exception as e:
                 print(f"Resource monitoring error: {e}")
 
-        # Start the process
-        start_time = time.time()
-        result = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
+        try:
+            start_time = time.time()
+            result = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
 
-        # Start monitoring in a separate thread
-        monitor_thread = threading.Thread(target=monitor_resources, args=(result,))
-        monitor_thread.daemon = True
-        monitor_thread.start()
+            monitor_thread = threading.Thread(target=monitor_resources, args=(result,))
+            monitor_thread.daemon = True
+            monitor_thread.start()
+            time.sleep(0.01)
 
-        # Wait for completion
-        stdout, stderr = result.communicate()
-        end_time = time.time()
-        monitoring = False
+            stdout, stderr = result.communicate()
+            end_time = time.time()
+            monitoring = False
+            monitor_thread.join(timeout=1)
 
-        # Wait for monitoring thread to finish
-        monitor_thread.join(timeout=1)
+            execution_time = 1000 * (end_time - start_time)
 
-        execution_time = 1000 * (end_time - start_time)
+            with monitor_lock:
+                output = {
+                    "start_time": start_time,
+                    "execution_time_ms": round(execution_time, 4),
+                    "max_cpu_percent": round(max_cpu, 4),
+                    "max_memory_mb": round(max_memory, 4),
+                    "return_code": result.returncode,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                }
 
-        if result.returncode != 0:
-            print(f"Error running cmd: {stderr}")
+            # Build output content
+            output_lines = [
+                f"Command: {' '.join(cmd)}",
+                f"Execution time: {output['execution_time_ms']}ms",
+                f"Max CPU: {output['max_cpu_percent']}%",
+                f"Max Memory: {output['max_memory_mb']} MB",
+                f"Return code: {output['return_code']}",
+                "\n--- STDOUT ---",
+                stdout,
+            ]
+            if stderr.strip():
+                output_lines.extend(["\n--- STDERR ---", stderr])
+
+            output_content = "\n".join(output_lines) if log_file or print_trace else ""
+
+            # Write to log file if specified
+            if log_file:
+                with open(log_file, "w") as f:
+                    f.write(output_content)
+
+            # Print to console if print_trace is enabled
+            if print_trace:
+                print(output_content)
+
+            return output
+
+        except Exception as e:
+            print(f"Failed to start process: {e}")
             return None
-
-        resource_stats = {
-            "start_time": start_time,
-            "execution_time_ms": round(execution_time, 4),
-            "max_cpu_percent": round(max_cpu, 4),
-            "max_memory_mb": round(max_memory, 4),
-            "return_code": result.returncode,
-        }
-
-        print(f"Command completed successfully")
-        print(f"Execution time: {resource_stats['execution_time_ms']}ms")
-        print(f"Max CPU usage: {resource_stats['max_cpu_percent']}%")
-        print(f"Max Memory usage: {resource_stats['max_memory_mb']} MB")
-        for line in stdout.strip().split("\n"):
-            if line:
-                print(f"1: {line}")
-        for line in stderr.strip().split("\n"):
-            if line:
-                print(f"2: {line}")
-
-        return stdout, resource_stats
 
 
 ########################################################
@@ -1083,7 +1105,6 @@ class Kmindex:
         fastx,
         zvalue=0,
         threshold=0.0,
-        monitor=False,
         is_compressed=False,
     ):
         """
@@ -1143,12 +1164,7 @@ class Kmindex:
                 ]
             )
 
-        result = None
-
-        if monitor:
-            result = Toolbox.monitor_cmd(cmd)
-        else:
-            result = Toolbox.run_cmd(cmd)
+        result = Toolbox.monitor_cmd(cmd)
 
         if not os.path.isdir(output_dir):
             raise NotADirectoryError(f"Result directory not found: {output_dir}")
