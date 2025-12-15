@@ -128,22 +128,17 @@ class FASTAReader:
 
 # Example usage
 if __name__ == "__main__":
-    reader = FASTAReader("/home/sbelleno/work/git/compression/kmhelpers/examples/data/dl/SRR8747235.unitigs.fa.zst")
-
-    seq = reader.fetch_first_n(200)
-    print(f"First {seq.length}bp: {seq}")
-
-    # reader = FASTAReader("sequences.fa.gz")
+    reader = FASTAReader("sequences.fa.gz")
     
-    # # Extract first 50 bases
-    # seq = reader.fetch_first_n("contig_1", 50)
-    # print(f"First 50bp: {seq}")
+    # Extract first 50 bases
+    seq = reader.fetch_first_n("contig_1", 50)
+    print(f"First 50bp: {seq}")
     
-    # # Extract with range
-    # seq = reader.fetch_sequence("contig_1", start=10, end=60)
-    # print(f"10-60bp: {seq}")
+    # Extract with range
+    seq = reader.fetch_sequence("contig_1", start=10, end=60)
+    print(f"10-60bp: {seq}")
     
-    # # Iterate all
-    # for name, seq in reader.iter_sequences():
-    #     print(f"{name}: {len(seq)} bp")
+    # Iterate all
+    for name, seq in reader.iter_sequences():
+        print(f"{name}: {len(seq)} bp")
 

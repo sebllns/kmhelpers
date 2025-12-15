@@ -1,3 +1,7 @@
+import os
+import tempfile
+from ..core.utils import Toolbox
+
 class KmindexQueryResult:
     def __init__(self, result: dict) -> None:
         self._result = result
@@ -12,10 +16,19 @@ class KmindexQueryResult:
 class KmindexQuery:
     def __init__(self, path: str = "", sequence: str = "") -> None:
         assert path or sequence, "Either path or sequence string must be provided"
+        self._sequence = sequence
         if sequence:
+            
             if path:
-                pass
-        pass
+                path = Toolbox.get_canonical_path(path)
+                assert not os.path.isfile(path), f"Sequence file already exists: {path}"
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with open(path, 'w') as f:
+                    f.write(sequence)
+        else:
+            assert os.path.isfile(path), f"Query file not found: {path}"
+            self._path = path
+
 
     def run_query(self, registry_path : str, index_ids: list[str] = []):
         pass
