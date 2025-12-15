@@ -8,7 +8,6 @@ from typing import List, Optional, Union
 from pathlib import Path
 
 from .utils import Bin, Toolbox, Kmindex
-from ..operations.fof import FofManager
 
 
 class KmindexWrapper:
@@ -36,11 +35,7 @@ class KmindexWrapper:
 
     def __init__(self):
         """Initialize the KmindexWrapper."""
-        self._fof_manager = FofManager()
-
-    @property
-    def fof_manager(self):
-        return self._fof_manager
+        pass
 
     def build(
         self,
@@ -111,10 +106,12 @@ class KmindexWrapper:
         # Set default run_dir if not provided (required parameter)
         if output_index_dir is None:
             output_index_dir = os.path.join(
-                os.path.dirname(output_registry_path), ".subindexes", register_as
+                os.path.dirname(output_registry_path), ".subindexes"
             )
 
-        output_index_dir = Toolbox.get_canonical_path(str(output_index_dir))
+        output_index_dir = Toolbox.get_canonical_path(
+            os.path.join(output_index_dir, register_as)
+        )
 
         if os.path.exists(output_index_dir):
             raise FileExistsError(
@@ -252,8 +249,7 @@ class KmindexWrapper:
             fastx=query_file,
             zvalue=zvalue,
             threshold=threshold,
-            monitor=monitor,
             is_compressed=is_compressed,
         )
 
-        return 
+        return
