@@ -2,6 +2,119 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.2] - 2025-12-15
+
+### Added
+
+- **IndexBuilder**: New class for managing index build operations
+  - `create_subindex()`: Core method for building indices with streamlined parameters
+  - Integrated into package exports for easy access
+
+- **Sequence Operations**: Enhanced sequence management capabilities
+  - New `Sequence` module in operations for handling k-mer sequences
+  - Query operations integration with sequences
+  - Updated query module with sequence support
+
+- **Improved Index Management**:
+  - Enhanced Index class methods for better object manipulation
+  - Better property handling and access patterns
+
+### Changed
+
+- **Wrapper Refactoring**: Reduced coupling in KmindexWrapper
+  - Improved separation of concerns
+  - Better method organization
+  - Cleaner interface for index operations
+
+- **Operations Updates**:
+  - Updated builder operations for consistency
+  - Improved FOF handling
+  - Enhanced sequence and query integration
+
+### Fixed
+
+- Fixed index property access patterns
+- Improved error handling in builder operations
+- Better integration between sequence and query modules
+
+## [0.5.1] - 2025-12-10
+
+### Added
+
+- **KmindexWrapper Enhancements**: Improved wrapper functionality
+  - Better command monitoring
+  - Enhanced parameter handling
+  - Improved error reporting
+
+### Changed
+
+- Refactored KmindexWrapper for reduced coupling
+  - Better method decomposition
+  - Improved code maintainability
+  - Cleaner internal architecture
+
+- Updated FOF operations:
+  - Enhanced file handling
+  - Better validation
+
+### Fixed
+
+- Fixed FOF file processing issues
+- Improved sequence query integration
+
+## [0.5.0] - 2025-12-05
+
+### Added
+
+- **Sequence Management**: Complete sequence handling system
+  - New `Sequence` class for managing k-mer sequences
+  - Query operations with sequence support
+  - Integration with index operations
+
+- **Index Object Methods**: Enhanced index manipulation
+  - Methods to work with index as Python objects
+  - Better property access patterns
+  - Improved index lifecycle management
+
+### Changed
+
+- Updated `IndexBuilder` class:
+  - Improved build pipeline structure
+  - Better parameter management
+  - Enhanced error handling
+
+- Refactored core modules for better organization
+
+### Fixed
+
+- Various improvements in index handling
+- Better error messages and validation
+
+## [0.4.0] - 2025-11-25
+
+### Added
+
+- **Object-Oriented Index Interface**: Complete rewrite of index handling
+  - Enhanced `KmtricksIndex` with object manipulation methods
+  - New methods for working with index as Python objects
+  - Better property access and management
+
+- **IndexBuilder Class**: New builder class for index operations
+  - Streamlined index building process
+  - Better parameter handling
+  - Integration with KmindexWrapper
+
+### Changed
+
+- Updated `KmindexWrapper` implementation
+- Improved sample generation with folder support
+- Enhanced builder module with new capabilities
+
+### Fixed
+
+- Index builder property handling
+- Sample generation path issues
+
 ## [0.3.0] - 2025-11-20
 
 ### Added
