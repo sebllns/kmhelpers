@@ -69,7 +69,7 @@ class FofManager:
         ".fna",
     ]
 
-    def __init__(self, fof_path: Optional[Union[str, Path]] = None):
+    def __init__(self, fof_path: Optional[Union[str, Path]] = None, samples: Optional[Dict[str, str]] = None):
         """
         Initialize the FofManager.
 
@@ -77,7 +77,7 @@ class FofManager:
             fof_path: Optional path to a fof file to load initially.
                      If provided, the samples dict will be populated from this file.
         """
-        self.samples: Dict[str, str] = {}
+        self.samples: Dict[str, str] = samples if samples else {}
 
         if fof_path:
             self.load(fof_path)
