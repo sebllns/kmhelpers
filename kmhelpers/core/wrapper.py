@@ -8,7 +8,6 @@ from typing import List, Optional, Union
 from pathlib import Path
 
 from .utils import Bin, Toolbox, Kmindex
-from .index import KmtricksIndex, KmindexRegistry
 from ..operations.fof import FofManager
 
 
@@ -61,7 +60,7 @@ class KmindexWrapper:
         from_index: Optional[str] = None,
         km_path: Optional[Union[str, Path]] = None,
         verbose: str = "info",
-    ) -> KmtricksIndex:
+    ) -> None:
         """
         Build a kmindex index.
 
@@ -194,27 +193,18 @@ class KmindexWrapper:
         if not parent_dir:
             parent_dir = os.getcwd()
 
-        return KmtricksIndex(parent_dir, index_name)
-
     def query(
         self,
-        input_registry: Union[str, Path, KmindexRegistry],
-        query_file: Union[str, Path],
-        output_dir: Union[str, Path] = "query_results",
-        names: Optional[
-            List[
-                Union[
-                    str,
-                    KmtricksIndex,
-                ]
-            ]
-        ] = None,
+        input_registry: str,
+        query_file: str,
+        output_dir: str = "query_results",
+        names: Optional[List[str]] = None,
         format: str = "json",
         zvalue: int = 0,
         threshold: float = 0.0,
         monitor: bool = False,
         is_compressed: bool = False,
-    ) -> str:
+    ) -> None:
         """
         Query a kmindex index.
 
@@ -226,7 +216,7 @@ class KmindexWrapper:
             output_dir: Path to output directory (must not exist).
             names:  Sub-indexes to query, comma separated. {all}
             format: Output format (e.g., "json").
-            fastx: Input fasta/q file (supports gz/bzip2) containing the sequence(s) to query. 
+            fastx: Input fasta/q file (supports gz/bzip2) containing the sequence(s) to query.
             zvalue: Z-value parameter for the query.
             threshold: Threshold parameter for the query.
             monitor: Whether to monitor resource usage.
@@ -243,10 +233,8 @@ class KmindexWrapper:
 
         registry = None
 
-        if isinstance(input_registry, KmindexRegistry):
-            registry = input_registry
-        else:
-            registry = KmindexRegistry(str(input_registry))
+        input_registry = Toolbox.get_canonical_path(input_registry)
+        output_dir = Toolbox.get_canonical_path(output_dir)
 
         # Validate query file exists
         query_file = Toolbox.get_canonical_path(str(query_file))
@@ -255,14 +243,11 @@ class KmindexWrapper:
 
         # Call existing query_index method
         # TODO:  Add   -b --batch-size   - Size of query batches (0≈nb_seq/nb_thread). {0}
+        # add -s option
         Kmindex.query_index(
-            names=(
-                [x.index_id if isinstance(x, KmtricksIndex) else x for x in names]
-                if names
-                else None
-            ),
-            index_path=registry.root_path,
-            output_dir=str(output_dir),
+            names=names,
+            index_path=input_registry,
+            output_dir=output_dir,
             format=format,
             fastx=query_file,
             zvalue=zvalue,
@@ -271,4 +256,4 @@ class KmindexWrapper:
             is_compressed=is_compressed,
         )
 
-        return Toolbox.get_canonical_path(str(output_dir))
+        return 
