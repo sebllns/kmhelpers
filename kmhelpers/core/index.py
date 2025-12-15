@@ -57,8 +57,8 @@ class KmtricksIndex:
         Raises:
             NotADirectoryError: If the index directory doesn't exist
         """
-        self.parent_dir = Toolbox.get_canonical_path(parent_dir)
-        self.index_id = index_id
+        self._parent_dir = Toolbox.get_canonical_path(parent_dir)
+        self._index_id = index_id
         self._properties: Dict[str, Any] = {
             "nb_samples": 0,
             "nb_partitions": 0,
@@ -75,20 +75,23 @@ class KmtricksIndex:
 
         self.compress_state: IndexCompressionState = compressed_state
 
-        if not Kmindex.b_index_exists(self.parent_dir, self.index_id):
+        if not Kmindex.b_index_exists(self._parent_dir, self._index_id):
             raise NotADirectoryError(
-                f"Index directory for '{self.index_id}' not found in {self.parent_dir}"
+                f"Index directory for '{self._index_id}' not found in {self._parent_dir}"
             )
+        
+    @property
+    def parent_dir(self) -> str:
+        return self._parent_dir
+    
+    @property
+    def index_id(self) -> str:
+        return self._index_id
 
     @property
     def dir_path(self) -> str:
         """Get the full path to this index directory."""
-        return Kmindex.get_index_path(self.parent_dir, self.index_id)
-
-    @property
-    def json_path(self) -> str:
-        """Get the path to the index.json file."""
-        return Kmindex.get_json_path(self.parent_dir)
+        return Kmindex.get_index_path(self._parent_dir, self._index_id)
 
     @property
     def fof_path(self) -> str:
@@ -321,7 +324,7 @@ class KmtricksIndex:
                 ok = False
 
         if not ok:
-            print(f"[Warning] Index {self.index_id} has incorrect structure")
+            print(f"[Warning] Index {self._index_id} has incorrect structure")
 
         return ok
 
@@ -408,6 +411,19 @@ class KmtricksIndex:
         self._properties["samples"] = samples
         self._properties["nb_samples"] = len(samples)
 
+    def destroy_entire_index(self) -> bool:
+        # Destroy the entire index with its content
+        try:
+            import shutil
+            print(f"Destroying index: {self._index_id}")
+            shutil.rmtree(self.dir_path, onexc=lambda f, p, e: print(f"Error: {p}"))
+            self._parent_dir = ""
+            return True
+        except Exception as e:
+            print(f"Error removing index: {e}")
+            return False
+        
+
     def copy_to(self, destination: str) -> bool:
         """
         Copy this index to a destination directory.
@@ -428,7 +444,7 @@ class KmtricksIndex:
 
             # Get source and destination paths
             source_path = self.dir_path
-            dest_path = os.path.join(destination, self.index_id)
+            dest_path = os.path.join(destination, self._index_id)
 
             # Check if source exists
             if not os.path.exists(source_path):
@@ -443,7 +459,8 @@ class KmtricksIndex:
             # Copy the entire index directory
             shutil.copytree(source_path, dest_path)
 
-            print(f"Successfully copied index '{self.index_id}' to {destination}")
+            print(f"Successfully copied index '{self._index_id}' to {destination}")
+            
             return True
 
         except Exception as e:
@@ -461,34 +478,16 @@ class KmtricksIndex:
             True if move was successful, False otherwise
         """
         try:
-            import shutil
-
             destination = Toolbox.get_canonical_path(destination)
+            self.copy_to(destination)            
 
-            # Create destination parent directory if it doesn't exist
-            os.makedirs(destination, exist_ok=True)
+            # Remove old index
+            self.destroy_entire_index()
 
-            # Get source and destination paths
-            source_path = self.dir_path
-            dest_path = os.path.join(destination, self.index_id)
+            # Update the _parent_dir property to reflect the new location
+            self._parent_dir = destination
 
-            # Check if source exists
-            if not os.path.exists(source_path):
-                print(f"Error: Source index directory does not exist: {source_path}")
-                return False
-
-            # Check if destination already exists
-            if os.path.exists(dest_path):
-                print(f"Error: Destination already exists: {dest_path}")
-                return False
-
-            # Move the entire index directory
-            shutil.move(source_path, dest_path)
-
-            # Update the parent_dir property to reflect the new location
-            self.parent_dir = destination
-
-            print(f"Successfully moved index '{self.index_id}' to {destination}")
+            print(f"Successfully moved index '{self._index_id}' to {destination}")
             return True
 
         except Exception as e:
@@ -497,11 +496,11 @@ class KmtricksIndex:
 
     def __str__(self) -> str:
         """String representation of the index."""
-        return f"Index(id='{self.index_id}', parent_dir='{self.parent_dir}', nb_samples={self.nb_samples}, bloom_size={self.bloom_size}, nb_partitions={self.nb_partitions})"
+        return f"Index(id='{self._index_id}', _parent_dir='{self._parent_dir}', nb_samples={self.nb_samples}, bloom_size={self.bloom_size}, nb_partitions={self.nb_partitions})"
 
     def __repr__(self) -> str:
         """Detailed representation of the index."""
-        return f"Index(root_path='{self.parent_dir}', index_id='{self.index_id}')"
+        return f"Index(root_path='{self._parent_dir}', _index_id='{self._index_id}')"
 
     def __iter__(self):
         """Iterate over all partitions."""
@@ -539,7 +538,7 @@ class KmindexRegistry:
 
     @property
     def root_path(self) -> str:
-        return self._root_path 
+        return self._root_path
 
     @property
     def json_path(self) -> str:
@@ -556,10 +555,6 @@ class KmindexRegistry:
         if not self._standby:
             with open(self.json_path, "r") as f:
                 self._json_data = json.load(f)
-            assert (
-                self._json_data["path"] == self._root_path
-            ), "Index root paths do not match"
-            self.check_dirs()
 
     def list_indices(self) -> List[str]:
         """
@@ -570,67 +565,67 @@ class KmindexRegistry:
         """
         return list(self._json_data["index"].keys())
 
-    def get_index_properties(self, index_id: str) -> Dict[str, Any]:
+    def get_index_properties(self, _index_id: str) -> Dict[str, Any]:
         """
         Get the properties dictionary for a specific index.
 
         Args:
-            index_id: The index ID to retrieve properties for
+            _index_id: The index ID to retrieve properties for
 
         Returns:
             Dictionary containing all properties for the index
         """
-        return self._json_data["index"][index_id]
+        return self._json_data["index"][_index_id]
 
-    def get_index_path(self, index_id: str) -> str:
-        return os.path.join(self._root_path, index_id)
-    
-    def is_index_dir(self, index_id: str) -> bool:
-        return os.path.isdir(self.get_index_path(index_id))
-    
+    def get_index_path(self, _index_id: str) -> str:
+        return os.path.join(self._root_path, _index_id)
+
+    def is_index_dir(self, _index_id: str) -> bool:
+        return os.path.isdir(self.get_index_path(_index_id))
+
     def get_all(self) -> List[KmtricksIndex]:
         items = []
         for i in self:
             items.append(i)
         return items
 
-    def get_index(self, index_id: str) -> KmtricksIndex:
+    def get_index(self, _index_id: str) -> KmtricksIndex:
         """
         Get an Index object for a specific index ID.
 
         Args:
-            index_id (str): The index ID to retrieve
+            _index_id (str): The index ID to retrieve
 
         Returns:
             Index: Index object for the specified ID
 
         Raises:
-            KeyError: If index_id doesn't exist
+            KeyError: If _index_id doesn't exist
         """
 
-        if not self.has_index(index_id):
+        if not self.has_index(_index_id):
             raise KeyError(
-                f"Index ID '{index_id}' not found. Available IDs: {self.list_indices()}"
+                f"Index ID '{_index_id}' not found. Available IDs: {self.list_indices()}"
             )
 
         # Create empty Index instance and load properties from JSON
-        index = KmtricksIndex(self._root_path, index_id)
-        index.import_properties(self.get_index_properties(index_id))
+        index = KmtricksIndex(self._root_path, _index_id)
+        index.import_properties(self.get_index_properties(_index_id))
         index.set_property("kmer_size", index.get_property("smer_size"))
 
         return index
 
-    def has_index(self, index_id: str) -> bool:
+    def has_index(self, _index_id: str) -> bool:
         """
         Check if an index ID exists.
 
         Args:
-            index_id (str): Index ID to check
+            _index_id (str): Index ID to check
 
         Returns:
             bool: True if index exists
         """
-        return index_id in self._json_data["index"]
+        return _index_id in self._json_data["index"]
 
     def add_index(self, index: KmtricksIndex) -> bool:
         """
@@ -642,52 +637,72 @@ class KmindexRegistry:
         Returns:
             True if index was added, False if it already exists
         """
-        if self.has_index(index.index_id):
+        if self.has_index(index._index_id):
             return False
-        Kmindex.register_index_in_json(index.parent_dir, self._root_path, index.index_id)
+        Kmindex.register_index_in_json(
+            index._parent_dir, self._root_path, index._index_id
+        )
         # Reload json after kmindex modified it
         self.load_json()
         return True
 
-    def remove_index(self, index_id: str) -> bool:
+    def remove_index(self, _index_id: str) -> bool:
         """
         Remove an index from the registry.
 
         Args:
-            index_id: The index ID to remove from the registry
+            _index_id: The index ID to remove from the registry
 
         Returns:
             True if index was removed, False if it doesn't exist
         """
-        if not self.has_index(index_id):
+        if not self.has_index(_index_id):
             return False
+        
+        i = self.get_index(_index_id)
+        os.unlink(i.dir_path)
 
         # Remove the index from the JSON data
-        del self._json_data["index"][index_id]
+        del self._json_data["index"][_index_id]
 
         # Write the updated JSON back to file
         with open(self.json_path, "w") as f:
             json.dump(self._json_data, f, indent=4)
 
-        return True 
+        return True
 
     def set_index(self, index: KmtricksIndex) -> None:
         self._standby = True
-        if self.has_index(index.index_id):
-            self.remove_index(index.index_id)
+        if self.has_index(index._index_id):
+            self.remove_index(index._index_id)
         assert self.add_index(index), f"Could not add index {index}"
         self._standby = False
         self.load_json()
 
+    def import_directory(self, path):
+        print(f"Import indexes from {path}:")
+        count = 0
+        for f in Path(path).iterdir() :
+            if f.is_dir():
+                try:
+                    if self.add_index(KmtricksIndex(path, f.name)):
+                        count += 1
+                        print(f" - {f.name}")
+                except:
+                    pass
+
     def check_dirs(self) -> None:
+        assert (
+                self._json_data["path"] == self._root_path
+            ), "Index root paths do not match"
         indices = self.list_indices()
         for i in indices:
             assert self.is_index_dir(i), f"Index not found: {i}"
 
     def __iter__(self):
         """Iterate over all Index objects."""
-        for index_id in self.list_indices():
-            yield self.get_index(index_id)
+        for _index_id in self.list_indices():
+            yield self.get_index(_index_id)
 
     def __len__(self) -> int:
         """Get number of indices."""
@@ -696,15 +711,12 @@ class KmindexRegistry:
     def __str__(self) -> str:
         """String representation."""
         indices = self.list_indices()
-        return (
-            f"IndexRegistry(path='{self._root_path}', indices={len(indices)}: {indices})"
-        )
+        return f"IndexRegistry(path='{self._root_path}', indices={len(indices)}: {indices})"
 
-    def __getitem__(self, index_id: str) -> KmtricksIndex | None:
-        if self.has_index(index_id):
-            return self.get_index(index_id)
+    def __getitem__(self, _index_id: str) -> KmtricksIndex | None:
+        if self.has_index(_index_id):
+            return self.get_index(_index_id)
         return None
 
     def __setitem__(self, index: KmtricksIndex) -> None:
         self.set_index(index)
-
