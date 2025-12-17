@@ -342,9 +342,6 @@ class Toolbox:
                 - error: Error message if command failed
             Returns None if process cannot be started
         """
-        print(f"Running command: {' '.join(cmd)}")
-        if log_file:
-            print(f"Logging output to: {log_file}")
 
         max_cpu = 0.0
         max_memory = 0.0
@@ -397,6 +394,7 @@ class Toolbox:
 
             with monitor_lock:
                 output = {
+                    "command": ' '.join(cmd),
                     "start_time": start_time,
                     "execution_time_ms": round(execution_time, 4),
                     "max_cpu_percent": round(max_cpu, 4),
@@ -408,7 +406,7 @@ class Toolbox:
 
             # Build output content
             output_lines = [
-                f"Command: {' '.join(cmd)}",
+                f"Command: {output['command']}",
                 f"Execution time: {output['execution_time_ms']}ms",
                 f"Max CPU: {output['max_cpu_percent']}%",
                 f"Max Memory: {output['max_memory_mb']} MB",
@@ -421,14 +419,15 @@ class Toolbox:
 
             output_content = "\n".join(output_lines) if log_file or print_trace else ""
 
-            # Write to log file if specified
-            if log_file:
-                with open(log_file, "w") as f:
-                    f.write(output_content)
-
             # Print to console if print_trace is enabled
             if print_trace:
                 print(output_content)
+
+            # Write to log file if specified
+            if log_file:
+                print(f"Logging output to: {log_file}")
+                with open(log_file, "w") as f:
+                    f.write(output_content)
 
             return output
 

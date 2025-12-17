@@ -3,7 +3,8 @@ KmindexWrapper - High-level interface for kmindex build and query operations.
 """
 
 import os
-import subprocess
+import yaml
+import inspect
 from typing import List, Optional, Union
 from pathlib import Path
 
@@ -39,10 +40,12 @@ class KmindexWrapper:
 
     def build(
         self,
-        input_fof_file: Optional[Union[str, Path]],
-        output_registry_path: Union[str, Path],
-        output_index_dir: Optional[Union[str, Path]] = None,
-        k: int = 31,
+        input_fof_file: Union[str, Path],
+        output_registry_path: Union[str, Path] = "index",
+        output_index_dir: Union[str, Path] = ".subindexes",
+        output_log_dir: Optional[Union[str, Path]] = None,
+        output_param_file: Optional[Union[str, Path]] = None,
+        k: int = 25,
         minim_size: int = 10,
         bloom_size: Optional[int] = None,
         nb_cell: Optional[int] = None,
@@ -55,7 +58,7 @@ class KmindexWrapper:
         from_index: Optional[str] = None,
         km_path: Optional[Union[str, Path]] = None,
         verbose: str = "info",
-    ) -> None:
+    ) -> tuple[str, str]:
         """
         Build a kmindex index.
 
@@ -78,19 +81,30 @@ class KmindexWrapper:
             verbose: Verbosity level (debug|info|warning|error).
 
         Returns:
-            KmtricksIndex object representing the built index.
+            None. Builds the index and outputs results to specified directories.
 
         Raises:
             ValueError: If both bloom_size and nb_cell are specified.
             FileNotFoundError: If input_fof_file doesn't exist.
             subprocess.CalledProcessError: If kmindex build command fails.
         """
+
         # Validate inputs
         if bloom_size is not None and nb_cell is not None:
             raise ValueError(
                 "bloom_size and nb_cell are mutually exclusive. "
                 "Use bloom_size for presence/absence indexing or nb_cell for abundance indexing."
             )
+
+        if not input_fof_file:
+            raise ValueError("Input sample file (FOF) must be provided.")
+
+        if not output_index_dir:
+            raise ValueError(
+                "output_index_dir must be provided."
+            )
+        
+        assert k >= 8 and k <= 255
 
         # Handle fof file creation if input_files provided
         input_fof_file = Toolbox.get_canonical_path(str(input_fof_file))
@@ -103,19 +117,15 @@ class KmindexWrapper:
         if register_as is None:
             register_as = os.path.splitext(os.path.basename(input_fof_file))[0]
 
-        # Set default run_dir if not provided (required parameter)
-        if output_index_dir is None:
-            output_index_dir = os.path.join(
-                os.path.dirname(output_registry_path), ".subindexes"
-            )
-
         output_index_dir = Toolbox.get_canonical_path(
-            os.path.join(output_index_dir, register_as)
+            os.path.join(
+                os.path.dirname(output_registry_path), output_index_dir, register_as
+            )
         )
 
         if os.path.exists(output_index_dir):
             raise FileExistsError(
-                f"run_dir directory already exists: {output_index_dir}"
+                f"output_index_dir directory already exists: {output_index_dir}"
             )
 
         os.makedirs(os.path.dirname(output_index_dir), exist_ok=True)
@@ -166,29 +176,65 @@ class KmindexWrapper:
         if km_path is not None:
             cmd.extend(["--km-path", str(km_path)])
 
-        # Print command for debugging
-        print("Executing command:")
-        print(" ".join(cmd))
+        print(f"Build index {register_as}")
+        print(f"  - Parameters:")
+        print(f"    - Input samples: {input_fof_file}")
+        print(f"    - k: {k}")
+        print(f"    - Bloom filter size: {bloom_size}")
+        print(f"    - Partition count: {nb_partitions}")
+        print(f"  - Parameters exported in: {output_log_dir}")
+        print(f"  - Output data directory: {output_index_dir}")
+        print(f"  - Registry: {output_registry_path}")
+        print(f"  - Log dir: {output_log_dir}")
+
+        # Set default log dir if not provided
+        log_file = None
+        if output_log_dir:
+            output_log_dir = os.path.join(
+                os.path.dirname(output_registry_path), output_log_dir
+            )
+            os.makedirs(os.path.dirname(output_log_dir), exist_ok=True)
+            log_file = os.path.join(output_log_dir, "kmindex.log")
+
+        if output_param_file:
+            output_param_file = os.path.join(
+                os.path.dirname(output_registry_path), output_param_file
+            )
+
+            d = {
+                "input_fof_file": input_fof_file,
+                "k": k,
+                "nb_partitions": nb_partitions,
+                "minim_size": minim_size,
+                "hard_min": hard_min,
+                "bitw": bitw,
+            }
+
+            if bloom_size:
+                d["bloom_size"] = bloom_size
+
+            if nb_cell:
+                d["nb_cell"] = nb_cell
+
+            with open(output_param_file, "w") as f:
+                yaml.safe_dump(d)
 
         # Execute command
-        try:
-            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-            print(result.stdout)
-            if result.stderr:
-                print(result.stderr)
-        except subprocess.CalledProcessError as e:
-            print(f"Error building index: {e.stderr}")
-            raise
+        result = Toolbox.monitor_cmd(cmd, print_trace=True, log_file=log_file)
+        
+        assert result, "Failed to build index"
 
-        # Return KmtricksIndex object
-        # For a newly built index, the index is at index_path and we need to extract
-        # the parent directory and index name
-        parent_dir = os.path.dirname(output_registry_path)
-        index_name = os.path.basename(output_registry_path)
+        if output_log_dir:
+            with open(
+                os.path.join(output_log_dir, "kmindex_monitoring.yaml"), "w"
+            ) as f:
+                yaml.safe_dump(result)
 
-        # If parent_dir is empty (relative path), use current directory
-        if not parent_dir:
-            parent_dir = os.getcwd()
+        assert os.path.isdir(output_index_dir), f"Could not find data directory {output_index_dir}"
+        assert os.path.exists(os.path.join(output_registry_path, register_as)), f"Could not find index in registry {output_registry_path}"
+
+        return output_registry_path, register_as
+
 
     def query(
         self,
@@ -208,24 +254,21 @@ class KmindexWrapper:
         This method wraps the existing Kmindex.query_index() functionality.
 
         Args:
-            index: Path to index directory or KmtricksIndex object.
-            query_file: Path to query FASTA/FASTQ file.
+            input_registry: Path to the registry directory (index.json parent directory).
+            query_file: Path to query FASTA/FASTQ file (supports gz/bzip2 compression).
             output_dir: Path to output directory (must not exist).
-            names:  Sub-indexes to query, comma separated. {all}
+            names: Sub-indexes to query. If None, query all sub-indexes.
             format: Output format (e.g., "json").
-            fastx: Input fasta/q file (supports gz/bzip2) containing the sequence(s) to query.
             zvalue: Z-value parameter for the query.
             threshold: Threshold parameter for the query.
             monitor: Whether to monitor resource usage.
             is_compressed: Whether the index is compressed.
 
         Returns:
-            Path to the output directory with query results.
+            None. Query results are written to the output directory.
 
         Raises:
-            NotADirectoryError: If index path doesn't exist.
-            FileNotFoundError: If index.json or query_file not found.
-            IsADirectoryError: If output_dir already exists.
+            FileNotFoundError: If query_file not found.
         """
 
         registry = None

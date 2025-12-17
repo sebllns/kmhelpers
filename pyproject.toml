@@ -24,6 +24,7 @@ classifiers = [
 
 dependencies = [
     "psutil>=5.8.0",
+    "pyyaml>=5.4",
 ]
 
 [project.optional-dependencies]

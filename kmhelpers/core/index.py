@@ -45,6 +45,7 @@ class KmtricksIndex:
         parent_dir: str,
         index_id: str,
         compressed_state: IndexCompressionState = IndexCompressionState.UNKNOWN,
+        auto_load: bool = True,
     ):
         """
         Initialize a KmtricksIndex object.
@@ -79,11 +80,20 @@ class KmtricksIndex:
             raise NotADirectoryError(
                 f"Index directory for '{self._index_id}' not found in {self._parent_dir}"
             )
-        
+
+        self._loaded = False
+
+        if auto_load:
+            self.load_kmtricks_index()
+
+    @property
+    def is_loaded(self) -> bool:
+        return self._loaded
+
     @property
     def parent_dir(self) -> str:
         return self._parent_dir
-    
+
     @property
     def index_id(self) -> str:
         return self._index_id
@@ -386,7 +396,7 @@ class KmtricksIndex:
         except TypeError as e:
             print(f"An error occurred: {e}")
 
-    def load_kmtricks_index(self) -> None:
+    def load_kmtricks_index(self, force: bool = False) -> None:
         """
         Load index properties from kmtricks files (options.txt and kmtricks.fof).
 
@@ -396,6 +406,10 @@ class KmtricksIndex:
         Raises:
             FileNotFoundError: If required files (options.txt or kmtricks.fof) are not found
         """
+
+        if self._loaded and not force:
+            return
+
         # Check required files exist
         options_path = Kmindex.get_options_path(self.dir_path)
         if not os.path.exists(options_path):
@@ -410,11 +424,13 @@ class KmtricksIndex:
         samples = Kmindex.load_fof_file(fof_path)
         self._properties["samples"] = samples
         self._properties["nb_samples"] = len(samples)
+        self._loaded = True
 
     def destroy_entire_index(self) -> bool:
         # Destroy the entire index with its content
         try:
             import shutil
+
             print(f"Destroying index: {self._index_id}")
             shutil.rmtree(self.dir_path, onexc=lambda f, p, e: print(f"Error: {p}"))
             self._parent_dir = ""
@@ -422,7 +438,6 @@ class KmtricksIndex:
         except Exception as e:
             print(f"Error removing index: {e}")
             return False
-        
 
     def copy_to(self, destination: str) -> bool:
         """
@@ -460,7 +475,7 @@ class KmtricksIndex:
             shutil.copytree(source_path, dest_path)
 
             print(f"Successfully copied index '{self._index_id}' to {destination}")
-            
+
             return True
 
         except Exception as e:
@@ -479,7 +494,7 @@ class KmtricksIndex:
         """
         try:
             destination = Toolbox.get_canonical_path(destination)
-            self.copy_to(destination)            
+            self.copy_to(destination)
 
             # Remove old index
             self.destroy_entire_index()
@@ -503,11 +518,9 @@ class KmtricksIndex:
         return f"Index(root_path='{self._parent_dir}', _index_id='{self._index_id}')"
 
     def __iter__(self):
-        """Iterate over all partitions."""
-        for p in range(self.nb_partitions):
-            yield self.get_matrix_path(
-                p, self.compress_state == IndexCompressionState.COMPRESSED
-            )
+        """Iterate over all samples."""
+        for i in self.samples:
+            yield i
 
 
 class KmindexRegistry:
@@ -658,7 +671,7 @@ class KmindexRegistry:
         """
         if not self.has_index(_index_id):
             return False
-        
+
         i = self.get_index(_index_id)
         os.unlink(i.dir_path)
 
@@ -682,7 +695,7 @@ class KmindexRegistry:
     def import_directory(self, path):
         print(f"Import indexes from {path}:")
         count = 0
-        for f in Path(path).iterdir() :
+        for f in Path(path).iterdir():
             if f.is_dir():
                 try:
                     if self.add_index(KmtricksIndex(path, f.name)):
@@ -693,8 +706,8 @@ class KmindexRegistry:
 
     def check_dirs(self) -> None:
         assert (
-                self._json_data["path"] == self._root_path
-            ), "Index root paths do not match"
+            self._json_data["path"] == self._root_path
+        ), "Index root paths do not match"
         indices = self.list_indices()
         for i in indices:
             assert self.is_index_dir(i), f"Index not found: {i}"
