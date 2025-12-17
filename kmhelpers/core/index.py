@@ -622,7 +622,7 @@ class KmindexRegistry:
             )
 
         # Create empty Index instance and load properties from JSON
-        index = KmtricksIndex(self._root_path, _index_id)
+        index = KmtricksIndex(self._root_path, _index_id, auto_load=False)
         index.import_properties(self.get_index_properties(_index_id))
         index.set_property("kmer_size", index.get_property("smer_size"))
 

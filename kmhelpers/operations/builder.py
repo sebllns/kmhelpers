@@ -10,6 +10,7 @@ class IndexBuilder:
         self._path = Toolbox.get_canonical_path(output_index_path)
         os.makedirs(self.path, exist_ok=True)
         self._registry = KmindexRegistry(os.path.join(self.path, "registry"))
+
         assert z >= 0 and k > z
         self._k = k
         self._z = z
@@ -75,6 +76,8 @@ class IndexBuilder:
             nb_partitions=n_partitions,
             register_as=name,
             bloom_size=bloom_size,
+            output_log_dir=os.path.join(self.path, "logs"),
+            output_param_file=os.path.join(self.index.root_path, f"{name}.yaml"),
         )
 
         self.index.load_json()
@@ -83,19 +86,42 @@ class IndexBuilder:
             assert self.index.has_index(name)
             idx = self.index.get_index(name)
 
-            if n_partitions > 0 :
+            if n_partitions > 0:
                 assert idx.nb_partitions == n_partitions
 
             assert idx.bloom_size == bloom_size
             assert idx.kmer_size == self.k
-            self.check_index(name)
+            self.check_index_structure(name)
 
-
-    def check_index(
+    def check_index_structure(
         self,
         name: str,
+        n_samples=5,
     ):
         idx = self.index.get_index(name)
         idx.check_structure()
 
+    def create_test_dataset(
+        self, idx: KmtricksIndex, output_dir: str, n_samples: int = 5
+    ):
+        fof = FofManager(idx.fof_path)
+        i = 0
+        for s in idx:
+            if i >= n_samples:
+                break
+            path = fof.get_sample_path(s)
+            if path and os.path.isfile(path):
+                i += 1
+                # create sequence
 
+    def create_random_test_dataset(self, output_dir: str, n_samples: int = 5):
+        pass
+
+    def query_test_dataset(self, idx: KmtricksIndex, dataset: str):
+        pass
+
+    def check_presence(self, results: str, samples: list[str]):
+        pass
+
+    def compare_results(self, results: str, ground_truth: str):
+        pass
