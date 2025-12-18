@@ -5,6 +5,7 @@ class Sequence:
 
     @property
     def length(self) -> int:
+        """Get number of nucleotides."""
         return len(self._content)
 
     @property
@@ -15,11 +16,14 @@ class Sequence:
     def header(self) -> str:
         return self._header
 
-    def __str__(self) -> str:
-        return self.content
-
     def __repr__(self) -> str:
         return f"Sequence(len='{self.length}')"
+
+    def __str__(self) -> str:
+        return self.to_fasta()
+    
+    def __len__(self) -> int:
+        return self.length
 
     def to_fasta(self) -> str:
         """Return FASTA formatted string with header and sequence."""
@@ -29,3 +33,6 @@ class Sequence:
         lines.append(self._content)
         return "\n".join(lines)
 
+    def fill_random(self, length):
+        import random
+        self._content = ''.join(random.choice('ACGT') for _ in range(length))

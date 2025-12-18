@@ -1,7 +1,59 @@
 import gzip
+import random
 from io import TextIOWrapper
 from pathlib import Path
+from typing import Optional
 from .sequence import Sequence
+
+
+class Fasta:
+    """
+    Contains a list a Sequences
+    TODO: read a fasta from file
+    """
+    def __init__(self, sequences: list[Sequence] = []) -> None:
+        self._sequences = sequences
+    
+    @property
+    def sequences(self):
+        return self._sequences
+    
+    @property
+    def n_sequences(self):
+        return len(self._sequences)
+    
+    def fill_random(self,num_sequences, average_size, min_size):
+        sequences = []
+        for i in range(num_sequences):
+            seq_size = random.randint(min_size, average_size)
+            sequence = Sequence(header=f"sequence{i}")
+            sequence.fill_random(seq_size)
+            sequences.append(sequence)
+        self._sequences = sequences
+
+    def total_nucleotides(self):
+        n = 0
+        for _s in self._sequences:
+            n += len(_s)
+        return n
+    
+    def __str__(self) -> str:
+        return self.to_fasta()
+
+    def to_fasta(self) -> str:
+        """Return FASTA formatted string with headers and sequences."""
+        lines = []
+        for _s in self._sequences:
+            lines.append(_s.to_fasta())
+        return "\n".join(lines)
+    
+    def __iter__(self):
+        """Iterate over all sequences objects."""
+        for _s in self._sequences:
+            yield _s
+
+    def __len__(self) -> int:
+        return self.total_nucleotides()
 
 class FASTAReader:
     def __init__(self, filepath):
@@ -65,7 +117,7 @@ class FASTAReader:
                     seq += line
                     if len(seq) >= length:
                         break
-            return Sequence(seq[:length])
+            return Sequence(content=seq[:length], header=f"{self.filepath.name}.{length}")
     
     def iter_sequences(self):
         """Iterate all sequences. Yields (contig_name, sequence)."""

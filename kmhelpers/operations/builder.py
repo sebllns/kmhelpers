@@ -1,5 +1,7 @@
 from ..core import KmindexWrapper, KmtricksIndex, KmindexRegistry, Toolbox
 from ..operations import FofManager
+from .sequence import Sequence
+from .fasta import Fasta, FASTAReader
 import os
 from typing import Any
 
@@ -102,8 +104,19 @@ class IndexBuilder:
         idx.check_structure()
 
     def create_test_dataset(
-        self, idx: KmtricksIndex, output_dir: str, n_samples: int = 5
+        self, idx: KmtricksIndex, output_dir: str, n_samples: int = 5, max_length = 2000
     ):
+        """
+        Create test dataset by extracting sequences from the index.
+
+        :param idx: The kmtricks index to extract sequences from
+        :type idx: KmtricksIndex
+        :param output_dir: Output directory for test FASTA files
+        :type output_dir: str
+        :param n_samples: Number of samples to extract
+        :type n_samples: int
+        """
+        os.makedirs(output_dir, exist_ok=True)
         fof = FofManager(idx.fof_path)
         i = 0
         for s in idx:
@@ -112,16 +125,81 @@ class IndexBuilder:
             path = fof.get_sample_path(s)
             if path and os.path.isfile(path):
                 i += 1
-                # create sequence
+                try:
+                    reader = FASTAReader(path)
+                    output_file = os.path.join(output_dir, f"{s}.fasta")
+                    with open(output_file, "w") as f:
+                        f.write(reader.fetch_first_n(max_length).to_fasta())
+                except Exception:
+                    pass
 
     def create_random_test_dataset(self, output_dir: str, n_samples: int = 5):
-        pass
+        """
+        Create random sequences FASTA files for testing.
 
-    def query_test_dataset(self, idx: KmtricksIndex, dataset: str):
-        pass
+        :param output_dir: Output directory for test FASTA files
+        :type output_dir: str
+        :param n_samples: Number of random sequences to generate
+        :type n_samples: int
+        """
+        os.makedirs(output_dir, exist_ok=True)
+        fasta = Fasta()
+        fasta.fill_random(num_sequences=n_samples, average_size=1000, min_size=100)
+        for i, sequence in enumerate(fasta):
+            output_file = os.path.join(output_dir, f"sequence_{i}.fasta")
+            with open(output_file, "w") as f:
+                f.write(sequence.to_fasta())
+
+    def query_test_dataset(self, idx: KmtricksIndex, dataset: str, output_dir: str):
+        """
+        Query a whole directory (recursive) containing FASTA files.
+
+        Recursively searches the dataset directory for FASTA files and queries them
+        against the index, recreating the same structure in the output directory.
+
+        :param idx: The kmtricks index to query against
+        :type idx: KmtricksIndex
+        :param dataset: Path to directory containing FASTA files
+        :type dataset: str
+        :param output_dir: Output directory to store query results
+        :type output_dir: str
+        """
+        os.makedirs(output_dir, exist_ok=True)
+        for root, dirs, files in os.walk(dataset):
+            for file in files:
+                if file.endswith(('.fasta', '.fa', '.fna')):
+                    input_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(root, dataset)
+                    result_dir = os.path.join(output_dir, rel_path)
+                    os.makedirs(result_dir, exist_ok=True)
+                    try:
+                        from .query import KmindexQuery
+                        query = KmindexQuery(path=input_path)
+                        query.run_query(
+                            registry_path=self.index.root_path,
+                            output_dir=os.path.join(result_dir, file.replace('.', '_'))
+                        )
+                    except Exception:
+                        pass
 
     def check_presence(self, results: str, samples: list[str]):
+        """
+        Check presence of samples in query results.
+
+        :param results: Path to query results directory
+        :type results: str
+        :param samples: List of sample names to check
+        :type samples: list[str]
+        """
         pass
 
     def compare_results(self, results: str, ground_truth: str):
+        """
+        Compare query results against ground truth.
+
+        :param results: Path to query results directory
+        :type results: str
+        :param ground_truth: Path to ground truth results directory
+        :type ground_truth: str
+        """
         pass
