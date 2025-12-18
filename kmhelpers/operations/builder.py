@@ -13,7 +13,7 @@ class IndexBuilder:
         os.makedirs(self.path, exist_ok=True)
         self._registry = KmindexRegistry(os.path.join(self.path, "registry"))
 
-        assert z >= 0 and k > z
+        assert z >= 0 and k > z, f"Invalid k and z parameters: k must be greater than z. Got k={k}, z={z}"
         self._k = k
         self._z = z
 
@@ -47,12 +47,12 @@ class IndexBuilder:
         n_threads: int = 0,
         n_max_threads: int = 0,
         auto_check: bool = True,
-    ) -> None:
+    ) -> KmtricksIndex:
 
-        assert samples
-        assert bloom_size
-        assert name
-        assert not self.index.has_index(name)
+        assert samples, "Samples dictionary cannot be empty"
+        assert bloom_size, "Bloom size must be specified and greater than 0"
+        assert name, "Index name cannot be empty"
+        assert not self.index.has_index(name), f"Index '{name}' already exists in registry"
 
         wrapper = KmindexWrapper()
         fof = FofManager(samples=samples)
@@ -83,17 +83,18 @@ class IndexBuilder:
         )
 
         self.index.load_json()
+        assert self.index.has_index(name), f"Index '{name}' was not successfully created"
+        idx = self.index.get_index(name)
 
         if auto_check:
-            assert self.index.has_index(name)
-            idx = self.index.get_index(name)
-
             if n_partitions > 0:
-                assert idx.nb_partitions == n_partitions
+                assert idx.nb_partitions == n_partitions, f"Partition count mismatch: expected {n_partitions}, got {idx.nb_partitions}"
 
-            assert idx.bloom_size == bloom_size
-            assert idx.kmer_size == self.k
+            assert idx.bloom_size == bloom_size, f"Bloom size mismatch: expected {bloom_size}, got {idx.bloom_size}"
+            assert idx.kmer_size == self.k, f"K-mer size mismatch: expected {self.k}, got {idx.kmer_size}"
             self.check_index_structure(name)
+            
+        return idx
 
     def check_index_structure(
         self,
@@ -130,8 +131,8 @@ class IndexBuilder:
                     output_file = os.path.join(output_dir, f"{s}.fasta")
                     with open(output_file, "w") as f:
                         f.write(reader.fetch_first_n(max_length).to_fasta())
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"Warning: Failed to extract sequences from {path}: {str(e)}")
 
     def create_random_test_dataset(self, output_dir: str, n_samples: int = 5):
         """
@@ -179,8 +180,8 @@ class IndexBuilder:
                             registry_path=self.index.root_path,
                             output_dir=os.path.join(result_dir, file.replace('.', '_'))
                         )
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        print(f"Warning: Failed to query {input_path}: {str(e)}")
 
     def check_presence(self, results: str, samples: list[str]):
         """
