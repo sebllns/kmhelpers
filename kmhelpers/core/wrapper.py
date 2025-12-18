@@ -245,9 +245,10 @@ class KmindexWrapper:
         format: str = "json",
         zvalue: int = 0,
         threshold: float = 0.0,
-        monitor: bool = False,
-        is_compressed: bool = False,
-    ) -> None:
+        single_query: Optional[str] = None,
+        aggregate: bool = False,
+        threads: int = 1,
+    ) -> dict[str, str]:
         """
         Query a kmindex index.
 
@@ -262,7 +263,9 @@ class KmindexWrapper:
             zvalue: Z-value parameter for the query.
             threshold: Threshold parameter for the query.
             monitor: Whether to monitor resource usage.
-            is_compressed: Whether the index is compressed.
+            single_query: Query identifier. If provided, all sequences are considered as a unique query.
+            aggregate: Whether to aggregate results from batches into one file.
+            threads: Number of threads to use for the query.
 
         Returns:
             None. Query results are written to the output directory.
@@ -281,18 +284,67 @@ class KmindexWrapper:
         if not os.path.exists(query_file):
             raise FileNotFoundError(f"Query file not found: {query_file}")
 
-        # Call existing query_index method
-        # TODO:  Add   -b --batch-size   - Size of query batches (0≈nb_seq/nb_thread). {0}
-        # add -s option
-        Kmindex.query_index(
-            names=names,
-            index_path=input_registry,
-            output_dir=output_dir,
-            format=format,
-            fastx=query_file,
-            zvalue=zvalue,
-            threshold=threshold,
-            is_compressed=is_compressed,
-        )
 
-        return
+        index_path = Toolbox.get_canonical_path(input_registry)
+        output_dir = Toolbox.get_canonical_path(output_dir)
+
+        if not os.path.isdir(index_path):
+            raise NotADirectoryError(
+                f"Index path {index_path} does not exist or is not a directory"
+            )
+        
+        if not os.path.isfile(query_file):
+            raise FileNotFoundError(
+                f"Query file {query_file}  not found"
+            )
+        
+        if not Kmindex.b_json_exists(index_path):
+            raise FileNotFoundError(f"index.json not found in index path {index_path}")
+
+        if os.path.isdir(output_dir):
+            raise IsADirectoryError(
+                f"Output directory {output_dir} already exists, please provide a non-existing directory"
+            )
+
+        cmd = [
+            Bin.kmindex(),
+            "query",
+            "--index",
+            index_path,
+            "--output",
+            output_dir,
+            "--format",
+            format,
+            "--fastx",
+            query_file,
+            "--zvalue",
+            str(zvalue),
+            "--threshold",
+            str(threshold),
+            "--threads",
+            str(threads),
+        ]
+
+        if single_query is not None:
+            cmd.extend(["--single-query", single_query])
+
+        if aggregate:
+            cmd.append("--aggregate")
+
+        if names:
+            cmd.extend(
+                [
+                    "--names",
+                    ",".join(names),
+                ]
+            )
+
+        result = Toolbox.monitor_cmd(cmd, print_trace=True)
+
+        if not result:
+            raise RuntimeError("Query failed.")
+
+        if not os.path.isdir(output_dir):
+            raise NotADirectoryError(f"Result directory not found: {output_dir}")
+
+        return result
