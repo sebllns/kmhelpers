@@ -134,7 +134,7 @@ class IndexBuilder:
                 except Exception as e:
                     print(f"Warning: Failed to extract sequences from {path}: {str(e)}")
 
-    def create_random_test_dataset(self, output_dir: str, n_samples: int = 5):
+    def create_random_test_dataset(self, output_dir: str, n_samples: int = 5, average_size=1000, min_size=100):
         """
         Create random sequences FASTA files for testing.
 
@@ -145,7 +145,7 @@ class IndexBuilder:
         """
         os.makedirs(output_dir, exist_ok=True)
         fasta = Fasta()
-        fasta.fill_random(num_sequences=n_samples, average_size=1000, min_size=100)
+        fasta.fill_random(num_sequences=n_samples, average_size=average_size, min_size=min_size)
         for i, sequence in enumerate(fasta):
             output_file = os.path.join(output_dir, f"sequence_{i}.fasta")
             with open(output_file, "w") as f:
