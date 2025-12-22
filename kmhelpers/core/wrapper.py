@@ -100,10 +100,8 @@ class KmindexWrapper:
             raise ValueError("Input sample file (FOF) must be provided.")
 
         if not output_index_dir:
-            raise ValueError(
-                "output_index_dir must be provided."
-            )
-        
+            raise ValueError("output_index_dir must be provided.")
+
         assert k >= 8 and k <= 255
 
         # Handle fof file creation if input_files provided
@@ -221,7 +219,7 @@ class KmindexWrapper:
 
         # Execute command
         result = Toolbox.monitor_cmd(cmd, print_trace=True, log_file=log_file)
-        
+
         assert result, "Failed to build index"
 
         if output_log_dir:
@@ -230,11 +228,14 @@ class KmindexWrapper:
             ) as f:
                 yaml.safe_dump(result)
 
-        assert os.path.isdir(output_index_dir), f"Could not find data directory {output_index_dir}"
-        assert os.path.exists(os.path.join(output_registry_path, register_as)), f"Could not find index in registry {output_registry_path}"
+        assert os.path.isdir(
+            output_index_dir
+        ), f"Could not find data directory {output_index_dir}"
+        assert os.path.exists(
+            os.path.join(output_registry_path, register_as)
+        ), f"Could not find index in registry {output_registry_path}"
 
         return output_registry_path, register_as
-
 
     def query(
         self,
@@ -284,7 +285,6 @@ class KmindexWrapper:
         if not os.path.exists(query_file):
             raise FileNotFoundError(f"Query file not found: {query_file}")
 
-
         index_path = Toolbox.get_canonical_path(input_registry)
         output_dir = Toolbox.get_canonical_path(output_dir)
 
@@ -292,12 +292,10 @@ class KmindexWrapper:
             raise NotADirectoryError(
                 f"Index path {index_path} does not exist or is not a directory"
             )
-        
+
         if not os.path.isfile(query_file):
-            raise FileNotFoundError(
-                f"Query file {query_file}  not found"
-            )
-        
+            raise FileNotFoundError(f"Query file {query_file}  not found")
+
         if not Kmindex.b_json_exists(index_path):
             raise FileNotFoundError(f"index.json not found in index path {index_path}")
 

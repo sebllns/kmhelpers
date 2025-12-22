@@ -462,8 +462,16 @@ class FofManager:
             List of sample IDs.
         """
         return self.load_fof_file(fof_path)
+    
+    def validate_sample_files(self) -> bool:
+        ok = self.get_sample_count() > 0
+        for k, v in self.samples.items():
+            if not os.path.isfile(v):
+                print(f"Sample: {k}\nFile not found: {v}")
+                ok = False
+        return ok
 
-    def validate_fof_file(self, fof_path: Union[str, Path]) -> bool:
+    def validate_fof_format(self, fof_path: Union[str, Path]) -> bool:
         """
         Validate the format and existence of a fof file.
 

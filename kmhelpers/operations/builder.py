@@ -3,6 +3,7 @@ from ..operations import FofManager
 from .sequence import Sequence
 from .fasta import Fasta, FASTAReader
 import os
+import yaml
 from typing import Any
 
 
@@ -13,7 +14,9 @@ class IndexBuilder:
         os.makedirs(self.path, exist_ok=True)
         self._registry = KmindexRegistry(os.path.join(self.path, "registry"))
 
-        assert z >= 0 and k > z, f"Invalid k and z parameters: k must be greater than z. Got k={k}, z={z}"
+        assert (
+            z >= 0 and k > z
+        ), f"Invalid k and z parameters: k must be greater than z. Got k={k}, z={z}"
         self._k = k
         self._z = z
 
@@ -37,10 +40,52 @@ class IndexBuilder:
     def s(self) -> int:
         return self.k - self.z
 
+    def load_metadata(self, file: str):
+        """
+        Docstring for load_metadata
+
+        :param self: Description
+        :param file: Description
+        :type file: str
+        """
+        with open(file, "r") as f:
+            tmp = yaml.safe_load(f)
+            return {s["sample_id"]: s for s in tmp["samples"]}
+        return None
+
+    def has_subindex(self, name: str):
+        return self.index.has_index(name)
+
+    def add_sample_to_fof(self, sample, fof: FofManager) -> None:
+        try:
+            sample_id = sample["sample_id"]
+            sample_path = sample["file_path"]
+            assert sample_id, "Sample ID cannot be empty"
+            assert not fof.has_sample(
+                sample_id
+            ), f"Sample ID already present in FOF: {sample_id}"
+            fof.add_sample(sample_path, sample_id)
+        except Exception as e:
+            print(f"Could not add sample in FOF: {e}")
+
+    def create_fof(self, samples) -> FofManager:
+        """
+        Docstring for create_fof
+
+        :param self: Description
+        :param samples: Description
+        :return: Description
+        :rtype: FofManager
+        """
+        fof = FofManager()
+        for s in samples:
+            self.add_sample_to_fof(s, fof)
+        return fof
+
     def create_subindex(
         self,
         name: str,
-        samples: dict[str, str],
+        samples: FofManager,
         assembled: bool,
         bloom_size: int,
         n_partitions: int = 256,
@@ -48,16 +93,43 @@ class IndexBuilder:
         n_max_threads: int = 0,
         auto_check: bool = True,
     ) -> KmtricksIndex:
+        """
+        Docstring for create_subindex
 
-        assert samples, "Samples dictionary cannot be empty"
+        :param self: Description
+        :param name: Description
+        :type name: str
+        :param samples: Description
+        :type samples: FofManager
+        :param assembled: Description
+        :type assembled: bool
+        :param bloom_size: Description
+        :type bloom_size: int
+        :param n_partitions: Description
+        :type n_partitions: int
+        :param n_threads: Description
+        :type n_threads: int
+        :param n_max_threads: Description
+        :type n_max_threads: int
+        :param auto_check: Description
+        :type auto_check: bool
+        :return: Description
+        :rtype: KmtricksIndex
+        """
+
+        assert (
+            samples and samples.get_sample_count()
+        ), "Samples dictionary cannot be empty"
+        assert samples.validate_sample_files(), "Some sample files are missing"
         assert bloom_size, "Bloom size must be specified and greater than 0"
         assert name, "Index name cannot be empty"
-        assert not self.index.has_index(name), f"Index '{name}' already exists in registry"
+        assert not self.index.has_index(
+            name
+        ), f"Index '{name}' already exists in registry"
 
         wrapper = KmindexWrapper()
-        fof = FofManager(samples=samples)
         fof_path = os.path.join(self.path, f"{name}.fof")
-        fof.save(fof_path=fof_path)
+        samples.save(fof_path=fof_path)
         hard_min = 1 if assembled else 2
 
         if n_threads == 0:
@@ -83,17 +155,25 @@ class IndexBuilder:
         )
 
         self.index.load_json()
-        assert self.index.has_index(name), f"Index '{name}' was not successfully created"
+        assert self.index.has_index(
+            name
+        ), f"Index '{name}' was not successfully created"
         idx = self.index.get_index(name)
 
         if auto_check:
             if n_partitions > 0:
-                assert idx.nb_partitions == n_partitions, f"Partition count mismatch: expected {n_partitions}, got {idx.nb_partitions}"
+                assert (
+                    idx.nb_partitions == n_partitions
+                ), f"Partition count mismatch: expected {n_partitions}, got {idx.nb_partitions}"
 
-            assert idx.bloom_size == bloom_size, f"Bloom size mismatch: expected {bloom_size}, got {idx.bloom_size}"
-            assert idx.kmer_size == self.k, f"K-mer size mismatch: expected {self.k}, got {idx.kmer_size}"
+            assert (
+                idx.bloom_size == bloom_size
+            ), f"Bloom size mismatch: expected {bloom_size}, got {idx.bloom_size}"
+            assert (
+                idx.kmer_size == self.k
+            ), f"K-mer size mismatch: expected {self.k}, got {idx.kmer_size}"
             self.check_index_structure(name)
-            
+
         return idx
 
     def check_index_structure(
@@ -105,7 +185,7 @@ class IndexBuilder:
         idx.check_structure()
 
     def create_test_dataset(
-        self, idx: KmtricksIndex, output_dir: str, n_samples: int = 5, max_length = 2000
+        self, idx: KmtricksIndex, output_dir: str, n_samples: int = 5, max_length=2000
     ):
         """
         Create test dataset by extracting sequences from the index.
@@ -134,7 +214,9 @@ class IndexBuilder:
                 except Exception as e:
                     print(f"Warning: Failed to extract sequences from {path}: {str(e)}")
 
-    def create_random_test_dataset(self, output_dir: str, n_samples: int = 5, average_size=1000, min_size=100):
+    def create_random_test_dataset(
+        self, output_dir: str, n_samples: int = 5, average_size=1000, min_size=100
+    ):
         """
         Create random sequences FASTA files for testing.
 
@@ -145,7 +227,9 @@ class IndexBuilder:
         """
         os.makedirs(output_dir, exist_ok=True)
         fasta = Fasta()
-        fasta.fill_random(num_sequences=n_samples, average_size=average_size, min_size=min_size)
+        fasta.fill_random(
+            num_sequences=n_samples, average_size=average_size, min_size=min_size
+        )
         for i, sequence in enumerate(fasta):
             output_file = os.path.join(output_dir, f"sequence_{i}.fasta")
             with open(output_file, "w") as f:
@@ -168,17 +252,19 @@ class IndexBuilder:
         os.makedirs(output_dir, exist_ok=True)
         for root, dirs, files in os.walk(dataset):
             for file in files:
-                if file.endswith(('.fasta', '.fa', '.fna')):
+                if file.endswith((".fasta", ".fa", ".fna")):
                     input_path = os.path.join(root, file)
                     rel_path = os.path.relpath(root, dataset)
                     result_dir = os.path.join(output_dir, rel_path)
                     os.makedirs(result_dir, exist_ok=True)
                     try:
                         from .query import KmindexQuery
+
                         query = KmindexQuery(path=input_path)
                         query.run_query(
                             registry_path=self.index.root_path,
-                            output_dir=os.path.join(result_dir, file.replace('.', '_'))
+                            output_dir=os.path.join(result_dir, file.replace(".", "_")),
+                            z=self.z,
                         )
                     except Exception as e:
                         print(f"Warning: Failed to query {input_path}: {str(e)}")

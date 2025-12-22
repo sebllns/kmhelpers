@@ -47,6 +47,7 @@ class KmindexQuery:
         registry_path: str,
         output_dir="query",
         index_ids: list[str] = [],
+        z: int = 6,
         single_query: Optional[str] = None,
         aggregate: bool = False,
         threads: int = 1,
@@ -86,6 +87,7 @@ class KmindexQuery:
             single_query=single_query,
             aggregate=aggregate,
             threads=threads,
+            zvalue=z,
         )
 
         # Save result to info.yaml

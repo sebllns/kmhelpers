@@ -9,7 +9,7 @@ data structures and their associated properties from index.json files.
 import json
 import os
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 from enum import Enum
 from kmhelpers.core.utils import Kmindex, Toolbox
 
