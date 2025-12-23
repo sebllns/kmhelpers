@@ -191,7 +191,7 @@ class KmindexWrapper:
             output_log_dir = os.path.join(
                 os.path.dirname(output_registry_path), output_log_dir
             )
-            os.makedirs(os.path.dirname(output_log_dir), exist_ok=True)
+            os.makedirs(output_log_dir, exist_ok=True)
             log_file = os.path.join(output_log_dir, "kmindex.log")
 
         if output_param_file:
@@ -218,7 +218,7 @@ class KmindexWrapper:
                 yaml.safe_dump(d)
 
         # Execute command
-        result = Toolbox.monitor_cmd(cmd, print_trace=True, log_file=log_file)
+        result = Toolbox.monitor_cmd(cmd, print_trace=False, log_file=log_file)
 
         assert result, "Failed to build index"
 

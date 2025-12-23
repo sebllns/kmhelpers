@@ -173,7 +173,8 @@ class IndexBuilder:
             nb_partitions=n_partitions,
             register_as=name,
             bloom_size=bloom_size,
-            output_log_dir=os.path.join(self.path, "logs"),
+            verbose="warning",
+            output_log_dir=os.path.join(self.path, "logs", name),
             output_param_file=os.path.join(self.index.root_path, f"{name}.yaml"),
         )
 
