@@ -1,4 +1,11 @@
-from ..core import KmindexWrapper, KmtricksIndex, KmindexRegistry, Toolbox
+from ..core import (
+    KmindexWrapper,
+    KmtricksIndex,
+    KmindexRegistry,
+    Toolbox,
+    BloomFilterSpecs,
+)
+from .byte import ByteCounter, SizeFormat, SizeUnit
 from .fof import FofManager
 from .sequence import Sequence
 from .fasta import Fasta, FASTAReader
@@ -82,6 +89,12 @@ class IndexBuilder:
             self.add_sample_to_fof(s, fof)
         return fof
 
+    def get_bf_specs(self, n_samples: int, bloom_size: int) -> BloomFilterSpecs:
+        return BloomFilterSpecs(n_cols=n_samples, n_rows=bloom_size)
+
+    def get_bf_size(self, bf_specs: BloomFilterSpecs) -> ByteCounter:
+        return ByteCounter.auto(bf_specs.total_byte_count, SizeFormat.BYTE)
+
     def create_subindex(
         self,
         name: str,
@@ -139,6 +152,15 @@ class IndexBuilder:
             n_threads = min(n_threads, n_max_threads)
 
         n_partitions = max(n_partitions, 0)
+
+        n_samples = samples.get_sample_count()
+
+        bf_specs = self.get_bf_specs(n_samples, bloom_size)
+
+        print(f"Build index {name}")
+        print(f"  - Sample count: {n_samples}")
+        print(f"  - Bloom filter size: {bf_specs.n_rows}x{bf_specs.n_cols}")
+        print(f"  - Bloom filter byte size: {self.get_bf_size(bf_specs)}")
 
         wrapper.build(
             input_fof_file=fof_path,

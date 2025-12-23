@@ -346,3 +346,11 @@ class KmindexWrapper:
             raise NotADirectoryError(f"Result directory not found: {output_dir}")
 
         return result
+
+    def kmindex_version(self) -> Optional[str]:
+        try:
+            v = Toolbox.run_cmd([Bin.kmindex(), "--version",])
+            return v[8:]
+        except Exception as e:
+            print(f"Could not get kmindex version: {e}")
+            return None
