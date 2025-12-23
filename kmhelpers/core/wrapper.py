@@ -215,7 +215,7 @@ class KmindexWrapper:
                 d["nb_cell"] = nb_cell
 
             with open(output_param_file, "w") as f:
-                yaml.safe_dump(d)
+                yaml.safe_dump(d, f)
 
         # Execute command
         result = Toolbox.monitor_cmd(cmd, print_trace=False, log_file=log_file)
@@ -226,7 +226,7 @@ class KmindexWrapper:
             with open(
                 os.path.join(output_log_dir, "kmindex_monitoring.yaml"), "w"
             ) as f:
-                yaml.safe_dump(result)
+                yaml.safe_dump(result, f)
 
         assert os.path.isdir(
             output_index_dir
