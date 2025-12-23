@@ -542,7 +542,7 @@ Kmindex.check_index_structure("/path/to/index", partition_count=256)
 
 ---
 
-**Version**: 0.3.0
+**Version**: 0.5.3
 **Status**: Development
 
 ## Changelog

@@ -4,7 +4,7 @@ kmhelpers - K-mer Index Helpers
 A Python toolkit for managing, compressing, and querying k-mer indices.
 """
 
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 
 # Import core classes for easy access
 from kmhelpers.core.utils import Main, Bin, Toolbox, Kmindex, BlockCompressorZSTD
