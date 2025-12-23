@@ -10,6 +10,7 @@ __version__ = "0.5.3"
 from kmhelpers.core.utils import Main, Bin, Toolbox, Kmindex, BlockCompressorZSTD
 from kmhelpers.core.index import KmtricksIndex, KmindexRegistry
 from kmhelpers.core.wrapper import KmindexWrapper
+from kmhelpers.core.bloom_filter import BloomFilterSpecs
 from kmhelpers.operations.builder import IndexBuilder
 from kmhelpers.operations.compressor import Compressor, CompressionParams
 from kmhelpers.operations.fof import FofManager
@@ -31,6 +32,7 @@ __all__ = [
     "KmtricksIndex",
     "KmindexRegistry",
     "KmindexWrapper",
+    "BloomFilterSpecs",
 
     # Operations - Builder
     "IndexBuilder",
