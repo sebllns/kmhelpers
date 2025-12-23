@@ -158,6 +158,7 @@ class IndexBuilder:
         bf_specs = self.get_bf_specs(n_samples, bloom_size)
 
         print(f"Build index {name}")
+        print(f"  - kmindex version: {wrapper.kmindex_version()}")
         print(f"  - Sample count: {n_samples}")
         print(f"  - Bloom filter size: {bf_specs.n_rows}x{bf_specs.n_cols}")
         print(f"  - Bloom filter byte size: {self.get_bf_size(bf_specs)}")
