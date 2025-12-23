@@ -1,5 +1,5 @@
 from ..core import KmindexWrapper, KmtricksIndex, KmindexRegistry, Toolbox
-from ..operations import FofManager
+from .fof import FofManager
 from .sequence import Sequence
 from .fasta import Fasta, FASTAReader
 import os

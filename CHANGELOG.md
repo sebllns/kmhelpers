@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.4] - 2025-12-23
+
+### Added
+
+- All classes from operations module now properly exported in `__init__.py` files
+- Comprehensive import test suite (`test_imports.py`) to validate package structure
+- Explicit package configuration in `pyproject.toml` for proper wheel building
+
+### Changed
+
+- Fixed circular import in `operations.builder` module
+  - Changed `from ..operations import FofManager` to `from .fof import FofManager`
+
+### Fixed
+
+- Fixed missing `bloom_filter.py` in installed package
+  - Updated `pyproject.toml` to explicitly list all subpackages in build configuration
+- Resolved circular import issue preventing proper package initialization
+- All imports now work correctly from top-level `kmhelpers` package
+
 ## [0.5.3] - 2025-12-23
 
 ### Added
