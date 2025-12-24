@@ -101,7 +101,6 @@ def main():
             fastx=query_file,
             zvalue=args.zvalue,
             threshold=args.threshold,
-            monitor=True,
             is_compressed=args.compressed,
         )
 
