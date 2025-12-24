@@ -8,6 +8,7 @@ data structures and their associated properties from index.json files.
 
 import json
 import os
+import warnings
 from pathlib import Path
 from typing import Dict, List, Any
 from enum import Enum
@@ -95,7 +96,16 @@ class KmtricksIndex:
         return self._parent_dir
 
     @property
+    def id(self) -> str:
+        return self._index_id
+
+    @property
     def index_id(self) -> str:
+        warnings.warn(
+            "'index_id' property is deprecated, use 'id' instead",
+            DeprecationWarning,
+            stacklevel=2
+        )
         return self._index_id
 
     @property

@@ -400,8 +400,8 @@ class Toolbox:
                     "max_cpu_percent": round(max_cpu, 4),
                     "max_memory_mb": round(max_memory, 4),
                     "return_code": result.returncode,
-                    "stdout": result.stdout,
-                    "stderr": result.stderr,
+                    "stdout": stdout,
+                    "stderr": stderr,
                 }
 
             # Build output content
