@@ -259,7 +259,7 @@ class IndexBuilder:
             with open(output_file, "w") as f:
                 f.write(sequence.to_fasta())
 
-    def query_test_dataset(self, idx: KmtricksIndex, dataset: str, output_dir: str):
+    def query_test_dataset(self, dataset: str, output_dir: str):
         """
         Query a whole directory (recursive) containing FASTA files.
 
@@ -278,8 +278,11 @@ class IndexBuilder:
             for file in files:
                 if file.endswith((".fasta", ".fa", ".fna")):
                     input_path = os.path.join(root, file)
+                    print("input_path="+input_path)
                     rel_path = os.path.relpath(root, dataset)
+                    print("rel_path="+rel_path)
                     result_dir = os.path.join(output_dir, rel_path)
+                    print("result_dir="+result_dir)
                     os.makedirs(result_dir, exist_ok=True)
                     try:
                         from .query import KmindexQuery
