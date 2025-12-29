@@ -278,23 +278,23 @@ class IndexBuilder:
             for file in files:
                 if file.endswith((".fasta", ".fa", ".fna")):
                     input_path = os.path.join(root, file)
-                    print("input_path="+input_path)
                     rel_path = os.path.relpath(root, dataset)
-                    print("rel_path="+rel_path)
                     result_dir = os.path.join(output_dir, rel_path)
-                    print("result_dir="+result_dir)
-                    os.makedirs(result_dir, exist_ok=True)
-                    try:
-                        from .query import KmindexQuery
+                    output_dir = os.path.join(result_dir, file.replace(".", "_"))
 
-                        query = KmindexQuery(path=input_path)
-                        query.run_query(
-                            registry_path=self.index.root_path,
-                            output_dir=os.path.join(result_dir, file.replace(".", "_")),
-                            z=self.z,
-                        )
-                    except Exception as e:
-                        print(f"Warning: Failed to query {input_path}: {str(e)}")
+                    if not output_dir:
+                        os.makedirs(result_dir, exist_ok=True)
+                        try:
+                            from .query import KmindexQuery
+                            print(f"Query {input_path} into {output_dir}")
+                            query = KmindexQuery(path=input_path)
+                            query.execute(
+                                registry_path=self.index.root_path,
+                                output_dir=output_dir,
+                                z=self.z,
+                            )
+                        except Exception as e:
+                            print(f"Warning: Failed to query {input_path}: {str(e)}")
 
     def check_presence(self, results: str, samples: list[str]):
         """

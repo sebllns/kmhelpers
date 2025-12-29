@@ -42,7 +42,7 @@ class KmindexQuery:
         else:
             assert os.path.isfile(path), f"Query file not found: {path}"
 
-    def run_query(
+    def execute(
         self,
         registry_path: str,
         output_dir="query",
