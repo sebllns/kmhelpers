@@ -5,13 +5,12 @@ from ..core import (
     Toolbox,
     BloomFilterSpecs,
 )
-from .byte import ByteCounter, SizeFormat, SizeUnit
+from .byte import ByteCounter, SizeFormat
 from .fof import FofManager
-from .sequence import Sequence
 from .fasta import Fasta, FASTAReader
+from .query import KmindexQuery, KmindexQueryResult
 import os
 import yaml
-from typing import Any
 
 
 class IndexBuilder:
@@ -285,7 +284,6 @@ class IndexBuilder:
                     if not output_dir:
                         os.makedirs(result_dir, exist_ok=True)
                         try:
-                            from .query import KmindexQuery
                             print(f"Query {input_path} into {output_dir}")
                             query = KmindexQuery(path=input_path)
                             query.execute(
@@ -305,7 +303,14 @@ class IndexBuilder:
         :param samples: List of sample names to check
         :type samples: list[str]
         """
-        pass
+        r = KmindexQueryResult(results)
+        ok = True
+        for s in samples:
+            v = r.max_score(s)
+            if v < 1:
+                print(f"Sample score is not 100%: {s} = {v}")
+                ok = False
+        return ok
 
     def compare_results(self, results: str, ground_truth: str):
         """
@@ -316,4 +321,4 @@ class IndexBuilder:
         :param ground_truth: Path to ground truth results directory
         :type ground_truth: str
         """
-        pass
+        return KmindexQueryResult(results) == KmindexQueryResult(ground_truth)

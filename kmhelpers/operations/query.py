@@ -1,15 +1,20 @@
 import os
 import shutil
 import yaml
+import json
 from typing import List, Optional, Union
 from ..core.utils import Toolbox
 from ..core.wrapper import KmindexWrapper
 from .sequence import Sequence
+import sys
+from pathlib import Path
 
 
 class KmindexQueryResult:
-    def __init__(self, result: dict) -> None:
-        self._result = result
+    def __init__(self, file: str) -> None:
+        self._result = {}
+        if file:
+            self.load_json(file)
 
     @property
     def result(self):
@@ -17,6 +22,134 @@ class KmindexQueryResult:
 
     def get_index_result(self, index_id) -> dict:
         return self.result.get(index_id, dict)
+
+    def __eq__(self, other) -> bool:
+        """Compare two KmindexQueryResult objects based on their results."""
+        if not isinstance(other, KmindexQueryResult):
+            return False
+        return self._result == other._result
+
+    def load_json(self, file):
+        """Load and parse the JSON file."""
+        with open(file, "r") as f:
+            self._result = json.load(f)
+
+        if not self._result:
+            raise ValueError("Empty JSON file")
+
+        self.index_name = list(self._result.keys())[0]
+        self.queries = self._result[self.index_name]
+
+    def max_score(self, sample):
+        max_score = 0
+        for _, samples in self.queries.items():
+            max_score = max(max_score, samples.get(sample, 0))
+        return max_score
+
+    def generate_markdown(self, threshold: float = 0.0) -> str:
+        """Generate simple Markdown tables."""
+        lines = []
+
+        for query_name, samples in self.queries.items():
+            # Table header with legend
+            lines.append(
+                f"## Query {query_name} on {self.index_name} - Filter scores ≥ {threshold}\n"
+            )
+            lines.append("| Sample  | Score |")
+            lines.append("|---------|-------|")
+
+            # Sort by score (descending) and filter by threshold
+            sorted_samples = sorted(
+                [(s, sc) for s, sc in samples.items() if sc >= threshold],
+                key=lambda x: x[1],
+                reverse=True,
+            )
+
+            for sample, score in sorted_samples:
+                lines.append(f"| {sample} | {score:.3f} |")
+
+            lines.append("")  # Empty line between queries
+
+        return "\n".join(lines)
+
+    def generate_html(self, threshold: float = 0.0) -> str:
+        """Generate simple HTML tables."""
+        html = []
+
+        # HTML header
+        html.append("<!DOCTYPE html>")
+        html.append("<html lang='en'>")
+        html.append("<head>")
+        html.append("    <meta charset='UTF-8'>")
+        html.append(
+            "    <meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+        )
+        html.append(f"    <title>kmindex Results - {self.index_name}</title>")
+        html.append("    <style>")
+        html.append(
+            "        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }"
+        )
+        html.append(
+            "        h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 8px; margin-top: 30px; }"
+        )
+        html.append(
+            "        table { border-collapse: collapse; width: 100%; margin: 20px 0; }"
+        )
+        html.append(
+            "        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }"
+        )
+        html.append(
+            "        th { background-color: #3498db; color: white; font-weight: bold; position: sticky; top: 0; }"
+        )
+        html.append("        tr:hover { background-color: #f5f5f5; }")
+        html.append("        tr:nth-child(even) { background-color: #f9f9f9; }")
+        html.append("    </style>")
+        html.append("</head>")
+        html.append("<body>")
+
+        for query_name, samples in self.queries.items():
+            # Table with legend
+            html.append(
+                f"    <details open><summary><h2>Query {query_name} on {self.index_name} - Filter scores ≥ {threshold}</h2></summary>"
+            )
+            html.append("    <table>")
+            html.append("        <tr><th>Sample</th><th>Score</th></tr>")
+
+            # Sort by score (descending) and filter by threshold
+            sorted_samples = sorted(
+                [(s, sc) for s, sc in samples.items() if sc >= threshold],
+                key=lambda x: x[1],
+                reverse=True,
+            )
+
+            for sample, score in sorted_samples:
+                html.append(f"        <tr><td>{sample}</td><td>{score:.3f}</td></tr>")
+
+            html.append("    </table></details>")
+
+        # HTML footer
+        html.append("</body>")
+        html.append("</html>")
+
+        return "\n".join(html)
+
+    def convert(self, output_file: str, threshold: float = 0.0):
+        """Convert JSON to specified output format."""
+        output_path = Path(output_file)
+
+        if output_path.suffix.lower() == ".md":
+            print(f"Generating Markdown (threshold={threshold})...", file=sys.stderr)
+            content = self.generate_markdown(threshold)
+        elif output_path.suffix.lower() == ".html":
+            print(f"Generating HTML (threshold={threshold})...", file=sys.stderr)
+            content = self.generate_html(threshold)
+        else:
+            raise ValueError(
+                f"Unsupported output format: {output_path.suffix}. Use .md or .html"
+            )
+
+        with open(output_path, "w") as f:
+            f.write(content)
 
 
 class KmindexQuery:
@@ -79,7 +212,7 @@ class KmindexQuery:
             with open(query_path, "w") as f:
                 f.write(self._sequence.to_fasta())
 
-        result = KmindexWrapper().query(
+        output = KmindexWrapper().query(
             input_registry=registry_path,
             query_file=query_path,
             output_dir=result_dir,
@@ -93,4 +226,15 @@ class KmindexQuery:
         # Save result to info.yaml
         info_file = os.path.join(output_dir, "info.yaml")
         with open(info_file, "w") as f:
-            yaml.safe_dump(result, f)
+            yaml.safe_dump(output, f)
+
+        result = []
+
+        for f in os.listdir(result_dir):
+            if os.path.isfile(f) and f.endswith(".json"):
+                try:
+                    result.append(KmindexQueryResult(f))
+                except:
+                    print(f"Could not read result from {f}")
+
+        return result
