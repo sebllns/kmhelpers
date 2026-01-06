@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.5] - 2026-01-06
+
+### Added
+
+- **Conda Environment Configuration**: New `conda/environment.yml` for easy installation with bioconda
+  - Pre-configured with kmindex >= 0.5.3 from bioconda
+  - One-command setup: `conda env create -f conda/environment.yml`
+
+- **kmindex Runtime Check**: New `Bin.check_kmindex()` method for better dependency management
+  - Validates kmindex availability in PATH
+  - Provides helpful error messages with installation instructions
+  - Supports both bioconda and source-compiled installations
+
+### Changed
+
+- **README.md Installation Instructions**: Enhanced with multiple installation methods
+  - Added conda quick-start section
+  - Added pip installation with manual kmindex setup
+  - Added detailed "Override kmindex Installation" section for users with custom-compiled versions
+  - Updated Quick Start with runtime check example
+
+### Fixed
+
+- Added `fof_validation.py` to validate FOF syntax
+
 ## [0.5.4] - 2025-12-23
 
 ### Added

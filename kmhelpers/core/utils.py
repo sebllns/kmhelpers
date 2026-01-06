@@ -149,6 +149,30 @@ class Bin:
 
     ####################################################
     @staticmethod
+    def check_kmindex() -> None:
+        """
+        Check if kmindex is available with helpful error message.
+
+        Raises:
+            RuntimeError: If kmindex >= 0.5.3 is not found in PATH
+        """
+        kmindex_path = shutil.which(Bin.kmindex())
+        if not kmindex_path:
+            raise RuntimeError(
+                f"kmindex >= 0.5.3 is required but not found in PATH.\n"
+                f"\n"
+                f"Install via bioconda:\n"
+                f"  conda install -c bioconda kmindex>=0.5.3\n"
+                f"\n"
+                f"Or compile from source and add to PATH:\n"
+                f"  export PATH=/path/to/kmindex/build:$PATH\n"
+                f"\n"
+                f"Verify installation:\n"
+                f"  kmindex --version"
+            )
+
+    ####################################################
+    @staticmethod
     def check_all() -> None:
         """Check all required binaries are available in PATH."""
         binaries = [

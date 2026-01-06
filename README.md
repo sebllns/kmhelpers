@@ -53,39 +53,95 @@ kmhelpers/
 
 ### Prerequisites
 
-You need the following external binaries in a `bin/` directory:
-- `kmindex`: Core indexing tool
+You need the following external binaries:
+- `kmindex >= 0.5.3`: Core indexing tool
 - `block_compressor`: Matrix compression tool
 - `block_decompressor`: Decompression tool
 - `bitmatrix_shuffle`: Column reordering algorithm
 
-### Install from source
+### Quick Install with Conda (Recommended)
 
 ```bash
 # Clone the repository
 git clone <repository-url>
 cd kmhelpers
 
-# Install in development mode
+# Create environment with kmindex pre-installed
+conda env create -f conda/environment.yml
+
+# Activate the environment
+conda activate kmhelpers
+```
+
+This automatically installs kmindex >= 0.5.3 from bioconda along with all Python dependencies.
+
+### Install with Pip
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd kmhelpers
+
+# Install kmhelpers in development mode
 pip install -e .
 ```
 
-### Install dependencies
+Then install kmindex separately:
 
 ```bash
-pip install psutil
+# Via bioconda (requires conda/mamba)
+conda install -c bioconda kmindex>=0.5.3
+
+# Or compile from source and add to PATH
+git clone <kmindex-repo>
+cd kmindex && mkdir build && cd build
+cmake .. && make
+export PATH=$(pwd):$PATH  # Add to your shell profile for persistence
 ```
+
+### Override kmindex Installation
+
+If you prefer to use a custom-compiled kmindex or a different version:
+
+1. **Install kmindex from source:**
+   ```bash
+   # Build kmindex from your source
+   git clone <kmindex-repo>
+   cd kmindex && mkdir build && cd build
+   cmake .. && make
+   ```
+
+2. **Add the binary to your PATH:**
+   ```bash
+   # Temporary (for current session)
+   export PATH=/path/to/kmindex/build:$PATH
+
+   # Permanent (add to ~/.bashrc or ~/.zshrc)
+   echo 'export PATH=/path/to/kmindex/build:$PATH' >> ~/.bashrc
+   ```
+
+3. **Verify installation:**
+   ```bash
+   kmindex --version
+   ```
+
+The runtime check will automatically find kmindex in your PATH, whether installed via conda or compiled from source.
 
 ## Quick Start
 
 ### 1. Initialize the environment
 
 ```python
-from kmhelpers import Main
+from kmhelpers import Main, Bin
 
 # Initialize and check binaries
 Main.init()
+
+# Optionally check specifically for kmindex with helpful error message
+Bin.check_kmindex()
 ```
+
+If kmindex is not found, you'll see a helpful error message with installation instructions for bioconda or source compilation.
 
 ### 2. Building an index (NEW in v0.3.0)
 
@@ -542,7 +598,7 @@ Kmindex.check_index_structure("/path/to/index", partition_count=256)
 
 ---
 
-**Version**: 0.5.4
+**Version**: 0.5.5
 **Status**: Development
 
 ## Changelog

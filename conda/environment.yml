@@ -1,0 +1,11 @@
+name: kmhelpers
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.8
+  - bioconda::kmindex>=0.5.3
+  - pip
+  - pip:
+    - -e ..
