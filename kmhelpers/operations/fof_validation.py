@@ -38,7 +38,7 @@ Validation Rules:
    - Valid: sample1, S_1, s-1
    - Invalid: sample,1 (contains comma), sample=1 (invalid char)
 
-2. File paths: Must match [.A-Za-z0-9\/_\-; ]+
+2. File paths: Must match [.A-Za-z0-9\\/_\\-; ]+
    - Valid: /path/to/file.txt, ./relative/path.fa, file1.fa; file2.fa
    - Invalid: /path/to/{file}.txt (contains braces)
 
