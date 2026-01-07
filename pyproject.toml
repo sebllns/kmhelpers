@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
-    {name = "Sébastien BELLENOUS", email = "sebastien.bellenous@inria.fr"},
+    {name = "Sébastien BELLENOUS", email = "kmhelpers@groupes.renater.fr"},
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",

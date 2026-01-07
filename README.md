@@ -22,50 +22,29 @@ A Python toolkit for managing, compressing, and querying k-mer indices efficient
 - 🔍 **Query system** with FASTA/FASTQ support
 - 📈 **Compression metrics** with histograms and performance tracking
 
-## Project Structure
-
-```
-kmhelpers/
-├── kmhelpers/
-│   ├── core/              # Core utilities and index management
-│   │   ├── utils.py       # Binary management, toolbox, kmindex operations
-│   │   ├── index.py       # Index and IndexRegistry classes
-│   │   └── wrapper.py     # KmindexWrapper high-level interface
-│   ├── operations/        # Compression and manipulation operations
-│   │   ├── compressor.py  # Compressor class and parameters
-│   │   └── fof.py         # FofManager for file-of-files operations
-│   ├── metrics/           # Performance tracking
-│   │   └── compression_metrics.py
-│   └── cli/               # Command-line scripts
-│       ├── compress_index.py
-│       └── query_index.py
-├── tests/                 # Unit tests (to be added)
-├── examples/              # Usage examples
-├── docs/                  # Additional documentation
-└── bin/                   # External binaries (not in repo)
-    ├── kmindex
-    ├── block_compressor
-    ├── block_decompressor
-    └── bitmatrix_shuffle
-```
-
 ## Installation
 
 ### Prerequisites
 
 You need the following external binaries:
-- `kmindex >= 0.5.3`: Core indexing tool
-- `block_compressor`: Matrix compression tool
-- `block_decompressor`: Decompression tool
-- `bitmatrix_shuffle`: Column reordering algorithm
+- For index building and query:
+    - `kmindex >= 0.5.3`: Core indexing tool
+- For index compression:
+    - `block_compressor`: Matrix compression tool
+    - `block_decompressor`: Decompression tool
+    - `bitmatrix_shuffle`: Column reordering algorithm
+
+### Get the sources
+
+```bash
+# Clone the repository
+git clone https://gitlab.inria.fr/omicfinder/kmhelpers
+cd kmhelpers
+```
 
 ### Quick Install with Conda (Recommended)
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd kmhelpers
-
 # Create environment with kmindex pre-installed
 conda env create -f conda/environment.yml
 
@@ -78,10 +57,6 @@ This automatically installs kmindex >= 0.5.3 from bioconda along with all Python
 ### Install with Pip
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd kmhelpers
-
 # Install kmhelpers in development mode
 pip install -e .
 ```
@@ -229,7 +204,7 @@ compressor.compress_index_selection(
 )
 ```
 
-### 4. Managing file-of-files (FOF) (NEW in v0.3.0)
+### 4. Managing file-of-files (FOF)
 
 ```python
 from kmhelpers import FofManager
@@ -333,135 +308,7 @@ The `IndexRegistry` manages multiple indices through a single `index.json` file:
 
 ## Command-Line Interface
 
-### Query Index
-
-```bash
-python -m kmhelpers.cli.query_index \
-    --input /path/to/index \
-    --output /path/to/results \
-    --index GENOMIC_HUMAN_19 \
-    --query query.fasta \
-    --zvalue 0 \
-    --threshold 0.0
-```
-
-### Compress Index (deprecated, use Python API)
-
-```bash
-python -m kmhelpers.cli.compress_index \
-    --input /path/to/source \
-    --output /path/to/compressed \
-    --index GENOMIC_HUMAN_19
-```
-
 ## API Reference
-
-### Core Classes
-
-#### `Main`
-- `Main.init()`: Initialize environment and check binaries
-
-#### `Bin`
-- `Bin.get_bin_dir()`: Get binary directory path
-- `Bin.get_kmindex_path()`: Get kmindex binary path
-- `Bin.check_all()`: Validate all required binaries
-
-#### `Toolbox`
-- `Toolbox.get_canonical_path(path)`: Resolve absolute path
-- `Toolbox.run_cmd(cmd)`: Execute command and capture output
-- `Toolbox.monitor_cmd(cmd)`: Execute with resource monitoring
-- `Toolbox.save_to_json_file(data, filename)`: Save JSON data
-
-#### `Kmindex`
-- `Kmindex.get_partition_count(dir, index_id)`: Get number of partitions
-- `Kmindex.get_sample_count(dir, index_id)`: Get number of samples
-- `Kmindex.get_matrix_path(index_path, partition, is_compressed)`: Get matrix file path
-- `Kmindex.query_index(...)`: Execute k-mer query
-- `Kmindex.register_index_in_json(...)`: Register index in manifest
-
-#### `KmindexWrapper` (NEW in v0.3.0)
-High-level interface for building and querying indices:
-- `wrapper.build(index_path, fof_file, kmer_size, bloom_size, ...)`: Build an index
-- `wrapper.query(index, query_file, output_dir, ...)`: Query an index
-- `wrapper.create_fof_file(input_files, fof_path)`: Create FOF from file list
-- `wrapper.fof_manager`: Access to FofManager instance
-
-#### `FofManager` (NEW in v0.3.0)
-Comprehensive file-of-files management:
-- `manager.create_fof_file(input_files, fof_path, ...)`: Create FOF from list
-- `manager.create_fof_from_directory(directory, fof_path, ...)`: Create FOF from directory
-- `manager.list_files_in_directory(directory, recursive, extensions)`: List matching files
-- `manager.load_fof_file(fof_path)`: Load sample IDs
-- `manager.load_with_paths(fof_path)`: Load samples with paths as dict
-- `manager.get_sample_ids(fof_path)`: Get sample IDs
-- `manager.validate_fof_file(fof_path)`: Validate FOF format
-- `manager.validate_input_files(file_list)`: Check files exist
-- `manager.extract_sample_name(file_path)`: Extract name from path
-- `manager.append_to_fof(fof_path, new_files)`: Append files to FOF
-- `manager.copy_fof(source, dest)`: Copy FOF file
-
-#### `KmtricksIndex`
-Properties:
-- `index.nb_samples`, `index.nb_partitions`
-- `index.kmer_size`, `index.minim_size`
-- `index.samples`: List of sample IDs
-
-Methods:
-- `index.get_matrix_path(partition, is_compressed)`
-- `index.get_matrix_byte_size(partition)`
-- `index.get_matrix_row_count(partition)`
-- `index.check_structure()`
-
-#### `KmindexRegistry`
-- `registry.list_indices()`: Get all index IDs
-- `registry.get_index(index_id)`: Load specific index
-- `registry.has_index(index_id)`: Check if index exists
-- `registry.add_index(index)`: Register new index
-
-### Operations
-
-#### `Compressor`
-
-The `Compressor` class provides methods for compressing k-mer indices with optional permutation-based reordering:
-
-**Methods:**
-- `compress_file(params, input_matrix_path, matrix_columns_count, ...)`: Compress a single matrix file
-- `compress_partition(params, idx, partition, ...)`: Compress a single partition with size comparison
-- `compress_index_selection(params, idx, ref_matrix, matrix_list, ...)`: Compress selected partitions
-- `compress_full_index(params, idx, output_dir)`: Compress all partitions of an index
-
-**Features:**
-- Permutation-based column reordering for improved compression ratios
-- Optional size comparison between ordered and unordered compression
-- Metrics collection in JSON format
-- CSV reports for compression statistics
-- Configurable reference partition for permutation computation
-
-#### `CompressionParams`
-Configuration dataclass with fields:
-- `block_size`: Bytes per compression block (default: 8388608)
-- `group_size`: Grouping parameter (default: 0 = auto)
-- `subsample_size`: Rows to sample for distance calcultation (default: 20000)
-- `threshold`: Compression threshold (default: 0.0)
-- `enable_check`: Validate before compression
-- `enable_overwrite`: Overwrite existing files
-- `with_size_comparison`: Enable size comparison reporting (default: True)
-- `force_permutation`: Force permutation computation (default: False)
-
-### Metrics
-
-#### `PermutationData`
-Tracks reordering metrics:
-- Distance statistics (avg, stdev) before/after
-- Compressibility factor
-- Timing data
-
-#### `CompressionData`
-Tracks compression metrics:
-- Block configuration
-- Compression ratios
-- Histograms (original vs reordered)
-- Timing data
 
 ## Examples
 
@@ -482,34 +329,10 @@ print(f"K-mer size: {index.smer_size}")
 print(f"Total elements: {sum(index.get_matrix_element_count(p) for p in range(index.nb_partitions))}")
 ```
 
-### Example 2: Batch Query
+### Example 2: Query
 
 ```python
-from kmhelpers import Main, Kmindex
-import os
 
-Main.init()
-
-queries = ["query1.fasta", "query2.fasta", "query3.fasta"]
-index_path = "/data/indices"
-output_base = "/data/results"
-
-for query_file in queries:
-    query_name = os.path.splitext(os.path.basename(query_file))[0]
-    output_dir = os.path.join(output_base, query_name)
-
-    result = Kmindex.query_index(
-        names=["index1", "index2"],
-        index_path=index_path,
-        output_dir=output_dir,
-        format="json",
-        fastx=query_file,
-        monitor=True
-    )
-
-    if result:
-        stdout, stats = result
-        print(f"{query_name}: {stats['execution_time_ms']}ms")
 ```
 
 ### Example 3: Compression with Metrics and Size Comparison
@@ -550,7 +373,7 @@ compressor.compress_index_selection(
 # - /data/compressed/metrics/sizes.csv (size comparison data)
 ```
 
-## Performance Tips
+## Performance Tips for Compression
 
 1. **Subsampling**: Use larger `subsample_size` for better reordering (slower but better compression)
 2. **Block size**: Larger blocks = better compression, more memory usage
@@ -586,15 +409,17 @@ Kmindex.check_index_structure("/path/to/index", partition_count=256)
 
 ## License
 
-[Add license information]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Citation
-
-[Add citation information if applicable]
+Copyright (c) 2024 Sébastien BELLENOUS
 
 ## Contact
 
-[Add contact information]
+For questions, bug reports, or contributions, please contact:
+
+- **Author**: Sébastien BELLENOUS
+- **Email**: kmhelpers@groupes.renater.fr
+- **Repository**: [GitLab](https://gitlab.inria.fr/omicfinder/kmhelpers)
 
 ---
 
