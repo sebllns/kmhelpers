@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
+"""
+Unified CLI for kmhelpers - a toolkit for managing, compressing, and querying k-mer indices.
+"""
 
 import os
 import click
-from kmhelpers.core import utils as kmhelpers
+
+from kmhelpers import Main, KmindexRegistry, KmtricksIndex, Compressor, CompressionParams, KmindexWrapper
 
 
 @click.group()
@@ -12,155 +16,230 @@ def cli():
 
 
 # ============================================================================
-# REGISTER COMMANDS
+# REGISTRY COMMANDS
 # ============================================================================
 
 @cli.group()
-def register():
-    """Register indices in a kmindex registry."""
+def registry():
+    """Manage k-mer index registries."""
     pass
 
 
-@register.command(name="index")
+@registry.command(name="add")
 @click.option(
-    "--input",
-    required=True,
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    help="Input directory containing index folders",
-)
-@click.option(
-    "--output",
-    required=True,
-    type=click.Path(file_okay=False, dir_okay=True),
-    help="Output directory (where to create/update registry)",
-)
-@click.option(
-    "--index",
-    multiple=True,
-    required=True,
-    help="Index ID(s) to register (can specify multiple)",
-)
-def register_index(input, output, index):
-    """Register individual indices in the registry."""
-    kmhelpers.Main.init()
-
-    # Create output directory
-    os.makedirs(output, exist_ok=True)
-
-    index_json_path = kmhelpers.Kmindex.get_json_path(output)
-    if not os.path.isfile(index_json_path):
-        kmhelpers.Kmindex.create_empty_index_json(output)
-
-    # Validate input arguments
-    if not os.path.isdir(input):
-        raise click.BadParameter(f"Input path {input} is not a directory")
-
-    if not os.path.isfile(index_json_path):
-        raise click.BadParameter(f"JSON path {index_json_path} is not a file")
-    if not (os.access(index_json_path, os.R_OK) and os.access(index_json_path, os.W_OK)):
-        raise click.BadParameter(f"JSON file {index_json_path} is not readable/writable")
-
-    index_ids = kmhelpers.Kmindex.read_index_ids_from_json(index_json_path)
-
-    if not os.path.isdir(output):
-        raise click.BadParameter(f"Output path {output} is not a directory")
-    if not os.access(output, os.W_OK):
-        raise click.BadParameter(f"Output directory {output} is not writable")
-
-    for index_id in index:
-        if index_id in index_ids:
-            click.echo(f"Index {index_id} already registered, skipping...")
-            continue
-        click.echo(f"Registering index {index_id}...")
-        kmhelpers.Kmindex.register_index_in_json(input, output, index_id)
-        click.echo(f"Successfully registered {index_id}")
-
-
-@register.command(name="directory")
-@click.option(
-    "-i",
     "--input-dir",
+    "-i",
     required=True,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    help="Path to directory containing kmtricks indexes",
+    help="Input directory containing kmtricks indices",
 )
 @click.option(
-    "-o",
-    "--output",
-    default="kmindex-registry",
+    "--registry-path",
+    "-r",
+    required=True,
     type=click.Path(file_okay=False, dir_okay=True),
-    help="Output kmindex registry path (created if doesn't exist)",
+    help="Path to kmindex registry (created if doesn't exist)",
 )
-def register_directory(input_dir, output):
-    """Create or update registry from a directory of kmtricks indices."""
-    from kmhelpers.core.index import KmindexRegistry, KmtricksIndex
-
-    # Initialize kmhelpers environment
+@click.option(
+    "--index-ids",
+    "-n",
+    multiple=True,
+    help="Specific index IDs to register (register all if not specified)",
+)
+def registry_add(input_dir, registry_path, index_ids):
+    """Register kmtricks indices in a registry."""
+    Main.init()
     click.echo("Initializing kmhelpers...")
-    kmhelpers.Main.init()
-    click.echo(f"kmindex version: {kmhelpers.Kmindex.version()}")
 
-    registry = KmindexRegistry(output)
+    registry = KmindexRegistry(registry_path)
 
-    # Loop over all directories in the input folder
-    for index_id in os.listdir(input_dir):
+    # Get list of indices to register
+    if index_ids:
+        indices_to_process = index_ids
+    else:
+        indices_to_process = [d for d in os.listdir(input_dir) if os.path.isdir(os.path.join(input_dir, d))]
+
+    registered = 0
+    skipped = 0
+
+    for index_id in indices_to_process:
         entry_path = os.path.join(input_dir, index_id)
-
-        # Skip if not a directory
         if not os.path.isdir(entry_path):
+            click.echo(f"Warning: {index_id} is not a directory, skipping", err=True)
             continue
 
         try:
-            # Load index
             index = KmtricksIndex(input_dir, index_id)
             index.load_kmtricks_index()
             if index.check_structure():
-                click.echo(f"Found index: {index}")
                 if registry.add_index(index):
-                    click.echo(f"Registered {index.index_id} in {registry.json_path}")
+                    click.echo(f"✓ Registered: {index_id}")
+                    registered += 1
                 else:
-                    click.echo(f"Index {index.index_id} already exists in registry")
+                    click.echo(f"⊙ Already registered: {index_id}")
+                    skipped += 1
         except Exception as e:
-            click.echo(f"Error processing {index_id}: {e}", err=True)
-            continue
+            click.echo(f"✗ Error processing {index_id}: {e}", err=True)
 
-    click.echo("---------------------------------------------------")
-    click.echo("Registry summary:")
-    click.echo(f"Available indices: {len(registry)} total")
-    for idx in registry:
-        click.echo(f"  - {idx}")
-    click.echo("---------------------------------------------------")
+    click.echo(f"\nSummary: {registered} registered, {skipped} skipped")
+
+
+@registry.command(name="list")
+@click.option(
+    "--registry-path",
+    "-r",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    help="Path to kmindex registry",
+)
+def registry_list(registry_path):
+    """List all indices in a registry."""
+    Main.init()
+    registry = KmindexRegistry(registry_path)
+
+    indices = registry.list_indices()
+    if not indices:
+        click.echo("No indices found in registry")
+        return
+
+    click.echo(f"Registry: {registry_path}")
+    click.echo(f"Available indices ({len(indices)} total):")
+    for idx_name in indices:
+        idx = registry.get_index(idx_name)
+        click.echo(f"  • {idx_name} ({idx.nb_samples} samples, {idx.nb_partitions} partitions, k={idx.kmer_size})")
 
 
 # ============================================================================
-# QUERY COMMAND
+# COMPRESSION COMMANDS
 # ============================================================================
 
 @cli.command()
 @click.option(
-    "--input",
+    "--input-dir",
+    "-i",
     required=True,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    help="Directory containing index registry (index.json)",
+    help="Input directory containing kmtricks indices",
 )
 @click.option(
-    "--output",
+    "--index-id",
+    "-n",
+    required=True,
+    help="Index ID to compress",
+)
+@click.option(
+    "--output-dir",
+    "-o",
+    required=True,
+    type=click.Path(file_okay=False, dir_okay=True),
+    help="Output directory for compressed index",
+)
+@click.option(
+    "--ref-matrix",
+    type=int,
+    default=1,
+    help="Reference partition for permutation computation (default: 1)",
+)
+@click.option(
+    "--matrices",
+    "-m",
+    multiple=True,
+    type=int,
+    help="Specific partitions to compress (compress all if not specified)",
+)
+@click.option(
+    "--block-size",
+    type=int,
+    default=8388608,
+    help="Block size for compression in bytes (default: 8MB)",
+)
+@click.option(
+    "--subsample-size",
+    type=int,
+    default=20000,
+    help="Rows to sample for computing distances (default: 20000)",
+)
+@click.option(
+    "--enable-metrics",
+    is_flag=True,
+    default=True,
+    help="Enable compression metrics collection",
+)
+def compress(input_dir, index_id, output_dir, ref_matrix, matrices, block_size, subsample_size, enable_metrics):
+    """Compress k-mer index partitions."""
+    Main.init()
+    click.echo("Initializing compression...")
+
+    # Load index
+    index = KmtricksIndex(input_dir, index_id)
+    index.load_kmtricks_index()
+    click.echo(f"Loaded index: {index}")
+
+    # Determine which matrices to compress
+    if matrices:
+        matrix_list = list(matrices)
+    else:
+        matrix_list = [i for i in range(index.nb_partitions) if i != ref_matrix]
+
+    # Create compression parameters
+    params = CompressionParams(
+        block_size=block_size,
+        subsample_size=subsample_size,
+        enable_overwrite=True,
+    )
+
+    # Create compressor
+    compressor = Compressor(enable_metrics=enable_metrics)
+
+    click.echo(f"Compressing {len(matrix_list)} partitions (reference: {ref_matrix})...")
+    click.echo(f"Block size: {block_size}, Subsample size: {subsample_size}")
+
+    try:
+        compressor.compress_index_selection(
+            params,
+            index,
+            ref_matrix,
+            matrix_list,
+            output_dir,
+        )
+        click.echo(f"✓ Compression completed successfully")
+        click.echo(f"Output directory: {output_dir}")
+    except Exception as e:
+        raise click.ClickException(f"Compression failed: {e}")
+
+
+# ============================================================================
+# QUERY COMMANDS
+# ============================================================================
+
+@cli.command()
+@click.option(
+    "--registry-path",
+    "-r",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    help="Path to kmindex registry",
+)
+@click.option(
+    "--index-ids",
+    "-n",
+    multiple=True,
+    required=True,
+    help="Index ID(s) to query against",
+)
+@click.option(
+    "--query-file",
+    "-q",
+    required=True,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+    help="Query file in FASTA/FASTQ format",
+)
+@click.option(
+    "--output-dir",
+    "-o",
     required=True,
     type=click.Path(file_okay=False, dir_okay=True),
     help="Output directory for query results",
-)
-@click.option(
-    "--index",
-    multiple=True,
-    required=True,
-    help="Index ID(s) to query (can specify multiple)",
-)
-@click.option(
-    "--query",
-    multiple=True,
-    required=True,
-    type=click.Path(exists=True, file_okay=True, dir_okay=False),
-    help="Query file(s) in FASTA/FASTQ format (can specify multiple)",
 )
 @click.option(
     "--zvalue",
@@ -172,87 +251,39 @@ def register_directory(input_dir, output):
     "--threshold",
     type=float,
     default=0.0,
-    help="Threshold for kmindex (default: 0.0)",
+    help="Score threshold for results filtering (default: 0.0)",
 )
-@click.option(
-    "--compressed",
-    is_flag=True,
-    help="Use compressed index variant",
-)
-@click.option(
-    "--report",
-    default="report.json",
-    help="Performance report filename (default: report.json)",
-)
-def query(input, output, index, query, zvalue, threshold, compressed, report):
-    """Query indices with FASTA/FASTQ files."""
-    kmhelpers.Main.init()
+def query(registry_path, index_ids, query_file, output_dir, zvalue, threshold):
+    """Query indices with FASTA/FASTQ sequences."""
+    Main.init()
+    click.echo(f"Querying with: {query_file}")
 
-    index_json_path = os.path.join(input, "index.json")
+    # Verify registry and indices
+    registry = KmindexRegistry(registry_path)
+    available_indices = registry.list_indices()
 
-    # Validate input arguments
-    if not os.path.isdir(input):
-        raise click.BadParameter(f"Input path {input} is not a directory")
+    for idx_id in index_ids:
+        if idx_id not in available_indices:
+            raise click.BadParameter(f"Index {idx_id} not found in registry")
 
-    if not os.path.isfile(index_json_path):
-        raise click.BadParameter(f"JSON path {index_json_path} is not a file")
-    if not os.access(index_json_path, os.R_OK):
-        raise click.BadParameter(f"JSON file {index_json_path} is not readable")
+    os.makedirs(output_dir, exist_ok=True)
 
-    index_ids = kmhelpers.Kmindex.read_index_ids_from_json(index_json_path)
-    if len(index_ids) == 0:
-        raise click.BadParameter(f"No index IDs found in {index_json_path}")
+    # Create wrapper and perform query
+    wrapper = KmindexWrapper()
 
-    click.echo(f"Found {len(index_ids)} index IDs in {index_json_path}")
-    click.echo(f"Index IDs: {', '.join(index_ids)}")
-
-    kmhelpers.Kmindex.validate_index_ids(index, index_ids)
-
-    os.makedirs(output, exist_ok=True)
-
-    for query_file in query:
-        if not os.path.isfile(query_file):
-            raise click.BadParameter(f"Query file {query_file} is not a file")
-        if not os.access(query_file, os.R_OK):
-            raise click.BadParameter(f"Query file {query_file} is not readable")
-
-        click.echo(f"Processing query file {query_file}...")
-
-        query_output = os.path.join(
-            output, os.path.splitext(os.path.basename(query_file))[0]
-        )
-
-        if os.path.isdir(query_output):
-            click.echo(f"Directory found: {query_output}. Skipping query...")
-            continue
-
-        result = kmhelpers.Kmindex.query_index(
-            index,
-            input,
-            query_output,
-            format="json",
-            fastx=query_file,
+    try:
+        results_dir = wrapper.query(
+            input_registry=registry_path,
+            query_file=query_file,
+            output_dir=output_dir,
+            names=list(index_ids),
             zvalue=zvalue,
             threshold=threshold,
-            is_compressed=compressed,
         )
-
-        if result is None:
-            raise click.ClickException(f"Query command failed for {query_file}")
-
-        km_output, km_monitor = result
-
-        if not os.path.isdir(query_output):
-            raise click.ClickException(f"Result directory not found: {query_output}")
-
-        with open(os.path.join(query_output, ".cmd_output.log"), "w") as f:
-            f.write(km_output)
-
-        kmhelpers.Toolbox.json_serialize(
-            km_monitor, os.path.join(query_output, report)
-        )
-
-        click.echo(f"Query output: {query_output}")
+        click.echo(f"✓ Query completed")
+        click.echo(f"Results directory: {results_dir}")
+    except Exception as e:
+        raise click.ClickException(f"Query failed: {e}")
 
 
 if __name__ == "__main__":
