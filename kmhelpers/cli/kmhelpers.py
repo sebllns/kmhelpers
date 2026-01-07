@@ -6,11 +6,15 @@ Unified CLI for kmhelpers - a toolkit for managing, compressing, and querying k-
 import os
 import click
 import json
+import yaml
+from pathlib import Path
 
 from kmhelpers import Main, KmindexRegistry, KmtricksIndex, Compressor, CompressionParams, KmindexWrapper
 from kmhelpers.operations.fof import FofManager
 from kmhelpers.operations.fof_validation import FofValidator
 from kmhelpers.operations.compressor import PermutationFlag
+from kmhelpers.operations.builder import IndexBuilder
+from kmhelpers.operations.query import KmindexQuery, KmindexQueryResult
 
 
 @click.group()
@@ -981,6 +985,332 @@ def query(registry_path, index_ids, query_file, output_dir, zvalue, threshold,
 
     except Exception as e:
         raise click.ClickException(f"Query failed: {e}")
+
+
+# ============================================================================
+# PROJECT COMMANDS (High-level workflow using IndexBuilder/KmindexQuery)
+# ============================================================================
+
+def _get_project_config(project_path):
+    """Load project configuration from .kmhelpers.yaml"""
+    config_path = os.path.join(project_path, ".kmhelpers.yaml")
+    if not os.path.exists(config_path):
+        raise click.ClickException(
+            f"Project not initialized. Run 'kmhelpers project create {project_path}' first"
+        )
+    try:
+        with open(config_path, "r") as f:
+            return yaml.safe_load(f)
+    except Exception as e:
+        raise click.ClickException(f"Failed to load project config: {e}")
+
+
+def _save_project_config(project_path, config):
+    """Save project configuration to .kmhelpers.yaml"""
+    config_path = os.path.join(project_path, ".kmhelpers.yaml")
+    try:
+        with open(config_path, "w") as f:
+            yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+    except Exception as e:
+        raise click.ClickException(f"Failed to save project config: {e}")
+
+
+@cli.group()
+def project():
+    """Opinionated project workflow for building and querying indices."""
+    pass
+
+
+@project.command(name="create")
+@click.argument("project_path", type=click.Path())
+@click.option(
+    "--k",
+    "--kmer-size",
+    "kmer_size",
+    type=int,
+    default=31,
+    help="K-mer size (default: 31)",
+)
+@click.option(
+    "--z",
+    "--minim-size",
+    "minim_size",
+    type=int,
+    default=6,
+    help="Minimizer size (default: 6)",
+)
+def project_create(project_path, kmer_size, minim_size):
+    """Initialize a new kmhelpers project."""
+    Main.init()
+
+    try:
+        # Create base directory
+        os.makedirs(project_path, exist_ok=True)
+
+        # Create IndexBuilder to set up directory structure
+        builder = IndexBuilder(project_path, k=kmer_size, z=minim_size)
+
+        # Calculate s (span) from k and z: s = k - z + 1
+        s = kmer_size - minim_size + 1
+
+        # Create and save project metadata
+        config = {
+            "version": "1.0",
+            "k": kmer_size,
+            "z": minim_size,
+            "s": s,
+            "created": str(Path(project_path).absolute()),
+        }
+        _save_project_config(project_path, config)
+
+        click.echo(f"✓ Project created: {project_path}")
+        click.echo(f"  K-mer size (k): {kmer_size}")
+        click.echo(f"  Minimizer size (z): {minim_size}")
+        click.echo(f"  Span (s): {s}")
+        click.echo(f"  Structure:")
+        click.echo(f"    - registry/")
+        click.echo(f"    - .subindexes/")
+        click.echo(f"    - logs/")
+
+    except Exception as e:
+        raise click.ClickException(f"Failed to create project: {e}")
+
+
+@project.command(name="build")
+@click.argument("project_path", type=click.Path(exists=True, file_okay=False))
+@click.argument("index_name")
+@click.option(
+    "--fof",
+    required=True,
+    type=click.Path(exists=True, file_okay=True),
+    help="Path to FOF file",
+)
+@click.option(
+    "--bloom-size",
+    type=int,
+    required=True,
+    help="Bloom filter size (bits)",
+)
+@click.option(
+    "--assembled",
+    is_flag=True,
+    default=False,
+    help="Mark index as assembled data",
+)
+@click.option(
+    "--threads",
+    "-t",
+    type=int,
+    default=0,
+    help="Number of threads (0 = auto-detect)",
+)
+@click.option(
+    "--partitions",
+    type=int,
+    default=256,
+    help="Number of partitions (default: 256)",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Show detailed output",
+)
+def project_build(
+    project_path, index_name, fof, bloom_size, assembled, threads, partitions, verbose
+):
+    """Build an index within the project."""
+    Main.init()
+
+    try:
+        # Load project configuration
+        config = _get_project_config(project_path)
+
+        # Load FOF file into FofManager
+        manager = FofManager()
+        try:
+            with open(fof, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#"):
+                        parts = line.split()
+                        if len(parts) >= 2:
+                            sample_name, file_path = parts[0], parts[1]
+                            manager.add_sample(file_path, sample_name)
+        except Exception as e:
+            raise click.ClickException(f"Failed to load FOF file: {e}")
+
+        # Create IndexBuilder
+        builder = IndexBuilder(project_path, k=config["k"], z=config["z"])
+
+        if verbose:
+            click.echo(f"Building index '{index_name}' in project: {project_path}")
+            click.echo(f"  Samples: {manager.get_sample_count()}")
+            click.echo(f"  K-mer size: {config['k']}")
+
+        # Build the subindex
+        index = builder.create_subindex(
+            name=index_name,
+            samples=manager,
+            assembled=assembled,
+            bloom_size=bloom_size,
+            n_partitions=partitions,
+            n_threads=threads,
+            auto_check=True,
+        )
+
+        click.echo(f"✓ Index built successfully")
+        click.echo(f"  Index name: {index_name}")
+        click.echo(f"  Samples: {index.nb_samples}")
+        click.echo(f"  Partitions: {index.nb_partitions}")
+        click.echo(f"  K-mer size: {index.kmer_size}")
+
+    except Exception as e:
+        raise click.ClickException(f"Failed to build index: {e}")
+
+
+@project.command(name="query")
+@click.argument("project_path", type=click.Path(exists=True, file_okay=False))
+@click.argument("index_name")
+@click.option(
+    "--query",
+    "-q",
+    required=True,
+    type=click.Path(exists=True, file_okay=True),
+    help="Path to query file (FASTA/FASTQ)",
+)
+@click.option(
+    "--output",
+    "-o",
+    "output_dir",
+    default="query_results",
+    type=click.Path(file_okay=False),
+    help="Output directory (default: query_results)",
+)
+@click.option(
+    "--threads",
+    "-t",
+    type=int,
+    default=1,
+    help="Number of threads",
+)
+@click.option(
+    "--single-query",
+    type=str,
+    help="Single query mode (batch name)",
+)
+@click.option(
+    "--aggregate",
+    is_flag=True,
+    default=False,
+    help="Aggregate results across indices",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Show detailed output",
+)
+def project_query(
+    project_path, index_name, query, output_dir, threads, single_query, aggregate, verbose
+):
+    """Query an index within the project."""
+    Main.init()
+
+    try:
+        # Load project configuration
+        config = _get_project_config(project_path)
+
+        # Resolve registry path
+        registry_path = os.path.join(project_path, "registry")
+        if not os.path.exists(registry_path):
+            raise click.ClickException(f"Registry not found in project: {registry_path}")
+
+        # Create output directory
+        os.makedirs(output_dir, exist_ok=True)
+
+        if verbose:
+            click.echo(f"Querying index '{index_name}' from project: {project_path}")
+            click.echo(f"  Registry: {registry_path}")
+            click.echo(f"  Query file: {query}")
+
+        # Initialize KmindexQuery
+        kquery = KmindexQuery(query)
+
+        # Execute query
+        results = kquery.execute(
+            registry_path=registry_path,
+            output_dir=output_dir,
+            index_ids=[index_name],
+            z=config["z"],
+            single_query=single_query,
+            aggregate=aggregate,
+            threads=threads,
+        )
+
+        click.echo(f"✓ Query completed")
+        click.echo(f"  Index: {index_name}")
+        click.echo(f"  Results: {output_dir}")
+        click.echo(f"  Query results found: {len(results)}")
+
+        if verbose and results:
+            for result in results:
+                click.echo(f"    - {result}")
+
+    except Exception as e:
+        raise click.ClickException(f"Query failed: {e}")
+
+
+@project.command(name="info")
+@click.argument("project_path", type=click.Path(exists=True, file_okay=False))
+def project_info(project_path):
+    """Show project information and indices."""
+    Main.init()
+
+    try:
+        # Load project configuration
+        config = _get_project_config(project_path)
+
+        click.echo(f"Project: {project_path}")
+        click.echo(f"  Version: {config.get('version', 'unknown')}")
+        click.echo(f"  K-mer size (k): {config['k']}")
+        click.echo(f"  Minimizer size (z): {config['z']}")
+        click.echo(f"  Span (s): {config['s']}")
+        click.echo()
+
+        # Show directory structure
+        click.echo("Project structure:")
+        for subdir in ["registry", ".subindexes", "logs"]:
+            dir_path = os.path.join(project_path, subdir)
+            exists = "✓" if os.path.exists(dir_path) else "✗"
+            click.echo(f"  {exists} {subdir}/")
+
+        click.echo()
+
+        # List indices in registry
+        registry_path = os.path.join(project_path, "registry")
+        if os.path.exists(registry_path):
+            try:
+                registry = KmindexRegistry(registry_path)
+                indices = registry.list_indices()
+
+                if indices:
+                    click.echo(f"Registered indices ({len(indices)}):")
+                    for idx_name in indices:
+                        index = registry.get_index(idx_name)
+                        click.echo(f"  {idx_name}")
+                        click.echo(f"    - Samples: {index.nb_samples}")
+                        click.echo(f"    - Partitions: {index.nb_partitions}")
+                        click.echo(f"    - K-mer size: {index.kmer_size}")
+                else:
+                    click.echo("No indices registered yet")
+            except Exception as e:
+                click.echo(f"Error reading registry: {e}", err=True)
+        else:
+            click.echo("Registry not yet created")
+
+    except Exception as e:
+        raise click.ClickException(f"Failed to get project info: {e}")
 
 
 if __name__ == "__main__":

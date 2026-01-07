@@ -39,8 +39,6 @@ dev = [
 
 [project.scripts]
 kmhelpers = "kmhelpers.cli.kmhelpers:cli"
-kmhelpers-query = "kmhelpers.cli.query_index:main"
-kmhelpers-register = "kmhelpers.cli.register_index:main"
 
 [project.urls]
 Repository = "https://gitlab.inria.fr/omicfinder/kmhelpers"
