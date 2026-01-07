@@ -5,14 +5,374 @@ Unified CLI for kmhelpers - a toolkit for managing, compressing, and querying k-
 
 import os
 import click
+import json
 
 from kmhelpers import Main, KmindexRegistry, KmtricksIndex, Compressor, CompressionParams, KmindexWrapper
+from kmhelpers.operations.fof import FofManager
+from kmhelpers.operations.fof_validation import FofValidator
+from kmhelpers.operations.compressor import PermutationFlag
 
 
 @click.group()
 def cli():
     """kmhelpers - A toolkit for managing, compressing, and querying k-mer indices."""
     pass
+
+
+# ============================================================================
+# FOF (FILE-OF-FILES) COMMANDS
+# ============================================================================
+
+@cli.group()
+def fof():
+    """Manage File-of-Files (FOF) for index building."""
+    pass
+
+
+@fof.command(name="create")
+@click.option(
+    "--from-directory",
+    "-d",
+    "from_directory",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    help="Directory containing FASTA/FASTQ files",
+)
+@click.option(
+    "--output",
+    "-o",
+    required=True,
+    type=click.Path(file_okay=True, dir_okay=False),
+    help="Output FOF file path",
+)
+@click.option(
+    "--recursive",
+    is_flag=True,
+    default=False,
+    help="Search subdirectories recursively",
+)
+@click.option(
+    "--extensions",
+    "-e",
+    multiple=True,
+    default=[".fasta", ".fastq", ".fa", ".fq", ".fasta.gz", ".fastq.gz"],
+    help="File extensions to include (default: common bioinformatics formats)",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Show detailed output",
+)
+def fof_create(from_directory, output, recursive, extensions, verbose):
+    """Create FOF file from directory of sequence files."""
+    try:
+        manager = FofManager()
+        files = manager.list_files_in_directory(from_directory, recursive=recursive, extensions=list(extensions))
+
+        if not files:
+            raise click.ClickException(f"No files found matching extensions {extensions}")
+
+        # Extract sample names and add to manager
+        for file_path in files:
+            sample_name = FofManager.extract_sample_name(file_path)
+            manager.add_sample(file_path, sample_name)
+            if verbose:
+                click.echo(f"  Added: {sample_name} -> {file_path}")
+
+        # Save to output file
+        manager.save(output)
+
+        click.echo(f"✓ Created FOF file: {output}")
+        click.echo(f"  Samples: {manager.get_sample_count()}")
+
+    except Exception as e:
+        raise click.ClickException(f"Failed to create FOF: {e}")
+
+
+@fof.command(name="validate")
+@click.argument("fof_file", type=click.Path(exists=True, file_okay=True, dir_okay=False))
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Show detailed validation output",
+)
+def fof_validate(fof_file, verbose):
+    """Validate FOF file format and check sample files exist."""
+    try:
+        # Validate format
+        validator = FofValidator(fof_file)
+        is_valid = validator.validate()
+
+        if is_valid:
+            click.echo(f"✓ FOF format is valid: {fof_file}")
+        else:
+            click.echo(f"✗ FOF format errors in {fof_file}:", err=True)
+            validator.print_errors()
+            raise click.ClickException(f"FOF file has {validator.get_error_count()} validation error(s)")
+
+        # Check if sample files exist
+        manager = FofManager(fof_file)
+        missing_files = []
+
+        for sample_id in manager.get_all_sample_ids():
+            file_path = manager.get_sample_path(sample_id)
+            if file_path is None or not os.path.isfile(file_path):
+                missing_files.append((sample_id, file_path or "N/A"))
+                if verbose:
+                    click.echo(f"  Missing: {sample_id} -> {file_path}", err=True)
+
+        if missing_files:
+            raise click.ClickException(f"Found {len(missing_files)} missing sample file(s)")
+
+        click.echo(f"  Files: {manager.get_sample_count()} samples exist")
+
+    except FileNotFoundError as e:
+        raise click.ClickException(f"FOF file not found: {e}")
+    except Exception as e:
+        raise click.ClickException(f"Validation failed: {e}")
+
+
+@fof.command(name="list")
+@click.argument("fof_file", type=click.Path(exists=True, file_okay=True, dir_okay=False))
+@click.option(
+    "--show-paths",
+    is_flag=True,
+    help="Show full file paths",
+)
+@click.option(
+    "--json",
+    "output_json",
+    is_flag=True,
+    help="Output as JSON",
+)
+def fof_list(fof_file, show_paths, output_json):
+    """List all samples in FOF file."""
+    try:
+        manager = FofManager(fof_file)
+        sample_ids = manager.get_all_sample_ids()
+
+        if not sample_ids:
+            click.echo("No samples found in FOF file")
+            return
+
+        if output_json:
+            # Output as JSON
+            data = {
+                "fof_file": fof_file,
+                "sample_count": len(sample_ids),
+                "samples": [
+                    {
+                        "id": sid,
+                        "path": manager.get_sample_path(sid)
+                    }
+                    for sid in sample_ids
+                ]
+            }
+            click.echo(json.dumps(data, indent=2))
+        else:
+            # Output as table
+            click.echo(f"FOF File: {fof_file}")
+            click.echo(f"Samples: {len(sample_ids)}\n")
+
+            for sample_id in sample_ids:
+                file_path = manager.get_sample_path(sample_id)
+                if show_paths:
+                    click.echo(f"  {sample_id:<30} {file_path}")
+                else:
+                    click.echo(f"  {sample_id}")
+
+    except Exception as e:
+        raise click.ClickException(f"Failed to list FOF samples: {e}")
+
+
+@fof.command(name="add")
+@click.option(
+    "--fof",
+    required=True,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+    help="FOF file to modify",
+)
+@click.option(
+    "--sample-file",
+    "-s",
+    required=True,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+    help="Sample file to add",
+)
+@click.option(
+    "--sample-id",
+    "-n",
+    help="Sample ID (auto-extracted from filename if not provided)",
+)
+def fof_add(fof, sample_file, sample_id):
+    """Add sample to existing FOF file."""
+    try:
+        manager = FofManager(fof)
+
+        # Auto-extract sample name if not provided
+        if not sample_id:
+            sample_id = FofManager.extract_sample_name(sample_file)
+
+        # Check if sample already exists
+        if manager.has_sample(sample_id):
+            raise click.ClickException(f"Sample '{sample_id}' already exists in FOF")
+
+        # Add sample and save
+        manager.add_sample(sample_file, sample_id)
+        manager.save(fof)
+
+        click.echo(f"✓ Added sample: {sample_id}")
+        click.echo(f"  File: {sample_file}")
+        click.echo(f"  Total samples: {manager.get_sample_count()}")
+
+    except Exception as e:
+        raise click.ClickException(f"Failed to add sample: {e}")
+
+
+# ============================================================================
+# BUILD COMMAND
+# ============================================================================
+
+@cli.command()
+@click.option(
+    "--fof",
+    required=True,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+    help="File-of-Files (FOF) listing input samples",
+)
+@click.option(
+    "--output-registry",
+    "-r",
+    required=True,
+    type=click.Path(file_okay=False, dir_okay=True),
+    help="Output kmindex registry path (created if doesn't exist)",
+)
+@click.option(
+    "--output-index-dir",
+    default=".subindexes",
+    type=click.Path(file_okay=False, dir_okay=True),
+    help="Directory for index data (default: .subindexes)",
+)
+@click.option(
+    "--kmer-size",
+    "-k",
+    type=int,
+    default=25,
+    help="K-mer size (default: 25)",
+)
+@click.option(
+    "--minim-size",
+    "-m",
+    type=int,
+    default=10,
+    help="Minimizer size (default: 10)",
+)
+@click.option(
+    "--bloom-size",
+    type=int,
+    help="Bloom filter size for presence/absence (mutually exclusive with --nb-cell)",
+)
+@click.option(
+    "--nb-cell",
+    type=int,
+    help="Number of cells for abundance counting (mutually exclusive with --bloom-size)",
+)
+@click.option(
+    "--threads",
+    "-t",
+    type=int,
+    default=1,
+    help="Number of threads (default: 1)",
+)
+@click.option(
+    "--register-as",
+    "-n",
+    help="Register index with this ID (auto-generated if not provided)",
+)
+@click.option(
+    "--compress-intermediate",
+    is_flag=True,
+    help="Compress intermediate files during build",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Verbose output",
+)
+def build(fof, output_registry, output_index_dir, kmer_size, minim_size,
+          bloom_size, nb_cell, threads, register_as, compress_intermediate, verbose):
+    """Build k-mer index from FOF file.
+
+    Examples:
+      # Build presence/absence index
+      kmhelpers build --fof samples.fof -r ./registry --bloom-size 10000000
+
+      # Build abundance index with custom k-mer size
+      kmhelpers build --fof samples.fof -r ./registry --nb-cell 65536 -k 31
+
+      # Build with multiple threads and register
+      kmhelpers build --fof samples.fof -r ./registry --bloom-size 10000000 -t 8 -n my_index
+    """
+    Main.init()
+
+    # Validate parameters
+    if bloom_size is None and nb_cell is None:
+        raise click.BadParameter("Must specify either --bloom-size or --nb-cell")
+
+    if bloom_size is not None and nb_cell is not None:
+        raise click.BadParameter("Cannot specify both --bloom-size and --nb-cell")
+
+    if minim_size >= kmer_size:
+        raise click.BadParameter(f"minim-size ({minim_size}) must be less than kmer-size ({kmer_size})")
+
+    try:
+        click.echo("Initializing build...")
+        wrapper = KmindexWrapper()
+
+        click.echo(f"Building index from FOF: {fof}")
+        click.echo(f"  K-mer size: {kmer_size}")
+        click.echo(f"  Minimizer size: {minim_size}")
+
+        if bloom_size is not None:
+            click.echo(f"  Bloom size: {bloom_size}")
+        if nb_cell is not None:
+            click.echo(f"  Abundance cells: {nb_cell}")
+
+        click.echo(f"  Threads: {threads}")
+
+        # Build index using wrapper
+        index_path, registry_path = wrapper.build(
+            input_fof_file=fof,
+            output_registry_path=output_registry,
+            output_index_dir=output_index_dir,
+            k=kmer_size,
+            minim_size=minim_size,
+            bloom_size=bloom_size,
+            nb_cell=nb_cell,
+            threads=threads,
+            compress_intermediate=compress_intermediate,
+            register_as=register_as,
+            verbose="debug" if verbose else "info",
+        )
+
+        click.echo(f"✓ Build completed successfully")
+        click.echo(f"  Index directory: {index_path}")
+        click.echo(f"  Registry: {registry_path}")
+
+        # Show registered index info
+        if register_as:
+            registry = KmindexRegistry(output_registry)
+            if registry.has_index(register_as):
+                index = registry.get_index(register_as)
+                click.echo(f"  Registered as: {register_as}")
+                click.echo(f"    Samples: {index.nb_samples}")
+                click.echo(f"    Partitions: {index.nb_partitions}")
+
+    except Exception as e:
+        raise click.ClickException(f"Build failed: {e}")
 
 
 # ============================================================================
@@ -109,6 +469,191 @@ def registry_list(registry_path):
         click.echo(f"  • {idx_name} ({idx.nb_samples} samples, {idx.nb_partitions} partitions, k={idx.kmer_size})")
 
 
+@registry.command(name="info")
+@click.option(
+    "--registry-path",
+    "-r",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    help="Path to kmindex registry",
+)
+@click.option(
+    "--index-id",
+    "-n",
+    required=True,
+    help="Index ID to show information for",
+)
+@click.option(
+    "--json",
+    "output_json",
+    is_flag=True,
+    help="Output as JSON",
+)
+def registry_info(registry_path, index_id, output_json):
+    """Show detailed information about an index."""
+    Main.init()
+
+    try:
+        registry = KmindexRegistry(registry_path)
+
+        if not registry.has_index(index_id):
+            raise click.ClickException(f"Index '{index_id}' not found in registry")
+
+        index = registry.get_index(index_id)
+
+        if output_json:
+            # Output as JSON
+            data = {
+                "index_id": index.index_id,
+                "nb_samples": index.nb_samples,
+                "nb_partitions": index.nb_partitions,
+                "kmer_size": index.kmer_size,
+                "minim_size": index.minim_size,
+                "bloom_size": index.bloom_size,
+                "bytes_per_row": index.bytes_per_row,
+                "index_size": index.index_size,
+                "kmindex_version": index.kmindex_version,
+                "kmtricks_version": index.kmtricks_version,
+            }
+            click.echo(json.dumps(data, indent=2))
+        else:
+            # Output as formatted text
+            click.echo(f"Index Information: {index_id}")
+            click.echo(f"  Samples: {index.nb_samples}")
+            click.echo(f"  Partitions: {index.nb_partitions}")
+            click.echo(f"  K-mer size: {index.kmer_size}")
+            click.echo(f"  Minimizer size: {index.minim_size}")
+            click.echo(f"  Bloom filter size: {index.bloom_size}")
+            click.echo(f"  Bytes per row: {index.bytes_per_row}")
+            click.echo(f"  Index size: {index.index_size} bytes")
+            click.echo(f"  kmindex version: {index.kmindex_version}")
+            click.echo(f"  kmtricks version: {index.kmtricks_version}")
+
+    except Exception as e:
+        raise click.ClickException(f"Failed to retrieve index info: {e}")
+
+
+@registry.command(name="check")
+@click.option(
+    "--registry-path",
+    "-r",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    help="Path to kmindex registry",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Show detailed validation output",
+)
+def registry_check(registry_path, verbose):
+    """Validate registry consistency and check all index structures."""
+    Main.init()
+
+    try:
+        registry = KmindexRegistry(registry_path)
+        indices = registry.list_indices()
+
+        if not indices:
+            click.echo("No indices found in registry")
+            return
+
+        click.echo(f"Validating {len(indices)} index(ices)...\n")
+
+        errors = []
+        for idx_name in indices:
+            try:
+                index = registry.get_index(idx_name)
+                if index.check_structure():
+                    click.echo(f"✓ {idx_name}")
+                    if verbose:
+                        click.echo(f"    {index.nb_partitions} partitions, {index.nb_samples} samples")
+                else:
+                    errors.append((idx_name, "Structure check failed"))
+                    click.echo(f"✗ {idx_name}: Structure check failed", err=True)
+            except Exception as e:
+                errors.append((idx_name, str(e)))
+                click.echo(f"✗ {idx_name}: {e}", err=True)
+
+        click.echo()
+        if errors:
+            click.echo(f"Validation complete: {len(indices) - len(errors)} OK, {len(errors)} FAILED", err=True)
+            raise click.ClickException(f"Registry validation found {len(errors)} error(s)")
+        else:
+            click.echo(f"Validation complete: All {len(indices)} indices OK")
+
+    except Exception as e:
+        if "Validation complete" in str(e):
+            raise
+        raise click.ClickException(f"Registry check failed: {e}")
+
+
+@registry.command(name="remove")
+@click.option(
+    "--registry-path",
+    "-r",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    help="Path to kmindex registry",
+)
+@click.option(
+    "--index-id",
+    "-n",
+    required=True,
+    help="Index ID to remove",
+)
+@click.option(
+    "--delete-files",
+    is_flag=True,
+    help="Also delete index files from disk (destructive!)",
+)
+@click.option(
+    "--force",
+    "-f",
+    is_flag=True,
+    help="Skip confirmation prompt",
+)
+def registry_remove(registry_path, index_id, delete_files, force):
+    """Remove index from registry (optionally delete files)."""
+    Main.init()
+
+    try:
+        registry = KmindexRegistry(registry_path)
+
+        if not registry.has_index(index_id):
+            raise click.ClickException(f"Index '{index_id}' not found in registry")
+
+        # Confirm if not forced
+        if not force:
+            msg = f"Remove '{index_id}' from registry"
+            if delete_files:
+                msg += " and delete index files"
+            msg += "?"
+
+            if not click.confirm(msg):
+                click.echo("Operation cancelled")
+                return
+
+        # Get index before removal (needed to delete files)
+        index = registry.get_index(index_id)
+
+        # Remove from registry
+        registry.remove_index(index_id)
+        click.echo(f"✓ Removed '{index_id}' from registry")
+
+        # Delete files if requested
+        if delete_files:
+            try:
+                index.destroy_entire_index()
+                click.echo(f"✓ Deleted index files from disk")
+            except Exception as e:
+                click.echo(f"⚠ Failed to delete some files: {e}", err=True)
+
+    except Exception as e:
+        raise click.ClickException(f"Failed to remove index: {e}")
+
+
 # ============================================================================
 # COMPRESSION COMMANDS
 # ============================================================================
@@ -160,50 +705,136 @@ def registry_list(registry_path):
     help="Rows to sample for computing distances (default: 20000)",
 )
 @click.option(
+    "--group-size",
+    type=int,
+    default=0,
+    help="Columns to group during permutation (default: 0 = all)",
+)
+@click.option(
+    "--threshold",
+    type=float,
+    default=0.0,
+    help="Threshold for permutation algorithm (default: 0.0)",
+)
+@click.option(
+    "--enable-check",
+    is_flag=True,
+    help="Verify decompression against original",
+)
+@click.option(
+    "--with-size-comparison",
+    is_flag=True,
+    default=True,
+    help="Generate size comparison CSV",
+)
+@click.option(
+    "--compare-unordered",
+    is_flag=True,
+    help="Also compress without ordering for benchmarking",
+)
+@click.option(
     "--enable-metrics",
+    "--metrics",
     is_flag=True,
     default=True,
     help="Enable compression metrics collection",
 )
-def compress(input_dir, index_id, output_dir, ref_matrix, matrices, block_size, subsample_size, enable_metrics):
-    """Compress k-mer index partitions."""
+@click.option(
+    "--force",
+    "-f",
+    is_flag=True,
+    help="Overwrite existing output directory",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Verbose output",
+)
+def compress(input_dir, index_id, output_dir, ref_matrix, matrices, block_size, subsample_size,
+             group_size, threshold, enable_check, with_size_comparison, compare_unordered,
+             enable_metrics, force, verbose):
+    """Compress k-mer index partitions.
+
+    Examples:
+      # Compress all partitions with default settings
+      kmhelpers compress -i ./indices -n my_index -o ./compressed
+
+      # Compress specific partitions with size comparison
+      kmhelpers compress -i ./indices -n my_index -o ./out -m 1 -m 2 -m 3 --compare-unordered
+
+      # Custom block size with verification
+      kmhelpers compress -i ./indices -n my_index -o ./out --block-size 16777216 --enable-check
+    """
     Main.init()
+
+    # Check if output dir exists
+    if os.path.exists(output_dir) and not force:
+        raise click.ClickException(f"Output directory exists. Use --force to overwrite.")
+
     click.echo("Initializing compression...")
 
-    # Load index
-    index = KmtricksIndex(input_dir, index_id)
-    index.load_kmtricks_index()
-    click.echo(f"Loaded index: {index}")
-
-    # Determine which matrices to compress
-    if matrices:
-        matrix_list = list(matrices)
-    else:
-        matrix_list = [i for i in range(index.nb_partitions) if i != ref_matrix]
-
-    # Create compression parameters
-    params = CompressionParams(
-        block_size=block_size,
-        subsample_size=subsample_size,
-        enable_overwrite=True,
-    )
-
-    # Create compressor
-    compressor = Compressor(enable_metrics=enable_metrics)
-
-    click.echo(f"Compressing {len(matrix_list)} partitions (reference: {ref_matrix})...")
-    click.echo(f"Block size: {block_size}, Subsample size: {subsample_size}")
-
     try:
+        # Load index
+        index = KmtricksIndex(input_dir, index_id)
+        index.load_kmtricks_index()
+
+        if verbose:
+            click.echo(f"Loaded index: {index}")
+
+        # Validate ref_matrix
+        if ref_matrix >= index.nb_partitions:
+            raise click.BadParameter(f"ref-matrix {ref_matrix} exceeds partition count {index.nb_partitions}")
+
+        # Determine which matrices to compress
+        if matrices:
+            matrix_list = list(matrices)
+        else:
+            matrix_list = [i for i in range(index.nb_partitions) if i != ref_matrix]
+
+        # Create compression parameters with all options
+        params = CompressionParams(
+            block_size=block_size,
+            group_size=group_size,
+            subsample_size=subsample_size,
+            threshold=threshold,
+            enable_check=enable_check,
+            enable_overwrite=True,
+            with_size_comparison=with_size_comparison,
+        )
+
+        # Create compressor
+        compressor = Compressor(enable_metrics=enable_metrics)
+
+        click.echo(f"Compressing {len(matrix_list)} partitions (reference: {ref_matrix})...")
+        click.echo(f"  Block size: {block_size} bytes")
+        click.echo(f"  Subsample size: {subsample_size}")
+        click.echo(f"  Group size: {group_size}")
+        click.echo(f"  Threshold: {threshold}")
+
+        if enable_check:
+            click.echo(f"  With verification: yes")
+        if compare_unordered:
+            click.echo(f"  With unordered comparison: yes")
+
         compressor.compress_index_selection(
             params,
             index,
             ref_matrix,
             matrix_list,
             output_dir,
+            permutation_flag=PermutationFlag.PERMUTATION_ENABLED,
+            compare_unordered=compare_unordered,
         )
+
         click.echo(f"✓ Compression completed successfully")
-        click.echo(f"Output directory: {output_dir}")
+        click.echo(f"  Output directory: {output_dir}")
+
+        if enable_metrics:
+            click.echo(f"  Metrics saved in: {os.path.join(output_dir, 'metrics')}")
+        if with_size_comparison:
+            click.echo(f"  Size comparison in: {os.path.join(output_dir, 'metrics', 'sizes.csv')}")
+
     except Exception as e:
         raise click.ClickException(f"Compression failed: {e}")
 
@@ -225,14 +856,15 @@ def compress(input_dir, index_id, output_dir, ref_matrix, matrices, block_size, 
     "-n",
     multiple=True,
     required=True,
-    help="Index ID(s) to query against",
+    help="Index ID(s) to query against (can specify multiple)",
 )
 @click.option(
     "--query-file",
     "-q",
+    multiple=True,
     required=True,
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
-    help="Query file in FASTA/FASTQ format",
+    help="Query file(s) in FASTA/FASTQ format (can specify multiple)",
 )
 @click.option(
     "--output-dir",
@@ -253,10 +885,52 @@ def compress(input_dir, index_id, output_dir, ref_matrix, matrices, block_size, 
     default=0.0,
     help="Score threshold for results filtering (default: 0.0)",
 )
-def query(registry_path, index_ids, query_file, output_dir, zvalue, threshold):
-    """Query indices with FASTA/FASTQ sequences."""
+@click.option(
+    "--threads",
+    "-t",
+    type=int,
+    default=1,
+    help="Number of threads for parallel execution (default: 1)",
+)
+@click.option(
+    "--single-query",
+    help="Treat all sequences as single query with this identifier",
+)
+@click.option(
+    "--aggregate",
+    is_flag=True,
+    help="Aggregate batch results into one file",
+)
+@click.option(
+    "--format",
+    type=click.Choice(["json", "txt"]),
+    default="json",
+    help="Output format (default: json)",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Verbose output",
+)
+def query(registry_path, index_ids, query_file, output_dir, zvalue, threshold,
+          threads, single_query, aggregate, format, verbose):
+    """Query indices with FASTA/FASTQ sequences.
+
+    Examples:
+      # Single query file against single index
+      kmhelpers query -r ./registry -n idx1 -q query.fa -o results
+
+      # Multiple query files with threading
+      kmhelpers query -r ./registry -n idx1 -q q1.fa -q q2.fa -t 4 -o results
+
+      # Multiple indices
+      kmhelpers query -r ./registry -n idx1 -n idx2 -q query.fa -o results
+
+      # Treat all sequences as one query
+      kmhelpers query -r ./registry -n idx1 -q multi.fa --single-query batch1 -o out
+    """
     Main.init()
-    click.echo(f"Querying with: {query_file}")
 
     # Verify registry and indices
     registry = KmindexRegistry(registry_path)
@@ -266,22 +940,45 @@ def query(registry_path, index_ids, query_file, output_dir, zvalue, threshold):
         if idx_id not in available_indices:
             raise click.BadParameter(f"Index {idx_id} not found in registry")
 
+    if verbose:
+        click.echo(f"Registry: {registry_path}")
+        click.echo(f"Indices: {', '.join(index_ids)}")
+        click.echo(f"Query files: {', '.join(query_file)}\n")
+
     os.makedirs(output_dir, exist_ok=True)
 
     # Create wrapper and perform query
     wrapper = KmindexWrapper()
+    total_queries = len(query_file)
 
     try:
-        results_dir = wrapper.query(
-            input_registry=registry_path,
-            query_file=query_file,
-            output_dir=output_dir,
-            names=list(index_ids),
-            zvalue=zvalue,
-            threshold=threshold,
-        )
+        for query_idx, qfile in enumerate(query_file, 1):
+            qfile_name = os.path.splitext(os.path.basename(qfile))[0]
+            query_output = os.path.join(output_dir, qfile_name)
+
+            if verbose or total_queries > 1:
+                click.echo(f"[{query_idx}/{total_queries}] Querying: {qfile_name}")
+
+            results_dir = wrapper.query(
+                input_registry=registry_path,
+                query_file=qfile,
+                output_dir=query_output,
+                names=list(index_ids),
+                zvalue=zvalue,
+                threshold=threshold,
+                threads=threads,
+                single_query=single_query,
+                aggregate=aggregate,
+                format=format,
+            )
+
+            if verbose:
+                click.echo(f"  Results: {results_dir}")
+
         click.echo(f"✓ Query completed")
-        click.echo(f"Results directory: {results_dir}")
+        click.echo(f"  Output directory: {output_dir}")
+        click.echo(f"  Query files processed: {total_queries}")
+
     except Exception as e:
         raise click.ClickException(f"Query failed: {e}")
 
