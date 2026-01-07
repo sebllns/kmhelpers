@@ -9,7 +9,15 @@ import json
 import yaml
 from pathlib import Path
 
-from kmhelpers import Main, KmindexRegistry, KmtricksIndex, Compressor, CompressionParams, KmindexWrapper
+from kmhelpers import (
+    __version__,
+    Main,
+    KmindexRegistry,
+    KmtricksIndex,
+    Compressor,
+    CompressionParams,
+    KmindexWrapper,
+)
 from kmhelpers.operations.fof import FofManager
 from kmhelpers.operations.fof_validation import FofValidator
 from kmhelpers.operations.compressor import PermutationFlag
@@ -17,7 +25,8 @@ from kmhelpers.operations.builder import IndexBuilder
 from kmhelpers.operations.query import KmindexQuery, KmindexQueryResult
 
 
-@click.group()
+@click.group(context_settings={"help_option_names": ["-h", "--help"]})
+@click.version_option(version=__version__, prog_name="kmhelpers")
 def cli():
     """kmhelpers - A toolkit for managing, compressing, and querying k-mer indices."""
     pass
