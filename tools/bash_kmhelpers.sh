@@ -9,6 +9,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+VERSION=0.1
+
 # ============================================================================
 # UTILITY FUNCTIONS
 # ============================================================================
@@ -406,3 +408,197 @@ function search_indices()
         return 0
     fi
 }
+
+# ============================================================================
+# MAIN INTERFACE & INSTALLATION
+# ============================================================================
+
+# Print help message
+function kmhelpers_help()
+{
+    cat <<EOF
+kmhelpers v${VERSION} - Bash utility functions for k-mer index management
+
+USAGE:
+    kmhelpers [COMMAND] [OPTIONS]
+
+COMMANDS:
+    register <registry> <name> <path>      Register a single index
+    register-all <registry> <directory>    Register all indices from a directory
+    list <registry>                        List all registered indices
+    search <registry> <pattern>            Search for indices by pattern
+    stats <registry>                       Get registry statistics
+    size <index_path>                      Get size of a single index
+    check                                  Check if kmindex binary is available
+    install                                Install kmhelpers to home directory
+    update                                 Update kmhelpers from GitLab
+    help                                   Show this help message
+    version                                Show version information
+
+EXAMPLES:
+    kmhelpers register /path/to/registry my_index /path/to/index
+    kmhelpers stats /path/to/registry
+    kmhelpers search /path/to/registry "pattern" --size-filter 100
+    kmhelpers install
+    kmhelpers update
+
+For more information, visit: https://gitlab.inria.fr/omicfinder/kmhelpers
+EOF
+}
+
+# Print version information
+function kmhelpers_version()
+{
+    echo "kmhelpers v${VERSION}"
+}
+
+# Install kmhelpers to home directory
+function kmhelpers_install()
+{
+    local install_path="$HOME/.kmhelpers.sh"
+    local shell_rc=""
+
+    log_info "Installing kmhelpers to: ${install_path}"
+
+    # Copy script to home directory
+    if cp "$0" "${install_path}"; then
+        log_info "Successfully copied kmhelpers to ${install_path}"
+    else
+        log_error "Failed to copy kmhelpers to ${install_path}"
+        return 1
+    fi
+
+    # Determine which shell configuration file to use based on running shell
+    # Check shell-specific variables that are set when each shell runs
+    if [[ -n "${ZSH_VERSION:-}" ]]; then
+        # Running in zsh
+        shell_rc="$HOME/.zshrc"
+    elif [[ -n "${BASH_VERSION:-}" ]]; then
+        # Running in bash - use .bashrc or .bash_profile
+        if [[ -f "$HOME/.bashrc" ]]; then
+            shell_rc="$HOME/.bashrc"
+        elif [[ -f "$HOME/.bash_profile" ]]; then
+            shell_rc="$HOME/.bash_profile"
+        fi
+    elif [[ -f "$HOME/.zshrc" ]]; then
+        shell_rc="$HOME/.zshrc"
+    elif [[ -f "$HOME/.bashrc" ]]; then
+        shell_rc="$HOME/.bashrc"
+    elif [[ -f "$HOME/.bash_profile" ]]; then
+        shell_rc="$HOME/.bash_profile"
+    fi
+
+    if [[ -z "$shell_rc" ]]; then
+        log_warn "Could not find shell configuration file (.bashrc, .bash_profile, or .zshrc)"
+        log_info "Add the following line to your shell configuration file:"
+        echo "  . \"${install_path}\""
+        return 0
+    fi
+
+    # Add source line if not already present
+    local source_line=". \"${install_path}\""
+    if grep -q "kmhelpers.sh" "${shell_rc}"; then
+        log_info "kmhelpers already sourced in ${shell_rc}"
+        return 0
+    fi
+
+    if echo "" >> "${shell_rc}" && echo "# Load kmhelpers" >> "${shell_rc}" && echo "${source_line}" >> "${shell_rc}"; then
+        log_info "Added kmhelpers to ${shell_rc}"
+        log_info "Run: source ${shell_rc}"
+        return 0
+    else
+        log_error "Failed to add kmhelpers to ${shell_rc}"
+        return 1
+    fi
+}
+
+# Update kmhelpers from GitLab
+function kmhelpers_update()
+{
+    local temp_dir=$(mktemp -d)
+    local repo_url="https://gitlab.inria.fr/omicfinder/kmhelpers.git"
+    local install_path="$HOME/.kmhelpers.sh"
+
+    log_info "Updating kmhelpers from: ${repo_url}"
+
+    # Clone the repository
+    if ! git clone --depth 1 "${repo_url}" "${temp_dir}" 2>/dev/null; then
+        log_error "Failed to clone repository"
+        rm -rf "${temp_dir}"
+        return 1
+    fi
+
+    # Find the script
+    local script_path="${temp_dir}/tools/bash_kmhelpers.sh"
+    if [[ ! -f "${script_path}" ]]; then
+        log_error "Could not find bash_kmhelpers.sh in repository"
+        rm -rf "${temp_dir}"
+        return 1
+    fi
+
+    # Copy the new version
+    if cp "${script_path}" "${install_path}"; then
+        log_info "Successfully updated kmhelpers"
+        rm -rf "${temp_dir}"
+        return 0
+    else
+        log_error "Failed to update kmhelpers"
+        rm -rf "${temp_dir}"
+        return 1
+    fi
+}
+
+# Main interface function
+function kmhelpers()
+{
+    local command="${1:-}"
+
+    case "${command}" in
+        register)
+            register_index "$2" "$3" "$4"
+            ;;
+        register-all)
+            register_all_indices "$2" "$3"
+            ;;
+        list)
+            list_indices "$2"
+            ;;
+        search)
+            search_indices "$2" "$3" "${@:4}"
+            ;;
+        stats)
+            get_registry_stats "$2"
+            ;;
+        size)
+            get_index_size "$2"
+            ;;
+        check)
+            check_kmindex
+            ;;
+        install)
+            kmhelpers_install
+            ;;
+        update)
+            kmhelpers_update
+            ;;
+        help|-h|--help)
+            kmhelpers_help
+            ;;
+        version|--version|-v)
+            kmhelpers_version
+            ;;
+        "")
+            kmhelpers_help
+            ;;
+        *)
+            log_error "Unknown command: ${command}"
+            echo "Run 'kmhelpers help' for usage information"
+            return 1
+            ;;
+    esac
+}
+
+# Only run main if this script is directly executed (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    kmhelpers "$@"
+fi
