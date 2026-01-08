@@ -174,6 +174,7 @@ function check_kmindex()
 {
     if command -v kmindex &> /dev/null; then
         log_info "kmindex is installed: $(kmindex --version 2>&1 | head -1)"
+        log_info "kmindex path: $(which kmindex 2>&1 | head -1)"
         return 0
     else
         log_error "kmindex binary not found in PATH"
