@@ -430,6 +430,7 @@ COMMANDS:
     stats <registry>                       Get registry statistics
     size <index_path>                      Get size of a single index
     check                                  Check if kmindex binary is available
+    install-kmindex [METHOD] [OPTIONS]     Install kmindex (conda/source/clone-source)
     install                                Install kmhelpers to home directory
     update                                 Update kmhelpers from GitLab
     help                                   Show this help message
@@ -515,35 +516,47 @@ function kmhelpers_install()
 # Update kmhelpers from GitLab
 function kmhelpers_update()
 {
-    local temp_dir=$(mktemp -d)
-    local repo_url="https://gitlab.inria.fr/omicfinder/kmhelpers.git"
+    local raw_url="https://gitlab.inria.fr/omicfinder/kmhelpers/-/raw/main/tools/bash_kmhelpers.sh"
     local install_path="$HOME/.kmhelpers.sh"
+    local temp_file=$(mktemp)
 
-    log_info "Updating kmhelpers from: ${repo_url}"
+    log_info "Updating kmhelpers from: ${raw_url}"
 
-    # Clone the repository
-    if ! git clone --depth 1 "${repo_url}" "${temp_dir}" 2>/dev/null; then
-        log_error "Failed to clone repository"
-        rm -rf "${temp_dir}"
+    # Try to download using curl or wget
+    if command -v curl &> /dev/null; then
+        if ! curl -fsSL "${raw_url}" -o "${temp_file}"; then
+            log_error "Failed to download kmhelpers using curl"
+            rm -f "${temp_file}"
+            return 1
+        fi
+    elif command -v wget &> /dev/null; then
+        if ! wget -qO "${temp_file}" "${raw_url}"; then
+            log_error "Failed to download kmhelpers using wget"
+            rm -f "${temp_file}"
+            return 1
+        fi
+    else
+        log_error "Neither curl nor wget found. Please install one of them."
+        rm -f "${temp_file}"
         return 1
     fi
 
-    # Find the script
-    local script_path="${temp_dir}/tools/bash_kmhelpers.sh"
-    if [[ ! -f "${script_path}" ]]; then
-        log_error "Could not find bash_kmhelpers.sh in repository"
-        rm -rf "${temp_dir}"
+    # Verify the downloaded file is not empty and contains bash shebang
+    if [[ ! -s "${temp_file}" ]] || ! head -1 "${temp_file}" | grep -q "^#!/bin/bash"; then
+        log_error "Downloaded file is invalid or corrupted"
+        rm -f "${temp_file}"
         return 1
     fi
 
     # Copy the new version
-    if cp "${script_path}" "${install_path}"; then
+    if cp "${temp_file}" "${install_path}"; then
+        chmod +x "${install_path}"
         log_info "Successfully updated kmhelpers"
-        rm -rf "${temp_dir}"
+        rm -f "${temp_file}"
         return 0
     else
         log_error "Failed to update kmhelpers"
-        rm -rf "${temp_dir}"
+        rm -f "${temp_file}"
         return 1
     fi
 }
@@ -575,6 +588,9 @@ function kmhelpers()
         check)
             check_kmindex
             ;;
+        install-kmindex)
+            kmhelpers_install_kmindex "${@:2}"
+            ;;
         install)
             kmhelpers_install
             ;;
@@ -587,6 +603,9 @@ function kmhelpers()
         version|--version|-v)
             kmhelpers_version
             ;;
+        install-kmindex-help)
+            kmhelpers_install_kmindex_help
+            ;;
         "")
             kmhelpers_help
             ;;
@@ -596,6 +615,238 @@ function kmhelpers()
             return 1
             ;;
     esac
+}
+
+# ============================================================================
+# KMINDEX INSTALLATION
+# ============================================================================
+
+# Install kmindex using conda
+function install_kmindex_conda()
+{
+    local env_name="${1:-kmindex_env}"
+
+    log_info "Installing kmindex via conda in environment: ${env_name}"
+
+    if ! command -v conda &> /dev/null; then
+        log_error "conda not found. Install Miniconda or Anaconda first."
+        return 1
+    fi
+
+    # Create environment if it doesn't exist
+    if ! conda env list | grep -q "^${env_name} "; then
+        log_info "Creating conda environment: ${env_name}"
+        if ! conda create -y -n "${env_name}"; then
+            log_error "Failed to create conda environment"
+            return 1
+        fi
+    else
+        log_info "Using existing conda environment: ${env_name}"
+    fi
+
+    # Install kmindex from bioconda
+    log_info "Installing kmindex from bioconda..."
+    if conda run -n "${env_name}" conda install -y -c bioconda kmindex; then
+        log_info "Successfully installed kmindex in ${env_name}"
+        log_info "To use kmindex, activate the environment:"
+        echo "  conda activate ${env_name}"
+        return 0
+    else
+        log_error "Failed to install kmindex"
+        return 1
+    fi
+}
+
+# Build and install kmindex from source
+function install_kmindex_source()
+{
+    local install_prefix="${1:-.}"
+    local kmindex_dir="${2:-.}"
+    local build_type="${3:-Release}"
+    local max_kmer="${4:-256}"
+    local threads="${5:-8}"
+    local tests="${6:-0}"
+    local portable="${7:-OFF}"
+
+    log_info "Building kmindex from source"
+    log_info "  Source: ${kmindex_dir}"
+    log_info "  Install prefix: ${install_prefix}"
+    log_info "  Build type: ${build_type}"
+    log_info "  Max k-mer size: ${max_kmer}"
+    log_info "  Threads: ${threads}"
+
+    # Check if kmindex directory exists
+    if [[ ! -d "${kmindex_dir}" ]]; then
+        log_error "kmindex directory not found: ${kmindex_dir}"
+        return 1
+    fi
+
+    # Check if kmindex CMakeLists.txt exists
+    if [[ ! -f "${kmindex_dir}/CMakeLists.txt" ]]; then
+        log_error "CMakeLists.txt not found in ${kmindex_dir}"
+        return 1
+    fi
+
+    # Validate build type
+    if [[ "${build_type}" != "Release" && "${build_type}" != "Debug" ]]; then
+        log_error "Invalid build type. Use 'Release' or 'Debug'"
+        return 1
+    fi
+
+    # Create build directory
+    local build_dir="${kmindex_dir}/kmbuild"
+    mkdir -p "${build_dir}"
+    cd "${build_dir}" || return 1
+
+    log_info "Running cmake..."
+    if ! cmake .. \
+        -DCMAKE_BUILD_TYPE="${build_type}" \
+        -DWITH_TESTS=$([ "${tests}" -eq 0 ] && echo "OFF" || echo "ON") \
+        -DWITH_SERVER="OFF" \
+        -DCMAKE_CXX_STANDARD=17 \
+        -DPORTABLE_BUILD="${portable}" \
+        -DCMAKE_INSTALL_PREFIX="$(realpath "${install_prefix}")" \
+        -DMAX_KMER_SIZE="${max_kmer}"; then
+        log_error "cmake configuration failed"
+        return 1
+    fi
+
+    log_info "Building with ${threads} threads..."
+    if ! make -j"${threads}"; then
+        log_error "Build failed"
+        return 1
+    fi
+
+    # Run tests if requested
+    if [[ "${tests}" -eq 2 ]]; then
+        log_info "Running tests..."
+        if ! ctest --verbose; then
+            log_error "Tests failed"
+            return 1
+        fi
+    fi
+
+    log_info "Installing kmindex..."
+    if ! make install; then
+        log_error "Installation failed"
+        return 1
+    fi
+
+    log_info "Successfully installed kmindex to: $(realpath "${install_prefix}")"
+    return 0
+}
+
+# Clone kmindex repository
+function clone_kmindex_repo()
+{
+    local target_dir="${1:-.}"
+
+    log_info "Cloning kmindex from GitHub..."
+
+    if ! command -v git &> /dev/null; then
+        log_error "git not found. Please install git."
+        return 1
+    fi
+
+    if git clone --recursive https://github.com/tlemane/kmindex "${target_dir}"; then
+        log_info "Successfully cloned kmindex to: ${target_dir}"
+        return 0
+    else
+        log_error "Failed to clone kmindex repository"
+        return 1
+    fi
+}
+
+# Main kmindex installation function
+function kmhelpers_install_kmindex()
+{
+    local method="${1:-conda}"
+    local env_or_path="${2:-.}"
+    shift 2
+
+    case "${method}" in
+        conda)
+            install_kmindex_conda "${env_or_path}"
+            ;;
+        source)
+            local kmindex_src="${env_or_path}"
+            if [[ -z "${kmindex_src}" ]]; then
+                log_error "install_kmindex source: missing source directory argument"
+                return 1
+            fi
+            install_kmindex_source "$@"
+            ;;
+        clone-source)
+            local target_dir="${env_or_path:-.}"
+            if ! clone_kmindex_repo "${target_dir}"; then
+                return 1
+            fi
+            # After cloning, ask if user wants to build
+            log_info "Repository cloned. To build, run:"
+            echo "  kmhelpers install_kmindex source ${target_dir} Release 256 8 0"
+            return 0
+            ;;
+        *)
+            log_error "Unknown installation method: ${method}"
+            return 1
+            ;;
+    esac
+}
+
+# Print install_kmindex help
+function kmhelpers_install_kmindex_help()
+{
+    cat <<EOF
+kmindex Installation Options
+
+USAGE:
+    kmhelpers install_kmindex [METHOD] [OPTIONS]
+
+METHODS:
+
+    conda [ENV_NAME]
+        Install kmindex from bioconda
+        ENV_NAME: conda environment name (default: kmindex_env)
+
+        Example:
+          kmhelpers install_kmindex conda
+          kmhelpers install_kmindex conda myenv
+
+    source <SOURCE_DIR> [BUILD_TYPE] [MAX_KMER] [THREADS] [TESTS] [PORTABLE]
+        Build and install kmindex from source
+        SOURCE_DIR: path to kmindex repository
+        BUILD_TYPE: Release or Debug (default: Release)
+        MAX_KMER: maximum k-mer size (default: 256, must be multiple of 32)
+        THREADS: build threads (default: 8)
+        TESTS: 0=no tests, 1=compile tests, 2=run tests (default: 0)
+        PORTABLE: ON or OFF for portable x86-64 build (default: OFF)
+
+        Example:
+          kmhelpers install_kmindex source /path/to/kmindex
+          kmhelpers install_kmindex source /path/to/kmindex Release 256 8 2
+
+    clone-source [TARGET_DIR]
+        Clone kmindex repository from GitHub
+        TARGET_DIR: where to clone (default: current directory)
+
+        Example:
+          kmhelpers install_kmindex clone-source
+          kmhelpers install_kmindex clone-source ./kmindex_repo
+
+EXAMPLES:
+
+    # Install from conda (easiest)
+    kmhelpers install_kmindex conda
+
+    # Clone and build from source
+    kmhelpers install_kmindex clone-source ./kmindex
+    kmhelpers install_kmindex source ./kmindex Release 256 8 2
+
+    # Build existing kmindex source directory
+    kmhelpers install_kmindex source ~/src/kmindex Release
+
+For more information, visit: https://github.com/tlemane/kmindex
+EOF
 }
 
 # Only run main if this script is directly executed (not sourced)
