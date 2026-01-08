@@ -3,8 +3,6 @@
 # kmhelpers - Bash utility functions for k-mer index management
 # Provides convenience functions for registering and managing indices
 
-set -euo pipefail
-
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -285,7 +283,7 @@ function get_registry_stats()
             local sample_count=0
             if [[ -d "${index_dir}/matrices" ]]; then
                 # Count files in matrices directory as proxy for partitions
-                local partition_count=$(ls -1 "${index_dir}/matrices" 2>/dev/null | wc -l)
+                local partition_count=$(ls -1 "${index_dir}/matrices" 2>/dev/null | wc -l || echo "0")
                 ((total_partitions += partition_count))
             fi
 
