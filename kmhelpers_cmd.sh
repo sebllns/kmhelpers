@@ -516,7 +516,7 @@ function kmhelpers_install()
 # Update kmhelpers from GitLab
 function kmhelpers_update()
 {
-    local raw_url="https://gitlab.inria.fr/omicfinder/kmhelpers/-/raw/main/tools/bash_kmhelpers.sh"
+    local raw_url="https://gitlab.inria.fr/omicfinder/kmhelpers/-/raw/dev/v0.5.5/kmhelpers_cmd.sh"
     local install_path="$HOME/.kmhelpers.sh"
     local temp_file=$(mktemp)
 
