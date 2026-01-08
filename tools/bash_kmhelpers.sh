@@ -228,14 +228,14 @@ function get_index_size()
 
     # Get size of other files
     local metadata_size=0
-    for file in "${index_path}"/*.json "${index_path}"/*.yaml "${index_path}"/*.bin 2>/dev/null; do
+    for file in "${index_path}"/*.json "${index_path}"/*.yaml "${index_path}"/*.bin; do
         if [[ -f "$file" ]]; then
             local file_size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo "0")
             local file_name=$(basename "$file")
             echo "  ${file_name}: $((file_size / 1024)) KB"
             ((metadata_size += file_size))
         fi
-    done
+    done 2>/dev/null
 
     # Calculate total
     local total_mb=$((total_size / 1024 / 1024))
