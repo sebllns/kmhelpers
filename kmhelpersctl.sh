@@ -905,9 +905,9 @@ COMMANDS:
     size <index_path>                      Get size of a single index
     check                                  Check if kmindex binary is available
     install-kmindex [METHOD] [OPTIONS]     Install kmindex (conda/source/clone-source)
-    install-kmhelpersctl                   Install kmhelpersctl to shell configuration
+    install-shell                          Install kmhelpersctl to shell configuration
     install-pykmhelpers                    Install kmhelpers python package with pip command in the current python environment
-    update-kmhelpersctl                    Update kmhelpersctl from GitLab
+    update-shell                           Update kmhelpersctl from GitLab
     help                                   Show this help message
     version                                Show version information
 
@@ -915,8 +915,8 @@ EXAMPLES:
     kmhelpersctl register /path/to/registry my_index /path/to/index
     kmhelpersctl stats /path/to/registry
     kmhelpersctl search /path/to/registry "pattern" --size-filter 100
-    kmhelpersctl install-kmhelpersctl
-    kmhelpersctl update
+    kmhelpersctl install-shell
+    kmhelpersctl update-shell
 
 For more information, visit: https://gitlab.inria.fr/omicfinder/kmhelpers
 EOF
@@ -1065,21 +1065,28 @@ function install_shell()
 function update()
 {
     local raw_url="https://gitlab.inria.fr/omicfinder/kmhelpers/-/raw/dev/v0.5.5/cmd.sh"
-    local install_path="$HOME/.kmhelpers.sh"
+    local kmhelpers_dir="$HOME/.kmhelpers"
+    local install_path="$kmhelpers_dir/kmhelpersctl.sh"
     local temp_file=$(mktemp)
 
     log_info "Updating kmhelpers from: ${raw_url}"
 
+    if [[ ! -f "$install_path" ]]; then
+        log_error "kmhelpersctl not found at: $install_path"
+        log_error "Please run 'kmhelpersctl install-shell' first to install kmhelpersctl"
+        return 1
+    fi
+
     # Try to download using curl or wget
     if command -v curl &> /dev/null; then
         if ! curl -fsSL "${raw_url}" -o "${temp_file}"; then
-            log_error "Failed to download kmhelpers using curl"
+            log_error "Failed to download kmhelpersctl using curl"
             rm -f "${temp_file}"
             return 1
         fi
     elif command -v wget &> /dev/null; then
         if ! wget -qO "${temp_file}" "${raw_url}"; then
-            log_error "Failed to download kmhelpers using wget"
+            log_error "Failed to download kmhelpersctl using wget"
             rm -f "${temp_file}"
             return 1
         fi
@@ -1099,18 +1106,18 @@ function update()
     # Copy the new version
     if cp "${temp_file}" "${install_path}"; then
         chmod +x "${install_path}"
-        log_info "Successfully updated kmhelpers"
+        log_info "Successfully updated kmhelpersctl"
         rm -f "${temp_file}"
         return 0
     else
-        log_error "Failed to update kmhelpers"
+        log_error "Failed to update kmhelpersctl"
         rm -f "${temp_file}"
         return 1
     fi
 }
 
 # Main interface function
-function kmhelpers()
+function kmhelpersctl()
 {
     local command="${1:-}"
 
@@ -1142,13 +1149,13 @@ function kmhelpers()
         install-kmindex-completion)
             install_kmindex_completion
             ;;
-        install-kmhelpersctl)
+        install-shell)
             install_shell
             ;;
         install-pykmhelpers)
             install_python_package
             ;;
-        update-kmhelpersctl)
+        update-shell)
             update
             ;;
         help|-h|--help)
@@ -1173,5 +1180,5 @@ function kmhelpers()
 
 # Only run main if this script is directly executed (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    kmhelpers "$@"
+    kmhelpersctl "$@"
 fi
