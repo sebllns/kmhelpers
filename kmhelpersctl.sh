@@ -9,7 +9,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-VERSION=0.1
+CTL_VERSION=0.2
+PY_VERSION=dev/v0.5.5
 
 # ============================================================================
 # UTILITY FUNCTIONS
@@ -891,7 +892,7 @@ EOF
 function help()
 {
     cat <<EOF
-kmhelpersctl v${VERSION} - Bash utility functions for k-mer index management
+kmhelpersctl v${CTL_VERSION} - Bash utility functions for k-mer index management
 
 USAGE:
     kmhelpersctl [COMMAND] [OPTIONS]
@@ -908,12 +909,16 @@ COMMANDS:
     install-shell                          Install kmhelpersctl to shell configuration
     install-pykmhelpers [OPTIONS]          Install kmhelpers python package
                                            Options:
-                                             --inplace    Install in current Python environment
-                                             -p, --path   Custom path for virtual environment (default: ~/.kmhelpers/env)
+                                             --inplace         Install in current Python environment
+                                             -p, --path        Custom path for virtual environment (default: ~/.kmhelpers/env)
+                                             -v, --version     kmhelpers version/branch to install (default: dev/v0.5.5)
+                                             --no-alias        Skip creating activation alias
     activate-venv [OPTIONS]                Activate kmhelpers virtual environment
                                            Options:
                                              -p, --path   Path to virtual environment (default: ~/.kmhelpers/env)
-    update-shell                           Update kmhelpersctl from GitLab
+    update-shell [OPTIONS]                 Update kmhelpersctl from GitLab
+                                           Options:
+                                             -v, --version Version/branch to update to (default: dev/v0.5.5)
     help                                   Show this help message
     version                                Show version information
 
@@ -925,9 +930,14 @@ EXAMPLES:
     kmhelpersctl install-pykmhelpers                    # Install in ~/.kmhelpers/env
     kmhelpersctl install-pykmhelpers --inplace          # Install in current environment
     kmhelpersctl install-pykmhelpers -p /custom/path    # Install in custom venv path
+    kmhelpersctl install-pykmhelpers -v main            # Install specific version/branch
+    kmhelpersctl install-pykmhelpers -v main -p /path   # Install specific version with custom venv path
+    kmhelpersctl install-pykmhelpers --no-alias         # Install without creating alias
+    kmhelpers-activate                                  # Quick activation of venv (after install)
     kmhelpersctl activate-venv                          # Show activation command for default venv
     kmhelpersctl activate-venv -p /custom/path          # Show activation command for custom venv
-    kmhelpersctl update-shell
+    kmhelpersctl update-shell                           # Update from default version (dev/v0.5.5)
+    kmhelpersctl update-shell -v main                   # Update from specific version/branch
 
 For more information, visit: https://gitlab.inria.fr/omicfinder/kmhelpers
 EOF
@@ -937,7 +947,57 @@ EOF
 # Print version information
 function version()
 {
-    echo "kmhelpersctl v${VERSION}"
+    echo "kmhelpersctl v${CTL_VERSION}"
+}
+
+# Install shell activation function
+function install_shell_activation_function()
+{
+    local venv_path="$1"
+    local no_alias="$2"
+
+    if [[ "$no_alias" == true ]]; then
+        return 0
+    fi
+
+    local func_name="kmhelpers-activate"
+    local func_line="alias ${func_name}=\"source ${venv_path}/bin/activate\""
+
+    log_info "Installing activation function: ${func_name}"
+
+    # Install for bash
+    if [[ -f "$HOME/.bashrc" ]]; then
+        if ! grep -qF "${func_name}" "$HOME/.bashrc"; then
+            echo "" >> "$HOME/.bashrc"
+            echo "# Activate kmhelpers venv" >> "$HOME/.bashrc"
+            echo "${func_line}" >> "$HOME/.bashrc"
+            log_info "Added ${func_name} to ~/.bashrc"
+        fi
+    fi
+
+    # Install for zsh
+    if [[ -f "$HOME/.zshrc" ]]; then
+        if ! grep -qF "${func_name}" "$HOME/.zshrc"; then
+            echo "" >> "$HOME/.zshrc"
+            echo "# Activate kmhelpers venv" >> "$HOME/.zshrc"
+            echo "${func_line}" >> "$HOME/.zshrc"
+            log_info "Added ${func_name} to ~/.zshrc"
+        fi
+    fi
+
+    log_info "============================================================="
+    log_info "Added command kmhelpers-activate"
+    log_info "To start using kmhelpers-activate in your current bash session, run:"
+    log_info ""
+    log_info "source ~/.bashrc"
+    log_info ""
+    log_info "Or"   
+    log_info ""
+    log_info "source ~/.zshrc"
+    log_info ""
+    log_info "Or restart your shell / terminal for changes to take effect"
+
+    log_info "============================================================="
 }
 
 # Install kmhelpers to home directory
@@ -946,6 +1006,8 @@ function install_python_package()
     # Parse command-line options
     local use_inplace=false
     local venv_path="$HOME/.kmhelpers/env"
+    local version="${PY_VERSION}"
+    local no_alias=false
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -957,9 +1019,17 @@ function install_python_package()
                 venv_path="$2"
                 shift 2
                 ;;
+            -v|--version)
+                version="$2"
+                shift 2
+                ;;
+            --no-alias)
+                no_alias=true
+                shift
+                ;;
             *)
                 log_error "Unknown option: $1"
-                echo "Usage: install_python_package [--inplace] [-p|--path <venv_path>]"
+                echo "Usage: install_python_package [--inplace] [-p|--path <venv_path>] [-v|--version <version>] [--no-alias]"
                 return 1
                 ;;
         esac
@@ -967,8 +1037,7 @@ function install_python_package()
 
     # Find the directory where the kmhelpers package is located
     # This script should be in the kmhelpers root directory or a subdirectory
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    local project_root="$script_dir"
+    local project_root="."
 
     # Check if pyproject.toml exists (indicating we're in the right directory)
     if [[ ! -f "$project_root/pyproject.toml" ]]; then
@@ -980,6 +1049,13 @@ function install_python_package()
 
         if ! git clone https://gitlab.inria.fr/omicfinder/kmhelpers.git "$temp_dir"; then
             log_error "Failed to clone kmhelpers repository"
+            return 1
+        fi
+
+        # Checkout specified version/branch
+        log_info "Checking out version: ${version}"
+        if ! git -C "$temp_dir" checkout "$version"; then
+            log_error "Failed to checkout kmhelpers version: ${version}"
             return 1
         fi
 
@@ -1033,8 +1109,18 @@ function install_python_package()
             log_info "✓ Successfully installed kmhelpers Python package"
             log_info ""
             log_info "Virtual environment created at: ${venv_path}"
-            log_info "To activate the environment, run:"
-            log_info "  source ${venv_path}/bin/activate"
+
+            # Install activation alias
+            install_shell_activation_function "${venv_path}" "${no_alias}"
+
+            log_info ""
+            if [[ "$no_alias" != true ]]; then
+                log_info "Quick activation: Run 'kmhelpers-activate' to activate the venv"
+                log_info "Or manually: source ${venv_path}/bin/activate"
+            else
+                log_info "To activate the environment, run:"
+                log_info "  source ${venv_path}/bin/activate"
+            fi
             log_info ""
             log_info "Then you can use 'kmhelpers' command"
             log_info "Try: kmhelpers -h"
@@ -1094,7 +1180,7 @@ function install_shell()
 
     # Check if the script exists
     if [[ ! -f "$script_path" ]]; then
-        log_error "kmhelpers_cmd.sh not found at: $script_path"
+        log_error "kmhelpersctl.sh not found at: $script_path"
         return 1
     fi
 
@@ -1179,7 +1265,24 @@ function install_shell()
 # Update kmhelpers from GitLab
 function update()
 {
-    local raw_url="https://gitlab.inria.fr/omicfinder/kmhelpers/-/raw/dev/v0.5.5/cmd.sh"
+    # Parse command-line options
+    local version="${PY_VERSION}"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -v|--version)
+                version="$2"
+                shift 2
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                echo "Usage: update [-v|--version <version>]"
+                return 1
+                ;;
+        esac
+    done
+
+    local raw_url="https://gitlab.inria.fr/omicfinder/kmhelpers/-/raw/${version}/kmhelpersctl.sh"
     local kmhelpers_dir="$HOME/.kmhelpers"
     local install_path="$kmhelpers_dir/kmhelpersctl.sh"
     local temp_file=$(mktemp)
@@ -1192,16 +1295,16 @@ function update()
         return 1
     fi
 
-    # Try to download using curl or wget
-    if command -v curl &> /dev/null; then
-        if ! curl -fsSL "${raw_url}" -o "${temp_file}"; then
-            log_error "Failed to download kmhelpersctl using curl"
+    # Try to download using wget first (more reliable), then curl
+    if command -v wget &> /dev/null; then
+        if ! wget -q -O "${temp_file}" "${raw_url}"; then
+            log_error "Failed to download kmhelpersctl using wget"
             rm -f "${temp_file}"
             return 1
         fi
-    elif command -v wget &> /dev/null; then
-        if ! wget -qO "${temp_file}" "${raw_url}"; then
-            log_error "Failed to download kmhelpersctl using wget"
+    elif command -v curl &> /dev/null; then
+        if ! curl -L "${raw_url}" -o "${temp_file}"; then
+            log_error "Failed to download kmhelpersctl using curl"
             rm -f "${temp_file}"
             return 1
         fi
@@ -1212,8 +1315,18 @@ function update()
     fi
 
     # Verify the downloaded file is not empty and contains bash shebang
-    if [[ ! -s "${temp_file}" ]] || ! head -1 "${temp_file}" | grep -q "^#!/bin/bash"; then
+    if [[ ! -s "${temp_file}" ]]; then
+        log_error "Downloaded file is empty"
+        log_error "URL was: ${raw_url}"
+        rm -f "${temp_file}"
+        return 1
+    fi
+
+    if ! head -1 "${temp_file}" | grep -q "^#!/bin/bash"; then
         log_error "Downloaded file is invalid or corrupted"
+        log_error "URL was: ${raw_url}"
+        log_error "First line of downloaded file:"
+        head -1 "${temp_file}" | sed 's/^/  /'
         rm -f "${temp_file}"
         return 1
     fi
@@ -1274,7 +1387,7 @@ function kmhelpersctl()
             activate_venv "${@:2}"
             ;;
         update-shell)
-            update
+            update "${@:2}"
             ;;
         help|-h|--help)
             help
