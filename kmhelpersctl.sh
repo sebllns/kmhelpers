@@ -410,214 +410,6 @@ function search_indices()
 }
 
 # ============================================================================
-# MAIN INTERFACE & INSTALLATION
-# ============================================================================
-
-# Print help message
-function kmhelpers_help()
-{
-    cat <<EOF
-kmhelpers v${VERSION} - Bash utility functions for k-mer index management
-
-USAGE:
-    kmhelpers [COMMAND] [OPTIONS]
-
-COMMANDS:
-    register <registry> <name> <path>      Register a single index
-    register-all <registry> <directory>    Register all indices from a directory
-    list <registry>                        List all registered indices
-    search <registry> <pattern>            Search for indices by pattern
-    stats <registry>                       Get registry statistics
-    size <index_path>                      Get size of a single index
-    check                                  Check if kmindex binary is available
-    install-kmindex [METHOD] [OPTIONS]     Install kmindex (conda/source/clone-source)
-    install                                Install kmhelpers to home directory
-    update                                 Update kmhelpers from GitLab
-    help                                   Show this help message
-    version                                Show version information
-
-EXAMPLES:
-    kmhelpers register /path/to/registry my_index /path/to/index
-    kmhelpers stats /path/to/registry
-    kmhelpers search /path/to/registry "pattern" --size-filter 100
-    kmhelpers install
-    kmhelpers update
-
-For more information, visit: https://gitlab.inria.fr/omicfinder/kmhelpers
-EOF
-}
-
-# Print version information
-function kmhelpers_version()
-{
-    echo "kmhelpers v${VERSION}"
-}
-
-# Install kmhelpers to home directory
-function kmhelpers_install()
-{
-    local install_path="$HOME/.kmhelpers.sh"
-    local shell_rc=""
-
-    log_info "Installing kmhelpers to: ${install_path}"
-
-    # Copy script to home directory
-    if cp "$0" "${install_path}"; then
-        log_info "Successfully copied kmhelpers to ${install_path}"
-    else
-        log_error "Failed to copy kmhelpers to ${install_path}"
-        return 1
-    fi
-
-    # Determine which shell configuration file to use based on running shell
-    # Check shell-specific variables that are set when each shell runs
-    if [[ -n "${ZSH_VERSION:-}" ]]; then
-        # Running in zsh
-        shell_rc="$HOME/.zshrc"
-    elif [[ -n "${BASH_VERSION:-}" ]]; then
-        # Running in bash - use .bashrc or .bash_profile
-        if [[ -f "$HOME/.bashrc" ]]; then
-            shell_rc="$HOME/.bashrc"
-        elif [[ -f "$HOME/.bash_profile" ]]; then
-            shell_rc="$HOME/.bash_profile"
-        fi
-    elif [[ -f "$HOME/.zshrc" ]]; then
-        shell_rc="$HOME/.zshrc"
-    elif [[ -f "$HOME/.bashrc" ]]; then
-        shell_rc="$HOME/.bashrc"
-    elif [[ -f "$HOME/.bash_profile" ]]; then
-        shell_rc="$HOME/.bash_profile"
-    fi
-
-    if [[ -z "$shell_rc" ]]; then
-        log_warn "Could not find shell configuration file (.bashrc, .bash_profile, or .zshrc)"
-        log_info "Add the following line to your shell configuration file:"
-        echo "  . \"${install_path}\""
-        return 0
-    fi
-
-    # Add source line if not already present
-    local source_line=". \"${install_path}\""
-    if grep -q "kmhelpers.sh" "${shell_rc}"; then
-        log_info "kmhelpers already sourced in ${shell_rc}"
-        return 0
-    fi
-
-    if echo "" >> "${shell_rc}" && echo "# Load kmhelpers" >> "${shell_rc}" && echo "${source_line}" >> "${shell_rc}"; then
-        log_info "Added kmhelpers to ${shell_rc}"
-        log_info "Run: source ${shell_rc}"
-        return 0
-    else
-        log_error "Failed to add kmhelpers to ${shell_rc}"
-        return 1
-    fi
-}
-
-# Update kmhelpers from GitLab
-function kmhelpers_update()
-{
-    local raw_url="https://gitlab.inria.fr/omicfinder/kmhelpers/-/raw/dev/v0.5.5/kmhelpers_cmd.sh"
-    local install_path="$HOME/.kmhelpers.sh"
-    local temp_file=$(mktemp)
-
-    log_info "Updating kmhelpers from: ${raw_url}"
-
-    # Try to download using curl or wget
-    if command -v curl &> /dev/null; then
-        if ! curl -fsSL "${raw_url}" -o "${temp_file}"; then
-            log_error "Failed to download kmhelpers using curl"
-            rm -f "${temp_file}"
-            return 1
-        fi
-    elif command -v wget &> /dev/null; then
-        if ! wget -qO "${temp_file}" "${raw_url}"; then
-            log_error "Failed to download kmhelpers using wget"
-            rm -f "${temp_file}"
-            return 1
-        fi
-    else
-        log_error "Neither curl nor wget found. Please install one of them."
-        rm -f "${temp_file}"
-        return 1
-    fi
-
-    # Verify the downloaded file is not empty and contains bash shebang
-    if [[ ! -s "${temp_file}" ]] || ! head -1 "${temp_file}" | grep -q "^#!/bin/bash"; then
-        log_error "Downloaded file is invalid or corrupted"
-        rm -f "${temp_file}"
-        return 1
-    fi
-
-    # Copy the new version
-    if cp "${temp_file}" "${install_path}"; then
-        chmod +x "${install_path}"
-        log_info "Successfully updated kmhelpers"
-        rm -f "${temp_file}"
-        return 0
-    else
-        log_error "Failed to update kmhelpers"
-        rm -f "${temp_file}"
-        return 1
-    fi
-}
-
-# Main interface function
-function kmhelpers()
-{
-    local command="${1:-}"
-
-    case "${command}" in
-        register)
-            register_index "$2" "$3" "$4"
-            ;;
-        register-all)
-            register_all_indices "$2" "$3"
-            ;;
-        list)
-            list_indices "$2"
-            ;;
-        search)
-            search_indices "$2" "$3" "${@:4}"
-            ;;
-        stats)
-            get_registry_stats "$2"
-            ;;
-        size)
-            get_index_size "$2"
-            ;;
-        check)
-            check_kmindex
-            ;;
-        install-kmindex)
-            kmhelpers_install_kmindex "${@:2}"
-            ;;
-        install)
-            kmhelpers_install
-            ;;
-        update)
-            kmhelpers_update
-            ;;
-        help|-h|--help)
-            kmhelpers_help
-            ;;
-        version|--version|-v)
-            kmhelpers_version
-            ;;
-        install-kmindex-help)
-            kmhelpers_install_kmindex_help
-            ;;
-        "")
-            kmhelpers_help
-            ;;
-        *)
-            log_error "Unknown command: ${command}"
-            echo "Run 'kmhelpers help' for usage information"
-            return 1
-            ;;
-    esac
-}
-
-# ============================================================================
 # KMINDEX INSTALLATION
 # ============================================================================
 
@@ -758,7 +550,7 @@ function clone_kmindex_repo()
 }
 
 # Main kmindex installation function
-function kmhelpers_install_kmindex()
+function install_kmindex()
 {
     local method="${1:-conda}"
     local env_or_path="${2:-.}"
@@ -794,7 +586,7 @@ function kmhelpers_install_kmindex()
 }
 
 # Print install_kmindex help
-function kmhelpers_install_kmindex_help()
+function install_kmindex_help()
 {
     cat <<EOF
 kmindex Installation Options
@@ -847,6 +639,536 @@ EXAMPLES:
 
 For more information, visit: https://github.com/tlemane/kmindex
 EOF
+}
+
+install_kmindex_completion() {
+    local comp_dir="${HOME}/.zsh/completions"
+    local comp_file="${comp_dir}/_kmindex"
+
+    mkdir -p "$comp_dir"
+
+    cat > "$comp_file" << 'EOF'
+#compdef kmindex
+
+_kmindex_build() {
+    _arguments \
+        '-i[Global index path]:path:_files -/' \
+        '--index[Global index path]:path:_files -/' \
+        '-f[kmtricks input file]:file:_files' \
+        '--fof[kmtricks input file]:file:_files' \
+        '-d[kmtricks runtime directory]:path:_files -/' \
+        '--run-dir[kmtricks runtime directory]:path:_files -/' \
+        '-r[Index name]:name:' \
+        '--register-as[Index name]:name:' \
+        '--from[Use parameters from a pre-registered index]:name:' \
+        '--km-path[Path to kmtricks binary]:file:_files' \
+        '-k[Size of a k-mer (8-255)]:int:' \
+        '--kmer-size[Size of a k-mer (8-255)]:int:' \
+        '-m[Size of minimizers (4-15)]:int:' \
+        '--minim-size[Size of minimizers (4-15)]:int:' \
+        '--hard-min[Min abundance to keep a k-mer]:int:' \
+        '--nb-partitions[Number of partitions (0=auto)]:int:' \
+        '--cpr[Compress intermediate files]' \
+        '--bloom-size[Bloom filter size]:int:' \
+        '--nb-cell[Number of cells in counting Bloom filter]:int:' \
+        '--bitw[Number of bits per cell]:int:' \
+        '-t[Number of threads]:int:' \
+        '--threads[Number of threads]:int:' \
+        '-v[Verbosity level]:level:(debug info warning error)' \
+        '--verbose[Verbosity level]:level:(debug info warning error)' \
+        '-h[Show help]' \
+        '--help[Show help]' \
+        '--version[Show version]'
+}
+
+_kmindex_register() {
+    _arguments \
+        '-i[Global index path]:path:_files -/' \
+        '--global-index[Global index path]:path:_files -/' \
+        '-n[Index name]:name:' \
+        '--name[Index name]:name:' \
+        '-p[Index path (a kmtricks run)]:path:_files -/' \
+        '--index-path[Index path (a kmtricks run)]:path:_files -/' \
+        '-f[Tab-separated file with index_name<tab>index_path]:file:_files' \
+        '--from-file[Tab-separated file with index_name<tab>index_path]:file:_files' \
+        '-v[Verbosity level]:level:(debug info warning error)' \
+        '--verbose[Verbosity level]:level:(debug info warning error)' \
+        '-h[Show help]' \
+        '--help[Show help]' \
+        '--version[Show version]'
+}
+
+_kmindex_query() {
+    _arguments \
+        '-i[Global index path]:path:_files -/' \
+        '--index[Global index path]:path:_files -/' \
+        '-q[Input fasta/q file]:file:_files' \
+        '--fastx[Input fasta/q file]:file:_files' \
+        '-n[Sub-indexes to query, comma separated]:names:' \
+        '--names[Sub-indexes to query, comma separated]:names:' \
+        '-z[Z-value for findere algorithm]:int:' \
+        '--zvalue[Z-value for findere algorithm]:int:' \
+        '-r[Shared k-mers threshold (0.0-1.0)]:float:' \
+        '--threshold[Shared k-mers threshold (0.0-1.0)]:float:' \
+        '-o[Output directory]:path:_files -/' \
+        '--output[Output directory]:path:_files -/' \
+        '-s[Query identifier for single query]:id:' \
+        '--single-query[Query identifier for single query]:id:' \
+        '-f[Output format]:format:(json matrix json_vec jsonl jsonl_vec)' \
+        '--format[Output format]:format:(json matrix json_vec jsonl jsonl_vec)' \
+        '-b[Size of query batches]:int:' \
+        '--batch-size[Size of query batches]:int:' \
+        '-a[Aggregate results from batches]' \
+        '--aggregate[Aggregate results from batches]' \
+        '--fast[Keep more pages in cache]' \
+        '-t[Number of threads]:int:' \
+        '--threads[Number of threads]:int:' \
+        '-v[Verbosity level]:level:(debug info warning error)' \
+        '--verbose[Verbosity level]:level:(debug info warning error)' \
+        '-h[Show help]' \
+        '--help[Show help]' \
+        '--version[Show version]'
+}
+
+_kmindex_merge() {
+    _arguments \
+        '-i[Global index path]:path:_files -/' \
+        '--index[Global index path]:path:_files -/' \
+        '-n[Name of the new index]:name:' \
+        '--new-name[Name of the new index]:name:' \
+        '-p[Output path]:path:_files -/' \
+        '--new-path[Output path]:path:_files -/' \
+        '-m[Sub-indexes to merge, comma separated]:names:' \
+        '--to-merge[Sub-indexes to merge, comma separated]:names:' \
+        '-d[Delete old sub-index files]' \
+        '--delete-old[Delete old sub-index files]' \
+        '-r[Rename sample ids]:rename:' \
+        '--rename[Rename sample ids]:rename:' \
+        '-t[Number of threads]:int:' \
+        '--threads[Number of threads]:int:' \
+        '-v[Verbosity level]:level:(debug info warning error)' \
+        '--verbose[Verbosity level]:level:(debug info warning error)' \
+        '-h[Show help]' \
+        '--help[Show help]' \
+        '--version[Show version]'
+}
+
+_kmindex_index_infos() {
+    _arguments \
+        '-i[Global index path]:path:_files -/' \
+        '--index[Global index path]:path:_files -/' \
+        '-v[Verbosity level]:level:(debug info warning error)' \
+        '--verbose[Verbosity level]:level:(debug info warning error)' \
+        '-h[Show help]' \
+        '--help[Show help]' \
+        '--version[Show version]'
+}
+
+_kmindex_compress() {
+    _arguments \
+        '-i[Global index path]:path:_files -/' \
+        '--global-index[Global index path]:path:_files -/' \
+        '-n[Index name]:name:' \
+        '--name[Index name]:name:' \
+        '-b[Size of uncompressed blocks in MB]:int:' \
+        '--block-size[Size of uncompressed blocks in MB]:int:' \
+        '-s[Number of rows to sample for reordering]:int:' \
+        '--sampling[Number of rows to sample for reordering]:int:' \
+        '-c[Reorder columns by group of N]:int:' \
+        '--column-per-block[Reorder columns by group of N]:int:' \
+        '-d[Delete uncompressed index after compressing]' \
+        '--delete[Delete uncompressed index after compressing]' \
+        '--check[Check query results after compressing]' \
+        '-r[Reorder columns before compressing]' \
+        '--reorder[Reorder columns before compressing]' \
+        '-t[Number of threads]:int:' \
+        '--threads[Number of threads]:int:' \
+        '-v[Verbosity level]:level:(debug info warning error)' \
+        '--verbose[Verbosity level]:level:(debug info warning error)' \
+        '-h[Show help]' \
+        '--help[Show help]' \
+        '--version[Show version]'
+}
+
+_kmindex_sum_index() {
+    _arguments \
+        '-i[Global index path]:path:_files -/' \
+        '--global-index[Global index path]:path:_files -/' \
+        '-n[Index name]:name:' \
+        '--name[Index name]:name:' \
+        '-c[False positive rate correction factor (0.0-1.0)]:float:' \
+        '--fp-correction[False positive rate correction factor (0.0-1.0)]:float:' \
+        '-e[Estimate the false positive rate correction factor]' \
+        '--estimate-correction[Estimate the false positive rate correction factor]' \
+        '-s[Number of k-mers for estimating correction]:int:' \
+        '--nbk[Number of k-mers for estimating correction]:int:' \
+        '-t[Number of threads]:int:' \
+        '--threads[Number of threads]:int:' \
+        '-v[Verbosity level]:level:(debug info warning error)' \
+        '--verbose[Verbosity level]:level:(debug info warning error)' \
+        '-h[Show help]' \
+        '--help[Show help]' \
+        '--version[Show version]'
+}
+
+_kmindex_sum_query() {
+    _arguments \
+        '-i[Global index path]:path:_files -/' \
+        '--global-index[Global index path]:path:_files -/' \
+        '-q[Input fasta/q file]:file:_files' \
+        '--fastx[Input fasta/q file]:file:_files' \
+        '-n[Sub-indexes to query, comma separated]:names:' \
+        '--names[Sub-indexes to query, comma separated]:names:' \
+        '-z[Z-value for findere algorithm]:int:' \
+        '--zvalue[Z-value for findere algorithm]:int:' \
+        '-o[Output directory]:path:_files -/' \
+        '--output[Output directory]:path:_files -/' \
+        '-t[Number of threads]:int:' \
+        '--threads[Number of threads]:int:' \
+        '-v[Verbosity level]:level:(debug info warning error)' \
+        '--verbose[Verbosity level]:level:(debug info warning error)' \
+        '-h[Show help]' \
+        '--help[Show help]' \
+        '--version[Show version]'
+}
+
+_kmindex() {
+    local curcontext="$curcontext" state line
+
+    _arguments -C \
+        '1:command:->command' \
+        '*::args:->args'
+
+    case $state in
+        command)
+            local commands=(
+                'build:Build index'
+                'register:Register index'
+                'query:Query index'
+                'merge:Merge sub-indexes'
+                'index-infos:Print index informations'
+                'compress:Compress index'
+                'sum-index:Make a lightweight summarized index'
+                'sum-query:Query a summarized index'
+            )
+            _describe 'command' commands
+            ;;
+        args)
+            case $line[1] in
+                build)      _kmindex_build ;;
+                register)   _kmindex_register ;;
+                query)      _kmindex_query ;;
+                merge)      _kmindex_merge ;;
+                index-infos) _kmindex_index_infos ;;
+                compress)   _kmindex_compress ;;
+                sum-index)  _kmindex_sum_index ;;
+                sum-query)  _kmindex_sum_query ;;
+            esac
+            ;;
+    esac
+}
+
+_kmindex "$@"
+EOF
+
+    # Add fpath to zshrc if not already present
+    local zshrc="${HOME}/.zshrc"
+    local fpath_line='fpath=(~/.zsh/completions $fpath)'
+    if ! grep -qF "$fpath_line" "$zshrc" 2>/dev/null; then
+        echo "$fpath_line" >> "$zshrc"
+        echo "autoload -Uz compinit && compinit" >> "$zshrc"
+    fi
+
+    echo "Installed kmindex completion to $comp_file"
+    echo "Restart your shell or run: source ~/.zshrc"
+}
+
+# ============================================================================
+# MAIN INTERFACE & INSTALLATION
+# ============================================================================
+
+# Print help message
+function help()
+{
+    cat <<EOF
+kmhelpersctl v${VERSION} - Bash utility functions for k-mer index management
+
+USAGE:
+    kmhelpersctl [COMMAND] [OPTIONS]
+
+COMMANDS:
+    register <registry> <name> <path>      Register a single index
+    register-all <registry> <directory>    Register all indices from a directory
+    list <registry>                        List all registered indices
+    search <registry> <pattern>            Search for indices by pattern
+    stats <registry>                       Get registry statistics
+    size <index_path>                      Get size of a single index
+    check                                  Check if kmindex binary is available
+    install-kmindex [METHOD] [OPTIONS]     Install kmindex (conda/source/clone-source)
+    install-kmhelpersctl                   Install kmhelpersctl to shell configuration
+    install-pykmhelpers                    Install kmhelpers python package with pip command in the current python environment
+    update-kmhelpersctl                    Update kmhelpersctl from GitLab
+    help                                   Show this help message
+    version                                Show version information
+
+EXAMPLES:
+    kmhelpersctl register /path/to/registry my_index /path/to/index
+    kmhelpersctl stats /path/to/registry
+    kmhelpersctl search /path/to/registry "pattern" --size-filter 100
+    kmhelpersctl install-kmhelpersctl
+    kmhelpersctl update
+
+For more information, visit: https://gitlab.inria.fr/omicfinder/kmhelpers
+EOF
+}
+
+# Print version information
+function version()
+{
+    echo "kmhelpers v${VERSION}"
+}
+
+# Install kmhelpers to home directory
+function install_python_package()
+{
+    # Find the directory where the kmhelpers package is located
+    # This script should be in the kmhelpers root directory or a subdirectory
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local project_root="$script_dir"
+
+    # Check if pyproject.toml exists (indicating we're in the right directory)
+    if [[ ! -f "$project_root/pyproject.toml" ]]; then
+        log_error "pyproject.toml not found. Are you running from the kmhelpers project root?"
+        return 1
+    fi
+
+    log_info "Installing kmhelpers Python package from: ${project_root}"
+
+    # Check if pip is available
+    if ! command -v pip &> /dev/null; then
+        log_error "pip is not installed or not in PATH"
+        return 1
+    fi
+
+    # Check if Python is available
+    if ! command -v python3 &> /dev/null; then
+        log_error "Python 3 is not installed or not in PATH"
+        return 1
+    fi
+
+    # Install the package in editable mode for development
+    # This allows 'kmhelpers' command to be available globally
+    log_info "Installing Python package in editable mode..."
+    if pip install -e "$project_root"; then
+        log_info "✓ Successfully installed kmhelpers Python package"
+        log_info "You can now use 'kmhelpers' command from anywhere"
+        log_info "Try: kmhelpers -h"
+        return 0
+    else
+        log_error "Failed to install kmhelpers Python package with pip"
+        return 1
+    fi
+}
+
+# Install kmhelpers to shell configuration
+function install_shell()
+{
+    local script_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+    local kmhelpers_dir="$HOME/.kmhelpers"
+    local kmhelpers_file="$kmhelpers_dir/kmhelpersctl.sh"
+
+    # Check if the script exists
+    if [[ ! -f "$script_path" ]]; then
+        log_error "kmhelpers_cmd.sh not found at: $script_path"
+        return 1
+    fi
+
+    log_info "Installing kmhelpers shell integration"
+
+    # Create ~/.kmhelpers directory
+    if ! mkdir -p "$kmhelpers_dir"; then
+        log_error "Failed to create directory: $kmhelpers_dir"
+        return 1
+    fi
+
+    # Copy the script
+    if ! cp "$script_path" "$kmhelpers_file"; then
+        log_error "Failed to copy script to: $kmhelpers_file"
+        return 1
+    fi
+
+    # Make it executable
+    if ! chmod +x "$kmhelpers_file"; then
+        log_error "Failed to make $kmhelpers_file executable"
+        return 1
+    fi
+
+    log_info "Copied script to: $kmhelpers_file"
+
+    local alias_line="alias kmhelpersctl=\"${kmhelpers_file}\"  # kmhelpers"
+    local installed=false
+
+    # Install for bash
+    if [[ -f "$HOME/.bashrc" ]]; then
+        # Add alias if not already present
+        if ! grep -qF "alias kmhelpersctl=" "$HOME/.bashrc"; then
+            echo "" >> "$HOME/.bashrc"
+            echo "$alias_line" >> "$HOME/.bashrc"
+            log_info "============================================================="
+            log_info "Added command kmhelpersctl to ~/.bashrc"
+            log_info "To start using kmhelpersctl in your current bash session, run:"
+            log_info ""
+            log_info "source ~/.bashrc"
+            log_info ""
+            log_info "Or restart your shell / terminal for changes to take effect"
+            log_info "============================================================="
+            installed=true
+        else
+            log_info "kmhelpersctl already installed in ~/.bashrc"
+            installed=true
+        fi
+    fi
+
+    # Install for zsh
+    if [[ -f "$HOME/.zshrc" ]]; then
+        # Add alias if not already present
+        if ! grep -qF "alias kmhelpersctl=" "$HOME/.zshrc"; then
+            echo "" >> "$HOME/.zshrc"
+            echo "$alias_line" >> "$HOME/.zshrc"
+            log_info "============================================================="
+            log_info "Added command kmhelpersctl to ~/.zshrc"
+            log_info "To start using kmhelpersctl in your current zsh session, run:"
+            log_info ""
+            log_info "source ~/.zshrc"
+            log_info ""
+            log_info "Or restart your shell / terminal for changes to take effect"
+            log_info "============================================================="
+            installed=true
+        else
+            log_info "kmhelpersctl already installed in ~/.zshrc"
+            installed=true
+        fi
+    fi
+
+    if [[ "$installed" == false ]]; then
+        log_error "No shell configuration files found (.bashrc or .zshrc)"
+        return 1
+    else
+         log_info "kmhelpersctl successfully installed"
+         log_info "Follow the instructions to activate it in your current shell session, or run kmhelpersctl to start using it."
+    fi
+
+    return 0
+}
+
+# Update kmhelpers from GitLab
+function update()
+{
+    local raw_url="https://gitlab.inria.fr/omicfinder/kmhelpers/-/raw/dev/v0.5.5/cmd.sh"
+    local install_path="$HOME/.kmhelpers.sh"
+    local temp_file=$(mktemp)
+
+    log_info "Updating kmhelpers from: ${raw_url}"
+
+    # Try to download using curl or wget
+    if command -v curl &> /dev/null; then
+        if ! curl -fsSL "${raw_url}" -o "${temp_file}"; then
+            log_error "Failed to download kmhelpers using curl"
+            rm -f "${temp_file}"
+            return 1
+        fi
+    elif command -v wget &> /dev/null; then
+        if ! wget -qO "${temp_file}" "${raw_url}"; then
+            log_error "Failed to download kmhelpers using wget"
+            rm -f "${temp_file}"
+            return 1
+        fi
+    else
+        log_error "Neither curl nor wget found. Please install one of them."
+        rm -f "${temp_file}"
+        return 1
+    fi
+
+    # Verify the downloaded file is not empty and contains bash shebang
+    if [[ ! -s "${temp_file}" ]] || ! head -1 "${temp_file}" | grep -q "^#!/bin/bash"; then
+        log_error "Downloaded file is invalid or corrupted"
+        rm -f "${temp_file}"
+        return 1
+    fi
+
+    # Copy the new version
+    if cp "${temp_file}" "${install_path}"; then
+        chmod +x "${install_path}"
+        log_info "Successfully updated kmhelpers"
+        rm -f "${temp_file}"
+        return 0
+    else
+        log_error "Failed to update kmhelpers"
+        rm -f "${temp_file}"
+        return 1
+    fi
+}
+
+# Main interface function
+function kmhelpers()
+{
+    local command="${1:-}"
+
+    case "${command}" in
+        register)
+            register_index "$2" "$3" "$4"
+            ;;
+        register-all)
+            register_all_indices "$2" "$3"
+            ;;
+        list)
+            list_indices "$2"
+            ;;
+        search)
+            search_indices "$2" "$3" "${@:4}"
+            ;;
+        stats)
+            get_registry_stats "$2"
+            ;;
+        size)
+            get_index_size "$2"
+            ;;
+        check)
+            check_kmindex
+            ;;
+        install-kmindex)
+            install_kmindex "${@:2}"
+            ;;
+        install-kmindex-completion)
+            install_kmindex_completion
+            ;;
+        install-kmhelpersctl)
+            install_shell
+            ;;
+        install-pykmhelpers)
+            install_python_package
+            ;;
+        update-kmhelpersctl)
+            update
+            ;;
+        help|-h|--help)
+            help
+            ;;
+        version|--version|-v)
+            version
+            ;;
+        install-kmindex-help)
+            install_kmindex_help
+            ;;
+        "")
+            help
+            ;;
+        *)
+            log_error "Unknown command: ${command}"
+            echo "Run 'kmhelpers help' for usage information"
+            return 1
+            ;;
+    esac
 }
 
 # Only run main if this script is directly executed (not sourced)
