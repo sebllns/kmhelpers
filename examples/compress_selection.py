@@ -7,9 +7,9 @@ import argparse
 import os
 import subprocess
 import sys
-from kmhelpers.core.utils import Main, Bin, Toolbox
-from kmhelpers.core.index import KmtricksIndex
-from kmhelpers.operations.compressor import Compressor, CompressionParams
+from pykmhelpers.core.utils import Main, Bin, Toolbox
+from pykmhelpers.core.index import KmtricksIndex
+from pykmhelpers.operations.compressor import Compressor, CompressionParams
 
 def main():
 

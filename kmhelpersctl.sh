@@ -925,7 +925,7 @@ EOF
 # Print version information
 function version()
 {
-    echo "kmhelpers v${VERSION}"
+    echo "kmhelpersctl v${VERSION}"
 }
 
 # Install kmhelpers to home directory

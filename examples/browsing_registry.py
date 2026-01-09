@@ -10,7 +10,7 @@ This example demonstrates:
 """
 
 import argparse
-from kmhelpers import Main, KmindexRegistry
+from pykmhelpers import Main, KmindexRegistry
 
 def main():
     # Parse command-line arguments

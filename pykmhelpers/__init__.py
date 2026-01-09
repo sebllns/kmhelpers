@@ -7,18 +7,18 @@ A Python toolkit for managing, compressing, and querying k-mer indices.
 __version__ = "0.5.5"
 
 # Import core classes for easy access
-from kmhelpers.core.utils import Main, Bin, Toolbox, Kmindex, BlockCompressorZSTD
-from kmhelpers.core.index import KmtricksIndex, KmindexRegistry
-from kmhelpers.core.wrapper import KmindexWrapper
-from kmhelpers.core.bloom_filter import BloomFilterSpecs
-from kmhelpers.operations.builder import IndexBuilder
-from kmhelpers.operations.compressor import Compressor, CompressionParams
-from kmhelpers.operations.fof import FofManager
-from kmhelpers.operations.query import KmindexQuery, KmindexQueryResult
-from kmhelpers.operations.sequence import Sequence
-from kmhelpers.operations.kmer import KmerOperation
-from kmhelpers.operations.fasta import Fasta, FASTAReader
-from kmhelpers.operations.byte import ByteCounter, SizeFormat, SizeUnit
+from pykmhelpers.core.utils import Main, Bin, Toolbox, Kmindex, BlockCompressorZSTD
+from pykmhelpers.core.index import KmtricksIndex, KmindexRegistry
+from pykmhelpers.core.wrapper import KmindexWrapper
+from pykmhelpers.core.bloom_filter import BloomFilterSpecs
+from pykmhelpers.operations.builder import IndexBuilder
+from pykmhelpers.operations.compressor import Compressor, CompressionParams
+from pykmhelpers.operations.fof import FofManager
+from pykmhelpers.operations.query import KmindexQuery, KmindexQueryResult
+from pykmhelpers.operations.sequence import Sequence
+from pykmhelpers.operations.kmer import KmerOperation
+from pykmhelpers.operations.fasta import Fasta, FASTAReader
+from pykmhelpers.operations.byte import ByteCounter, SizeFormat, SizeUnit
 
 __all__ = [
     # Core utilities

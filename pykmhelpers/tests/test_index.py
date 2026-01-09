@@ -13,12 +13,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from kmhelpers.core.index import (
+from pykmhelpers.core.index import (
     IndexCompressionState,
     KmindexRegistry,
     KmtricksIndex,
 )
-from kmhelpers.core.utils import Kmindex
+from pykmhelpers.core.utils import Kmindex
 
 
 class TestKmtricksIndexBase(unittest.TestCase):

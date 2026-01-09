@@ -12,7 +12,7 @@ import warnings
 from pathlib import Path
 from typing import Dict, List, Any
 from enum import Enum
-from kmhelpers.core.utils import Kmindex, Toolbox
+from pykmhelpers.core.utils import Kmindex, Toolbox
 
 
 class IndexCompressionState(Enum):

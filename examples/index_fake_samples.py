@@ -1,4 +1,4 @@
-from kmhelpers import Main, Toolbox, KmindexWrapper
+from pykmhelpers import Main, Toolbox, KmindexWrapper
 import os
 import tempfile
 import shutil

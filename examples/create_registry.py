@@ -7,8 +7,8 @@ import argparse
 import os
 import subprocess
 import sys
-from kmhelpers.core.utils import Main
-from kmhelpers.core.index import KmindexRegistry, KmtricksIndex
+from pykmhelpers.core.utils import Main
+from pykmhelpers.core.index import KmindexRegistry, KmtricksIndex
 
 def main():
 

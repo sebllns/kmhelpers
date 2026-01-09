@@ -9,7 +9,7 @@ import json
 import yaml
 from pathlib import Path
 
-from kmhelpers import (
+from pykmhelpers import (
     __version__,
     Main,
     KmindexRegistry,
@@ -18,11 +18,11 @@ from kmhelpers import (
     CompressionParams,
     KmindexWrapper,
 )
-from kmhelpers.operations.fof import FofManager
-from kmhelpers.operations.fof_validation import FofValidator
-from kmhelpers.operations.compressor import PermutationFlag
-from kmhelpers.operations.builder import IndexBuilder
-from kmhelpers.operations.query import KmindexQuery, KmindexQueryResult
+from pykmhelpers.operations.fof import FofManager
+from pykmhelpers.operations.fof_validation import FofValidator
+from pykmhelpers.operations.compressor import PermutationFlag
+from pykmhelpers.operations.builder import IndexBuilder
+from pykmhelpers.operations.query import KmindexQuery, KmindexQueryResult
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -35,6 +35,7 @@ def cli():
 # ============================================================================
 # FOF (FILE-OF-FILES) COMMANDS
 # ============================================================================
+
 
 @cli.group()
 def fof():
@@ -81,10 +82,14 @@ def fof_create(from_directory, output, recursive, extensions, verbose):
     """Create FOF file from directory of sequence files."""
     try:
         manager = FofManager()
-        files = manager.list_files_in_directory(from_directory, recursive=recursive, extensions=list(extensions))
+        files = manager.list_files_in_directory(
+            from_directory, recursive=recursive, extensions=list(extensions)
+        )
 
         if not files:
-            raise click.ClickException(f"No files found matching extensions {extensions}")
+            raise click.ClickException(
+                f"No files found matching extensions {extensions}"
+            )
 
         # Extract sample names and add to manager
         for file_path in files:
@@ -104,7 +109,9 @@ def fof_create(from_directory, output, recursive, extensions, verbose):
 
 
 @fof.command(name="validate")
-@click.argument("fof_file", type=click.Path(exists=True, file_okay=True, dir_okay=False))
+@click.argument(
+    "fof_file", type=click.Path(exists=True, file_okay=True, dir_okay=False)
+)
 @click.option(
     "--verbose",
     "-v",
@@ -123,7 +130,9 @@ def fof_validate(fof_file, verbose):
         else:
             click.echo(f"✗ FOF format errors in {fof_file}:", err=True)
             validator.print_errors()
-            raise click.ClickException(f"FOF file has {validator.get_error_count()} validation error(s)")
+            raise click.ClickException(
+                f"FOF file has {validator.get_error_count()} validation error(s)"
+            )
 
         # Check if sample files exist
         manager = FofManager(fof_file)
@@ -137,7 +146,9 @@ def fof_validate(fof_file, verbose):
                     click.echo(f"  Missing: {sample_id} -> {file_path}", err=True)
 
         if missing_files:
-            raise click.ClickException(f"Found {len(missing_files)} missing sample file(s)")
+            raise click.ClickException(
+                f"Found {len(missing_files)} missing sample file(s)"
+            )
 
         click.echo(f"  Files: {manager.get_sample_count()} samples exist")
 
@@ -148,7 +159,9 @@ def fof_validate(fof_file, verbose):
 
 
 @fof.command(name="list")
-@click.argument("fof_file", type=click.Path(exists=True, file_okay=True, dir_okay=False))
+@click.argument(
+    "fof_file", type=click.Path(exists=True, file_okay=True, dir_okay=False)
+)
 @click.option(
     "--show-paths",
     is_flag=True,
@@ -176,12 +189,9 @@ def fof_list(fof_file, show_paths, output_json):
                 "fof_file": fof_file,
                 "sample_count": len(sample_ids),
                 "samples": [
-                    {
-                        "id": sid,
-                        "path": manager.get_sample_path(sid)
-                    }
+                    {"id": sid, "path": manager.get_sample_path(sid)}
                     for sid in sample_ids
-                ]
+                ],
             }
             click.echo(json.dumps(data, indent=2))
         else:
@@ -245,8 +255,73 @@ def fof_add(fof, sample_file, sample_id):
 
 
 # ============================================================================
+# BUILD COMMAND HELPERS
+# ============================================================================
+
+
+def estimate_build_size(
+    fof_path: str, bloom_size: int = None, nb_cell: int = None
+) -> dict:
+    """
+    Estimate the size required for building an index.
+
+    Args:
+        fof_path: Path to the FOF file
+        bloom_size: Bloom filter size (for presence/absence)
+        nb_cell: Number of cells (for abundance counting)
+
+    Returns:
+        Dictionary with size estimates (input_size, index_size_min, index_size_max)
+    """
+    # Load FOF and calculate input data size
+    manager = FofManager()
+    samples = manager.load_with_paths(fof_path)
+
+    total_input_size = 0
+    sample_count = len(samples)
+
+    for sample_name, file_path in samples.items():
+        if os.path.isfile(file_path):
+            total_input_size += os.path.getsize(file_path)
+
+    # Estimate index size based on index type
+    # Bloom filter: bloom_size (in bytes) + overhead
+    # Abundance: roughly (nb_cell * 4 bytes) + overhead
+
+    if bloom_size is not None:
+        # Bloom filter is specified in bits, convert to bytes
+        index_size_estimate = bloom_size
+    elif nb_cell is not None:
+        # Abundance: each cell is typically 4 bytes (configurable with bitw)
+        # Plus partitions overhead (roughly 100MB per partition estimated)
+        index_size_estimate = nb_cell * 4
+    else:
+        index_size_estimate = 0
+
+
+    min_estimate = index_size_estimate
+
+    return {
+        "input_size": total_input_size,
+        "input_size_gb": total_input_size / (1024**3),
+        "sample_count": sample_count,
+        "index_size_min_gb": min_estimate / (1024**3),
+    }
+
+
+def format_size(bytes_size: float) -> str:
+    """Format bytes to human-readable size."""
+    for unit in ["B", "KB", "MB", "GB", "TB"]:
+        if bytes_size < 1024:
+            return f"{bytes_size:.2f} {unit}"
+        bytes_size /= 1024
+    return f"{bytes_size:.2f} PB"
+
+
+# ============================================================================
 # BUILD COMMAND
 # ============================================================================
+
 
 @cli.command()
 @click.option(
@@ -315,8 +390,26 @@ def fof_add(fof, sample_file, sample_id):
     is_flag=True,
     help="Verbose output",
 )
-def build(fof, output_registry, output_index_dir, kmer_size, minim_size,
-          bloom_size, nb_cell, threads, register_as, compress_intermediate, verbose):
+@click.option(
+    "--force",
+    "-f",
+    is_flag=True,
+    help="Skip confirmation prompt before building",
+)
+def build(
+    fof,
+    output_registry,
+    output_index_dir,
+    kmer_size,
+    minim_size,
+    bloom_size,
+    nb_cell,
+    threads,
+    register_as,
+    compress_intermediate,
+    verbose,
+    force,
+):
     """Build k-mer index from FOF file.
 
     Examples:
@@ -339,7 +432,9 @@ def build(fof, output_registry, output_index_dir, kmer_size, minim_size,
         raise click.BadParameter("Cannot specify both --bloom-size and --nb-cell")
 
     if minim_size >= kmer_size:
-        raise click.BadParameter(f"minim-size ({minim_size}) must be less than kmer-size ({kmer_size})")
+        raise click.BadParameter(
+            f"minim-size ({minim_size}) must be less than kmer-size ({kmer_size})"
+        )
 
     try:
         click.echo("Initializing build...")
@@ -355,6 +450,32 @@ def build(fof, output_registry, output_index_dir, kmer_size, minim_size,
             click.echo(f"  Abundance cells: {nb_cell}")
 
         click.echo(f"  Threads: {threads}")
+
+        # Show confirmation with size estimation (skip if -f/--force is used)
+        if not force:
+            click.echo()
+            try:
+                size_est = estimate_build_size(
+                    fof, bloom_size=bloom_size, nb_cell=nb_cell
+                )
+                click.echo("Build Size Estimate:")
+                click.echo(
+                    f"  Input data: {size_est['input_size_gb']:.2f} GB ({size_est['sample_count']} samples)"
+                )
+                click.echo(
+                    f"  Estimated index size: {size_est['index_size_min_gb']:.2f} - {size_est['index_size_max_gb']:.2f} GB"
+                )
+                click.echo()
+
+                if not click.confirm("Proceed with build?", default=True):
+                    click.echo("Build cancelled")
+                    return
+            except Exception as e:
+                click.echo(f"Warning: Could not estimate build size: {e}", err=True)
+                if not click.confirm("Proceed with build anyway?", default=True):
+                    click.echo("Build cancelled")
+                    return
+            click.echo()
 
         # Build index using wrapper
         index_path, registry_path = wrapper.build(
@@ -391,6 +512,7 @@ def build(fof, output_registry, output_index_dir, kmer_size, minim_size,
 # ============================================================================
 # REGISTRY COMMANDS
 # ============================================================================
+
 
 @cli.group()
 def registry():
@@ -430,7 +552,11 @@ def registry_add(input_dir, registry_path, index_ids):
     if index_ids:
         indices_to_process = index_ids
     else:
-        indices_to_process = [d for d in os.listdir(input_dir) if os.path.isdir(os.path.join(input_dir, d))]
+        indices_to_process = [
+            d
+            for d in os.listdir(input_dir)
+            if os.path.isdir(os.path.join(input_dir, d))
+        ]
 
     registered = 0
     skipped = 0
@@ -479,7 +605,9 @@ def registry_list(registry_path):
     click.echo(f"Available indices ({len(indices)} total):")
     for idx_name in indices:
         idx = registry.get_index(idx_name)
-        click.echo(f"  • {idx_name} ({idx.nb_samples} samples, {idx.nb_partitions} partitions, k={idx.kmer_size})")
+        click.echo(
+            f"  • {idx_name} ({idx.nb_samples} samples, {idx.nb_partitions} partitions, k={idx.kmer_size})"
+        )
 
 
 @registry.command(name="info")
@@ -581,7 +709,9 @@ def registry_check(registry_path, verbose):
                 if index.check_structure():
                     click.echo(f"✓ {idx_name}")
                     if verbose:
-                        click.echo(f"    {index.nb_partitions} partitions, {index.nb_samples} samples")
+                        click.echo(
+                            f"    {index.nb_partitions} partitions, {index.nb_samples} samples"
+                        )
                 else:
                     errors.append((idx_name, "Structure check failed"))
                     click.echo(f"✗ {idx_name}: Structure check failed", err=True)
@@ -591,8 +721,13 @@ def registry_check(registry_path, verbose):
 
         click.echo()
         if errors:
-            click.echo(f"Validation complete: {len(indices) - len(errors)} OK, {len(errors)} FAILED", err=True)
-            raise click.ClickException(f"Registry validation found {len(errors)} error(s)")
+            click.echo(
+                f"Validation complete: {len(indices) - len(errors)} OK, {len(errors)} FAILED",
+                err=True,
+            )
+            raise click.ClickException(
+                f"Registry validation found {len(errors)} error(s)"
+            )
         else:
             click.echo(f"Validation complete: All {len(indices)} indices OK")
 
@@ -670,6 +805,7 @@ def registry_remove(registry_path, index_id, delete_files, force):
 # ============================================================================
 # COMPRESSION COMMANDS
 # ============================================================================
+
 
 @cli.command()
 @click.option(
@@ -764,9 +900,23 @@ def registry_remove(registry_path, index_id, delete_files, force):
     is_flag=True,
     help="Verbose output",
 )
-def compress(input_dir, index_id, output_dir, ref_matrix, matrices, block_size, subsample_size,
-             group_size, threshold, enable_check, with_size_comparison, compare_unordered,
-             enable_metrics, force, verbose):
+def compress(
+    input_dir,
+    index_id,
+    output_dir,
+    ref_matrix,
+    matrices,
+    block_size,
+    subsample_size,
+    group_size,
+    threshold,
+    enable_check,
+    with_size_comparison,
+    compare_unordered,
+    enable_metrics,
+    force,
+    verbose,
+):
     """Compress k-mer index partitions.
 
     Examples:
@@ -783,7 +933,9 @@ def compress(input_dir, index_id, output_dir, ref_matrix, matrices, block_size, 
 
     # Check if output dir exists
     if os.path.exists(output_dir) and not force:
-        raise click.ClickException(f"Output directory exists. Use --force to overwrite.")
+        raise click.ClickException(
+            f"Output directory exists. Use --force to overwrite."
+        )
 
     click.echo("Initializing compression...")
 
@@ -797,7 +949,9 @@ def compress(input_dir, index_id, output_dir, ref_matrix, matrices, block_size, 
 
         # Validate ref_matrix
         if ref_matrix >= index.nb_partitions:
-            raise click.BadParameter(f"ref-matrix {ref_matrix} exceeds partition count {index.nb_partitions}")
+            raise click.BadParameter(
+                f"ref-matrix {ref_matrix} exceeds partition count {index.nb_partitions}"
+            )
 
         # Determine which matrices to compress
         if matrices:
@@ -819,7 +973,9 @@ def compress(input_dir, index_id, output_dir, ref_matrix, matrices, block_size, 
         # Create compressor
         compressor = Compressor(enable_metrics=enable_metrics)
 
-        click.echo(f"Compressing {len(matrix_list)} partitions (reference: {ref_matrix})...")
+        click.echo(
+            f"Compressing {len(matrix_list)} partitions (reference: {ref_matrix})..."
+        )
         click.echo(f"  Block size: {block_size} bytes")
         click.echo(f"  Subsample size: {subsample_size}")
         click.echo(f"  Group size: {group_size}")
@@ -846,7 +1002,9 @@ def compress(input_dir, index_id, output_dir, ref_matrix, matrices, block_size, 
         if enable_metrics:
             click.echo(f"  Metrics saved in: {os.path.join(output_dir, 'metrics')}")
         if with_size_comparison:
-            click.echo(f"  Size comparison in: {os.path.join(output_dir, 'metrics', 'sizes.csv')}")
+            click.echo(
+                f"  Size comparison in: {os.path.join(output_dir, 'metrics', 'sizes.csv')}"
+            )
 
     except Exception as e:
         raise click.ClickException(f"Compression failed: {e}")
@@ -855,6 +1013,7 @@ def compress(input_dir, index_id, output_dir, ref_matrix, matrices, block_size, 
 # ============================================================================
 # QUERY COMMANDS
 # ============================================================================
+
 
 @cli.command()
 @click.option(
@@ -926,8 +1085,19 @@ def compress(input_dir, index_id, output_dir, ref_matrix, matrices, block_size, 
     is_flag=True,
     help="Verbose output",
 )
-def query(registry_path, index_ids, query_file, output_dir, zvalue, threshold,
-          threads, single_query, aggregate, format, verbose):
+def query(
+    registry_path,
+    index_ids,
+    query_file,
+    output_dir,
+    zvalue,
+    threshold,
+    threads,
+    single_query,
+    aggregate,
+    format,
+    verbose,
+):
     """Query indices with FASTA/FASTQ sequences.
 
     Examples:
@@ -999,6 +1169,7 @@ def query(registry_path, index_ids, query_file, output_dir, zvalue, threshold,
 # ============================================================================
 # PROJECT COMMANDS (High-level workflow using IndexBuilder/KmindexQuery)
 # ============================================================================
+
 
 def _get_project_config(project_path):
     """Load project configuration from .kmhelpers.yaml"""
@@ -1125,8 +1296,22 @@ def project_create(project_path, kmer_size, minim_size):
     is_flag=True,
     help="Show detailed output",
 )
+@click.option(
+    "--force",
+    "-f",
+    is_flag=True,
+    help="Skip confirmation prompt before building",
+)
 def project_build(
-    project_path, index_name, fof, bloom_size, assembled, threads, partitions, verbose
+    project_path,
+    index_name,
+    fof,
+    bloom_size,
+    assembled,
+    threads,
+    partitions,
+    verbose,
+    force,
 ):
     """Build an index within the project."""
     Main.init()
@@ -1149,13 +1334,37 @@ def project_build(
         except Exception as e:
             raise click.ClickException(f"Failed to load FOF file: {e}")
 
-        # Create IndexBuilder
-        builder = IndexBuilder(project_path, k=config["k"], z=config["z"])
-
         if verbose:
             click.echo(f"Building index '{index_name}' in project: {project_path}")
             click.echo(f"  Samples: {manager.get_sample_count()}")
             click.echo(f"  K-mer size: {config['k']}")
+
+        # Show confirmation with size estimation (skip if -f/--force is used)
+        if not force:
+            click.echo()
+            try:
+                size_est = estimate_build_size(fof, bloom_size=bloom_size, nb_cell=None)
+                click.echo("Build Size Estimate:")
+                click.echo(
+                    f"  Input data: {size_est['input_size_gb']:.2f} GB ({size_est['sample_count']} samples)"
+                )
+                click.echo(
+                    f"  Estimated index size: {size_est['index_size_min_gb']:.2f} - {size_est['index_size_max_gb']:.2f} GB"
+                )
+                click.echo()
+
+                if not click.confirm("Proceed with build?", default=True):
+                    click.echo("Build cancelled")
+                    return
+            except Exception as e:
+                click.echo(f"Warning: Could not estimate build size: {e}", err=True)
+                if not click.confirm("Proceed with build anyway?", default=True):
+                    click.echo("Build cancelled")
+                    return
+            click.echo()
+
+        # Create IndexBuilder
+        builder = IndexBuilder(project_path, k=config["k"], z=config["z"])
 
         # Build the subindex
         index = builder.create_subindex(
@@ -1221,7 +1430,14 @@ def project_build(
     help="Show detailed output",
 )
 def project_query(
-    project_path, index_name, query, output_dir, threads, single_query, aggregate, verbose
+    project_path,
+    index_name,
+    query,
+    output_dir,
+    threads,
+    single_query,
+    aggregate,
+    verbose,
 ):
     """Query an index within the project."""
     Main.init()
@@ -1233,7 +1449,9 @@ def project_query(
         # Resolve registry path
         registry_path = os.path.join(project_path, "registry")
         if not os.path.exists(registry_path):
-            raise click.ClickException(f"Registry not found in project: {registry_path}")
+            raise click.ClickException(
+                f"Registry not found in project: {registry_path}"
+            )
 
         # Create output directory
         os.makedirs(output_dir, exist_ok=True)
