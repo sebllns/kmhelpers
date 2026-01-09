@@ -906,7 +906,13 @@ COMMANDS:
     check                                  Check if kmindex binary is available
     install-kmindex [METHOD] [OPTIONS]     Install kmindex (conda/source/clone-source)
     install-shell                          Install kmhelpersctl to shell configuration
-    install-pykmhelpers                    Install kmhelpers python package with pip command in the current python environment
+    install-pykmhelpers [OPTIONS]          Install kmhelpers python package
+                                           Options:
+                                             --inplace    Install in current Python environment
+                                             -p, --path   Custom path for virtual environment (default: ~/.kmhelpers/env)
+    activate-venv [OPTIONS]                Activate kmhelpers virtual environment
+                                           Options:
+                                             -p, --path   Path to virtual environment (default: ~/.kmhelpers/env)
     update-shell                           Update kmhelpersctl from GitLab
     help                                   Show this help message
     version                                Show version information
@@ -916,11 +922,17 @@ EXAMPLES:
     kmhelpersctl stats /path/to/registry
     kmhelpersctl search /path/to/registry "pattern" --size-filter 100
     kmhelpersctl install-shell
+    kmhelpersctl install-pykmhelpers                    # Install in ~/.kmhelpers/env
+    kmhelpersctl install-pykmhelpers --inplace          # Install in current environment
+    kmhelpersctl install-pykmhelpers -p /custom/path    # Install in custom venv path
+    kmhelpersctl activate-venv                          # Show activation command for default venv
+    kmhelpersctl activate-venv -p /custom/path          # Show activation command for custom venv
     kmhelpersctl update-shell
 
 For more information, visit: https://gitlab.inria.fr/omicfinder/kmhelpers
 EOF
 }
+
 
 # Print version information
 function version()
@@ -931,6 +943,28 @@ function version()
 # Install kmhelpers to home directory
 function install_python_package()
 {
+    # Parse command-line options
+    local use_inplace=false
+    local venv_path="$HOME/.kmhelpers/env"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --inplace)
+                use_inplace=true
+                shift
+                ;;
+            -p|--path)
+                venv_path="$2"
+                shift 2
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                echo "Usage: install_python_package [--inplace] [-p|--path <venv_path>]"
+                return 1
+                ;;
+        esac
+    done
+
     # Find the directory where the kmhelpers package is located
     # This script should be in the kmhelpers root directory or a subdirectory
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -938,17 +972,22 @@ function install_python_package()
 
     # Check if pyproject.toml exists (indicating we're in the right directory)
     if [[ ! -f "$project_root/pyproject.toml" ]]; then
-        log_error "pyproject.toml not found. Are you running from the kmhelpers project root?"
-        return 1
+        log_info "pyproject.toml not found in current directory. Cloning kmhelpers repository..."
+
+        # Clone repo into a temp directory
+        local temp_dir=$(mktemp -d)
+        trap "rm -rf '$temp_dir'" EXIT
+
+        if ! git clone https://gitlab.inria.fr/omicfinder/kmhelpers.git "$temp_dir"; then
+            log_error "Failed to clone kmhelpers repository"
+            return 1
+        fi
+
+        project_root="$temp_dir"
+        log_info "Repository cloned to: ${project_root}"
     fi
 
     log_info "Installing kmhelpers Python package from: ${project_root}"
-
-    # Check if pip is available
-    if ! command -v pip &> /dev/null; then
-        log_error "pip is not installed or not in PATH"
-        return 1
-    fi
 
     # Check if Python is available
     if ! command -v python3 &> /dev/null; then
@@ -956,18 +995,94 @@ function install_python_package()
         return 1
     fi
 
-    # Install the package in editable mode for development
-    # This allows 'kmhelpers' command to be available globally
-    log_info "Installing Python package in editable mode..."
-    if pip install -e "$project_root"; then
-        log_info "✓ Successfully installed kmhelpers Python package"
-        log_info "You can now use 'kmhelpers' command from anywhere"
-        log_info "Try: kmhelpers -h"
-        return 0
+    # Install in current environment or create venv
+    if [[ "$use_inplace" == true ]]; then
+        log_info "Installing in current Python environment (editable mode)"
+
+        # Check if pip is available
+        if ! command -v pip &> /dev/null; then
+            log_error "pip is not installed or not in PATH"
+            return 1
+        fi
+
+        if pip install -e "$project_root"; then
+            log_info "✓ Successfully installed kmhelpers Python package"
+            log_info "You can now use 'kmhelpers' command"
+            log_info "Try: kmhelpers -h"
+            return 0
+        else
+            log_error "Failed to install kmhelpers Python package with pip"
+            return 1
+        fi
     else
-        log_error "Failed to install kmhelpers Python package with pip"
+        log_info "Creating virtual environment at: ${venv_path}"
+
+        # Create venv
+        if ! python3 -m venv "${venv_path}"; then
+            log_error "Failed to create virtual environment at ${venv_path}"
+            return 1
+        fi
+
+        # Activate venv and install
+        log_info "Activating virtual environment..."
+        # shellcheck disable=SC1091
+        source "${venv_path}/bin/activate" || return 1
+
+        log_info "Installing Python package in editable mode..."
+        if pip install -e "$project_root"; then
+            log_info "✓ Successfully installed kmhelpers Python package"
+            log_info ""
+            log_info "Virtual environment created at: ${venv_path}"
+            log_info "To activate the environment, run:"
+            log_info "  source ${venv_path}/bin/activate"
+            log_info ""
+            log_info "Then you can use 'kmhelpers' command"
+            log_info "Try: kmhelpers -h"
+            return 0
+        else
+            log_error "Failed to install kmhelpers Python package with pip"
+            return 1
+        fi
+    fi
+}
+
+# Activate kmhelpers virtual environment
+function activate_venv()
+{
+    # Parse command-line options
+    local venv_path="$HOME/.kmhelpers/env"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -p|--path)
+                venv_path="$2"
+                shift 2
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                echo "Usage: activate_venv [-p|--path <venv_path>]"
+                return 1
+                ;;
+        esac
+    done
+
+    # Check if venv exists
+    if [[ ! -d "$venv_path" ]]; then
+        log_error "Virtual environment not found at: ${venv_path}"
+        log_info "Did you run 'kmhelpersctl install-pykmhelpers'?"
         return 1
     fi
+
+    # Check if activation script exists
+    if [[ ! -f "${venv_path}/bin/activate" ]]; then
+        log_error "Activation script not found at: ${venv_path}/bin/activate"
+        return 1
+    fi
+
+    log_info "To activate the virtual environment, run:"
+    echo "  source ${venv_path}/bin/activate"
+
+    return 0
 }
 
 # Install kmhelpers to shell configuration
@@ -1153,7 +1268,10 @@ function kmhelpersctl()
             install_shell
             ;;
         install-pykmhelpers)
-            install_python_package
+            install_python_package "${@:2}"
+            ;;
+        activate-venv)
+            activate_venv "${@:2}"
             ;;
         update-shell)
             update
