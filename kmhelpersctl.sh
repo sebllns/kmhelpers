@@ -11,6 +11,12 @@ NC='\033[0m' # No Color
 
 CTL_VERSION=0.2
 PY_VERSION=dev/v0.5.5
+KMINDEX_VERSION="v0.6.0"
+
+WORKDIR="$HOME/.kmhelpers"
+VENV_DIR="$WORKDIR/env"
+INSTALL_PATH="$WORKDIR/kmhelpersctl.sh"
+SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 
 # ============================================================================
 # UTILITY FUNCTIONS
@@ -541,6 +547,19 @@ function clone_kmindex_repo()
         return 1
     fi
 
+    # Clone with specific version/tag if available
+    if [[ -n "$KMINDEX_VERSION" ]] && [[ "$KMINDEX_VERSION" != "latest" ]]; then
+        log_info "Cloning kmindex version: ${KMINDEX_VERSION}"
+        if git clone --recursive --branch "${KMINDEX_VERSION}" https://github.com/tlemane/kmindex "${target_dir}"; then
+            log_info "Successfully cloned kmindex ${KMINDEX_VERSION} to: ${target_dir}"
+            return 0
+        else
+            log_warn "Failed to clone specific version ${KMINDEX_VERSION}, trying latest..."
+            # Fallback to latest
+        fi
+    fi
+
+    # Clone latest if no version specified or fallback
     if git clone --recursive https://github.com/tlemane/kmindex "${target_dir}"; then
         log_info "Successfully cloned kmindex to: ${target_dir}"
         return 0
@@ -575,13 +594,145 @@ function install_kmindex()
                 return 1
             fi
             # After cloning, ask if user wants to build
-            log_info "Repository cloned. To build, run:"
-            echo "  kmhelpers install_kmindex source ${target_dir} Release 256 8 0"
+            log_info "Repository cloned. To build, run either:"
+            echo "  kmhelpersctl install-kmindex source ${target_dir} Release 256 8 0"
+            echo ""
+            echo "Or:"
+            echo "  cd ${target_dir} && kmhelpers install_kmindex source . Release 256 8 0"
             return 0
             ;;
         *)
-            log_error "Unknown installation method: ${method}"
-            return 1
+            # Default: Install from sources in kmhelpers venv
+            log_info "Unknown installation method: ${method}, using default (install from sources)"
+            log_info ""
+            log_info "Checking kmhelpers venv..."
+
+            # Create kmhelpers venv if it doesn't exist
+            if [[ ! -d "$VENV_DIR" ]]; then
+                log_info "Creating kmhelpers virtual environment at: ${VENV_DIR}"
+                if ! python3 -m venv "${VENV_DIR}"; then
+                    log_error "Failed to create virtual environment"
+                    return 1
+                fi
+            fi
+
+            # Activate venv and install dependencies
+            log_info "Activating virtual environment..."
+            # shellcheck disable=SC1091
+            source "${VENV_DIR}/bin/activate" || return 1
+
+            # Check for required system dependencies
+            log_info "Checking for required system dependencies..."
+
+            local missing_deps=()
+            local version_issues=()
+
+            # Check for gcc/g++ version 12.2.0+
+            if ! command -v gcc &> /dev/null; then
+                missing_deps+=("gcc")
+            else
+                local gcc_version=$(gcc --version | head -1 | grep -oP '\d+\.\d+\.\d+' | head -1)
+                if [[ -n "$gcc_version" ]]; then
+                    if [[ $(printf '%s\n' "12.2.0" "$gcc_version" | sort -V | head -n1) != "12.2.0" ]]; then
+                        version_issues+=("gcc $gcc_version (required: 12.2.0+)")
+                    else
+                        log_info "✓ gcc $gcc_version"
+                    fi
+                fi
+            fi
+
+            if ! command -v g++ &> /dev/null; then
+                missing_deps+=("g++")
+            else
+                local gxx_version=$(g++ --version | head -1 | grep -oP '\d+\.\d+\.\d+' | head -1)
+                if [[ -n "$gxx_version" ]]; then
+                    if [[ $(printf '%s\n' "12.2.0" "$gxx_version" | sort -V | head -n1) != "12.2.0" ]]; then
+                        version_issues+=("g++ $gxx_version (required: 12.2.0+)")
+                    else
+                        log_info "✓ g++ $gxx_version"
+                    fi
+                fi
+            fi
+
+            # Check for cmake version 4.1.4+
+            if ! command -v cmake &> /dev/null; then
+                log_info "cmake not found, installing via pip..."
+                pip install -q 'cmake>=4.1.4' || {
+                    log_error "Failed to install cmake"
+                    return 1
+                }
+                local cmake_version=$(cmake --version | head -1 | grep -oP '\d+\.\d+\.\d+' | head -1)
+                log_info "✓ cmake $cmake_version installed"
+            else
+                local cmake_version=$(cmake --version | head -1 | grep -oP '\d+\.\d+\.\d+' | head -1)
+                if [[ -n "$cmake_version" ]]; then
+                    if [[ $(printf '%s\n' "4.1.4" "$cmake_version" | sort -V | head -n1) != "4.1.4" ]]; then
+                        log_warn "cmake $cmake_version found (required: 4.1.4+), upgrading..."
+                        pip install -q --upgrade 'cmake>=4.1.4' || {
+                            log_error "Failed to upgrade cmake"
+                            return 1
+                        }
+                        cmake_version=$(cmake --version | head -1 | grep -oP '\d+\.\d+\.\d+' | head -1)
+                    fi
+                    log_info "✓ cmake $cmake_version"
+                fi
+            fi
+
+            # Report missing system dependencies
+            if [[ ${#missing_deps[@]} -gt 0 ]]; then
+                log_error "Missing required system dependencies: ${missing_deps[*]}"
+                log_error ""
+                log_error "Please install the required build tools:"
+                log_error ""
+                if command -v apt-get &> /dev/null; then
+                    log_error "  Ubuntu/Debian:"
+                    log_error "    sudo apt-get update"
+                    log_error "    sudo apt-get install -y build-essential"
+                elif command -v yum &> /dev/null; then
+                    log_error "  CentOS/RHEL:"
+                    log_error "    sudo yum groupinstall -y 'Development Tools'"
+                elif command -v brew &> /dev/null; then
+                    log_error "  macOS:"
+                    log_error "    brew install gcc"
+                else
+                    log_error "  Please install gcc and g++ using your system's package manager"
+                fi
+                log_error ""
+                return 1
+            fi
+
+            # Report version issues
+            if [[ ${#version_issues[@]} -gt 0 ]]; then
+                log_error "System dependencies have incorrect versions:"
+                for issue in "${version_issues[@]}"; do
+                    log_error "  - $issue"
+                done
+                log_error ""
+                log_error "Please upgrade gcc/g++ to version 12.2.0 or higher"
+                log_error ""
+                return 1
+            fi
+
+            # Clone kmindex if target directory not provided
+            local kmindex_src="${env_or_path:-.}"
+            if [[ "$kmindex_src" == "." ]]; then
+                kmindex_src="${WORKDIR}/kmindex"
+            fi
+
+            if [[ ! -d "$kmindex_src" ]]; then
+                log_info "Cloning kmindex to: ${kmindex_src}"
+                if ! clone_kmindex_repo "${kmindex_src}"; then
+                    log_error "Failed to clone kmindex"
+                    return 1
+                fi
+            else
+                log_info "Using existing kmindex source at: ${kmindex_src}"
+            fi
+
+            # Build and install kmindex
+            log_info "Building kmindex from source..."
+            install_kmindex_source "${VENV_DIR}" "${kmindex_src}" Release 256 8 0
+            return $?
             ;;
     esac
 }
@@ -593,17 +744,28 @@ function install_kmindex_help()
 kmindex Installation Options
 
 USAGE:
-    kmhelpers install_kmindex [METHOD] [OPTIONS]
+    kmhelpersctl install-kmindex [METHOD] [TARGET_DIR]
 
 METHODS:
+
+    (default - no method specified)
+        Automatic installation from sources in kmhelpers venv
+        - Creates/uses kmhelpers venv at \$HOME/.kmhelpers/env
+        - Installs build dependencies (cmake)
+        - Clones kmindex (or uses existing source)
+        - Builds and installs kmindex
+
+        Example:
+          kmhelpersctl install-kmindex
+          kmhelpersctl install-kmindex /path/to/existing/kmindex
 
     conda [ENV_NAME]
         Install kmindex from bioconda
         ENV_NAME: conda environment name (default: kmindex_env)
 
         Example:
-          kmhelpers install_kmindex conda
-          kmhelpers install_kmindex conda myenv
+          kmhelpersctl install-kmindex conda
+          kmhelpersctl install-kmindex conda myenv
 
     source <SOURCE_DIR> [BUILD_TYPE] [MAX_KMER] [THREADS] [TESTS] [PORTABLE]
         Build and install kmindex from source
@@ -615,28 +777,31 @@ METHODS:
         PORTABLE: ON or OFF for portable x86-64 build (default: OFF)
 
         Example:
-          kmhelpers install_kmindex source /path/to/kmindex
-          kmhelpers install_kmindex source /path/to/kmindex Release 256 8 2
+          kmhelpersctl install-kmindex source /path/to/kmindex
+          kmhelpersctl install-kmindex source /path/to/kmindex Release 256 8 2
 
     clone-source [TARGET_DIR]
-        Clone kmindex repository from GitHub
-        TARGET_DIR: where to clone (default: current directory)
+        Clone kmindex repository from GitHub (without building)
+        TARGET_DIR: where to clone (default: \$HOME/.kmhelpers/kmindex)
 
         Example:
-          kmhelpers install_kmindex clone-source
-          kmhelpers install_kmindex clone-source ./kmindex_repo
+          kmhelpersctl install-kmindex clone-source
+          kmhelpersctl install-kmindex clone-source ./kmindex_repo
 
 EXAMPLES:
 
-    # Install from conda (easiest)
-    kmhelpers install_kmindex conda
+    # Quick install (recommended - automatic)
+    kmhelpersctl install-kmindex
 
-    # Clone and build from source
-    kmhelpers install_kmindex clone-source ./kmindex
-    kmhelpers install_kmindex source ./kmindex Release 256 8 2
+    # Install from conda
+    kmhelpersctl install-kmindex conda
+
+    # Clone only (then build separately)
+    kmhelpersctl install-kmindex clone-source ./kmindex
+    kmhelpersctl install-kmindex source ./kmindex Release 256 8 2
 
     # Build existing kmindex source directory
-    kmhelpers install_kmindex source ~/src/kmindex Release
+    kmhelpersctl install-kmindex source ~/src/kmindex Release
 
 For more information, visit: https://github.com/tlemane/kmindex
 EOF
@@ -906,7 +1071,7 @@ COMMANDS:
     size <index_path>                      Get size of a single index
     check                                  Check if kmindex binary is available
     install-kmindex [METHOD] [OPTIONS]     Install kmindex (conda/source/clone-source)
-    install-shell                          Install kmhelpersctl to shell configuration
+    install-kmhelpersctl                          Install kmhelpersctl to shell configuration
     install-pykmhelpers [OPTIONS]          Install kmhelpers python package
                                            Options:
                                              --inplace         Install in current Python environment
@@ -926,7 +1091,6 @@ EXAMPLES:
     kmhelpersctl register /path/to/registry my_index /path/to/index
     kmhelpersctl stats /path/to/registry
     kmhelpersctl search /path/to/registry "pattern" --size-filter 100
-    kmhelpersctl install-shell
     kmhelpersctl install-pykmhelpers                    # Install in ~/.kmhelpers/env
     kmhelpersctl install-pykmhelpers --inplace          # Install in current environment
     kmhelpersctl install-pykmhelpers -p /custom/path    # Install in custom venv path
@@ -1005,7 +1169,6 @@ function install_python_package()
 {
     # Parse command-line options
     local use_inplace=false
-    local venv_path="$HOME/.kmhelpers/env"
     local version="${PY_VERSION}"
     local no_alias=false
 
@@ -1016,7 +1179,7 @@ function install_python_package()
                 shift
                 ;;
             -p|--path)
-                venv_path="$2"
+                VENV_DIR="$2"
                 shift 2
                 ;;
             -v|--version)
@@ -1029,7 +1192,7 @@ function install_python_package()
                 ;;
             *)
                 log_error "Unknown option: $1"
-                echo "Usage: install_python_package [--inplace] [-p|--path <venv_path>] [-v|--version <version>] [--no-alias]"
+                echo "Usage: install_python_package [--inplace] [-p|--path <VENV_DIR>] [-v|--version <version>] [--no-alias]"
                 return 1
                 ;;
         esac
@@ -1091,35 +1254,35 @@ function install_python_package()
             return 1
         fi
     else
-        log_info "Creating virtual environment at: ${venv_path}"
+        log_info "Creating virtual environment at: ${VENV_DIR}"
 
         # Create venv
-        if ! python3 -m venv "${venv_path}"; then
-            log_error "Failed to create virtual environment at ${venv_path}"
+        if ! python3 -m venv "${VENV_DIR}"; then
+            log_error "Failed to create virtual environment at ${VENV_DIR}"
             return 1
         fi
 
         # Activate venv and install
         log_info "Activating virtual environment..."
         # shellcheck disable=SC1091
-        source "${venv_path}/bin/activate" || return 1
+        source "${VENV_DIR}/bin/activate" || return 1
 
         log_info "Installing Python package in editable mode..."
         if pip install -e "$project_root"; then
             log_info "✓ Successfully installed kmhelpers Python package"
             log_info ""
-            log_info "Virtual environment created at: ${venv_path}"
+            log_info "Virtual environment created at: ${VENV_DIR}"
 
             # Install activation alias
-            install_shell_activation_function "${venv_path}" "${no_alias}"
+            install_shell_activation_function "${VENV_DIR}" "${no_alias}"
 
             log_info ""
             if [[ "$no_alias" != true ]]; then
                 log_info "Quick activation: Run 'kmhelpers-activate' to activate the venv"
-                log_info "Or manually: source ${venv_path}/bin/activate"
+                log_info "Or manually: source ${VENV_DIR}/bin/activate"
             else
                 log_info "To activate the environment, run:"
-                log_info "  source ${venv_path}/bin/activate"
+                log_info "  source ${VENV_DIR}/bin/activate"
             fi
             log_info ""
             log_info "Then you can use 'kmhelpers' command"
@@ -1136,37 +1299,35 @@ function install_python_package()
 function activate_venv()
 {
     # Parse command-line options
-    local venv_path="$HOME/.kmhelpers/env"
-
     while [[ $# -gt 0 ]]; do
         case "$1" in
             -p|--path)
-                venv_path="$2"
+                VENV_DIR="$2"
                 shift 2
                 ;;
             *)
                 log_error "Unknown option: $1"
-                echo "Usage: activate_venv [-p|--path <venv_path>]"
+                echo "Usage: activate_venv [-p|--path <VENV_DIR>]"
                 return 1
                 ;;
         esac
     done
 
     # Check if venv exists
-    if [[ ! -d "$venv_path" ]]; then
-        log_error "Virtual environment not found at: ${venv_path}"
+    if [[ ! -d "$VENV_DIR" ]]; then
+        log_error "Virtual environment not found at: ${VENV_DIR}"
         log_info "Did you run 'kmhelpersctl install-pykmhelpers'?"
         return 1
     fi
 
     # Check if activation script exists
-    if [[ ! -f "${venv_path}/bin/activate" ]]; then
-        log_error "Activation script not found at: ${venv_path}/bin/activate"
+    if [[ ! -f "${VENV_DIR}/bin/activate" ]]; then
+        log_error "Activation script not found at: ${VENV_DIR}/bin/activate"
         return 1
     fi
 
     log_info "To activate the virtual environment, run:"
-    echo "  source ${venv_path}/bin/activate"
+    echo "  source ${VENV_DIR}/bin/activate"
 
     return 0
 }
@@ -1174,39 +1335,29 @@ function activate_venv()
 # Install kmhelpers to shell configuration
 function install_shell()
 {
-    local script_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
-    local kmhelpers_dir="$HOME/.kmhelpers"
-    local kmhelpers_file="$kmhelpers_dir/kmhelpersctl.sh"
-
     # Check if the script exists
-    if [[ ! -f "$script_path" ]]; then
-        log_error "kmhelpersctl.sh not found at: $script_path"
+    if [[ ! -f "$SCRIPT_PATH" ]]; then
+        log_error "kmhelpersctl.sh not found at: $SCRIPT_PATH"
         return 1
     fi
 
     log_info "Installing kmhelpers shell integration"
 
-    # Create ~/.kmhelpers directory
-    if ! mkdir -p "$kmhelpers_dir"; then
-        log_error "Failed to create directory: $kmhelpers_dir"
-        return 1
-    fi
-
     # Copy the script
-    if ! cp "$script_path" "$kmhelpers_file"; then
-        log_error "Failed to copy script to: $kmhelpers_file"
+    if ! cp "$SCRIPT_PATH" "$INSTALL_PATH"; then
+        log_error "Failed to copy script to: $INSTALL_PATH"
         return 1
     fi
 
     # Make it executable
-    if ! chmod +x "$kmhelpers_file"; then
-        log_error "Failed to make $kmhelpers_file executable"
+    if ! chmod +x "$INSTALL_PATH"; then
+        log_error "Failed to make $INSTALL_PATH executable"
         return 1
     fi
 
-    log_info "Copied script to: $kmhelpers_file"
+    log_info "Copied script to: $INSTALL_PATH"
 
-    local alias_line="alias kmhelpersctl=\"${kmhelpers_file}\"  # kmhelpers"
+    local alias_line="alias kmhelpersctl=\"${INSTALL_PATH}\"  # kmhelpers"
     local installed=false
 
     # Install for bash
@@ -1283,15 +1434,13 @@ function update()
     done
 
     local raw_url="https://gitlab.inria.fr/omicfinder/kmhelpers/-/raw/${version}/kmhelpersctl.sh"
-    local kmhelpers_dir="$HOME/.kmhelpers"
-    local install_path="$kmhelpers_dir/kmhelpersctl.sh"
     local temp_file=$(mktemp)
 
     log_info "Updating kmhelpers from: ${raw_url}"
 
-    if [[ ! -f "$install_path" ]]; then
-        log_error "kmhelpersctl not found at: $install_path"
-        log_error "Please run 'kmhelpersctl install-shell' first to install kmhelpersctl"
+    if [[ ! -f "$INSTALL_PATH" ]]; then
+        log_error "kmhelpersctl not found at: $INSTALL_PATH"
+        log_error "Please run 'kmhelpersctl install-kmhelpersctl' first to install kmhelpersctl"
         return 1
     fi
 
@@ -1332,8 +1481,8 @@ function update()
     fi
 
     # Copy the new version
-    if cp "${temp_file}" "${install_path}"; then
-        chmod +x "${install_path}"
+    if cp "${temp_file}" "${INSTALL_PATH}"; then
+        chmod +x "${INSTALL_PATH}"
         log_info "Successfully updated kmhelpersctl"
         rm -f "${temp_file}"
         return 0
@@ -1347,6 +1496,12 @@ function update()
 # Main interface function
 function kmhelpersctl()
 {
+    # Create ~/.kmhelpers directory
+    if ! mkdir -p "$WORKDIR"; then
+        log_error "Failed to create directory: $WORKDIR"
+        return 1
+    fi
+
     local command="${1:-}"
 
     case "${command}" in
@@ -1377,7 +1532,7 @@ function kmhelpersctl()
         install-kmindex-completion)
             install_kmindex_completion
             ;;
-        install-shell)
+        install-kmhelpersctl)
             install_shell
             ;;
         install-pykmhelpers)
