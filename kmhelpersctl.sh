@@ -13,9 +13,9 @@ CTL_VERSION=0.2
 PY_VERSION=dev/v0.5.5
 KMINDEX_VERSION="v0.6.0"
 
-WORKDIR="$HOME/.kmhelpers"
-VENV_DIR="$WORKDIR/env"
-INSTALL_PATH="$WORKDIR/kmhelpersctl.sh"
+KMHELPERS_PATH="$HOME/.kmhelpers"
+VENV_DIR="$KMHELPERS_PATH/env"
+INSTALL_PATH="$KMHELPERS_PATH/kmhelpersctl.sh"
 SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 
 # ============================================================================
@@ -423,7 +423,7 @@ function search_indices()
 # Install kmindex using conda
 function install_kmindex_conda()
 {
-    local env_path="${1:-$WORKDIR/kmindex_env}"
+    local env_path="${1:-$KMHELPERS_PATH/kmindex_env}"
 
     log_info "Installing kmindex via conda in environment: ${env_path}"
 
@@ -716,7 +716,7 @@ function install_kmindex()
             # Clone kmindex if target directory not provided
             local kmindex_src="${env_or_path:-.}"
             if [[ "$kmindex_src" == "." ]]; then
-                kmindex_src="${WORKDIR}/kmindex"
+                kmindex_src="${KMHELPERS_PATH}/kmindex"
             fi
 
             if [[ ! -d "$kmindex_src" ]]; then
@@ -1503,8 +1503,8 @@ function update()
 function kmhelpersctl()
 {
     # Create ~/.kmhelpers directory
-    if ! mkdir -p "$WORKDIR"; then
-        log_error "Failed to create directory: $WORKDIR"
+    if ! mkdir -p "$KMHELPERS_PATH"; then
+        log_error "Failed to create directory: $KMHELPERS_PATH"
         return 1
     fi
 
