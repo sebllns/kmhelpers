@@ -9,14 +9,53 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-CTL_VERSION=0.2
-PY_VERSION=dev/v0.5.5
-KMINDEX_VERSION="v0.6.0"
+CTL_VERSION='0.2'
+PY_VERSION='dev/v0.5.5'
+KMINDEX_VERSION='v0.6.0'
 
-KMHELPERS_PATH="$HOME/.kmhelpers"
-VENV_DIR="$KMHELPERS_PATH/env"
-INSTALL_PATH="$KMHELPERS_PATH/kmhelpersctl.sh"
+# Initialize global variables - KMHELPERS_PATH may be set from environment
+# If not set in environment, it will be initialized to default in init_kmhelpers_path()
+: "${KMHELPERS_PATH:=}"
+VENV_DIR=""
+INSTALL_PATH=""
 SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+
+# ============================================================================
+# INITIALIZATION & CONFIGURATION
+# ============================================================================
+
+# Initialize paths and parse command-line arguments
+function init_kmhelpers_path()
+{
+    # Parse -w/--workdir from command line
+    local workdir_override=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -w|--workdir)
+                workdir_override="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    # Set KMHELPERS_PATH from environment variable or use default
+    if [[ -z "${KMHELPERS_PATH}" ]]; then
+        KMHELPERS_PATH="${HOME}/.kmhelpers"
+    fi
+
+    # Override with command-line argument if provided
+    if [[ -n "$workdir_override" ]]; then
+        KMHELPERS_PATH="$workdir_override"
+    fi
+
+    # Set derived paths
+    VENV_DIR="$KMHELPERS_PATH/env"
+    INSTALL_PATH="$KMHELPERS_PATH/kmhelpersctl.sh"
+}
 
 # ============================================================================
 # UTILITY FUNCTIONS
@@ -1063,7 +1102,10 @@ function help()
 kmhelpersctl v${CTL_VERSION} - Bash utility functions for k-mer index management
 
 USAGE:
-    kmhelpersctl [COMMAND] [OPTIONS]
+    kmhelpersctl [GLOBAL_OPTIONS] [COMMAND] [OPTIONS]
+
+GLOBAL OPTIONS:
+    -w, --workdir <PATH>       Override KMHELPERS_PATH environment variable
 
 COMMANDS:
     register <registry> <name> <path>      Register a single index
@@ -1364,16 +1406,25 @@ function install_shell()
     log_info "Copied script to: $INSTALL_PATH"
 
     local alias_line="alias kmhelpersctl=\"${INSTALL_PATH}\"  # kmhelpers"
+    local env_line="export KMHELPERS_PATH=\"${KMHELPERS_PATH}\"  # kmhelpers work directory"
     local installed=false
+
+    # Create environment variable line if KMHELPERS_PATH is not the default
+    local default_path="${HOME}/.kmhelpers"
 
     # Install for bash
     if [[ -f "$HOME/.bashrc" ]]; then
         # Add alias if not already present
         if ! grep -qF "alias kmhelpersctl=" "$HOME/.bashrc"; then
             echo "" >> "$HOME/.bashrc"
+            echo "# kmhelpers shell integration" >> "$HOME/.bashrc"
+            echo "$env_line" >> "$HOME/.bashrc"
             echo "$alias_line" >> "$HOME/.bashrc"
             log_info "============================================================="
             log_info "Added command kmhelpersctl to ~/.bashrc"
+            if [[ -n "$env_line" ]]; then
+                log_info "Added KMHELPERS_PATH environment variable: ${KMHELPERS_PATH}"
+            fi
             log_info "To start using kmhelpersctl in your current bash session, run:"
             log_info ""
             log_info "source ~/.bashrc"
@@ -1392,9 +1443,14 @@ function install_shell()
         # Add alias if not already present
         if ! grep -qF "alias kmhelpersctl=" "$HOME/.zshrc"; then
             echo "" >> "$HOME/.zshrc"
+            echo "# kmhelpers shell integration" >> "$HOME/.zshrc"
+            echo "$env_line" >> "$HOME/.zshrc"
             echo "$alias_line" >> "$HOME/.zshrc"
             log_info "============================================================="
             log_info "Added command kmhelpersctl to ~/.zshrc"
+            if [[ -n "$env_line" ]]; then
+                log_info "Added KMHELPERS_PATH environment variable: ${KMHELPERS_PATH}"
+            fi
             log_info "To start using kmhelpersctl in your current zsh session, run:"
             log_info ""
             log_info "source ~/.zshrc"
@@ -1502,38 +1558,60 @@ function update()
 # Main interface function
 function kmhelpersctl()
 {
+    # Initialize paths and parse command-line arguments
+    init_kmhelpers_path "$@"
+
+    # Remove -w/--workdir flags from arguments for command processing
+    local args=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -w|--workdir)
+                shift 2
+                ;;
+            *)
+                args+=("$1")
+                shift
+                ;;
+        esac
+    done
+
     # Create ~/.kmhelpers directory
     if ! mkdir -p "$KMHELPERS_PATH"; then
         log_error "Failed to create directory: $KMHELPERS_PATH"
         return 1
     fi
 
-    local command="${1:-}"
+    local command="${args[0]:-}"
+
+    # Shift to remove command from args, leaving only command arguments
+    if [[ ${#args[@]} -gt 0 ]]; then
+        args=("${args[@]:1}")
+    fi
 
     case "${command}" in
         register)
-            register_index "$2" "$3" "$4"
+            register_index "${args[0]}" "${args[1]}" "${args[2]}"
             ;;
         register-all)
-            register_all_indices "$2" "$3"
+            register_all_indices "${args[0]}" "${args[1]}"
             ;;
         list)
-            list_indices "$2"
+            list_indices "${args[0]}"
             ;;
         search)
-            search_indices "$2" "$3" "${@:4}"
+            search_indices "${args[0]}" "${args[1]}" "${args[@]:2}"
             ;;
         stats)
-            get_registry_stats "$2"
+            get_registry_stats "${args[0]}"
             ;;
         size)
-            get_index_size "$2"
+            get_index_size "${args[0]}"
             ;;
         check)
             check_kmindex
             ;;
         install-kmindex)
-            install_kmindex "${@:2}"
+            install_kmindex "${args[@]}"
             ;;
         install-kmindex-completion)
             install_kmindex_completion
@@ -1542,13 +1620,13 @@ function kmhelpersctl()
             install_shell
             ;;
         install-pykmhelpers)
-            install_python_package "${@:2}"
+            install_python_package "${args[@]}"
             ;;
         activate-venv)
-            activate_venv "${@:2}"
+            activate_venv "${args[@]}"
             ;;
         update-shell)
-            update "${@:2}"
+            update "${args[@]}"
             ;;
         help|-h|--help)
             help
