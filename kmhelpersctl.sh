@@ -9,7 +9,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-CTL_VERSION='0.2'
+CTL_VERSION='0.3'
 PY_VERSION='dev/v0.5.5'
 KMINDEX_VERSION='v0.6.0'
 
@@ -612,7 +612,7 @@ function clone_kmindex_repo()
 function install_kmindex()
 {
     local method="${1:-conda}"
-    local env_or_path="${2:-.}"
+    local env_or_path="${2:-}"
     shift 2
 
     case "${method}" in
@@ -640,117 +640,49 @@ function install_kmindex()
             echo "  cd ${target_dir} && kmhelpers install_kmindex source . Release 256 8 0"
             return 0
             ;;
-        *)
-            # Default: Install from sources in kmhelpers venv
-            log_info "Unknown installation method: ${method}, using default (install from sources)"
+        conda-build)
+            # Default: Install from sources in conda environment
+            log_info "Installing kmindex from sources using conda environment"
             log_info ""
-            log_info "Checking kmhelpers venv..."
 
-            # Create kmhelpers venv if it doesn't exist
-            if [[ ! -d "$VENV_DIR" ]]; then
-                log_info "Creating kmhelpers virtual environment at: ${VENV_DIR}"
-                if ! python3 -m venv "${VENV_DIR}"; then
-                    log_error "Failed to create virtual environment"
-                    return 1
-                fi
-            fi
-
-            # Activate venv and install dependencies
-            log_info "Activating virtual environment..."
-            # shellcheck disable=SC1091
-            source "${VENV_DIR}/bin/activate" || return 1
-
-            # Check for required system dependencies
-            log_info "Checking for required system dependencies..."
-
-            local missing_deps=()
-            local version_issues=()
-
-            # Check for gcc/g++ version 12.2.0+
-            if ! command -v gcc &> /dev/null; then
-                missing_deps+=("gcc")
-            else
-                local gcc_version=$(gcc --version | head -1 | grep -oP '\d+\.\d+\.\d+' | head -1)
-                if [[ -n "$gcc_version" ]]; then
-                    if [[ $(printf '%s\n' "12.2.0" "$gcc_version" | sort -V | head -n1) != "12.2.0" ]]; then
-                        version_issues+=("gcc $gcc_version (required: 12.2.0+)")
-                    else
-                        log_info "✓ gcc $gcc_version"
-                    fi
-                fi
-            fi
-
-            if ! command -v g++ &> /dev/null; then
-                missing_deps+=("g++")
-            else
-                local gxx_version=$(g++ --version | head -1 | grep -oP '\d+\.\d+\.\d+' | head -1)
-                if [[ -n "$gxx_version" ]]; then
-                    if [[ $(printf '%s\n' "12.2.0" "$gxx_version" | sort -V | head -n1) != "12.2.0" ]]; then
-                        version_issues+=("g++ $gxx_version (required: 12.2.0+)")
-                    else
-                        log_info "✓ g++ $gxx_version"
-                    fi
-                fi
-            fi
-
-            # Check for cmake version 4.1.4+
-            if ! command -v cmake &> /dev/null; then
-                log_info "cmake not found, installing via pip..."
-                pip install -q 'cmake>=4.1.4' || {
-                    log_error "Failed to install cmake"
-                    return 1
-                }
-                local cmake_version=$(cmake --version | head -1 | grep -oP '\d+\.\d+\.\d+' | head -1)
-                log_info "✓ cmake $cmake_version installed"
-            else
-                local cmake_version=$(cmake --version | head -1 | grep -oP '\d+\.\d+\.\d+' | head -1)
-                if [[ -n "$cmake_version" ]]; then
-                    if [[ $(printf '%s\n' "4.1.4" "$cmake_version" | sort -V | head -n1) != "4.1.4" ]]; then
-                        log_warn "cmake $cmake_version found (required: 4.1.4+), upgrading..."
-                        pip install -q --upgrade 'cmake>=4.1.4' || {
-                            log_error "Failed to upgrade cmake"
-                            return 1
-                        }
-                        cmake_version=$(cmake --version | head -1 | grep -oP '\d+\.\d+\.\d+' | head -1)
-                    fi
-                    log_info "✓ cmake $cmake_version"
-                fi
-            fi
-
-            # Report missing system dependencies
-            if [[ ${#missing_deps[@]} -gt 0 ]]; then
-                log_error "Missing required system dependencies: ${missing_deps[*]}"
-                log_error ""
-                log_error "Please install the required build tools:"
-                log_error ""
-                if command -v apt-get &> /dev/null; then
-                    log_error "  Ubuntu/Debian:"
-                    log_error "    sudo apt-get update"
-                    log_error "    sudo apt-get install -y build-essential"
-                elif command -v yum &> /dev/null; then
-                    log_error "  CentOS/RHEL:"
-                    log_error "    sudo yum groupinstall -y 'Development Tools'"
-                elif command -v brew &> /dev/null; then
-                    log_error "  macOS:"
-                    log_error "    brew install gcc"
-                else
-                    log_error "  Please install gcc and g++ using your system's package manager"
-                fi
-                log_error ""
+            # Check if conda is available
+            if ! command -v conda &> /dev/null; then
+                log_error "conda not found. Please install Miniconda or Anaconda first."
+                log_error "Visit: https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html"
                 return 1
             fi
 
-            # Report version issues
-            if [[ ${#version_issues[@]} -gt 0 ]]; then
-                log_error "System dependencies have incorrect versions:"
-                for issue in "${version_issues[@]}"; do
-                    log_error "  - $issue"
-                done
-                log_error ""
-                log_error "Please upgrade gcc/g++ to version 12.2.0 or higher"
-                log_error ""
+            # Create conda environment
+            local conda_env_path="${KMHELPERS_PATH}/kmindex_env"
+            log_info "Creating conda environment at: ${conda_env_path}"
+
+            if [[ ! -d "$conda_env_path" ]]; then
+                if ! conda create -y -p "${conda_env_path}" python=3.11; then
+                    log_error "Failed to create conda environment"
+                    return 1
+                fi
+            else
+                log_info "Using existing conda environment: ${conda_env_path}"
+            fi
+
+            # Install required tools in conda environment
+            log_info "Installing build tools in conda environment..."
+            log_info "  - cmake==3.27"
+            log_info "  - gcc==12.2.0 (with g++)"
+            log_info "  - git==2.48"
+            log_info "  - zlib (for external dependencies)"
+
+            if ! conda run -p "${conda_env_path}" conda install -y -c conda-forge \
+                "cmake=3.27" \
+                "gcc=12.2.0" \
+                "gxx=12.2.0" \
+                "git=2.48" \
+                "zlib"; then
+                log_error "Failed to install build tools in conda environment"
                 return 1
             fi
+
+            log_info "✓ Build tools installed successfully"
 
             # Clone kmindex if target directory not provided
             local kmindex_src="${env_or_path:-.}"
@@ -768,10 +700,36 @@ function install_kmindex()
                 log_info "Using existing kmindex source at: ${kmindex_src}"
             fi
 
-            # Build and install kmindex
+            # Build and install kmindex using conda environment
             log_info "Building kmindex from source..."
-            install_kmindex_source "${VENV_DIR}" "${kmindex_src}" Release 256 8 0
-            return $?
+            if ! conda run -p "${conda_env_path}" bash -c "cd ${kmindex_src} && \
+                mkdir -p kmbuild && \
+                cd kmbuild && \
+                cmake .. -DCMAKE_BUILD_TYPE=Release -DWITH_TESTS=OFF -DWITH_SERVER=OFF \
+                    -DCMAKE_CXX_STANDARD=17 -DPORTABLE_BUILD=OFF \
+                    -DCMAKE_INSTALL_PREFIX='${conda_env_path}' -DMAX_KMER_SIZE=256 && \
+                make -j8 && \
+                make install"; then
+                log_error "Failed to build kmindex"
+                return 1
+            fi
+
+            log_info "============================================================="
+            log_info "✓ kmindex installation completed successfully!"
+            log_info "============================================================="
+            log_info ""
+            log_info "To use kmindex, activate the conda environment:"
+            echo "  conda activate -p ${conda_env_path}"
+            log_info ""
+            log_info "Then kmindex will be available in your PATH:"
+            echo "  kmindex --version"
+            log_info ""
+            return 0
+            ;;
+        *)
+            log_error "Unknown command: ${command}"
+            echo "Run 'kmhelpersctl help' for usage information"
+            return 1
             ;;
     esac
 }
@@ -786,19 +744,7 @@ USAGE:
     kmhelpersctl install-kmindex [METHOD] [TARGET_DIR]
 
 METHODS:
-
-    (default - no method specified)
-        Automatic installation from sources in kmhelpers venv
-        - Creates/uses kmhelpers venv at \$HOME/.kmhelpers/env
-        - Installs build dependencies (cmake)
-        - Clones kmindex (or uses existing source)
-        - Builds and installs kmindex
-
-        Example:
-          kmhelpersctl install-kmindex
-          kmhelpersctl install-kmindex /path/to/existing/kmindex
-
-    conda [ENV_PATH]
+    conda [ENV_PATH] (default) 
         Install kmindex from bioconda
         ENV_PATH: conda environment path (default: \$HOME/.kmhelpers/kmindex_env)
 
@@ -823,9 +769,19 @@ METHODS:
         Clone kmindex repository from GitHub (without building)
         TARGET_DIR: where to clone (default: \$HOME/.kmhelpers/kmindex)
 
+    conda-build
+        Automatic installation from sources using conda environment
+        - Creates conda environment at \$HOME/.kmhelpers/kmindex_env
+        - Installs build tools via conda-forge:
+          * cmake==3.27
+          * gcc==12.2.0 (with g++)
+          * git==2.48
+          * zlib (for external dependencies)
+        - Clones kmindex (or uses existing source)
+        - Builds and installs kmindex into conda environment
+
         Example:
-          kmhelpersctl install-kmindex clone-source
-          kmhelpersctl install-kmindex clone-source ./kmindex_repo
+          kmhelpersctl install-kmindex conda-build
 
 EXAMPLES:
 
@@ -1415,7 +1371,7 @@ function install_shell()
     # Install for bash
     if [[ -f "$HOME/.bashrc" ]]; then
         # Add alias if not already present
-        if ! grep -qF "alias kmhelpersctl=" "$HOME/.bashrc"; then
+        if ! grep -qF "$env_line" "$HOME/.bashrc"; then
             echo "" >> "$HOME/.bashrc"
             echo "# kmhelpers shell integration" >> "$HOME/.bashrc"
             echo "$env_line" >> "$HOME/.bashrc"
@@ -1439,7 +1395,7 @@ function install_shell()
     # Install for zsh
     if [[ -f "$HOME/.zshrc" ]]; then
         # Add alias if not already present
-        if ! grep -qF "alias kmhelpersctl=" "$HOME/.zshrc"; then
+        if ! grep -qF "$env_line" "$HOME/.zshrc"; then
             echo "" >> "$HOME/.zshrc"
             echo "# kmhelpers shell integration" >> "$HOME/.zshrc"
             echo "$env_line" >> "$HOME/.zshrc"
@@ -1638,7 +1594,7 @@ function kmhelpersctl()
             ;;
         *)
             log_error "Unknown command: ${command}"
-            echo "Run 'kmhelpers help' for usage information"
+            echo "Run 'kmhelpersctl help' for usage information"
             return 1
             ;;
     esac
