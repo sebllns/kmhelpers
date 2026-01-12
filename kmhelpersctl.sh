@@ -423,9 +423,9 @@ function search_indices()
 # Install kmindex using conda
 function install_kmindex_conda()
 {
-    local env_name="${1:-kmindex_env}"
+    local env_path="${1:-$WORKDIR/kmindex_env}"
 
-    log_info "Installing kmindex via conda in environment: ${env_name}"
+    log_info "Installing kmindex via conda in environment: ${env_path}"
 
     if ! command -v conda &> /dev/null; then
         log_error "conda not found. Install Miniconda or Anaconda first."
@@ -433,22 +433,22 @@ function install_kmindex_conda()
     fi
 
     # Create environment if it doesn't exist
-    if ! conda env list | grep -q "^${env_name} "; then
-        log_info "Creating conda environment: ${env_name}"
-        if ! conda create -y -n "${env_name}"; then
+    if [[ ! -d "$env_path" ]]; then
+        log_info "Creating conda environment at: ${env_path}"
+        if ! conda create -y -p "${env_path}"; then
             log_error "Failed to create conda environment"
             return 1
         fi
     else
-        log_info "Using existing conda environment: ${env_name}"
+        log_info "Using existing conda environment: ${env_path}"
     fi
 
     # Install kmindex from bioconda
     log_info "Installing kmindex from bioconda..."
-    if conda run -n "${env_name}" conda install -y -c bioconda kmindex; then
-        log_info "Successfully installed kmindex in ${env_name}"
+    if conda run -p "${env_path}" conda install -y -c bioconda kmindex; then
+        log_info "Successfully installed kmindex in ${env_path}"
         log_info "To use kmindex, activate the environment:"
-        echo "  conda activate ${env_name}"
+        echo "  conda activate -p ${env_path}"
         return 0
     else
         log_error "Failed to install kmindex"
@@ -759,13 +759,13 @@ METHODS:
           kmhelpersctl install-kmindex
           kmhelpersctl install-kmindex /path/to/existing/kmindex
 
-    conda [ENV_NAME]
+    conda [ENV_PATH]
         Install kmindex from bioconda
-        ENV_NAME: conda environment name (default: kmindex_env)
+        ENV_PATH: conda environment path (default: \$HOME/.kmhelpers/kmindex_env)
 
         Example:
           kmhelpersctl install-kmindex conda
-          kmhelpersctl install-kmindex conda myenv
+          kmhelpersctl install-kmindex conda /custom/path/kmindex_env
 
     source <SOURCE_DIR> [BUILD_TYPE] [MAX_KMER] [THREADS] [TESTS] [PORTABLE]
         Build and install kmindex from source
@@ -793,8 +793,11 @@ EXAMPLES:
     # Quick install (recommended - automatic)
     kmhelpersctl install-kmindex
 
-    # Install from conda
+    # Install from conda (default path: ~/.kmhelpers/kmindex_env)
     kmhelpersctl install-kmindex conda
+
+    # Install from conda (custom path)
+    kmhelpersctl install-kmindex conda /opt/kmindex
 
     # Clone only (then build separately)
     kmhelpersctl install-kmindex clone-source ./kmindex
@@ -1070,7 +1073,7 @@ COMMANDS:
     stats <registry>                       Get registry statistics
     size <index_path>                      Get size of a single index
     check                                  Check if kmindex binary is available
-    install-kmindex [METHOD] [OPTIONS]     Install kmindex (conda/source/clone-source)
+    install-kmindex [METHOD] [PATH]        Install kmindex (automatic/conda/source/clone-source)
     install-kmhelpersctl                          Install kmhelpersctl to shell configuration
     install-pykmhelpers [OPTIONS]          Install kmhelpers python package
                                            Options:
@@ -1091,6 +1094,9 @@ EXAMPLES:
     kmhelpersctl register /path/to/registry my_index /path/to/index
     kmhelpersctl stats /path/to/registry
     kmhelpersctl search /path/to/registry "pattern" --size-filter 100
+    kmhelpersctl install-kmindex                        # Quick automatic installation
+    kmhelpersctl install-kmindex conda                  # Install via conda (default path)
+    kmhelpersctl install-kmindex conda /custom/path     # Install via conda (custom path)
     kmhelpersctl install-pykmhelpers                    # Install in ~/.kmhelpers/env
     kmhelpersctl install-pykmhelpers --inplace          # Install in current environment
     kmhelpersctl install-pykmhelpers -p /custom/path    # Install in custom venv path
