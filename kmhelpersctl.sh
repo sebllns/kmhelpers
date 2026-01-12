@@ -53,8 +53,8 @@ function init_kmhelpers_path()
     fi
 
     # Set derived paths
-    VENV_DIR="$KMHELPERS_PATH/env"
-    INSTALL_PATH="$KMHELPERS_PATH/kmhelpersctl.sh"
+    VENV_DIR="$KMHELPERS_PATH/kmhelpers_env"
+    INSTALL_PATH="$KMHELPERS_PATH/kmhelpersctl"
 }
 
 # ============================================================================
@@ -1405,8 +1405,8 @@ function install_shell()
 
     log_info "Copied script to: $INSTALL_PATH"
 
-    local alias_line="alias kmhelpersctl=\"${INSTALL_PATH}\"  # kmhelpers"
     local env_line="export KMHELPERS_PATH=\"${KMHELPERS_PATH}\"  # kmhelpers work directory"
+    local path_line="export PATH=\"${KMHELPERS_PATH}:\$PATH\"  # Add kmhelpers to PATH"
     local installed=false
 
     # Create environment variable line if KMHELPERS_PATH is not the default
@@ -1419,12 +1419,10 @@ function install_shell()
             echo "" >> "$HOME/.bashrc"
             echo "# kmhelpers shell integration" >> "$HOME/.bashrc"
             echo "$env_line" >> "$HOME/.bashrc"
-            echo "$alias_line" >> "$HOME/.bashrc"
+            echo "$path_line" >> "$HOME/.bashrc"
             log_info "============================================================="
             log_info "Added command kmhelpersctl to ~/.bashrc"
-            if [[ -n "$env_line" ]]; then
-                log_info "Added KMHELPERS_PATH environment variable: ${KMHELPERS_PATH}"
-            fi
+            log_info "Added KMHELPERS_PATH environment variable: ${KMHELPERS_PATH}"
             log_info "To start using kmhelpersctl in your current bash session, run:"
             log_info ""
             log_info "source ~/.bashrc"
@@ -1445,12 +1443,10 @@ function install_shell()
             echo "" >> "$HOME/.zshrc"
             echo "# kmhelpers shell integration" >> "$HOME/.zshrc"
             echo "$env_line" >> "$HOME/.zshrc"
-            echo "$alias_line" >> "$HOME/.zshrc"
+            echo "$path_line" >> "$HOME/.zshrc"
             log_info "============================================================="
             log_info "Added command kmhelpersctl to ~/.zshrc"
-            if [[ -n "$env_line" ]]; then
-                log_info "Added KMHELPERS_PATH environment variable: ${KMHELPERS_PATH}"
-            fi
+            log_info "Added KMHELPERS_PATH environment variable: ${KMHELPERS_PATH}"
             log_info "To start using kmhelpersctl in your current zsh session, run:"
             log_info ""
             log_info "source ~/.zshrc"
