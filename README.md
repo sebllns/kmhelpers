@@ -24,7 +24,7 @@ A Python toolkit for managing, compressing, and querying k-mer indices efficient
 
 ## Installation with kmhelpersctl (Recommended)
 
-kmhelpersctl is a bash utility script that simplifies installation of kmhelpers and its dependencies.
+kmhelpersctl is a bash utility script that simplifies installation of kmhelpers and kmindex.
 
 ```bash
 # 1. Clone the repository and navigate to it
@@ -38,21 +38,13 @@ cd kmhelpers
 source ~/.bashrc  # or source ~/.zshrc for zsh
 
 # 4. Install kmindex (choose one method)
-kmhelpersctl install-kmindex                    # Automatic (recommended)
-# OR
-kmhelpersctl install-kmindex conda              # Via bioconda
-# OR
-kmhelpersctl install-kmindex conda-build        # Build from source with conda environment
+kmhelpersctl install-kmindex conda              # Via bioconda (recommended)
 
 # 5. Install kmhelpers Python package
-kmhelpersctl install-pykmhelpers                # Install to ~/.kmhelpers/env (default)
-# OR
-kmhelpersctl install-pykmhelpers --inplace      # Install in current Python environment
+kmhelpersctl install-pykmhelpers                # Install to ~/.kmhelpers/kmhelpers_env (default)
 
 # 6. Activate the kmhelpers virtual environment
-kmhelpers-activate                              # Quick activation (if using default venv)
-# OR manually
-source ~/.kmhelpers/env/bin/activate            # For custom paths
+source ~/.kmhelpers/kmhelpers_env/bin/activate            
 ```
 
 For more installation options and detailed help:
