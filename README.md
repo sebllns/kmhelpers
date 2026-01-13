@@ -26,32 +26,95 @@ A Python toolkit for managing, compressing, and querying k-mer indices efficient
 
 kmhelpersctl is a bash utility script that simplifies installation of kmhelpers and kmindex.
 
+### 1. Clone the repository and navigate to it
+
 ```bash
-# 1. Clone the repository and navigate to it
 git clone https://gitlab.inria.fr/omicfinder/kmhelpers
+git checkout dev/v0.5.5
 cd kmhelpers
-
-# 2. Install kmhelpersctl to your shell
-./kmhelpersctl.sh install-kmhelpersctl
-
-# 3. Activate your shell configuration
-source ~/.bashrc  # or source ~/.zshrc for zsh
-
-# 4. Install kmindex (choose one method)
-kmhelpersctl install-kmindex conda              # Via bioconda (recommended)
-
-# 5. Install kmhelpers Python package
-kmhelpersctl install-pykmhelpers                # Install to ~/.kmhelpers/kmhelpers_env (default)
-
-# 6. Activate the kmhelpers virtual environment
-source ~/.kmhelpers/kmhelpers_env/bin/activate            
 ```
 
-For more installation options and detailed help:
+### 2.1 Quick Installation (Recommended)
+
+The easiest way to install kmhelpers and all dependencies in one go:
+
 ```bash
-kmhelpersctl help
-kmhelpersctl install-kmindex help
+./kmhelpersctl.sh quick-install
 ```
+
+This will automatically:
+- Install kmindex from bioconda
+- Install kmhelpers Python package
+- Set up shell completions for both tools
+- Create activation aliases for convenient use
+- Add tools to your PATH
+
+**Prerequisites:** Conda (Miniconda or Anaconda) must be installed. If you don't have it, see [Installation Instructions](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
+
+### 2.2 Custom Installation Path
+
+By default, kmhelpers installs to `~/.kmhelpers`. To use a different path:
+
+```bash
+./kmhelpersctl.sh -w /custom/path quick-install
+```
+
+After installation, you can also select path with any command:
+```bash
+kmhelpersctl -w /custom/path <command>
+```
+
+### 2.3 Install Components Separately
+
+If you prefer to install components individually:
+
+```bash
+# Install only kmindex from bioconda
+./kmhelpersctl.sh install-kmindex
+
+# Install only the kmhelpers Python package
+./kmhelpersctl.sh install-pykmhelpers
+
+# Install zsh completions
+./kmhelpersctl.sh install-kmindex-completion
+./kmhelpersctl.sh install-kmhelpersctl-completion
+```
+
+### 2.4 Getting Help
+
+For detailed information on any command:
+
+```bash
+# Show all available commands (quick summary)
+kmhelpersctl help
+
+# Show detailed help for any command - use "help", "-h", or "--help"
+kmhelpersctl register help
+kmhelpersctl list help
+kmhelpersctl search -h
+kmhelpersctl stats --help
+kmhelpersctl size help
+kmhelpersctl check help
+
+# Installation commands
+kmhelpersctl quick-install help
+kmhelpersctl install-kmindex help
+kmhelpersctl install-pykmhelpers --help
+kmhelpersctl install-kmhelpersctl help
+kmhelpersctl install-kmindex-completion help
+kmhelpersctl install-kmhelpersctl-completion help
+
+# Utility commands
+kmhelpersctl activate-venv help
+kmhelpersctl update-shell help
+```
+
+Each command displays:
+- Usage syntax
+- Available options and arguments
+- Description of what the command does
+- Practical examples
+- Links to more information
 
 ## Manual Installation
 
