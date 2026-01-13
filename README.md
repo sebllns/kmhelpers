@@ -22,17 +22,46 @@ A Python toolkit for managing, compressing, and querying k-mer indices efficient
 - 🔍 **Query system** with FASTA/FASTQ support
 - 📈 **Compression metrics** with histograms and performance tracking
 
-## Installation
+## Installation with kmhelpersctl (Recommended)
 
-### Prerequisites
+kmhelpersctl is a bash utility script that simplifies installation of kmhelpers and its dependencies.
 
-You need the following external binaries:
-- For index building and query:
-    - `kmindex >= 0.5.3`: Core indexing tool
-- For index compression:
-    - `block_compressor`: Matrix compression tool
-    - `block_decompressor`: Decompression tool
-    - `bitmatrix_shuffle`: Column reordering algorithm
+```bash
+# 1. Clone the repository and navigate to it
+git clone https://gitlab.inria.fr/omicfinder/kmhelpers
+cd kmhelpers
+
+# 2. Install kmhelpersctl to your shell
+./kmhelpersctl.sh install-kmhelpersctl
+
+# 3. Activate your shell configuration
+source ~/.bashrc  # or source ~/.zshrc for zsh
+
+# 4. Install kmindex (choose one method)
+kmhelpersctl install-kmindex                    # Automatic (recommended)
+# OR
+kmhelpersctl install-kmindex conda              # Via bioconda
+# OR
+kmhelpersctl install-kmindex conda-build        # Build from source with conda environment
+
+# 5. Install kmhelpers Python package
+kmhelpersctl install-pykmhelpers                # Install to ~/.kmhelpers/env (default)
+# OR
+kmhelpersctl install-pykmhelpers --inplace      # Install in current Python environment
+
+# 6. Activate the kmhelpers virtual environment
+kmhelpers-activate                              # Quick activation (if using default venv)
+# OR manually
+source ~/.kmhelpers/env/bin/activate            # For custom paths
+```
+
+For more installation options and detailed help:
+```bash
+kmhelpersctl help
+kmhelpersctl install-kmindex help
+```
+
+## Manual Installation
 
 ### Get the sources
 

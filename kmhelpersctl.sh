@@ -9,8 +9,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-CTL_VERSION='0.3'
-PY_VERSION='dev/v0.5.5'
+CTL_VERSION='0.3.1'
+KMHELPERS_VERSION='dev/v0.5.5'
 KMINDEX_VERSION='v0.6.0'
 
 # Initialize global variables - KMHELPERS_PATH may be set from environment
@@ -746,7 +746,7 @@ USAGE:
 METHODS:
     conda [ENV_PATH] (default) 
         Install kmindex from bioconda
-        ENV_PATH: conda environment path (default: \$HOME/.kmhelpers/kmindex_env)
+        ENV_PATH: conda environment path (default: ${KMHELPERS_PATH}/kmindex_env)
 
         Example:
           kmhelpersctl install-kmindex conda
@@ -767,11 +767,11 @@ METHODS:
 
     clone-source [TARGET_DIR]
         Clone kmindex repository from GitHub (without building)
-        TARGET_DIR: where to clone (default: \$HOME/.kmhelpers/kmindex)
+        TARGET_DIR: where to clone (default: ${KMHELPERS_PATH}/kmindex)
 
     conda-build
         Automatic installation from sources using conda environment
-        - Creates conda environment at \$HOME/.kmhelpers/kmindex_env
+        - Creates conda environment at ${KMHELPERS_PATH}/kmindex_env
         - Installs build tools via conda-forge:
           * cmake==3.27
           * gcc==12.2.0 (with g++)
@@ -788,7 +788,7 @@ EXAMPLES:
     # Quick install (recommended - automatic)
     kmhelpersctl install-kmindex
 
-    # Install from conda (default path: ~/.kmhelpers/kmindex_env)
+    # Install from conda (default path: ${KMHELPERS_PATH}/kmindex_env)
     kmhelpersctl install-kmindex conda
 
     # Install from conda (custom path)
@@ -1072,19 +1072,20 @@ COMMANDS:
     size <index_path>                      Get size of a single index
     check                                  Check if kmindex binary is available
     install-kmindex [METHOD] [PATH]        Install kmindex (automatic/conda/source/clone-source)
-    install-kmhelpersctl                          Install kmhelpersctl to shell configuration
+    install-kmhelpersctl                   Install kmhelpersctl to shell configuration
     install-pykmhelpers [OPTIONS]          Install kmhelpers python package
                                            Options:
                                              --inplace         Install in current Python environment
-                                             -p, --path        Custom path for virtual environment (default: ~/.kmhelpers/env)
-                                             -v, --version     kmhelpers version/branch to install (default: dev/v0.5.5)
+                                             -p, --path        Custom path for virtual environment (default: ${VENV_DIR})
+                                             -v, --version     kmhelpers version/branch to install (default: ${KMHELPERS_VERSION})
                                              --no-alias        Skip creating activation alias
-    activate-venv [OPTIONS]                Activate kmhelpers virtual environment
+    install_kmindex_completion             Install kmindex completion in zsh
+    activate-venv [OPTIONS]                Print instruction to activate kmhelpers virtual environment
                                            Options:
-                                             -p, --path   Path to virtual environment (default: ~/.kmhelpers/env)
+                                             -p, --path   Path to virtual environment (default: ${VENV_DIR})
     update-shell [OPTIONS]                 Update kmhelpersctl from GitLab
                                            Options:
-                                             -v, --version Version/branch to update to (default: dev/v0.5.5)
+                                             -v, --version Version/branch to update to (default: ${KMHELPERS_VERSION})
     help                                   Show this help message
     version                                Show version information
 
@@ -1173,7 +1174,7 @@ function install_python_package()
 {
     # Parse command-line options
     local use_inplace=false
-    local version="${PY_VERSION}"
+    local version="${KMHELPERS_VERSION}"
     local no_alias=false
 
     while [[ $# -gt 0 ]]; do
@@ -1431,7 +1432,7 @@ function install_shell()
 function update()
 {
     # Parse command-line options
-    local version="${PY_VERSION}"
+    local version="${KMHELPERS_VERSION}"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
