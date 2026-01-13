@@ -9,7 +9,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-CTL_VERSION='0.4.1'
+CTL_VERSION='0.6.0'
 KMHELPERS_VERSION='dev/v0.5.5'
 KMINDEX_VERSION='v0.6.0'
 
@@ -891,16 +891,16 @@ function install_kmindex_help()
 kmindex Installation Options
 
 USAGE:
-    kmhelpersctl install-kmindex [METHOD] [TARGET_DIR]
+    kmhelpersctl install kmindex [METHOD] [TARGET_DIR]
 
 METHODS:
-    conda [ENV_PATH] (default) 
+    conda [ENV_PATH] (default)
         Install kmindex from bioconda
         ENV_PATH: conda environment path (default: ${KMHELPERS_PATH}/kmindex_env)
 
         Example:
-          kmhelpersctl install-kmindex conda
-          kmhelpersctl install-kmindex conda /custom/path/kmindex_env
+          kmhelpersctl install kmindex conda
+          kmhelpersctl install kmindex conda /custom/path/kmindex_env
 
     source <SOURCE_DIR> [BUILD_TYPE] [MAX_KMER] [THREADS] [TESTS] [PORTABLE]
         Build and install kmindex from source
@@ -912,8 +912,8 @@ METHODS:
         PORTABLE: ON or OFF for portable x86-64 build (default: OFF)
 
         Example:
-          kmhelpersctl install-kmindex source /path/to/kmindex
-          kmhelpersctl install-kmindex source /path/to/kmindex Release 256 8 2
+          kmhelpersctl install kmindex source /path/to/kmindex
+          kmhelpersctl install kmindex source /path/to/kmindex Release 256 8 2
 
     clone-source [TARGET_DIR]
         Clone kmindex repository from GitHub (without building)
@@ -931,25 +931,25 @@ METHODS:
         - Builds and installs kmindex into conda environment
 
         Example:
-          kmhelpersctl install-kmindex conda-build
+          kmhelpersctl install kmindex conda-build
 
 EXAMPLES:
 
     # Quick install (recommended - automatic)
-    kmhelpersctl install-kmindex
+    kmhelpersctl install kmindex
 
     # Install from conda (default path: ${KMHELPERS_PATH}/kmindex_env)
-    kmhelpersctl install-kmindex conda
+    kmhelpersctl install kmindex conda
 
     # Install from conda (custom path)
-    kmhelpersctl install-kmindex conda /opt/kmindex
+    kmhelpersctl install kmindex conda /opt/kmindex
 
     # Clone only (then build separately)
-    kmhelpersctl install-kmindex clone-source ./kmindex
-    kmhelpersctl install-kmindex source ./kmindex Release 256 8 2
+    kmhelpersctl install kmindex clone-source ./kmindex
+    kmhelpersctl install kmindex source ./kmindex Release 256 8 2
 
     # Build existing kmindex source directory
-    kmhelpersctl install-kmindex source ~/src/kmindex Release
+    kmhelpersctl install kmindex source ~/src/kmindex Release
 
 For more information, visit: https://github.com/tlemane/kmindex
 EOF
@@ -962,7 +962,7 @@ function install_pykmhelpers_help()
 kmhelpers Python Package Installation Options
 
 USAGE:
-    kmhelpersctl install-pykmhelpers [OPTIONS]
+    kmhelpersctl install python [OPTIONS]
 
 OPTIONS:
     --inplace
@@ -970,28 +970,28 @@ OPTIONS:
         Useful if you already have a virtual environment activated
 
         Example:
-          kmhelpersctl install-pykmhelpers --inplace
+          kmhelpersctl install python --inplace
 
     -p, --path <PATH>
         Custom path for virtual environment (default: ${ENV_DIR})
 
         Example:
-          kmhelpersctl install-pykmhelpers -p /custom/path/kmhelpers_env
-          kmhelpersctl install-pykmhelpers --path /opt/kmhelpers
+          kmhelpersctl install python -p /custom/path/kmhelpers_env
+          kmhelpersctl install python --path /opt/kmhelpers
 
     -v, --version <VERSION>
         kmhelpers version/branch to install (default: ${KMHELPERS_VERSION})
         Can be a version tag (e.g., v0.5.5), branch name (e.g., main, dev/v0.5.5)
 
         Example:
-          kmhelpersctl install-pykmhelpers -v main
-          kmhelpersctl install-pykmhelpers --version v0.5.5
+          kmhelpersctl install python -v main
+          kmhelpersctl install python --version v0.5.5
 
     --no-alias
         Skip creating the kmhelpers-activate activation alias
 
         Example:
-          kmhelpersctl install-pykmhelpers --no-alias
+          kmhelpersctl install python --no-alias
 
     -h, --help
         Show this help message
@@ -999,22 +999,22 @@ OPTIONS:
 EXAMPLES:
 
     # Install in default virtual environment (~/.kmhelpers/kmhelpers_env)
-    kmhelpersctl install-pykmhelpers
+    kmhelpersctl install python
 
     # Install in custom location
-    kmhelpersctl install-pykmhelpers -p /opt/kmhelpers
+    kmhelpersctl install python -p /opt/kmhelpers
 
     # Install in current environment (e.g., already activated conda env)
-    kmhelpersctl install-pykmhelpers --inplace
+    kmhelpersctl install python --inplace
 
     # Install specific version/branch
-    kmhelpersctl install-pykmhelpers -v main
+    kmhelpersctl install python -v main
 
     # Install specific version in custom path
-    kmhelpersctl install-pykmhelpers -v main -p /custom/path
+    kmhelpersctl install python -v main -p /custom/path
 
     # Install without creating activation alias
-    kmhelpersctl install-pykmhelpers --no-alias
+    kmhelpersctl install python --no-alias
 
 AFTER INSTALLATION:
 
@@ -1056,7 +1056,7 @@ function quick_install_help()
 Quick Installation of kmindex and kmhelpers
 
 USAGE:
-    kmhelpersctl quick-install
+    kmhelpersctl install all
 
 DESCRIPTION:
     One-command installation that sets up everything needed:
@@ -1074,11 +1074,11 @@ PREREQUISITES:
       See: https://docs.conda.io/projects/conda/en/latest/user-guide/install/
 
 CUSTOM PATH:
-    kmhelpersctl -w /custom/path quick-install
+    kmhelpersctl -w /custom/path install all
 
 EXAMPLES:
-    kmhelpersctl quick-install
-    kmhelpersctl -w /opt/kmhelpers quick-install
+    kmhelpersctl install all
+    kmhelpersctl -w /opt/kmhelpers install all
 
 For more information, visit: https://gitlab.inria.fr/omicfinder/kmhelpers
 EOF
@@ -1090,7 +1090,7 @@ function install_kmhelpersctl_help()
 Install kmhelpersctl to Shell Configuration
 
 USAGE:
-    kmhelpersctl install-script
+    kmhelpersctl install shell
 
 DESCRIPTION:
     Configure your shell to automatically load kmhelpersctl functions and
@@ -1098,7 +1098,7 @@ DESCRIPTION:
     to your .bashrc or .zshrc file.
 
 EXAMPLES:
-    kmhelpersctl install-script
+    kmhelpersctl install shell
 
 For more information, visit: https://gitlab.inria.fr/omicfinder/kmhelpers
 EOF
@@ -1110,7 +1110,7 @@ function install_kmindex_completion_help()
 Install kmindex Zsh Completion
 
 USAGE:
-    kmhelpersctl install-kmindex-completion
+    kmhelpersctl completion kmindex
 
 DESCRIPTION:
     Install zsh completion support for the kmindex command. This enables
@@ -1120,7 +1120,7 @@ Completions are installed to ~/.zsh/completions/ and automatically configured
 in your .zshrc file.
 
 EXAMPLES:
-    kmhelpersctl install-kmindex-completion
+    kmhelpersctl completion kmindex
 
 For more information, visit: https://gitlab.inria.fr/omicfinder/kmhelpers
 EOF
@@ -1132,7 +1132,7 @@ function install_kmhelpersctl_completion_help()
 Install kmhelpersctl Zsh Completion
 
 USAGE:
-    kmhelpersctl install-kmhelpersctl-completion
+    kmhelpersctl completion kmhelpersctl
 
 DESCRIPTION:
     Install zsh completion support for the kmhelpersctl command. This enables
@@ -1142,7 +1142,7 @@ Completions are installed to ~/.zsh/completions/ and automatically configured
 in your .zshrc file.
 
 EXAMPLES:
-    kmhelpersctl install-kmhelpersctl-completion
+    kmhelpersctl completion kmhelpersctl
 
 For more information, visit: https://gitlab.inria.fr/omicfinder/kmhelpers
 EOF
@@ -1484,32 +1484,82 @@ _kmhelpersctl_size() {
         '1:index_path:_files -/'
 }
 
+_kmhelpersctl_install() {
+    local curcontext="$curcontext" state line
+
+    _arguments -C \
+        '1:subcommand:->subcommand' \
+        '*::args:->args'
+
+    case $state in
+        subcommand)
+            local subcommands=(
+                'all:Quick installation of kmindex and kmhelpers'
+                'kmindex:Install kmindex'
+                'python:Install kmhelpers Python package'
+                'shell:Install kmhelpersctl to shell configuration'
+                'help:Show help for install command'
+            )
+            _describe 'install subcommand' subcommands
+            ;;
+        args)
+            case $line[1] in
+                kmindex)  _kmhelpersctl_install_kmindex ;;
+                python)   _kmhelpersctl_install_python ;;
+            esac
+            ;;
+    esac
+}
+
 _kmhelpersctl_install_kmindex() {
     _arguments \
-        '1:method:(conda source clone-source conda-build)' \
+        '1:method:(conda source clone-source conda-build help)' \
         '2:path:_files -/'
 }
 
-_kmhelpersctl_install_pykmhelpers() {
+_kmhelpersctl_install_python() {
     _arguments \
         '--inplace[Install in current Python environment]' \
         '-p[Custom path for virtual environment]:path:_files -/' \
         '--path[Custom path for virtual environment]:path:_files -/' \
         '-v[kmhelpers version/branch to install]:version:' \
         '--version[kmhelpers version/branch to install]:version:' \
-        '--no-alias[Skip creating activation alias]'
+        '--no-alias[Skip creating activation alias]' \
+        '-h[Show help message]' \
+        '--help[Show help message]'
+}
+
+_kmhelpersctl_completion() {
+    local curcontext="$curcontext" state line
+
+    _arguments -C \
+        '1:subcommand:->subcommand' \
+        '*::args:->args'
+
+    case $state in
+        subcommand)
+            local subcommands=(
+                'kmindex:Install kmindex zsh completion'
+                'kmhelpersctl:Install kmhelpersctl zsh completion'
+                'help:Show help for completion command'
+            )
+            _describe 'completion subcommand' subcommands
+            ;;
+    esac
 }
 
 _kmhelpersctl_activate_venv() {
     _arguments \
         '-p[Path to virtual environment]:path:_files -/' \
-        '--path[Path to virtual environment]:path:_files -/'
+        '--path[Path to virtual environment]:path:_files -/' \
+        '(- *)'{-h,--help,help}'[Show help message]'
 }
 
 _kmhelpersctl_update_shell() {
     _arguments \
         '-v[Version/branch to update to]:version:' \
-        '--version[Version/branch to update to]:version:'
+        '--version[Version/branch to update to]:version:' \
+        '(- *)'{-h,--help,help}'[Show help message]'
 }
 
 _kmhelpersctl() {
@@ -1531,11 +1581,8 @@ _kmhelpersctl() {
                 'stats:Get registry statistics'
                 'size:Get size of a single index'
                 'check:Check if kmindex binary is available'
-                'quick-install:Quick installation of kmindex and kmhelpers'
-                'install-kmindex:Install kmindex'
-                'install-kmhelpersctl:Install kmhelpersctl to shell configuration'
-                'install-pykmhelpers:Install kmhelpers python package'
-                'install_kmindex_completion:Install kmindex completion in zsh'
+                'install:Install components'
+                'completion:Install shell completions'
                 'activate-venv:Print instruction to activate kmhelpers virtual environment'
                 'update-shell:Update kmhelpersctl from GitLab'
                 'help:Show help message'
@@ -1551,8 +1598,8 @@ _kmhelpersctl() {
                 search)                _kmhelpersctl_search ;;
                 stats)                 _kmhelpersctl_stats ;;
                 size)                  _kmhelpersctl_size ;;
-                install-kmindex)       _kmhelpersctl_install_kmindex ;;
-                install-pykmhelpers)   _kmhelpersctl_install_pykmhelpers ;;
+                install)               _kmhelpersctl_install ;;
+                completion)            _kmhelpersctl_completion ;;
                 activate-venv)         _kmhelpersctl_activate_venv ;;
                 update-shell)          _kmhelpersctl_update_shell ;;
             esac
@@ -1601,12 +1648,15 @@ COMMANDS:
     size <index_path>                      Get size of a single index
 
     # Installation & Setup
-    quick-install                          Quick installation of kmindex and kmhelpers
-    install-kmindex                        Install kmindex
-    install-pykmhelpers                    Install kmhelpers python package
-    install-script                         Install kmhelpersctl script to shell
-    install-kmindex-completion             Install kmindex zsh completion
-    install-kmhelpersctl-completion        Install kmhelpersctl zsh completion
+    install <subcommand>                   Install components (use 'install help')
+        all                                Quick installation of kmindex and kmhelpers
+        kmindex                            Install kmindex binary
+        python                             Install kmhelpers Python package
+        shell                              Install kmhelpersctl to shell
+
+    completion <subcommand>                Install shell completions (use 'completion help')
+        kmindex                            Install kmindex zsh completion
+        kmhelpersctl                       Install kmhelpersctl zsh completion
 
     # Utilities
     check                                  Check if kmindex binary is available
@@ -1823,7 +1873,7 @@ function activate_venv()
     # Check if venv exists
     if [[ ! -d "$ENV_DIR" ]]; then
         log_error "Virtual environment not found at: ${ENV_DIR}"
-        log_info "Did you run 'kmhelpersctl install-pykmhelpers'?"
+        log_info "Did you run 'kmhelpersctl install python'?"
         return 1
     fi
 
@@ -2004,6 +2054,130 @@ function update()
     fi
 }
 
+# ============================================================================
+# NESTED COMMAND HANDLERS
+# ============================================================================
+
+# Handle install subcommands: install all|kmindex|python|shell
+function handle_install_subcommand()
+{
+    local subcommand="${1:-}"
+    shift || true
+    local args=("$@")
+
+    case "$subcommand" in
+        all)
+            if [[ "${args[0]}" =~ ^(-h|--help|help)$ ]]; then
+                quick_install_help
+            else
+                quick_install "${args[@]}"
+            fi
+            ;;
+        kmindex)
+            if [[ "${args[0]}" =~ ^(-h|--help|help)$ ]]; then
+                install_kmindex_help
+            else
+                install_kmindex "${args[@]}"
+            fi
+            ;;
+        python)
+            if [[ "${args[0]}" =~ ^(-h|--help|help)$ ]]; then
+                install_pykmhelpers_help
+            else
+                install_python_package "${args[@]}"
+            fi
+            ;;
+        shell)
+            if [[ "${args[0]}" =~ ^(-h|--help|help)$ ]]; then
+                install_kmhelpersctl_help
+            else
+                install_shell "${args[@]}"
+            fi
+            ;;
+        ""|help|-h|--help)
+            install_help
+            ;;
+        *)
+            log_error "Unknown install subcommand: ${subcommand}"
+            echo "Run 'kmhelpersctl install help' for available subcommands"
+            return 1
+            ;;
+    esac
+}
+
+# Handle completion subcommands: completion kmindex|kmhelpersctl
+function handle_completion_subcommand()
+{
+    local subcommand="${1:-}"
+    shift || true
+    local args=("$@")
+
+    case "$subcommand" in
+        kmindex)
+            if [[ "${args[0]}" =~ ^(-h|--help|help)$ ]]; then
+                install_kmindex_completion_help
+            else
+                install_kmindex_completion
+            fi
+            ;;
+        kmhelpersctl)
+            if [[ "${args[0]}" =~ ^(-h|--help|help)$ ]]; then
+                install_kmhelpersctl_completion_help
+            else
+                install_kmhelpersctl_completion
+            fi
+            ;;
+        ""|help|-h|--help)
+            completion_help
+            ;;
+        *)
+            log_error "Unknown completion subcommand: ${subcommand}"
+            echo "Run 'kmhelpersctl completion help' for available subcommands"
+            return 1
+            ;;
+    esac
+}
+
+# Print install command overview
+function install_help()
+{
+    cat <<'EOF'
+Install Components
+
+USAGE:
+    kmhelpersctl install <SUBCOMMAND>
+
+SUBCOMMANDS:
+    all         Quick installation of kmindex and kmhelpers (recommended)
+    kmindex     Install kmindex binary
+    python      Install kmhelpers Python package
+    shell       Install kmhelpersctl to shell configuration
+
+Use "kmhelpersctl install <SUBCOMMAND> help" for detailed help on each subcommand
+
+For more information, visit: https://gitlab.inria.fr/omicfinder/kmhelpers
+EOF
+}
+
+# Print completion command overview
+function completion_help()
+{
+    cat <<'EOF'
+Install Shell Completions
+
+USAGE:
+    kmhelpersctl completion <SUBCOMMAND>
+
+SUBCOMMANDS:
+    kmindex        Install zsh completion for kmindex
+    kmhelpersctl   Install zsh completion for kmhelpersctl
+
+Use "kmhelpersctl completion <SUBCOMMAND> help" for detailed help on each subcommand
+
+For more information, visit: https://gitlab.inria.fr/omicfinder/kmhelpers
+EOF
+}
+
 function quick_install()
 {
     log_info "=========================================================="
@@ -2024,7 +2198,7 @@ function quick_install()
 
     # Install kmhelpers Python package using conda run
     log_info "Installing kmhelpers Python package..."
-    if ! conda run -p ${ENV_DIR} kmhelpersctl install-pykmhelpers --inplace; then
+    if ! conda run -p ${ENV_DIR} kmhelpersctl install python --inplace; then
         log_error "Failed to install kmhelpers Python package"
         return 1
     fi
@@ -2165,49 +2339,11 @@ function kmhelpersctl()
                 check_kmindex
             fi
             ;;
-        quick-install)
-            if [[ "${args[0]}" == "help" || "${args[0]}" == "-h" || "${args[0]}" == "--help" ]]; then
-                quick_install_help
-            else
-                quick_install
-            fi
+        install)
+            handle_install_subcommand "${args[@]}"
             ;;
-        install-kmindex)
-            # Check if first argument is "help"
-            if [[ "${args[0]}" == "help" ]]; then
-                install_kmindex_help
-            else
-                install_kmindex "${args[@]}"
-            fi
-            ;;
-        install-kmindex-completion)
-            if [[ "${args[0]}" == "help" || "${args[0]}" == "-h" || "${args[0]}" == "--help" ]]; then
-                install_kmindex_completion_help
-            else
-                install_kmindex_completion
-            fi
-            ;;
-        install-kmhelpersctl-completion)
-            if [[ "${args[0]}" == "help" || "${args[0]}" == "-h" || "${args[0]}" == "--help" ]]; then
-                install_kmhelpersctl_completion_help
-            else
-                install_kmhelpersctl_completion
-            fi
-            ;;
-        install-script)
-            if [[ "${args[0]}" == "help" || "${args[0]}" == "-h" || "${args[0]}" == "--help" ]]; then
-                install_kmhelpersctl_help
-            else
-                install_shell
-            fi
-            ;;
-        install-pykmhelpers)
-            # Check if first argument is help
-            if [[ "${args[0]}" == "-h" || "${args[0]}" == "--help" ]]; then
-                install_pykmhelpers_help
-            else
-                install_python_package "${args[@]}"
-            fi
+        completion)
+            handle_completion_subcommand "${args[@]}"
             ;;
         activate-venv)
             if [[ "${args[0]}" == "help" || "${args[0]}" == "-h" || "${args[0]}" == "--help" ]]; then
