@@ -16,7 +16,7 @@ KMINDEX_VERSION='v0.6.0'
 # Initialize global variables - KMHELPERS_PATH may be set from environment
 # If not set in environment, it will be initialized to default in init_kmhelpers_path()
 : "${KMHELPERS_PATH:=}"
-VENV_DIR=""
+ENV_DIR=""
 INSTALL_PATH=""
 SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 
@@ -53,7 +53,7 @@ function init_kmhelpers_path()
     fi
 
     # Set derived paths
-    VENV_DIR="$KMHELPERS_PATH/kmhelpers_env"
+    ENV_DIR="$KMHELPERS_PATH/kmhelpers_env"
     INSTALL_PATH="$KMHELPERS_PATH/kmhelpersctl"
 }
 
@@ -1047,6 +1047,141 @@ EOF
     echo "Restart your shell or run: source ~/.zshrc"
 }
 
+install_kmhelpersctl_completion() {
+    local comp_dir="${HOME}/.zsh/completions"
+    local comp_file="${comp_dir}/_kmhelpersctl"
+
+    mkdir -p "$comp_dir"
+
+    cat > "$comp_file" << 'EOF'
+#compdef kmhelpersctl
+
+_kmhelpersctl_register() {
+    _arguments \
+        '1:registry:_files -/' \
+        '2:index_name:' \
+        '3:index_path:_files -/'
+}
+
+_kmhelpersctl_register_all() {
+    _arguments \
+        '1:registry:_files -/' \
+        '2:directory:_files -/'
+}
+
+_kmhelpersctl_list() {
+    _arguments \
+        '1:registry:_files -/'
+}
+
+_kmhelpersctl_search() {
+    _arguments \
+        '1:registry:_files -/' \
+        '2:pattern:' \
+        '*:options:(--size-filter)'
+}
+
+_kmhelpersctl_stats() {
+    _arguments \
+        '1:registry:_files -/'
+}
+
+_kmhelpersctl_size() {
+    _arguments \
+        '1:index_path:_files -/'
+}
+
+_kmhelpersctl_install_kmindex() {
+    _arguments \
+        '1:method:(conda source clone-source conda-build)' \
+        '2:path:_files -/'
+}
+
+_kmhelpersctl_install_pykmhelpers() {
+    _arguments \
+        '--inplace[Install in current Python environment]' \
+        '-p[Custom path for virtual environment]:path:_files -/' \
+        '--path[Custom path for virtual environment]:path:_files -/' \
+        '-v[kmhelpers version/branch to install]:version:' \
+        '--version[kmhelpers version/branch to install]:version:' \
+        '--no-alias[Skip creating activation alias]'
+}
+
+_kmhelpersctl_activate_venv() {
+    _arguments \
+        '-p[Path to virtual environment]:path:_files -/' \
+        '--path[Path to virtual environment]:path:_files -/'
+}
+
+_kmhelpersctl_update_shell() {
+    _arguments \
+        '-v[Version/branch to update to]:version:' \
+        '--version[Version/branch to update to]:version:'
+}
+
+_kmhelpersctl() {
+    local curcontext="$curcontext" state line
+
+    _arguments -C \
+        '-w[Override KMHELPERS_PATH environment variable]:path:_files -/' \
+        '--workdir[Override KMHELPERS_PATH environment variable]:path:_files -/' \
+        '1:command:->command' \
+        '*::args:->args'
+
+    case $state in
+        command)
+            local commands=(
+                'register:Register a single index'
+                'register-all:Register all indices from a directory'
+                'list:List all registered indices'
+                'search:Search for indices by pattern'
+                'stats:Get registry statistics'
+                'size:Get size of a single index'
+                'check:Check if kmindex binary is available'
+                'quick-install:Quick installation of kmindex and kmhelpers'
+                'install-kmindex:Install kmindex'
+                'install-kmhelpersctl:Install kmhelpersctl to shell configuration'
+                'install-pykmhelpers:Install kmhelpers python package'
+                'install_kmindex_completion:Install kmindex completion in zsh'
+                'activate-venv:Print instruction to activate kmhelpers virtual environment'
+                'update-shell:Update kmhelpersctl from GitLab'
+                'help:Show help message'
+                'version:Show version information'
+            )
+            _describe 'command' commands
+            ;;
+        args)
+            case $line[1] in
+                register)              _kmhelpersctl_register ;;
+                register-all)          _kmhelpersctl_register_all ;;
+                list)                  _kmhelpersctl_list ;;
+                search)                _kmhelpersctl_search ;;
+                stats)                 _kmhelpersctl_stats ;;
+                size)                  _kmhelpersctl_size ;;
+                install-kmindex)       _kmhelpersctl_install_kmindex ;;
+                install-pykmhelpers)   _kmhelpersctl_install_pykmhelpers ;;
+                activate-venv)         _kmhelpersctl_activate_venv ;;
+                update-shell)          _kmhelpersctl_update_shell ;;
+            esac
+            ;;
+    esac
+}
+
+_kmhelpersctl "$@"
+EOF
+
+    # Add fpath to zshrc if not already present
+    local zshrc="${HOME}/.zshrc"
+    local fpath_line='fpath=(~/.zsh/completions $fpath)'
+    if ! grep -qF "$fpath_line" "$zshrc" 2>/dev/null; then
+        echo "$fpath_line" >> "$zshrc"
+        echo "autoload -Uz compinit && compinit" >> "$zshrc"
+    fi
+
+    log_info "Installed kmhelpersctl completion to $comp_file"
+    log_info "Restart your shell or run: source ~/.zshrc"
+}
+
 # ============================================================================
 # MAIN INTERFACE & INSTALLATION
 # ============================================================================
@@ -1071,18 +1206,20 @@ COMMANDS:
     stats <registry>                       Get registry statistics
     size <index_path>                      Get size of a single index
     check                                  Check if kmindex binary is available
+    quick-install                          Quick installation of kmindex and kmhelpers
     install-kmindex [METHOD] [PATH]        Install kmindex (automatic/conda/source/clone-source)
     install-kmhelpersctl                   Install kmhelpersctl to shell configuration
     install-pykmhelpers [OPTIONS]          Install kmhelpers python package
                                            Options:
                                              --inplace         Install in current Python environment
-                                             -p, --path        Custom path for virtual environment (default: ${VENV_DIR})
+                                             -p, --path        Custom path for virtual environment (default: ${ENV_DIR})
                                              -v, --version     kmhelpers version/branch to install (default: ${KMHELPERS_VERSION})
                                              --no-alias        Skip creating activation alias
-    install_kmindex_completion             Install kmindex completion in zsh
+    install-kmindex-completion             Install kmindex completion in zsh
+    install-kmhelpersctl-completion        Install kmhelpersctl completion in zsh
     activate-venv [OPTIONS]                Print instruction to activate kmhelpers virtual environment
                                            Options:
-                                             -p, --path   Path to virtual environment (default: ${VENV_DIR})
+                                             -p, --path   Path to virtual environment (default: ${ENV_DIR})
     update-shell [OPTIONS]                 Update kmhelpersctl from GitLab
                                            Options:
                                              -v, --version Version/branch to update to (default: ${KMHELPERS_VERSION})
@@ -1184,7 +1321,7 @@ function install_python_package()
                 shift
                 ;;
             -p|--path)
-                VENV_DIR="$2"
+                ENV_DIR="$2"
                 shift 2
                 ;;
             -v|--version)
@@ -1197,7 +1334,7 @@ function install_python_package()
                 ;;
             *)
                 log_error "Unknown option: $1"
-                echo "Usage: install_python_package [--inplace] [-p|--path <VENV_DIR>] [-v|--version <version>] [--no-alias]"
+                echo "Usage: install_python_package [--inplace] [-p|--path <ENV_DIR>] [-v|--version <version>] [--no-alias]"
                 return 1
                 ;;
         esac
@@ -1259,35 +1396,35 @@ function install_python_package()
             return 1
         fi
     else
-        log_info "Creating virtual environment at: ${VENV_DIR}"
+        log_info "Creating virtual environment at: ${ENV_DIR}"
 
         # Create venv
-        if ! python3 -m venv "${VENV_DIR}"; then
-            log_error "Failed to create virtual environment at ${VENV_DIR}"
+        if ! python3 -m venv "${ENV_DIR}"; then
+            log_error "Failed to create virtual environment at ${ENV_DIR}"
             return 1
         fi
 
         # Activate venv and install
         log_info "Activating virtual environment..."
         # shellcheck disable=SC1091
-        source "${VENV_DIR}/bin/activate" || return 1
+        source "${ENV_DIR}/bin/activate" || return 1
 
         log_info "Installing Python package in editable mode..."
         if pip install -e "$project_root"; then
             log_info "✓ Successfully installed kmhelpers Python package"
             log_info ""
-            log_info "Virtual environment created at: ${VENV_DIR}"
+            log_info "Virtual environment created at: ${ENV_DIR}"
 
             # Install activation alias
-            install_shell_activation_function "${VENV_DIR}" "${no_alias}"
+            install_shell_activation_function "${ENV_DIR}" "${no_alias}"
 
             log_info ""
             if [[ "$no_alias" != true ]]; then
                 log_info "Quick activation: Run 'kmhelpers-activate' to activate the venv"
-                log_info "Or manually: source ${VENV_DIR}/bin/activate"
+                log_info "Or manually: source ${ENV_DIR}/bin/activate"
             else
                 log_info "To activate the environment, run:"
-                log_info "  source ${VENV_DIR}/bin/activate"
+                log_info "  source ${ENV_DIR}/bin/activate"
             fi
             log_info ""
             log_info "Then you can use 'kmhelpers' command"
@@ -1307,32 +1444,32 @@ function activate_venv()
     while [[ $# -gt 0 ]]; do
         case "$1" in
             -p|--path)
-                VENV_DIR="$2"
+                ENV_DIR="$2"
                 shift 2
                 ;;
             *)
                 log_error "Unknown option: $1"
-                echo "Usage: activate_venv [-p|--path <VENV_DIR>]"
+                echo "Usage: activate_venv [-p|--path <ENV_DIR>]"
                 return 1
                 ;;
         esac
     done
 
     # Check if venv exists
-    if [[ ! -d "$VENV_DIR" ]]; then
-        log_error "Virtual environment not found at: ${VENV_DIR}"
+    if [[ ! -d "$ENV_DIR" ]]; then
+        log_error "Virtual environment not found at: ${ENV_DIR}"
         log_info "Did you run 'kmhelpersctl install-pykmhelpers'?"
         return 1
     fi
 
     # Check if activation script exists
-    if [[ ! -f "${VENV_DIR}/bin/activate" ]]; then
-        log_error "Activation script not found at: ${VENV_DIR}/bin/activate"
+    if [[ ! -f "${ENV_DIR}/bin/activate" ]]; then
+        log_error "Activation script not found at: ${ENV_DIR}/bin/activate"
         return 1
     fi
 
     log_info "To activate the virtual environment, run:"
-    echo "  source ${VENV_DIR}/bin/activate"
+    echo "  source ${ENV_DIR}/bin/activate"
 
     return 0
 }
@@ -1363,7 +1500,6 @@ function install_shell()
     log_info "Copied script to: $INSTALL_PATH"
 
     local env_line="export KMHELPERS_PATH=\"${KMHELPERS_PATH}\"  # kmhelpers work directory"
-    local path_line="export PATH=\"${KMHELPERS_PATH}:\$PATH\"  # Add kmhelpers to PATH"
     local installed=false
 
     # Create environment variable line if KMHELPERS_PATH is not the default
@@ -1376,7 +1512,6 @@ function install_shell()
             echo "" >> "$HOME/.bashrc"
             echo "# kmhelpers shell integration" >> "$HOME/.bashrc"
             echo "$env_line" >> "$HOME/.bashrc"
-            echo "$path_line" >> "$HOME/.bashrc"
             log_info "============================================================="
             log_info "Added command kmhelpersctl to ~/.bashrc"
             log_info "Added KMHELPERS_PATH environment variable: ${KMHELPERS_PATH}"
@@ -1400,7 +1535,6 @@ function install_shell()
             echo "" >> "$HOME/.zshrc"
             echo "# kmhelpers shell integration" >> "$HOME/.zshrc"
             echo "$env_line" >> "$HOME/.zshrc"
-            echo "$path_line" >> "$HOME/.zshrc"
             log_info "============================================================="
             log_info "Added command kmhelpersctl to ~/.zshrc"
             log_info "Added KMHELPERS_PATH environment variable: ${KMHELPERS_PATH}"
@@ -1508,6 +1642,63 @@ function update()
     fi
 }
 
+function quick_install()
+{
+    log_info "=========================================================="
+    log_info "Starting quick install of kmhelpers"
+    log_info "=========================================================="
+    log_info ""
+
+    # Check if conda is installed
+    if ! command -v conda &> /dev/null; then
+        log_error "conda not found. Please install Miniconda or Anaconda first."
+        log_info "Visit: https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html"
+        return 1
+    fi
+
+    install_kmindex_conda ${ENV_DIR}
+    
+    conda activate -p ${ENV_DIR}
+    install_shell
+    install_python_package
+    install_shell_activation_function
+
+    if [[ -f "$HOME/.zshrc" ]]; then
+        install_kmindex_completion
+        install_kmhelpersctl_completion
+    fi
+
+    conda deactivate
+
+    log_info ""
+
+    # Final summary and instructions
+    log_info "=========================================================="
+    log_info "✓ Quick install completed successfully!"
+    log_info "=========================================================="
+    log_info ""
+    log_info "To start using kmhelpers in your current bash session, run:"
+    echo ""
+    echo "  source ~/.bashrc"
+    log_info ""
+    log_info "Or"
+    log_info ""
+    echo "  source ~/.zshrc"
+    echo ""   
+    log_info "Or restart your shell / terminal for changes to take effect"
+    echo ""
+    log_info "If you prefer to activate the conda environment:"
+    echo "  conda activate -p ${conda_env_path}"
+    echo ""
+    log_info "Or use the quick activation alias:"
+    echo "  kmhelpers-activate"
+    echo ""
+    log_info "Then you can use both 'kmindex' and 'kmhelpers' commands"
+    echo ""
+
+    return 0
+}
+
 # Main interface function
 function kmhelpersctl()
 {
@@ -1563,11 +1754,17 @@ function kmhelpersctl()
         check)
             check_kmindex
             ;;
+        quick-install)
+            quick_install
+            ;;
         install-kmindex)
             install_kmindex "${args[@]}"
             ;;
         install-kmindex-completion)
             install_kmindex_completion
+            ;;
+        install-kmhelpersctl-completion)
+            install_kmhelpersctl_completion
             ;;
         install-kmhelpersctl)
             install_shell
