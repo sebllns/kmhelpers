@@ -1582,12 +1582,12 @@ function kmhelpersctl()
             ;;
         help|-h|--help)
             help
+            echo ""
+            echo ""
+            install_kmindex_help
             ;;
         version|--version|-v)
             version
-            ;;
-        install-kmindex-help)
-            install_kmindex_help
             ;;
         "")
             help
