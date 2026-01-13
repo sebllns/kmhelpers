@@ -304,7 +304,7 @@ class FofManager:
             path: File path for the sample.
         """
         self.samples[sample_id if sample_id else self.extract_sample_name(path)] = path
-
+        
     def remove_sample(self, sample_id: str) -> bool:
         """
         Remove a sample from the internal dictionary.
@@ -393,34 +393,6 @@ class FofManager:
 
         return fof_path_str
 
-    def load_fof_file(self, fof_path: Union[str, Path]) -> List[str]:
-        """
-        Load sample IDs from a fof file.
-
-        Args:
-            fof_path: Path to the fof file.
-
-        Returns:
-            Ordered list of sample IDs.
-
-        Raises:
-            FileNotFoundError: If fof file doesn't exist.
-        """
-        fof_path_str = Toolbox.get_canonical_path(str(fof_path))
-
-        if not os.path.exists(fof_path_str):
-            raise FileNotFoundError(f"FOF file not found: {fof_path_str}")
-
-        sample_ids = []
-        with open(fof_path_str, "r") as f:
-            for line in f:
-                parsed = self.parse_fof_line(line)
-                if parsed:
-                    sample_name, _ = parsed
-                    sample_ids.append(sample_name)
-
-        return sample_ids
-
     def load_with_paths(self, fof_path: Union[str, Path]) -> Dict[str, str]:
         """
         Load sample IDs with their associated file paths.
@@ -448,20 +420,6 @@ class FofManager:
                     sample_map[sample_name] = Toolbox.get_canonical_path(file_path)
 
         return sample_map
-
-    def get_sample_ids(self, fof_path: Union[str, Path]) -> List[str]:
-        """
-        Get all sample IDs from a fof file.
-
-        Alias for load_fof_file() for clarity.
-
-        Args:
-            fof_path: Path to the fof file.
-
-        Returns:
-            List of sample IDs.
-        """
-        return self.load_fof_file(fof_path)
     
     def validate_sample_files(self) -> bool:
         ok = self.get_sample_count() > 0

@@ -4,6 +4,7 @@ import tempfile
 import traceback
 import time
 
+
 class Experimentation:
     def __init__(self, name, output_dir, data_dir, callback):
         self._name = name
@@ -81,7 +82,9 @@ def main():
                     return c
 
         exp1 = Experimentation("experiment_1", output_dir, data_dir, simple_callback)
-        results1 = exp1.run(test_data_ids, {"mode": "test"}, copy_data=False, auto_clean=False)
+        results1 = exp1.run(
+            test_data_ids, {"mode": "test"}, copy_data=False, auto_clean=False
+        )
         print("\nResults:")
         for data_id, result_data in results1.items():
             print(f"  {data_id}:")
@@ -93,30 +96,45 @@ def main():
 
         # Test case 2: Run with data copying and auto-clean
         print("=" * 60)
-        print("Test 2: Run with copying data and auto-clean (copy_data=True, auto_clean=True)")
+        print(
+            "Test 2: Run with copying data and auto-clean (copy_data=True, auto_clean=True)"
+        )
         print("=" * 60)
 
         exp2 = Experimentation("experiment_2", output_dir, data_dir, simple_callback)
-        exp2.run(test_data_ids[:1], {"mode": "copy_test"}, copy_data=True, auto_clean=True)
+        exp2.run(
+            test_data_ids[:1], {"mode": "copy_test"}, copy_data=True, auto_clean=True
+        )
 
         # Verify work directory still exists but copied data is cleaned
         work_dir = exp2.work_dir()
         print(f"  Work directory exists: {os.path.exists(work_dir)}")
-        print(f"  Work directory contents: {os.listdir(work_dir) if os.path.exists(work_dir) else 'N/A'}")
+        print(
+            f"  Work directory contents: {os.listdir(work_dir) if os.path.exists(work_dir) else 'N/A'}"
+        )
         print()
 
         # Test case 3: Run with data copying but no auto-clean
         print("=" * 60)
-        print("Test 3: Run with copying data but no auto-clean (copy_data=True, auto_clean=False)")
+        print(
+            "Test 3: Run with copying data but no auto-clean (copy_data=True, auto_clean=False)"
+        )
         print("=" * 60)
 
         exp3 = Experimentation("experiment_3", output_dir, data_dir, simple_callback)
-        exp3.run(test_data_ids[:1], {"mode": "copy_no_clean"}, copy_data=True, auto_clean=False)
+        exp3.run(
+            test_data_ids[:1],
+            {"mode": "copy_no_clean"},
+            copy_data=True,
+            auto_clean=False,
+        )
 
         # Verify copied data remains
         work_dir = exp3.work_dir()
         print(f"  Work directory exists: {os.path.exists(work_dir)}")
-        print(f"  Work directory contents: {os.listdir(work_dir) if os.path.exists(work_dir) else 'N/A'}")
+        print(
+            f"  Work directory contents: {os.listdir(work_dir) if os.path.exists(work_dir) else 'N/A'}"
+        )
         print()
 
         # Test case 4: Run with custom callback
@@ -128,13 +146,17 @@ def main():
 
         def counting_callback(data_id, path, params):
             print(f"  Processing {data_id} with params {params}")
-            count = len([f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))])
+            count = len(
+                [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
+            )
             file_count[data_id] = count
             print(f"  {data_id}: {count} files in directory")
             return count
 
         exp4 = Experimentation("experiment_4", output_dir, data_dir, counting_callback)
-        results4 = exp4.run(test_data_ids, {"mode": "counting"}, copy_data=False, auto_clean=False)
+        results4 = exp4.run(
+            test_data_ids, {"mode": "counting"}, copy_data=False, auto_clean=False
+        )
         print("\nResults:")
         for data_id, result_data in results4.items():
             print(f"  {data_id}:")
