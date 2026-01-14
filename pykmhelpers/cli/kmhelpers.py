@@ -1130,14 +1130,13 @@ def kmindex_compress(
       kmhelpers kmindex-compress -r ./registry -n my_index --cpr-level 6 -t 16
     """
     try:
-        wrapper = KmindexWrapper()
+        registry = KmindexRegistry(registry_path)
 
         if verbose:
             click.echo(f"Preparing to compress index: {index_name}")
             click.echo(f"  Registry: {registry_path}")
 
-        result = wrapper.compress(
-            input_registry=registry_path,
+        registry.compress(
             index_name=index_name,
             block_size=block_size,
             sampling=sampling,
@@ -1161,12 +1160,10 @@ def kmindex_compress(
         if delete:
             click.echo(f"  Uncompressed index deleted")
 
-    except NotADirectoryError as e:
-        raise click.ClickException(f"Invalid registry path: {e}")
+    except ValueError as e:
+        raise click.ClickException(f"Registry error: {e}")
     except FileNotFoundError as e:
         raise click.ClickException(f"Registry file not found: {e}")
-    except ValueError as e:
-        raise click.ClickException(f"Invalid parameter: {e}")
     except Exception as e:
         raise click.ClickException(f"Compression failed: {e}")
 

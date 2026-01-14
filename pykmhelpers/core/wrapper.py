@@ -4,7 +4,6 @@ KmindexWrapper - High-level interface for kmindex build and query operations.
 
 import os
 import yaml
-import inspect
 from typing import List, Optional, Union
 from pathlib import Path
 

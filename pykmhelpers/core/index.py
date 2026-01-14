@@ -722,6 +722,82 @@ class KmindexRegistry:
         for i in indices:
             assert self.is_index_dir(i), f"Index not found: {i}"
 
+    def compress(
+        self,
+        index_name: str,
+        block_size: int = 8,
+        sampling: int = 20000,
+        column_per_block: int = 0,
+        cpr_level: int = 3,
+        threads: int = 14,
+        reorder: bool = False,
+        delete_uncompressed: bool = False,
+        check_results: bool = False,
+        verbose: str = "info",
+    ) -> dict:
+        """
+        Compress an index using kmindex compress command.
+
+        This method is a convenience wrapper that uses KmindexWrapper to compress
+        an index registered in this registry.
+
+        Args:
+            index_name: Name of the index to compress (must exist in registry).
+            block_size: Size of uncompressed blocks in MB (default: 8).
+            sampling: Number of rows to sample for reordering (default: 20000).
+            column_per_block: Reorder columns by group of N (0=all columns together).
+                             Must be a multiple of 8 (default: 0).
+            cpr_level: Compression level in range [1-22] (default: 3).
+            threads: Number of threads to use (default: 14).
+            reorder: Whether to reorder columns before compressing (default: False).
+            delete_uncompressed: Delete uncompressed index after successful compression (default: False).
+            check_results: Check query results after compressing (default: False).
+            verbose: Verbosity level (debug|info|warning|error) (default: info).
+
+        Returns:
+            Dictionary containing compression results from KmindexWrapper.
+
+        Raises:
+            ValueError: If index_name not found in registry.
+            subprocess.CalledProcessError: If kmindex compress command fails.
+
+        Example:
+            >>> registry = KmindexRegistry("/path/to/registry")
+            >>> result = registry.compress(
+            ...     index_name="my_index",
+            ...     reorder=True,
+            ...     block_size=8,
+            ...     threads=8
+            ... )
+        """
+        # Validate index exists in registry
+        if not self.has_index(index_name):
+            raise ValueError(
+                f"Index '{index_name}' not found in registry. "
+                f"Available indices: {self.list_indices()}"
+            )
+
+        # Import here to avoid circular imports
+        from pykmhelpers.core.wrapper import KmindexWrapper
+
+        # Use KmindexWrapper to compress the index
+        wrapper = KmindexWrapper()
+        result = wrapper.compress(
+            input_registry=self._root_path,
+            index_name=index_name,
+            block_size=block_size,
+            sampling=sampling,
+            column_per_block=column_per_block,
+            cpr_level=cpr_level,
+            threads=threads,
+            reorder=reorder,
+            delete_uncompressed=delete_uncompressed,
+            check_results=check_results,
+            verbose=verbose,
+        )
+
+        return result
+
     def __iter__(self):
         """Iterate over all Index objects."""
         for _index_id in self.list_indices():
