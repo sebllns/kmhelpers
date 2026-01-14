@@ -442,7 +442,7 @@ class KmtricksIndex:
             import shutil
 
             print(f"Destroying index: {self._index_id}")
-            shutil.rmtree(self.dir_path, onexc=lambda f, p, e: print(f"Error: {p}"))
+            shutil.rmtree(self.dir_path, onexc=lambda _f, p, _e: print(f"Error: {p}"))
             self._parent_dir = ""
             return True
         except Exception as e:

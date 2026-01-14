@@ -25,6 +25,7 @@ from pykmhelpers.operations.compressor import PermutationFlag
 from pykmhelpers.operations.builder import IndexBuilder
 from pykmhelpers.operations.query import KmindexQuery, KmindexQueryResult
 from pykmhelpers.operations.byte import ByteCounter, SizeFormat
+from pykmhelpers.operations.fasta import Fasta
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -287,6 +288,105 @@ def fof_add(fof, sample_file, sample_id):
 
     except Exception as e:
         raise click.ClickException(f"Failed to add sample: {e}")
+
+
+# ============================================================================
+# TEST COMMANDS
+# ============================================================================
+
+
+@cli.group()
+def test():
+    """Test data generation and utilities for testing and benchmarking."""
+    pass
+
+
+@test.command(name="create-fasta")
+@click.option(
+    "--output-dir",
+    "-o",
+    required=True,
+    type=click.Path(file_okay=False, dir_okay=True),
+    help="Output directory for test FASTA files",
+)
+@click.option(
+    "--n-samples",
+    "-n",
+    type=int,
+    default=5,
+    help="Number of random sequences to generate (default: 5)",
+)
+@click.option(
+    "--average-size",
+    "-a",
+    type=int,
+    default=1000,
+    help="Average sequence size in bases (default: 1000)",
+)
+@click.option(
+    "--min-size",
+    "-m",
+    type=int,
+    default=100,
+    help="Minimum sequence size in bases (default: 100)",
+)
+@click.option(
+    "--create-fof",
+    is_flag=True,
+    default=False,
+    help="Also create a FOF file listing the generated FASTA files",
+)
+def test_create_fasta(output_dir, n_samples, average_size, min_size, create_fof):
+    """Generate random FASTA test data for testing and benchmarking.
+
+    Creates random sequences and optionally generates a FOF file to use them.
+
+    Examples:
+      # Generate 10 sequences with default sizes
+      kmhelpers test create-fasta -o ./test_data -n 10
+
+      # Generate with custom size parameters
+      kmhelpers test create-fasta -o ./test_data -n 20 -a 5000 -m 500
+
+      # Generate test data and create a FOF file automatically
+      kmhelpers test create-fasta -o ./test_data -n 5 --create-fof
+    """
+    try:
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
+
+        click.echo(f"Generating {n_samples} random FASTA sequences...")
+        click.echo(f"  Output directory: {output_dir}")
+        click.echo(f"  Average size: {average_size} bp")
+        click.echo(f"  Minimum size: {min_size} bp")
+
+        # Create random test dataset
+        Fasta.create_random_test_dataset(
+            output_dir=output_dir,
+            n_samples=n_samples,
+            average_size=average_size,
+            min_size=min_size,
+        )
+
+        click.echo(f"✓ Generated {n_samples} FASTA files in {output_dir}")
+
+        # Optionally create FOF file
+        if create_fof:
+            fof_path = os.path.join(output_dir, "sequences.fof")
+            manager = FofManager()
+
+            # Add all generated FASTA files to FOF
+            for i in range(n_samples):
+                fasta_file = os.path.realpath(os.path.join(output_dir, f"sequence_{i}.fasta"))
+                sample_name = f"sequence_{i}"
+                manager.add_sample(fasta_file, sample_name)
+
+            manager.save(fof_path)
+            click.echo(f"✓ Created FOF file: {fof_path}")
+            click.echo(f"  Samples: {manager.get_sample_count()}")
+
+    except Exception as e:
+        raise click.ClickException(f"Failed to create test data: {e}")
 
 
 # ============================================================================
