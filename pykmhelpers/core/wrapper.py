@@ -347,6 +347,128 @@ class KmindexWrapper:
 
         return result
 
+    def compress(
+        self,
+        input_registry: str,
+        index_name: str,
+        block_size: int = 8,
+        sampling: int = 20000,
+        column_per_block: int = 0,
+        cpr_level: int = 3,
+        threads: int = 14,
+        reorder: bool = False,
+        delete_uncompressed: bool = False,
+        check_results: bool = False,
+        verbose: str = "info",
+    ) -> dict:
+        """
+        Compress a kmindex index.
+
+        This method wraps the kmindex compress command to compress an index with optional
+        column reordering for better compression ratios.
+
+        Args:
+            input_registry: Path to the registry directory (index.json parent directory).
+            index_name: Name of the index to compress.
+            block_size: Size of uncompressed blocks in megabytes (default: 8).
+            sampling: Number of rows to sample for reordering (default: 20000).
+            column_per_block: Reorder columns by group of N (0=all columns together).
+                             Must be a multiple of 8 (default: 0).
+            cpr_level: Compression level in range [1-22] (default: 3).
+            threads: Number of threads to use (default: 14).
+            reorder: Whether to reorder columns before compressing (default: False).
+            delete_uncompressed: Delete uncompressed index after successful compression (default: False).
+            check_results: Check query results after compressing (default: False).
+            verbose: Verbosity level (debug|info|warning|error) (default: info).
+
+        Returns:
+            Dictionary containing compression monitoring/execution results.
+
+        Raises:
+            NotADirectoryError: If input_registry doesn't exist or is not a directory.
+            FileNotFoundError: If index.json not found in registry.
+            ValueError: If column_per_block is not 0 or a multiple of 8.
+            subprocess.CalledProcessError: If kmindex compress command fails.
+
+        Example:
+            >>> wrapper = KmindexWrapper()
+            >>> result = wrapper.compress(
+            ...     input_registry="/path/to/indices",
+            ...     index_name="my_index",
+            ...     reorder=True,
+            ...     block_size=8,
+            ...     threads=8
+            ... )
+        """
+
+        # Validate inputs
+        input_registry = Toolbox.get_canonical_path(input_registry)
+
+        if not os.path.isdir(input_registry):
+            raise NotADirectoryError(
+                f"Registry path {input_registry} does not exist or is not a directory"
+            )
+
+        if not Kmindex.b_json_exists(input_registry):
+            raise FileNotFoundError(f"index.json not found in registry {input_registry}")
+
+        # Validate column_per_block is 0 or multiple of 8
+        if column_per_block != 0 and column_per_block % 8 != 0:
+            raise ValueError(
+                f"column_per_block must be 0 or a multiple of 8, got {column_per_block}"
+            )
+
+        # Validate compression level range
+        assert cpr_level >= 1 and cpr_level <= 22, "cpr_level must be in range [1-22]"
+
+        # Build command
+        cmd = [
+            Bin.kmindex(),
+            "compress",
+            "--global-index",
+            input_registry,
+            "--name",
+            index_name,
+            "--block-size",
+            str(block_size),
+            "--sampling",
+            str(sampling),
+            "--column-per-block",
+            str(column_per_block),
+            "--cpr-level",
+            str(cpr_level),
+            "--threads",
+            str(threads),
+            "--verbose",
+            verbose,
+        ]
+
+        # Add optional flags
+        if reorder:
+            cmd.append("--reorder")
+
+        if delete_uncompressed:
+            cmd.append("--delete")
+
+        if check_results:
+            cmd.append("--check")
+
+        print(f"Compress index {index_name}")
+        print(f"  - Registry: {input_registry}")
+        print(f"  - Block size: {block_size} MB")
+        print(f"  - Sampling: {sampling} rows")
+        print(f"  - Compression level: {cpr_level}")
+        print(f"  - Reorder: {reorder}")
+        print(f"  - Threads: {threads}")
+
+        # Execute command
+        result = Toolbox.monitor_cmd(cmd, print_trace=True)
+
+        if not result:
+            raise RuntimeError("Compression failed.")
+
+        return result
+
     def kmindex_version(self) -> Optional[str]:
         try:
             v = Toolbox.run_cmd([Bin.kmindex(), "--version",])

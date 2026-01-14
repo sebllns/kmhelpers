@@ -12,6 +12,7 @@ from pathlib import Path
 from pykmhelpers import (
     __version__,
     Main,
+    Bin,
     KmindexRegistry,
     KmtricksIndex,
     Compressor,
@@ -27,9 +28,42 @@ from pykmhelpers.operations.query import KmindexQuery, KmindexQueryResult
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option(version=__version__, prog_name="kmhelpers")
-def cli():
+@click.option(
+    "--init-path",
+    is_flag=True,
+    default=False,
+    help="Initialize environment paths and check for required binaries",
+)
+@click.option(
+    "--bin-path",
+    type=click.Path(file_okay=False, dir_okay=True),
+    default="./bin",
+    help="Default path for binary executables (default: ./bin)",
+)
+@click.option(
+    "--check-all",
+    is_flag=True,
+    default=True,
+    help="Check that all required binaries are available in PATH",
+)
+@click.option(
+    "--chdir",
+    type=click.Path(file_okay=False, dir_okay=True),
+    default="",
+    help="Change to directory before initialization",
+)
+def cli(init_path, bin_path, check_all, chdir):
     """kmhelpers - A toolkit for managing, compressing, and querying k-mer indices."""
-    pass
+    if init_path:
+        Main.init(default_bin_path=bin_path, check_all=check_all, chdir=chdir)
+    elif chdir:
+        print(f"cd {chdir}")
+        os.chdir(chdir)
+    try:
+        Bin.check_kmindex()
+    except RuntimeError as e:
+        click.echo("Could not fin kmindex command in path.", err=True)
+        click.echo(e, err=True)
 
 
 # ============================================================================
@@ -422,7 +456,7 @@ def build(
       # Build with multiple threads and register
       kmhelpers build --fof samples.fof -r ./registry --bloom-size 10000000 -t 8 -n my_index
     """
-    Main.init()
+    #  Main.init()
 
     # Validate parameters
     if bloom_size is None and nb_cell is None:
@@ -543,7 +577,7 @@ def registry():
 )
 def registry_add(input_dir, registry_path, index_ids):
     """Register kmtricks indices in a registry."""
-    Main.init()
+    #  Main.init()
     click.echo("Initializing kmhelpers...")
 
     registry = KmindexRegistry(registry_path)
@@ -593,7 +627,7 @@ def registry_add(input_dir, registry_path, index_ids):
 )
 def registry_list(registry_path):
     """List all indices in a registry."""
-    Main.init()
+    #  Main.init()
     registry = KmindexRegistry(registry_path)
 
     indices = registry.list_indices()
@@ -632,7 +666,7 @@ def registry_list(registry_path):
 )
 def registry_info(registry_path, index_id, output_json):
     """Show detailed information about an index."""
-    Main.init()
+    #  Main.init()
 
     try:
         registry = KmindexRegistry(registry_path)
@@ -690,7 +724,7 @@ def registry_info(registry_path, index_id, output_json):
 )
 def registry_check(registry_path, verbose):
     """Validate registry consistency and check all index structures."""
-    Main.init()
+    #  Main.init()
 
     try:
         registry = KmindexRegistry(registry_path)
@@ -764,7 +798,7 @@ def registry_check(registry_path, verbose):
 )
 def registry_remove(registry_path, index_id, delete_files, force):
     """Remove index from registry (optionally delete files)."""
-    Main.init()
+    #  Main.init()
 
     try:
         registry = KmindexRegistry(registry_path)
@@ -929,7 +963,7 @@ def compress(
       # Custom block size with verification
       kmhelpers compress -i ./indices -n my_index -o ./out --block-size 16777216 --enable-check
     """
-    Main.init()
+    #  Main.init()
 
     # Check if output dir exists
     if os.path.exists(output_dir) and not force:
@@ -1006,6 +1040,148 @@ def compress(
                 f"  Size comparison in: {os.path.join(output_dir, 'metrics', 'sizes.csv')}"
             )
 
+    except Exception as e:
+        raise click.ClickException(f"Compression failed: {e}")
+
+
+# ============================================================================
+# KMINDEX COMPRESS COMMAND (using KmindexWrapper)
+# ============================================================================
+
+
+@cli.command(name="kmindex-compress")
+@click.option(
+    "--registry-path",
+    "-r",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    help="Path to kmindex registry",
+)
+@click.option(
+    "--index-name",
+    "-n",
+    required=True,
+    help="Name of the index to compress",
+)
+@click.option(
+    "--block-size",
+    type=int,
+    default=8,
+    help="Size of uncompressed blocks in MB (default: 8)",
+)
+@click.option(
+    "--sampling",
+    "-s",
+    type=int,
+    default=20000,
+    help="Number of rows to sample for reordering (default: 20000)",
+)
+@click.option(
+    "--column-per-block",
+    type=int,
+    default=0,
+    help="Reorder columns by group of N (0=all columns, must be multiple of 8) (default: 0)",
+)
+@click.option(
+    "--cpr-level",
+    type=int,
+    default=3,
+    help="Compression level [1-22] (default: 3)",
+)
+@click.option(
+    "--threads",
+    "-t",
+    type=int,
+    default=14,
+    help="Number of threads (default: 14)",
+)
+@click.option(
+    "--reorder",
+    is_flag=True,
+    default=False,
+    help="Enable column reordering before compression",
+)
+@click.option(
+    "--delete",
+    is_flag=True,
+    default=False,
+    help="Delete uncompressed index after successful compression",
+)
+@click.option(
+    "--check",
+    is_flag=True,
+    default=False,
+    help="Check query results after compressing",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Verbose output",
+)
+def kmindex_compress(
+    registry_path,
+    index_name,
+    block_size,
+    sampling,
+    column_per_block,
+    cpr_level,
+    threads,
+    reorder,
+    delete,
+    check,
+    verbose,
+):
+    """Compress a kmindex using kmindex compress command.
+
+    Examples:
+      # Basic compression
+      kmhelpers kmindex-compress -r ./registry -n my_index
+
+      # Compression with column reordering
+      kmhelpers kmindex-compress -r ./registry -n my_index --reorder -s 50000
+
+      # Custom compression level with multiple threads
+      kmhelpers kmindex-compress -r ./registry -n my_index --cpr-level 6 -t 16
+    """
+    try:
+        wrapper = KmindexWrapper()
+
+        if verbose:
+            click.echo(f"Preparing to compress index: {index_name}")
+            click.echo(f"  Registry: {registry_path}")
+
+        result = wrapper.compress(
+            input_registry=registry_path,
+            index_name=index_name,
+            block_size=block_size,
+            sampling=sampling,
+            column_per_block=column_per_block,
+            cpr_level=cpr_level,
+            threads=threads,
+            reorder=reorder,
+            delete_uncompressed=delete,
+            check_results=check,
+            verbose="debug" if verbose else "info",
+        )
+
+        click.echo(f"✓ Compression completed successfully")
+        click.echo(f"  Index: {index_name}")
+        click.echo(f"  Block size: {block_size} MB")
+        click.echo(f"  Compression level: {cpr_level}")
+
+        if reorder:
+            click.echo(f"  Column reordering: enabled")
+
+        if delete:
+            click.echo(f"  Uncompressed index deleted")
+
+    except NotADirectoryError as e:
+        raise click.ClickException(f"Invalid registry path: {e}")
+    except FileNotFoundError as e:
+        raise click.ClickException(f"Registry file not found: {e}")
+    except ValueError as e:
+        raise click.ClickException(f"Invalid parameter: {e}")
     except Exception as e:
         raise click.ClickException(f"Compression failed: {e}")
 
@@ -1113,7 +1289,7 @@ def query(
       # Treat all sequences as one query
       kmhelpers query -r ./registry -n idx1 -q multi.fa --single-query batch1 -o out
     """
-    Main.init()
+    #  Main.init()
 
     # Verify registry and indices
     registry = KmindexRegistry(registry_path)
@@ -1221,7 +1397,7 @@ def project():
 )
 def project_create(project_path, kmer_size, minim_size):
     """Initialize a new kmhelpers project."""
-    Main.init()
+    #  Main.init()
 
     try:
         # Create base directory
@@ -1314,7 +1490,7 @@ def project_build(
     force,
 ):
     """Build an index within the project."""
-    Main.init()
+    #  Main.init()
 
     try:
         # Load project configuration
@@ -1440,7 +1616,7 @@ def project_query(
     verbose,
 ):
     """Query an index within the project."""
-    Main.init()
+    #  Main.init()
 
     try:
         # Load project configuration
@@ -1492,7 +1668,7 @@ def project_query(
 @click.argument("project_path", type=click.Path(exists=True, file_okay=False))
 def project_info(project_path):
     """Show project information and indices."""
-    Main.init()
+    #  Main.init()
 
     try:
         # Load project configuration

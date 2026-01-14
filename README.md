@@ -206,8 +206,6 @@ If you prefer to use a custom-compiled kmindex or a different version:
    kmindex --version
    ```
 
-The runtime check will automatically find kmindex in your PATH, whether installed via conda or compiled from source.
-
 ## Quick Start
 
 ### 1. Initialize the environment
@@ -224,7 +222,7 @@ Bin.check_kmindex()
 
 If kmindex is not found, you'll see a helpful error message with installation instructions for bioconda or source compilation.
 
-### 2. Building an index (NEW in v0.3.0)
+### 2. Building an index
 
 ```python
 from kmhelpers import Main, KmindexWrapper
