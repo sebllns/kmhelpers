@@ -68,7 +68,7 @@ kmhelpersctl is a bash utility script that simplifies installation of kmhelpers 
 If you have **Conda** installed, the easiest way to install kmhelpers and all dependencies in one go:
 
 ```bash
-./kmhelpersctl.sh quick-install
+./kmhelpersctl.sh install all
 ```
 
 This will automatically:
@@ -106,7 +106,7 @@ kmhelpersctl --help
 By default, kmhelpers installs to `~/.kmhelpers`. To use a different path:
 
 ```bash
-./kmhelpersctl.sh -w /custom/path quick-install
+./kmhelpersctl.sh -w /custom/path install all
 ```
 
 The installation path is stored in `KMHELPERS_PATH` environment variable, which is loaded automatically when you run `kmhelpersctl` after installation.
