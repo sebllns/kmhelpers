@@ -24,6 +24,7 @@ from pykmhelpers.operations.fof_validation import FofValidator
 from pykmhelpers.operations.compressor import PermutationFlag
 from pykmhelpers.operations.builder import IndexBuilder
 from pykmhelpers.operations.query import KmindexQuery, KmindexQueryResult
+from pykmhelpers.operations.byte import ByteCounter, SizeFormat
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -294,61 +295,50 @@ def fof_add(fof, sample_file, sample_id):
 
 
 def estimate_build_size(
-    fof_path: str, bloom_size: int = None, nb_cell: int = None
+    fof_path: str, bloom_size: int | None = None, nb_cell: int | None = None
 ) -> dict:
     """
     Estimate the size required for building an index.
 
+    Simple calculation: index_size_bytes = nb_samples * bloom_size
+
     Args:
         fof_path: Path to the FOF file
-        bloom_size: Bloom filter size (for presence/absence)
-        nb_cell: Number of cells (for abundance counting)
+        bloom_size: Bloom filter size in bytes (for presence/absence)
+        nb_cell: Number of cells in bytes (for abundance counting)
 
     Returns:
-        Dictionary with size estimates (input_size, index_size_min, index_size_max)
+        Dictionary with size estimates
     """
-    # Load FOF and calculate input data size
+    # Load FOF and count samples
     manager = FofManager()
     samples = manager.load_with_paths(fof_path)
+    nb_samples = len(samples)
 
-    total_input_size = 0
-    sample_count = len(samples)
+    # Calculate total input size
+    total_input_size = sum(
+        os.path.getsize(path) for path in samples.values() if os.path.isfile(path)
+    )
 
-    for sample_name, file_path in samples.items():
-        if os.path.isfile(file_path):
-            total_input_size += os.path.getsize(file_path)
-
-    # Estimate index size based on index type
-    # Bloom filter: bloom_size (in bytes) + overhead
-    # Abundance: roughly (nb_cell * 4 bytes) + overhead
-
+    # Estimate index size: nb_samples * bloom_size
     if bloom_size is not None:
-        # Bloom filter is specified in bits, convert to bytes
-        index_size_estimate = bloom_size
+        index_size_bytes = nb_samples * bloom_size
     elif nb_cell is not None:
-        # Abundance: each cell is typically 4 bytes (configurable with bitw)
-        # Plus partitions overhead (roughly 100MB per partition estimated)
-        index_size_estimate = nb_cell * 4
+        index_size_bytes = nb_samples * nb_cell
     else:
-        index_size_estimate = 0
+        index_size_bytes = 0
 
-    min_estimate = index_size_estimate
+    # Convert to human-readable format
+    index_size_obj = ByteCounter.auto(index_size_bytes, SizeFormat.BYTE)
+    input_size_obj = ByteCounter.auto(total_input_size, SizeFormat.BYTE)
 
     return {
         "input_size": total_input_size,
-        "input_size_gb": total_input_size / (1024**3),
-        "sample_count": sample_count,
-        "index_size_min_gb": min_estimate / (1024**3),
+        "input_size_str": str(input_size_obj),
+        "sample_count": nb_samples,
+        "index_size_min_bytes": index_size_bytes,
+        "index_size_min_str": str(index_size_obj),
     }
-
-
-def format_size(bytes_size: float) -> str:
-    """Format bytes to human-readable size."""
-    for unit in ["B", "KB", "MB", "GB", "TB"]:
-        if bytes_size < 1024:
-            return f"{bytes_size:.2f} {unit}"
-        bytes_size /= 1024
-    return f"{bytes_size:.2f} PB"
 
 
 # ============================================================================
@@ -492,10 +482,10 @@ def build(
                 )
                 click.echo("Build Size Estimate:")
                 click.echo(
-                    f"  Input data: {size_est['input_size_gb']:.2f} GB ({size_est['sample_count']} samples)"
+                    f"  Input data: {size_est['input_size_str']} ({size_est['sample_count']} samples)"
                 )
                 click.echo(
-                    f"  Estimated index size: {size_est['index_size_min_gb']:.2f} - {size_est['index_size_max_gb']:.2f} GB"
+                    f"  Estimated index size: {size_est['index_size_min_str']}"
                 )
                 click.echo()
 
@@ -1544,10 +1534,10 @@ def project_build(
                 size_est = estimate_build_size(fof, bloom_size=bloom_size, nb_cell=None)
                 click.echo("Build Size Estimate:")
                 click.echo(
-                    f"  Input data: {size_est['input_size_gb']:.2f} GB ({size_est['sample_count']} samples)"
+                    f"  Input data: {size_est['input_size_str']} ({size_est['sample_count']} samples)"
                 )
                 click.echo(
-                    f"  Estimated index size: {size_est['index_size_min_gb']:.2f} - {size_est['index_size_max_gb']:.2f} GB"
+                    f"  Estimated index size: {size_est['index_size_min_str']}"
                 )
                 click.echo()
 
