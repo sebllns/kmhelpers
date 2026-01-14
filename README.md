@@ -2,6 +2,29 @@
 
 A Python toolkit for managing, compressing, and querying k-mer indices efficiently.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Getting Started](#getting-started)
+- [Installation with kmhelpersctl](#installation-with-kmhelpersctl-recommended)
+  - [Quick Installation](#21-quick-installation-recommended)
+  - [Verify Installation](#22-verify-installation)
+  - [Custom Installation Path](#23-custom-installation-path)
+  - [Install Components Separately](#24-install-components-separately)
+  - [Getting Help](#25-getting-help)
+- [Manual Installation](#manual-installation)
+- [Quick Start](#quick-start)
+- [Core Concepts](#core-concepts)
+- [Command-Line Interface](#command-line-interface)
+- [API Reference](#api-reference)
+- [Examples](#examples)
+- [Performance Tips for Compression](#performance-tips-for-compression)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
+- [Contact](#contact)
+- [Changelog](#changelog)
+
 ## Overview
 
 **kmhelpers** provides a comprehensive interface for working with k-mer indices, specifically designed for handling large-scale genomic data. It offers tools for:
@@ -22,11 +45,9 @@ A Python toolkit for managing, compressing, and querying k-mer indices efficient
 - 🔍 **Query system** with FASTA/FASTQ support
 - 📈 **Compression metrics** with histograms and performance tracking
 
-## Installation with kmhelpersctl (Recommended)
+## Getting started
 
-kmhelpersctl is a bash utility script that simplifies installation of kmhelpers and kmindex.
-
-### 1. Clone the repository and navigate to it
+Clone the repository and navigate to it
 
 ```bash
 git clone https://gitlab.inria.fr/omicfinder/kmhelpers
@@ -34,9 +55,17 @@ git checkout dev/v0.5.5
 cd kmhelpers
 ```
 
+Once the repository is cloned, you have two options for installation:
+- [**Automated**](#installation-with-kmhelpersctl-recommended): Use the `kmhelpersctl` script for automated setup
+- [**Manual**](#manual-installation): Follow step-by-step installation instructions
+
+## Installation with kmhelpersctl (Recommended)
+
+kmhelpersctl is a bash utility script that simplifies installation of kmhelpers and kmindex.
+
 ### 2.1 Quick Installation (Recommended)
 
-The easiest way to install kmhelpers and all dependencies in one go:
+If you have **Conda** installed, the easiest way to install kmhelpers and all dependencies in one go:
 
 ```bash
 ./kmhelpersctl.sh quick-install
@@ -51,7 +80,28 @@ This will automatically:
 
 **Prerequisites:** Conda (Miniconda or Anaconda) must be installed. If you don't have it, see [Installation Instructions](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
 
-### 2.2 Custom Installation Path
+### 2.2 Verify Installation
+
+After installation, you need to reload your shell for the changes to take effect:
+
+```bash
+# Reload your shell
+source ~/.bashrc
+# Or if using zsh
+source ~/.zshrc
+```
+
+Once reloaded, verify the installation:
+
+```bash
+# Check the installed version
+kmhelpersctl --version
+
+# View available commands
+kmhelpersctl --help
+```
+
+### 2.3 Custom Installation Path
 
 By default, kmhelpers installs to `~/.kmhelpers`. To use a different path:
 
@@ -59,74 +109,55 @@ By default, kmhelpers installs to `~/.kmhelpers`. To use a different path:
 ./kmhelpersctl.sh -w /custom/path quick-install
 ```
 
-After installation, you can also select path with any command:
+The installation path is stored in `KMHELPERS_PATH` environment variable, which is loaded automatically when you run `kmhelpersctl` after installation.
+
+### Override Path Per Command
+
+After installation, you can also manually point to another path with any command:
 ```bash
 kmhelpersctl -w /custom/path <command>
 ```
 
-### 2.3 Install Components Separately
+### 2.4 Install Components Separately
 
 If you prefer to install components individually:
 
 ```bash
 # Install only kmindex from bioconda
-./kmhelpersctl.sh install-kmindex
+./kmhelpersctl.sh install kmindex
 
 # Install only the kmhelpers Python package
-./kmhelpersctl.sh install-pykmhelpers
+./kmhelpersctl.sh install python
 
 # Install zsh completions
-./kmhelpersctl.sh install-kmindex-completion
-./kmhelpersctl.sh install-kmhelpersctl-completion
+./kmhelpersctl.sh completion kmindex
+./kmhelpersctl.sh completion kmhelpersctl
 ```
 
-### 2.4 Getting Help
+### 2.5 Getting Help
 
-For detailed information on any command:
+For detailed information on any command, use `help`, `-h`, or `--help`:
 
 ```bash
-# Show all available commands (quick summary)
-kmhelpersctl help
+# Show all available commands
+kmhelpersctl -h
 
-# Show detailed help for any command - use "help", "-h", or "--help"
-kmhelpersctl register help
-kmhelpersctl list help
-kmhelpersctl search -h
-kmhelpersctl stats --help
-kmhelpersctl size help
-kmhelpersctl check help
+# Show detailed help for a command
+kmhelpersctl <command> help
+# Equivalent to
+kmhelpersctl <command> -h
+# Or
+kmhelpersctl <command> --help
 
-# Installation commands
-kmhelpersctl quick-install help
-kmhelpersctl install-kmindex help
-kmhelpersctl install-pykmhelpers --help
-kmhelpersctl install-kmhelpersctl help
-kmhelpersctl install-kmindex-completion help
-kmhelpersctl install-kmhelpersctl-completion help
-
-# Utility commands
-kmhelpersctl activate-venv help
-kmhelpersctl update-shell help
+# Examples
+kmhelpersctl install -h
+kmhelpersctl install kmindex -h
+kmhelpersctl register -h
 ```
-
-Each command displays:
-- Usage syntax
-- Available options and arguments
-- Description of what the command does
-- Practical examples
-- Links to more information
 
 ## Manual Installation
 
-### Get the sources
-
-```bash
-# Clone the repository
-git clone https://gitlab.inria.fr/omicfinder/kmhelpers
-cd kmhelpers
-```
-
-### Quick Install with Conda (Recommended)
+### Quick Install with Conda 
 
 ```bash
 # Create environment with kmindex pre-installed
@@ -150,25 +181,16 @@ Then install kmindex separately:
 ```bash
 # Via bioconda (requires conda/mamba)
 conda install -c bioconda kmindex>=0.5.3
-
-# Or compile from source and add to PATH
-git clone <kmindex-repo>
-cd kmindex && mkdir build && cd build
-cmake .. && make
-export PATH=$(pwd):$PATH  # Add to your shell profile for persistence
 ```
 
-### Override kmindex Installation
+### Override kmindex Installation (advanced)
 
 If you prefer to use a custom-compiled kmindex or a different version:
 
 1. **Install kmindex from source:**
-   ```bash
-   # Build kmindex from your source
-   git clone <kmindex-repo>
-   cd kmindex && mkdir build && cd build
-   cmake .. && make
-   ```
+    Follow the guide:
+    https://tlemane.github.io/kmindex/installation/#install-from-sources
+
 
 2. **Add the binary to your PATH:**
    ```bash
@@ -495,7 +517,7 @@ Kmindex.check_index_structure("/path/to/index", partition_count=256)
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-Copyright (c) 2024 Sébastien BELLENOUS
+Copyright (c) 2026 Sébastien BELLENOUS
 
 ## Contact
 
