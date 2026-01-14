@@ -1389,45 +1389,80 @@ def project():
 )
 @click.option(
     "--z",
-    "--minim-size",
-    "minim_size",
     type=int,
     default=6,
-    help="Minimizer size (default: 6)",
+    help="Z offset for findere algorithm (s = k - z). Constraint: 0 < k - z <= 36 (default: 6)",
 )
-def project_create(project_path, kmer_size, minim_size):
-    """Initialize a new kmhelpers project."""
+def project_create(project_path, kmer_size, z):
+    """Initialize a new kmhelpers project.
+
+    The findere algorithm uses k-mers reduced to s-mers through the z offset:
+    - K: full k-mer size
+    - z: offset used to reduce k-mers during indexing to reduce false positives
+    - s: actual smer size used in index (s = k - z)
+
+    Important constraints:
+    - 0 < K - z <= 36 to avoid hash collisions in Bloom filters and ensure valid smers.
+
+    Valid examples: (k=31, z=6) → s=25 ✓, (k=37, z=1) → s=36 ✓
+    Invalid examples: (k=37, z=0) → s=37 ✗, (k=31, z=31) → s=0 ✗
+    """
     #  Main.init()
 
     try:
         # Create base directory
         os.makedirs(project_path, exist_ok=True)
 
-        # Create IndexBuilder to set up directory structure
-        builder = IndexBuilder(project_path, k=kmer_size, z=minim_size)
+        # Validate basic parameter ranges
+        if kmer_size <= 0:
+            raise click.BadParameter(
+                f"K-mer size (k) must be > 0, got {kmer_size}"
+            )
 
-        # Calculate s (span) from k and z: s = k - z + 1
-        s = kmer_size - minim_size + 1
+        if z < 0:
+            raise click.BadParameter(
+                f"Z offset must be >= 0, got {z}"
+            )
+
+        # Calculate smer size from k and z
+        smer_size = kmer_size - z
+
+        # Validate constraint: 0 < k - z <= 36
+        if smer_size <= 0:
+            raise click.BadParameter(
+                f"Constraint violation: k - z must be > 0, but got {kmer_size} - {z} = {smer_size}. "
+                f"Ensure z is less than k."
+            )
+
+        if smer_size > 36:
+            raise click.BadParameter(
+                f"Constraint violation: k - z must be <= 36, but got {kmer_size} - {z} = {smer_size}. "
+            )
+
+        # Create IndexBuilder to set up directory structure
+        IndexBuilder(project_path, k=kmer_size, z=z)
 
         # Create and save project metadata
         config = {
             "version": "1.0",
             "k": kmer_size,
-            "z": minim_size,
-            "s": s,
+            "z": z,
+            "s": smer_size,
             "created": str(Path(project_path).absolute()),
         }
         _save_project_config(project_path, config)
 
         click.echo(f"✓ Project created: {project_path}")
         click.echo(f"  K-mer size (k): {kmer_size}")
-        click.echo(f"  Minimizer size (z): {minim_size}")
-        click.echo(f"  Span (s): {s}")
+        click.echo(f"  Z offset: {z}")
+        click.echo(f"  Smer size (s = k - z): {smer_size}")
         click.echo(f"  Structure:")
         click.echo(f"    - registry/")
         click.echo(f"    - .subindexes/")
         click.echo(f"    - logs/")
 
+    except click.BadParameter:
+        raise
     except Exception as e:
         raise click.ClickException(f"Failed to create project: {e}")
 
