@@ -332,7 +332,6 @@ def estimate_build_size(
     else:
         index_size_estimate = 0
 
-
     min_estimate = index_size_estimate
 
     return {
@@ -456,7 +455,6 @@ def build(
       # Build with multiple threads and register
       kmhelpers build --fof samples.fof -r ./registry --bloom-size 10000000 -t 8 -n my_index
     """
-    #  Main.init()
 
     # Validate parameters
     if bloom_size is None and nb_cell is None:
@@ -577,7 +575,7 @@ def registry():
 )
 def registry_add(input_dir, registry_path, index_ids):
     """Register kmtricks indices in a registry."""
-    #  Main.init()
+
     click.echo("Initializing kmhelpers...")
 
     registry = KmindexRegistry(registry_path)
@@ -627,7 +625,7 @@ def registry_add(input_dir, registry_path, index_ids):
 )
 def registry_list(registry_path):
     """List all indices in a registry."""
-    #  Main.init()
+
     registry = KmindexRegistry(registry_path)
 
     indices = registry.list_indices()
@@ -666,7 +664,6 @@ def registry_list(registry_path):
 )
 def registry_info(registry_path, index_id, output_json):
     """Show detailed information about an index."""
-    #  Main.init()
 
     try:
         registry = KmindexRegistry(registry_path)
@@ -724,7 +721,6 @@ def registry_info(registry_path, index_id, output_json):
 )
 def registry_check(registry_path, verbose):
     """Validate registry consistency and check all index structures."""
-    #  Main.init()
 
     try:
         registry = KmindexRegistry(registry_path)
@@ -798,7 +794,6 @@ def registry_check(registry_path, verbose):
 )
 def registry_remove(registry_path, index_id, delete_files, force):
     """Remove index from registry (optionally delete files)."""
-    #  Main.init()
 
     try:
         registry = KmindexRegistry(registry_path)
@@ -963,7 +958,6 @@ def compress(
       # Custom block size with verification
       kmhelpers compress -i ./indices -n my_index -o ./out --block-size 16777216 --enable-check
     """
-    #  Main.init()
 
     # Check if output dir exists
     if os.path.exists(output_dir) and not force:
@@ -1289,7 +1283,6 @@ def query(
       # Treat all sequences as one query
       kmhelpers query -r ./registry -n idx1 -q multi.fa --single-query batch1 -o out
     """
-    #  Main.init()
 
     # Verify registry and indices
     registry = KmindexRegistry(registry_path)
@@ -1407,7 +1400,6 @@ def project_create(project_path, kmer_size, z):
     Valid examples: (k=31, z=6) → s=25 ✓, (k=37, z=1) → s=36 ✓
     Invalid examples: (k=37, z=0) → s=37 ✗, (k=31, z=31) → s=0 ✗
     """
-    #  Main.init()
 
     try:
         # Create base directory
@@ -1415,14 +1407,10 @@ def project_create(project_path, kmer_size, z):
 
         # Validate basic parameter ranges
         if kmer_size <= 0:
-            raise click.BadParameter(
-                f"K-mer size (k) must be > 0, got {kmer_size}"
-            )
+            raise click.BadParameter(f"K-mer size (k) must be > 0, got {kmer_size}")
 
         if z < 0:
-            raise click.BadParameter(
-                f"Z offset must be >= 0, got {z}"
-            )
+            raise click.BadParameter(f"Z offset must be >= 0, got {z}")
 
         # Calculate smer size from k and z
         smer_size = kmer_size - z
@@ -1525,7 +1513,6 @@ def project_build(
     force,
 ):
     """Build an index within the project."""
-    #  Main.init()
 
     try:
         # Load project configuration
@@ -1651,7 +1638,6 @@ def project_query(
     verbose,
 ):
     """Query an index within the project."""
-    #  Main.init()
 
     try:
         # Load project configuration
@@ -1703,7 +1689,6 @@ def project_query(
 @click.argument("project_path", type=click.Path(exists=True, file_okay=False))
 def project_info(project_path):
     """Show project information and indices."""
-    #  Main.init()
 
     try:
         # Load project configuration
