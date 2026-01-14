@@ -316,9 +316,10 @@ def estimate_build_size(
     nb_samples = len(samples)
 
     # Calculate total input size
-    total_input_size = sum(
-        os.path.getsize(path) for path in samples.values() if os.path.isfile(path)
-    )
+    total_input_size = 0
+    # total_input_size = sum(
+    #     os.path.getsize(path) for path in samples.values() if os.path.isfile(path)
+    # )
 
     # Estimate index size: nb_samples * bloom_size
     if bloom_size is not None:
@@ -481,9 +482,9 @@ def build(
                     fof, bloom_size=bloom_size, nb_cell=nb_cell
                 )
                 click.echo("Build Size Estimate:")
-                click.echo(
-                    f"  Input data: {size_est['input_size_str']} ({size_est['sample_count']} samples)"
-                )
+                # click.echo(
+                #     f"  Input data: {size_est['input_size_str']} ({size_est['sample_count']} samples)"
+                # )
                 click.echo(
                     f"  Estimated index size: {size_est['index_size_min_str']}"
                 )
