@@ -2185,7 +2185,7 @@ function update_python()
 #!/bin/bash
 set -e
 # Use conda run to execute pip install in the environment
-conda run -p "$1" pip install -e "$2"
+conda run -p "$1" pip install "$2"
 exit $?
 INSTALL_EOF
     else
@@ -2194,7 +2194,7 @@ INSTALL_EOF
 #!/bin/bash
 set -e
 source "$1/bin/activate" || exit 1
-pip install -e "$2"
+pip install "$2"
 exit $?
 INSTALL_EOF
     fi
