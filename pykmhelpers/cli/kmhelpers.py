@@ -377,7 +377,9 @@ def test_create_fasta(output_dir, n_samples, average_size, min_size, create_fof)
 
             # Add all generated FASTA files to FOF
             for i in range(n_samples):
-                fasta_file = os.path.realpath(os.path.join(output_dir, f"sequence_{i}.fasta"))
+                fasta_file = os.path.realpath(
+                    os.path.join(output_dir, f"sequence_{i}.fasta")
+                )
                 sample_name = f"sequence_{i}"
                 manager.add_sample(fasta_file, sample_name)
 
@@ -585,9 +587,7 @@ def build(
                 # click.echo(
                 #     f"  Input data: {size_est['input_size_str']} ({size_est['sample_count']} samples)"
                 # )
-                click.echo(
-                    f"  Estimated index size: {size_est['index_size_min_str']}"
-                )
+                click.echo(f"  Estimated index size: {size_est['index_size_min_str']}")
                 click.echo()
 
                 if not click.confirm("Proceed with build?", default=True):
@@ -1634,9 +1634,7 @@ def project_build(
                 click.echo(
                     f"  Input data: {size_est['input_size_str']} ({size_est['sample_count']} samples)"
                 )
-                click.echo(
-                    f"  Estimated index size: {size_est['index_size_min_str']}"
-                )
+                click.echo(f"  Estimated index size: {size_est['index_size_min_str']}")
                 click.echo()
 
                 if not click.confirm("Proceed with build?", default=True):
