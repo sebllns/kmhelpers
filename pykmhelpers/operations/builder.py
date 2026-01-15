@@ -94,6 +94,69 @@ class IndexBuilder:
     def get_bf_size(self, bf_specs: BloomFilterSpecs) -> ByteCounter:
         return ByteCounter.auto(bf_specs.total_byte_count, SizeFormat.BYTE)
 
+    def index_spans(
+        self,
+        spans_dict,
+        metadata_samples,
+        assembled=True,
+        min_span=0,
+        max_span=37,
+        group_until=0,
+        n_threads=1,
+        n_partitions=256,
+    ):
+        fof_mgr = FofManager()
+
+        # Index each span
+        for span_id in range(min_span, max_span + 1):
+            try:
+                if span_id not in spans_dict:
+                    continue
+
+                span_info = spans_dict[span_id]
+                samples = span_info["samples"]
+
+                if span_id > group_until:
+                    fof_mgr = FofManager()
+
+                for sample in samples:
+                    if sample in metadata_samples:
+                        self.add_sample_to_fof(metadata_samples[sample], fof_mgr)
+                    else:
+                        print(f"  Warning: Sample {sample} not found in metadata")
+
+                if span_id >= group_until:
+
+                    # Build index for this span
+                    index_name = f"span_{span_id}"
+
+                    if not self.has_subindex(index_name):
+
+                        sample_count = fof_mgr.get_sample_count()
+                        bf_size = span_info["bf_size"]
+
+                        print(f"Processing span {span_id}")
+                        print(f"  Building index: {index_name}")
+                        print(f"  Samples: {sample_count}")
+                        print(f"  Bloom filter size: {bf_size}")
+                        print(
+                            f"  Required size on disk: {self.get_bf_size(self.get_bf_specs(sample_count, bf_size))}"
+                        )
+
+                        self.create_subindex(
+                            name=index_name,
+                            samples=fof_mgr,
+                            assembled=assembled,
+                            bloom_size=bf_size,
+                            n_max_threads=n_threads,
+                            auto_check=True,
+                            n_partitions=n_partitions,
+                        )
+
+                        print(f"  ✓ Index {index_name} completed")
+            except Exception as e:
+                print(f"[Error] {e}")
+
     def create_subindex(
         self,
         name: str,
@@ -202,7 +265,6 @@ class IndexBuilder:
     def check_index_structure(
         self,
         name: str,
-        n_samples=5,
     ):
         idx = self.index.get_index(name)
         idx.check_structure()
