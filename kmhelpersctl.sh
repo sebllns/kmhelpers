@@ -1198,6 +1198,32 @@ For more information, visit: https://gitlab.inria.fr/omicfinder/kmhelpers
 EOF
 }
 
+function update_python_help()
+{
+    cat <<'EOF'
+Update kmhelpers Python package from GitLab
+
+USAGE:
+    kmhelpersctl update-python [OPTIONS]
+
+OPTIONS:
+    -v, --version <VERSION>   Version/branch to update to (default: dev/v0.5.5)
+    -p, --path <ENV_DIR>      Path to the Python virtual environment (required)
+
+DESCRIPTION:
+    Update the kmhelpers Python package to a new version or branch from the
+    GitLab repository. This clones the latest code and reinstalls it via pip
+    in the specified virtual environment.
+
+EXAMPLES:
+    kmhelpersctl update-python -p ~/.kmhelpers        # Update to default version
+    kmhelpersctl update-python -p ~/.kmhelpers -v main  # Update to main branch
+    kmhelpersctl update-python -p ~/.kmhelpers -v v0.5.5 # Update to specific version
+
+For more information, visit: https://gitlab.inria.fr/omicfinder/kmhelpers
+EOF
+}
+
 install_kmindex_completion() {
     local comp_dir="${HOME}/.zsh/completions"
     local comp_file="${comp_dir}/_kmindex"
@@ -1562,6 +1588,15 @@ _kmhelpersctl_update_shell() {
         '(- *)'{-h,--help,help}'[Show help message]'
 }
 
+_kmhelpersctl_update_python() {
+    _arguments \
+        '-v[Version/branch to update to]:version:' \
+        '--version[Version/branch to update to]:version:' \
+        '-p[Path to Python virtual environment]:path:_files -/' \
+        '--path[Path to Python virtual environment]:path:_files -/' \
+        '(- *)'{-h,--help,help}'[Show help message]'
+}
+
 _kmhelpersctl() {
     local curcontext="$curcontext" state line
 
@@ -1585,6 +1620,7 @@ _kmhelpersctl() {
                 'completion:Install shell completions'
                 'activate-venv:Print instruction to activate kmhelpers virtual environment'
                 'update-shell:Update kmhelpersctl from GitLab'
+                'update-python:Update kmhelpers Python package from GitLab'
                 'help:Show help message'
                 'version:Show version information'
             )
@@ -1602,6 +1638,7 @@ _kmhelpersctl() {
                 completion)            _kmhelpersctl_completion ;;
                 activate-venv)         _kmhelpersctl_activate_venv ;;
                 update-shell)          _kmhelpersctl_update_shell ;;
+                update-python)         _kmhelpersctl_update_python ;;
             esac
             ;;
     esac
@@ -1662,6 +1699,7 @@ COMMANDS:
     check                                  Check if kmindex binary is available
     activate-venv                          Show activation command for venv
     update-shell                           Update kmhelpersctl from GitLab
+    update-python                          Update kmhelpers Python package from GitLab
     help                                   Show this help message
     version                                Show version information
 
@@ -2054,6 +2092,130 @@ function update()
     fi
 }
 
+# Update Python package from repository
+function update_python()
+{
+    # Parse command-line options
+    local version="${KMHELPERS_VERSION}"
+    local env_path="${ENV_DIR}"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -v|--version)
+                version="$2"
+                shift 2
+                ;;
+            -p|--path)
+                env_path="$2"
+                shift 2
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                echo "Usage: update-python [-v|--version <version>] [-p|--path <ENV_DIR>]"
+                return 1
+                ;;
+        esac
+    done
+
+    # Validate environment path
+    if [[ -z "$env_path" ]]; then
+        log_error "Environment path is required. Use -p|--path <ENV_DIR>"
+        return 1
+    fi
+
+    if [[ ! -d "$env_path" ]]; then
+        log_error "Virtual environment not found at: ${env_path}"
+        log_info "Did you run 'kmhelpersctl install python -p ${env_path}'?"
+        return 1
+    fi
+
+    if [[ ! -f "${env_path}/bin/pip" ]]; then
+        log_error "pip not found in virtual environment: ${env_path}/bin/pip"
+        return 1
+    fi
+
+    log_info "Updating kmhelpers Python package from version: ${version}"
+    log_info "Virtual environment: ${env_path}"
+
+    # Clone repository to a temp directory
+    local temp_dir=$(mktemp -d)
+    trap "rm -rf '$temp_dir'" EXIT
+
+    log_info "Cloning kmhelpers repository..."
+    if ! git clone https://gitlab.inria.fr/omicfinder/kmhelpers.git "$temp_dir"; then
+        log_error "Failed to clone kmhelpers repository"
+        return 1
+    fi
+
+    # Checkout specified version/branch
+    log_info "Checking out version: ${version}"
+    if ! git -C "$temp_dir" checkout "$version"; then
+        log_error "Failed to checkout kmhelpers version: ${version}"
+        return 1
+    fi
+
+    # Activate virtual environment and install
+    log_info "Installing Python package in editable mode..."
+
+    # Detect if it's a conda or venv environment
+    local activate_script=""
+    local is_conda=false
+
+    # Check for conda environment first (conda-meta is definitive marker)
+    if [[ -d "${env_path}/conda-meta" ]]; then
+        # conda environment
+        is_conda=true
+    elif [[ -f "${env_path}/bin/activate" ]]; then
+        # venv environment
+        activate_script="${env_path}/bin/activate"
+    else
+        log_error "Could not find activation script for environment: ${env_path}"
+        log_error "Expected either venv (bin/activate) or conda (conda-meta directory)"
+        return 1
+    fi
+
+    log_info "Detected environment type: $([ "$is_conda" = true ] && echo 'conda' || echo 'venv')"
+
+    # Create a bash script to activate and install
+    local install_script=$(mktemp)
+
+    if [[ "$is_conda" == true ]]; then
+        # For conda environments - use conda run to avoid activation script issues
+        cat > "$install_script" <<'INSTALL_EOF'
+#!/bin/bash
+set -e
+# Use conda run to execute pip install in the environment
+conda run -p "$1" pip install -e "$2"
+exit $?
+INSTALL_EOF
+    else
+        # For venv environments
+        cat > "$install_script" <<'INSTALL_EOF'
+#!/bin/bash
+set -e
+source "$1/bin/activate" || exit 1
+pip install -e "$2"
+exit $?
+INSTALL_EOF
+    fi
+
+    chmod +x "$install_script"
+
+    if bash "$install_script" "$env_path" "$temp_dir"; then
+        log_info "✓ Successfully updated kmhelpers Python package"
+        log_info "Version: ${version}"
+        log_info "Location: ${env_path}"
+        log_info "Environment type: $([ "$is_conda" = true ] && echo 'conda' || echo 'venv')"
+        rm -f "$install_script"
+        return 0
+    else
+        log_error "Failed to update kmhelpers Python package"
+        log_error "Make sure the virtual environment exists and pip is installed"
+        rm -f "$install_script"
+        return 1
+    fi
+}
+
 # ============================================================================
 # NESTED COMMAND HANDLERS
 # ============================================================================
@@ -2357,6 +2519,13 @@ function kmhelpersctl()
                 update_shell_help
             else
                 update "${args[@]}"
+            fi
+            ;;
+        update-python)
+            if [[ "${args[0]}" == "help" || "${args[0]}" == "-h" || "${args[0]}" == "--help" ]]; then
+                update_python_help
+            else
+                update_python "${args[@]}"
             fi
             ;;
         help|-h|--help)
