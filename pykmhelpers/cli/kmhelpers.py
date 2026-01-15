@@ -26,6 +26,7 @@ from pykmhelpers.operations.builder import IndexBuilder
 from pykmhelpers.operations.query import KmindexQuery, KmindexQueryResult
 from pykmhelpers.operations.byte import ByteCounter, SizeFormat
 from pykmhelpers.operations.fasta import Fasta
+from pykmhelpers.cli.project_shell import ProjectShell
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -1480,7 +1481,7 @@ def project_create(project_path, kmer_size, z):
     The findere algorithm uses k-mers reduced to s-mers through the z offset:
     - K: full k-mer size
     - z: offset used to reduce k-mers during indexing to reduce false positives
-    - s: actual smer size used in index (s = k - z)
+    - s: actual s-mer size used in index (s = k - z)
 
     Important constraints:
     - 0 < K - z <= 36 to avoid hash collisions in Bloom filters and ensure valid smers.
@@ -1541,6 +1542,35 @@ def project_create(project_path, kmer_size, z):
         raise
     except Exception as e:
         raise click.ClickException(f"Failed to create project: {e}")
+
+
+@project.command(name="open")
+@click.argument("project_path", type=click.Path(exists=True, file_okay=False))
+def project_open(project_path):
+    """Open an existing kmhelpers project in interactive shell mode.
+
+    Launches an interactive REPL where you can execute project-scoped commands
+    like 'build', 'query', 'info', etc. without repeating the project path.
+
+    Examples of commands in the shell:
+      kmhelpers(my_project)> info
+      kmhelpers(my_project)> build my_index --fof samples.fof --bloom-size 10000000
+      kmhelpers(my_project)> query my_index --query query.fa --output results
+      kmhelpers(my_project)> list
+      kmhelpers(my_project)> exit
+    """
+    try:
+        # Load project configuration
+        config = _get_project_config(project_path)
+
+        # Launch interactive shell
+        shell = ProjectShell(project_path, config)
+        shell.run()
+
+    except click.ClickException:
+        raise
+    except Exception as e:
+        raise click.ClickException(f"Failed to open project: {e}")
 
 
 @project.command(name="build")
