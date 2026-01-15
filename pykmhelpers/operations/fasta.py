@@ -56,7 +56,7 @@ class Fasta:
 
     def __len__(self) -> int:
         return self.total_nucleotides()
-    
+
     @staticmethod
     def create_random_test_dataset(
         output_dir: str, n_samples: int = 5, average_size=1000, min_size=100
