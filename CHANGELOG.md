@@ -2,6 +2,87 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.7] - 2026-01-16
+
+### Added
+
+- **Sequence Methods**: New sequence generation and analysis capabilities
+  - `fill_random_kmers()`: Generate sequences with n unique consecutive k-mers
+  - `fill_random_and_count_kmers()`: Generate random sequences and count distinct k-mers
+  - Sliding window approach ensures true consecutive k-mers with guaranteed uniqueness
+
+- **Test Database Generation**: New `kmhelpers test create-db` command
+  - Generate test databases with sample sequences and k-mer statistics
+  - Tracks distinct k-mer counts for each sample
+  - Outputs FASTA files and samples.yaml metadata file
+  - Supports customizable k-mer size for analysis
+
+- **CLI Refactoring**: Complete modularization of CLI structure
+  - Moved all groups and commands into separate modules for better maintainability
+  - `fof.py`: File-of-Files management commands
+  - `test.py`: Test data generation commands
+  - `registry.py`: Index registry management commands
+  - `project.py`: High-level project workflow commands
+  - `build.py`: Index building command
+  - `compression.py`: Compression commands (merged compress and kmindex-compress)
+  - `query.py`: Query command
+  - `shared.py`: Shared utilities (estimate_build_size, config helpers)
+  - Main `kmhelpers.py`: Minimal entry point registering all subcommands
+  - Reduced main CLI file from 2,017 to 136 lines
+
+### Changed
+
+- **CLI Structure**: Improved code organization and maintainability
+  - Each CLI group now in its own focused module
+  - Better separation of concerns
+  - Easier to locate and modify specific functionality
+  - Cleaner imports and dependencies
+
+- **Build Command**: Enhanced with better size estimation
+  - Improved calculation logic for resource planning
+  - Better error handling in estimation
+
+### Fixed
+
+- Import paths and module organization for CLI commands
+- Fixed batch processing in update script
+
+## [0.5.6] - 2026-01-15
+
+### Added
+
+- **IndexBuilder Methods**: Enhanced index building capabilities
+  - `create_subindex_from_spans()`: Build indices from genome spans
+  - Better integration with project workflow
+
+- **Sequence Operations**: New random sequence generation
+  - `Sequence.fill_random()`: Generate random FASTA sequences
+  - Used for test data creation and benchmarking
+
+- **KmindexRegistry Compression**: New compression method
+  - `registry.compress()`: Compress indices managed in registry
+  - Streamlined compression workflow for registered indices
+
+- **Test Data Methods**: Random sample generation utilities
+  - `Fasta.create_random_test_dataset()`: Generate random test sequences
+  - Support for customizable sequence sizes and counts
+
+### Changed
+
+- **Size Estimation**: Improved build size calculation
+  - More accurate estimation logic
+  - Better parameter handling for bloom size and abundance cells
+  - Enhanced feedback to users during build planning
+
+- **Project Shell**: Interactive shell improvements
+  - Better command handling
+  - Enhanced user interface
+
+### Fixed
+
+- Size comparison calculations in compression metrics
+- Path handling in build output directory
+
 ## [0.5.5] - 2026-01-06
 
 ### Added
