@@ -159,8 +159,7 @@ class FofManager:
 
         return (sample_name, file_path)
 
-    @staticmethod
-    def extract_sample_name(file_path: Union[str, Path]) -> str:
+    def extract_sample_name(self, file_path: Union[str, Path], add_id: bool = False, prefix: str = "") -> str:
         """
         Extract sample name from a file path.
 
@@ -199,6 +198,12 @@ class FofManager:
 
         # Remove leading underscores
         sample_name = sample_name.lstrip("_")
+
+        if prefix:
+            sample_name = prefix + "_" + sample_name
+
+        if add_id:
+            sample_name = '{:06d}'.format(self.get_sample_count()) + sample_name
 
         return sample_name
 

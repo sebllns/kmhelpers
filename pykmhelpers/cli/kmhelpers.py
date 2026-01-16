@@ -8,6 +8,7 @@ import click
 import json
 import yaml
 from pathlib import Path
+from datetime import datetime
 
 from pykmhelpers import (
     __version__,
@@ -130,7 +131,7 @@ def fof_create(from_directory, output, recursive, extensions, verbose):
 
         # Extract sample names and add to manager
         for file_path in files:
-            sample_name = FofManager.extract_sample_name(file_path)
+            sample_name = manager.extract_sample_name(file_path)
             manager.add_sample(file_path, sample_name)
             if verbose:
                 click.echo(f"  Added: {sample_name} -> {file_path}")
@@ -1455,7 +1456,8 @@ def _save_project_config(project_path, config):
 
 @cli.group()
 def project():
-    """Opinionated project workflow for building and querying indices."""
+    """[EXPERIMENTAL] Opinionated project workflow for building and querying indices."""
+    click.echo("⚠ Warning: The 'project' command is experimental, may not work correctly and may change in future versions.", err=True)
     pass
 
 
@@ -1475,7 +1477,18 @@ def project():
     default=6,
     help="Z offset for findere algorithm (s = k - z). Constraint: 0 < k - z <= 36 (default: 6)",
 )
-def project_create(project_path, kmer_size, z):
+@click.option(
+    "--desc",
+    "description",
+    help="Optional project description",
+)
+@click.option(
+    "--open",
+    "open_shell",
+    is_flag=True,
+    help="Open the project shell immediately after creation",
+)
+def project_create(project_path, kmer_size, z, description, open_shell):
     """Initialize a new kmhelpers project.
 
     The findere algorithm uses k-mers reduced to s-mers through the z offset:
@@ -1525,18 +1538,33 @@ def project_create(project_path, kmer_size, z):
             "k": kmer_size,
             "z": z,
             "s": smer_size,
-            "created": str(Path(project_path).absolute()),
+            "path": str(Path(project_path).absolute()),
+            "date_creation": datetime.now().isoformat(),
         }
+
+        # Add optional description if provided
+        if description:
+            config["description"] = description
+
         _save_project_config(project_path, config)
 
         click.echo(f"✓ Project created: {project_path}")
         click.echo(f"  K-mer size (k): {kmer_size}")
         click.echo(f"  Z offset: {z}")
         click.echo(f"  Smer size (s = k - z): {smer_size}")
+        click.echo(f"  Created: {config['date_creation']}")
+        if description:
+            click.echo(f"  Description: {description}")
         click.echo(f"  Structure:")
         click.echo(f"    - registry/")
         click.echo(f"    - .subindexes/")
         click.echo(f"    - logs/")
+
+        # Launch interactive shell if requested
+        if open_shell:
+            click.echo()
+            shell = ProjectShell(project_path, config)
+            shell.run()
 
     except click.BadParameter:
         raise
@@ -1815,6 +1843,10 @@ def project_info(project_path):
         click.echo(f"  K-mer size (k): {config['k']}")
         click.echo(f"  Minimizer size (z): {config['z']}")
         click.echo(f"  Span (s): {config['s']}")
+        click.echo(f"  Path: {config.get('path', 'unknown')}")
+        click.echo(f"  Created: {config.get('date_creation', 'unknown')}")
+        if config.get('description'):
+            click.echo(f"  Description: {config['description']}")
         click.echo()
 
         # Show directory structure

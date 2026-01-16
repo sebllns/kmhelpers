@@ -24,11 +24,15 @@ class Fasta:
     def n_sequences(self):
         return len(self._sequences)
 
-    def fill_random(self, num_sequences, average_size, min_size):
+    def fill_random(self, num_sequences, average_size, min_size, header="sequence"):
         sequences = []
+        # Calculate padding width based on number of sequences
+        padding_width = len(str(num_sequences - 1))
         for i in range(num_sequences):
             seq_size = random.randint(min_size, average_size)
-            sequence = Sequence(header=f"sequence{i}")
+            # Zero-pad the index to maintain consistent naming
+            padded_index = str(i).zfill(padding_width)
+            sequence = Sequence(header=f"{header}{padded_index}")
             sequence.fill_random(seq_size)
             sequences.append(sequence)
         self._sequences = sequences
@@ -72,10 +76,13 @@ class Fasta:
         os.makedirs(output_dir, exist_ok=True)
         fasta = Fasta()
         fasta.fill_random(
-            num_sequences=n_samples, average_size=average_size, min_size=min_size
+            num_sequences=n_samples,
+            average_size=average_size,
+            min_size=min_size,
+            header=os.path.basename(output_dir) + "_",
         )
-        for i, sequence in enumerate(fasta):
-            output_file = os.path.join(output_dir, f"sequence_{i}.fasta")
+        for _i, sequence in enumerate(fasta):
+            output_file = os.path.join(output_dir, f"{sequence.header}.fasta")
             with open(output_file, "w") as f:
                 f.write(sequence.to_fasta())
 

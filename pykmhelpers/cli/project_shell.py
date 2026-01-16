@@ -51,6 +51,11 @@ class ProjectShell:
             """List all indices in the registry."""
             self._cmd_list()
 
+        @shell.command(name="ls")
+        def cmd_ls():
+            """List all indices in the registry (alias for 'list')."""
+            self._cmd_list()
+
         @shell.command(name="build")
         @click.argument("index_name")
         @click.option("--fof", required=True, type=click.Path(exists=True), help="Path to FOF file")
@@ -152,7 +157,7 @@ class ProjectShell:
         """Display available commands."""
         click.echo("\nAvailable commands:")
         click.echo("  info                          Show project configuration and indices")
-        click.echo("  list                          List all indices in the registry")
+        click.echo("  list, ls                      List all indices in the registry")
         click.echo("  build <name> --fof <file>    Build a new index")
         click.echo("    --bloom-size <size>         Required: bloom filter size (bits)")
         click.echo("    --threads <n>               Optional: number of threads (default: 0=auto)")
@@ -186,8 +191,11 @@ class ProjectShell:
     def _cmd_info(self):
         """Show project information."""
         click.echo(f"\nProject: {self.project_name}")
-        click.echo(f"  Path: {self.project_path}")
         click.echo(f"  Version: {self.config.get('version', 'unknown')}")
+        click.echo(f"  Path: {self.config.get('path', self.project_path)}")
+        click.echo(f"  Created: {self.config.get('date_creation', 'unknown')}")
+        if self.config.get('description'):
+            click.echo(f"  Description: {self.config['description']}")
         click.echo(f"  K-mer size (k): {self.config['k']}")
         click.echo(f"  Z offset (z): {self.config['z']}")
         click.echo(f"  Smer size (s): {self.config['s']}")
