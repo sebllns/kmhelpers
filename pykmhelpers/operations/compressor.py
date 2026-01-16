@@ -43,7 +43,6 @@ class CompressionParams:
     threshold: int = 0
     enable_check: bool = False
     enable_overwrite: bool = False
-    # use_hash: bool = True
     force_permutation: bool = False
     with_checks: bool = False
     with_size_comparison: bool = True
