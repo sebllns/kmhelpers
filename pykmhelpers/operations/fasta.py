@@ -140,7 +140,7 @@ class FASTAReader:
                 return seq[start:end]
             return seq
 
-    def fetch_first_n(self, length):
+    def fetch_first_n(self, length, offset=0):
         """Extract first N bases from contig."""
         with self._open_file() as fh:
             seq = ""
@@ -148,10 +148,11 @@ class FASTAReader:
                 line = line.rstrip("\n")
                 if not line.startswith(">"):
                     seq += line
-                    if len(seq) >= length:
+                    if len(seq) >= offset + length:
                         break
             return Sequence(
-                content=seq[:length], header=f"{self.filepath.name}.{length}"
+                content=seq[offset : offset + length],
+                header=f"{self.filepath.name}.S{offset}.L{length}",
             )
 
     def iter_sequences(self):
