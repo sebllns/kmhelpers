@@ -1,6 +1,9 @@
 class Sequence:
+    REV = str.maketrans("ACGTacgt", "TGCAtgca")
+
     def __init__(self, content: str = "", header: str = "") -> None:
         self._content = content
+        self._revcomp = self.content.translate(Sequence.REV)[::-1]
         self._header = header
 
     @property
@@ -118,3 +121,11 @@ class Sequence:
             kmers.add(kmer)
 
         return len(kmers)
+    
+    def canonical(self):
+        """Returns the smallest value between a sequence and its reverse complement
+        Returns:
+            (str): smallest value between a seq and its reverse complement
+        """
+        return min(self._revcomp, self._content)
+    
