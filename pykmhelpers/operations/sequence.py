@@ -1,9 +1,7 @@
+REVERSER = str.maketrans("ACGTacgt", "TGCAtgca")
 class Sequence:
-    REV = str.maketrans("ACGTacgt", "TGCAtgca")
-
     def __init__(self, content: str = "", header: str = "") -> None:
         self._content = content
-        self._revcomp = self.content.translate(Sequence.REV)[::-1]
         self._header = header
 
     @property
@@ -117,15 +115,18 @@ class Sequence:
         # Extract all k-mers and count distinct ones
         kmers = set()
         for i in range(L - k + 1):
-            kmer = self._content[i:i + k]
-            kmers.add(kmer)
+            kmer = Sequence(self._content[i:i + k])
+            kmers.add(kmer.canonical())
 
         return len(kmers)
+    
+    def revcomp(self):
+        return self.content.translate(REVERSER)[::-1]
     
     def canonical(self):
         """Returns the smallest value between a sequence and its reverse complement
         Returns:
             (str): smallest value between a seq and its reverse complement
         """
-        return min(self._revcomp, self._content)
+        return min(self.revcomp(), self._content)
     
