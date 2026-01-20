@@ -1,4 +1,6 @@
 REVERSER = str.maketrans("ACGTacgt", "TGCAtgca")
+
+
 class Sequence:
     def __init__(self, content: str = "", header: str = "") -> None:
         self._content = content
@@ -22,7 +24,7 @@ class Sequence:
 
     def __str__(self) -> str:
         return self.to_fasta()
-    
+
     def __len__(self) -> int:
         return self.length
 
@@ -36,7 +38,8 @@ class Sequence:
 
     def fill_random(self, length):
         import random
-        self._content = ''.join(random.choice('ACGT') for _ in range(length))
+
+        self._content = "".join(random.choice("ACGT") for _ in range(length))
 
     def fill_random_kmers(self, n: int, k: int) -> None:
         """Generate a sequence containing n random unique consecutive k-mers of size k.
@@ -59,13 +62,13 @@ class Sequence:
             raise ValueError(f"Number of k-mers must be positive, got {n}")
 
         # Generate first k-mer randomly
-        sequence = ''.join(random.choice('ACGT') for _ in range(k))
+        sequence = "".join(random.choice("ACGT") for _ in range(k))
         kmers_seen = {sequence}
 
         # Generate remaining n-1 k-mers using sliding window
         for _ in range(n - 1):
             found = False
-            nucleotides = ['A', 'C', 'G', 'T']
+            nucleotides = ["A", "C", "G", "T"]
             random.shuffle(nucleotides)
 
             for nuc in nucleotides:
@@ -110,23 +113,22 @@ class Sequence:
             raise ValueError(f"k-mer size ({k}) cannot exceed sequence length ({L})")
 
         # Generate random sequence of length L
-        self._content = ''.join(random.choice('ACGT') for _ in range(L))
+        self._content = "".join(random.choice("ACGT") for _ in range(L))
 
         # Extract all k-mers and count distinct ones
         kmers = set()
         for i in range(L - k + 1):
-            kmer = Sequence(self._content[i:i + k])
+            kmer = Sequence(self._content[i : i + k])
             kmers.add(kmer.canonical())
 
         return len(kmers)
-    
+
     def revcomp(self):
         return self.content.translate(REVERSER)[::-1]
-    
+
     def canonical(self):
         """Returns the smallest value between a sequence and its reverse complement
         Returns:
             (str): smallest value between a seq and its reverse complement
         """
         return min(self.revcomp(), self._content)
-    
