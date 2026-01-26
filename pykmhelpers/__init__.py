@@ -16,7 +16,7 @@ from pykmhelpers.operations.compressor import Compressor, CompressionParams
 from pykmhelpers.operations.fof import FofManager
 from pykmhelpers.operations.query import KmindexQuery, KmindexQueryResult
 from pykmhelpers.operations.sequence import Sequence
-from pykmhelpers.operations.kmer import KmerOperation
+from pykmhelpers.operations.kmer import Kmer
 from pykmhelpers.operations.fasta import Fasta, FASTAReader
 from pykmhelpers.operations.byte import ByteCounter, SizeFormat, SizeUnit
 
@@ -46,7 +46,7 @@ __all__ = [
     "KmindexQuery",
     "KmindexQueryResult",
     "Sequence",
-    "KmerOperation",
+    "Kmer",
 
     # Operations - File Handling
     "Fasta",
