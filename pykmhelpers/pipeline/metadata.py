@@ -35,7 +35,7 @@ class AssemblyStats:
 
 
 @dataclass
-class Sample:
+class SampleMetadata:
     """Represents a sample object from the kmindex assembly metadata"""
     sample_id: str
     organism: str

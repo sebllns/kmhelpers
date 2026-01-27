@@ -4,7 +4,7 @@ from io import TextIOWrapper
 import os
 from pathlib import Path
 from typing import Optional
-from .sequence import Sequence
+from ..core.sequence import Sequence
 
 
 class Fasta:

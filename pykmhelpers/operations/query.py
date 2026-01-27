@@ -5,7 +5,7 @@ import json
 from typing import List, Optional, Union
 from ..core.utils import Toolbox
 from ..core.wrapper import KmindexWrapper
-from .sequence import Sequence
+from ..core.sequence import Sequence
 import sys
 from pathlib import Path
 

@@ -1,5 +1,6 @@
-REVERSER = str.maketrans("ACGTacgt", "TGCAtgca")
+import random
 
+REVERSER = str.maketrans("ACGTacgt", "TGCAtgca")
 
 class Sequence:
     def __init__(self, content: str = "", header: str = "") -> None:
@@ -37,8 +38,6 @@ class Sequence:
         return "\n".join(lines)
 
     def fill_random(self, length):
-        import random
-
         self._content = "".join(random.choice("ACGT") for _ in range(length))
 
     def fill_random_kmers(self, n: int, k: int) -> None:
@@ -103,7 +102,6 @@ class Sequence:
         Raises:
             ValueError: If L or k are not positive, or if k > L
         """
-        import random
 
         if L <= 0:
             raise ValueError(f"Sequence length must be positive, got {L}")
@@ -113,7 +111,7 @@ class Sequence:
             raise ValueError(f"k-mer size ({k}) cannot exceed sequence length ({L})")
 
         # Generate random sequence of length L
-        self._content = "".join(random.choice("ACGT") for _ in range(L))
+        self.fill_random(L)
 
         # Extract all k-mers and count distinct ones
         kmers = set()

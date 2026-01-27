@@ -71,7 +71,7 @@ class TestDirectImports(unittest.TestCase):
 
     def test_operations_byte_imports(self):
         """Test importing from pykmhelpers.operations.byte"""
-        from pykmhelpers.operations.byte import ByteCounter, SizeFormat, SizeUnit
+        from pykmhelpers.core.byte import ByteCounter, SizeFormat, SizeUnit
         self.assertIsNotNone(ByteCounter)
         self.assertIsNotNone(SizeFormat)
         self.assertIsNotNone(SizeUnit)

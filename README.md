@@ -527,7 +527,7 @@ For questions, bug reports, or contributions, please contact:
 
 ---
 
-**Version**: 0.5.7
+**Version**: 0.6.0
 **Status**: Development
 
 ## Changelog

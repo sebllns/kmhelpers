@@ -4,7 +4,7 @@ import os
 import yaml
 import click
 from pykmhelpers.operations.fof import FofManager
-from pykmhelpers.operations.byte import ByteCounter, SizeFormat
+from pykmhelpers.core.byte import ByteCounter, SizeFormat
 
 
 def estimate_build_size(

@@ -6,7 +6,7 @@ import yaml
 import click
 from datetime import datetime
 from pykmhelpers.operations.fasta import Fasta
-from pykmhelpers.operations.sequence import Sequence
+from pykmhelpers.core.sequence import Sequence
 from pykmhelpers.operations.fof import FofManager
 
 
@@ -188,10 +188,10 @@ def test_create_db(output_dir, n_samples, average_size, min_size, kmer_size, ver
             "k": kmer_size,
             "samples": {},
         }
-
+        padding_width = len(str(n_samples - 1))
         # Generate samples
         for i in range(n_samples):
-            sample_id = f"sample_{i}"
+            sample_id = f"sample_{str(i).zfill(padding_width)}"
 
             # Generate random size between min_size and average_size
             size = random.randint(min_size, average_size)
@@ -217,7 +217,7 @@ def test_create_db(output_dir, n_samples, average_size, min_size, kmer_size, ver
                 )
 
         # Save metadata to YAML
-        metadata_path = os.path.join(output_dir, "samples.yaml")
+        metadata_path = os.path.join(output_dir, "../samples.yaml")
         with open(metadata_path, "w") as f:
             yaml.dump(metadata, f, default_flow_style=False, sort_keys=False)
 

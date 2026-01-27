@@ -15,6 +15,8 @@ from pykmhelpers.cli.project import project
 from pykmhelpers.cli.build import build
 from pykmhelpers.cli.compression import compress, kmindex_compress
 from pykmhelpers.cli.query import query
+from pykmhelpers.cli.count_kmers import count_kmers
+from pykmhelpers.cli.compose import compose
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -68,6 +70,8 @@ cli.add_command(build)
 cli.add_command(compress)
 cli.add_command(kmindex_compress)
 cli.add_command(query)
+cli.add_command(count_kmers)
+cli.add_command(compose)
 
 
 if __name__ == "__main__":

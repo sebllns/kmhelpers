@@ -5,7 +5,7 @@ from ..core import (
     Toolbox,
     BloomFilterSpecs,
 )
-from .byte import ByteCounter, SizeFormat
+from ..core.byte import ByteCounter, SizeFormat
 from .fof import FofManager
 from .fasta import Fasta, FASTAReader
 from .query import KmindexQuery, KmindexQueryResult
