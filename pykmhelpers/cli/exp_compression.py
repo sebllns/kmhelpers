@@ -105,7 +105,7 @@ from pykmhelpers.operations.compressor import PermutationFlag
     is_flag=True,
     help="Verbose output",
 )
-def compress(
+def exp_compress(
     input_dir,
     index_id,
     output_dir,
