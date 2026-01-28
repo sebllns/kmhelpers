@@ -156,7 +156,7 @@ def compose(
 
         os.makedirs(output_dir, exist_ok=True)
         all_samples = []
-        db_instance = db.Db(indices={})
+        db_instance = db.IndexTable(indices={})
 
         for input_file in input_files:
             samples = read_samples(input_file, kmer_size)
@@ -237,11 +237,11 @@ def compose(
         raise click.ClickException(f"Compose failed: {e}")
 
 
-def export_db(db_obj, output_dir, format, split):
+def export_db(db_obj: db.IndexTable, output_dir: str, format: str, split: bool):
     """Export database to YAML or JSON format.
 
     Args:
-        db_obj: Db instance to export
+        db_obj: IndexTable instance to export
         output_dir: Output directory path
         format: Export format ("yaml" or "json")
         split: If True, export each index to separate file; if False, export single file
@@ -254,26 +254,30 @@ def export_db(db_obj, output_dir, format, split):
 
     file_ext = format
 
-    if split:
-        # Export each index to its own file
-        for index_id, index in db_obj.indices.items():
-            samples_dict = {}
-            for sample_id, sample in index.samples.items():
-                samples_dict[sample_id] = {
-                    "path": sample.path,
-                    "kmer_count": sample.kmer_count,
-                }
-
-            index_data = {
-                "id": index.id,
-                "partition_count": index.partition_count,
-                "bf_size": index.bf_size,
-                "stored_size_bytes": index.stored_size_bytes,
-                "stored_size_str": index.stored_size_str,
-                "sample_count": index.sample_count,
-                "samples": samples_dict,
+    # Build data structures for all indices
+    indices_data = {}
+    for index_id, index in db_obj.indices.items():
+        samples_dict = {}
+        for sample_id, sample in index.samples.items():
+            samples_dict[sample_id] = {
+                "files": sample.files,
+                "kmer_count": sample.kmer_count,
             }
 
+        indices_data[index_id] = {
+            "id": index.id,
+            "partition_count": index.partition_count,
+            "bf_size": index.bf_size,
+            "stored_size_bytes": index.stored_size_bytes,
+            "stored_size_str": index.stored_size_str,
+            "sample_count": index.sample_count,
+            "samples": samples_dict,
+        }
+
+    # Export to file(s)
+    if split:
+        # Export each index to its own file
+        for index_id, index_data in indices_data.items():
             filepath = os.path.join(output_dir, f"{index_id}.{file_ext}")
             with open(filepath, "w") as f:
                 if format == "yaml":
@@ -282,26 +286,7 @@ def export_db(db_obj, output_dir, format, split):
                     json.dump(index_data, f, indent=2)
     else:
         # Export all indices to a single file
-        indices_dict = {}
-        for index_id, index in db_obj.indices.items():
-            samples_dict = {}
-            for sample_id, sample in index.samples.items():
-                samples_dict[sample_id] = {
-                    "path": sample.path,
-                    "kmer_count": sample.kmer_count,
-                }
-
-            indices_dict[index_id] = {
-                "id": index.id,
-                "partition_count": index.partition_count,
-                "bf_size": index.bf_size,
-                "stored_size_bytes": index.stored_size_bytes,
-                "stored_size_str": index.stored_size_str,
-                "sample_count": index.sample_count,
-                "samples": samples_dict,
-            }
-
-        db_data = {"indices": indices_dict}
+        db_data = {"indices": indices_data}
         filepath = os.path.join(output_dir, f"db.{file_ext}")
         with open(filepath, "w") as f:
             if format == "yaml":
@@ -358,7 +343,7 @@ def read_samples(filename, cli_kmer_size=None):
 
                     kmer_count = sample_data.get("kmer_count", 0)
 
-                    sample = db.Sample(id=sample_id, path=files, kmer_count=kmer_count)
+                    sample = db.Sample(id=sample_id, files=files, kmer_count=kmer_count)
                     samples.append(sample)
 
     elif filename.endswith(".json"):
@@ -382,7 +367,7 @@ def read_samples(filename, cli_kmer_size=None):
 
                     kmer_count = sample_data.get("kmer_count", 0)
 
-                    sample = db.Sample(id=sample_id, path=files, kmer_count=kmer_count)
+                    sample = db.Sample(id=sample_id, files=files, kmer_count=kmer_count)
                     samples.append(sample)
 
     else:
@@ -409,7 +394,7 @@ def read_samples(filename, cli_kmer_size=None):
                         files.append(part)
 
                 if files:
-                    sample = db.Sample(id=None, path=files, kmer_count=kmer_count)
+                    sample = db.Sample(id=None, files=files, kmer_count=kmer_count)
                     samples.append(sample)
     return samples
 
@@ -417,7 +402,7 @@ def read_samples(filename, cli_kmer_size=None):
 def process_sample(
     sample: db.Sample, kmer_size, ntcard_threads, false_positive_rate, verbose, recount=False
 ):
-    click.echo(f"  Process sample {sample.id or sample.path[0]}")
+    click.echo(f"  Process sample {sample.id or sample.files[0]}")
 
     kc = KmerCounter(k=kmer_size, threadCount=ntcard_threads)
     sm = SpanManager(p=false_positive_rate)
@@ -425,12 +410,12 @@ def process_sample(
     if sample.kmer_count == 0 or recount:
         if verbose:
             action = "Recounting" if recount else "Counting"
-            click.echo(f"  {action} k-mers for sample {sample.id or sample.path[0]}")
-        sample.kmer_count = kc.count_files(sample.path)
+            click.echo(f"  {action} k-mers for sample {sample.id or sample.files[0]}")
+        sample.kmer_count = kc.count_files(sample.files)
         if verbose:
             click.echo(f"    k-mer count: {sample.kmer_count}")
     elif verbose:
-        click.echo(f"  Using cached k-mer count for sample {sample.id or sample.path[0]}: {sample.kmer_count}")
+        click.echo(f"  Using cached k-mer count for sample {sample.id or sample.files[0]}: {sample.kmer_count}")
 
     span = sm.dispatch(sample.kmer_count)
     bf_size = sm.get_bf_size(span)
@@ -439,7 +424,7 @@ def process_sample(
         click.echo(f"    Span: {span}, BF size: {bf_size} bytes")
 
     if not sample.id:
-        filename = os.path.basename(sample.path[0])
+        filename = os.path.basename(sample.files[0])
         # Remove compression extensions (.gz, .bz2, .zip, etc.)
         if filename.endswith((".gz", ".bz2", ".zip", ".xz")):
             filename = os.path.splitext(filename)[0]

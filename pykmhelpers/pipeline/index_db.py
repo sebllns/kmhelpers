@@ -5,7 +5,7 @@ import re
 @dataclass
 class Sample:
     id: Optional[str]
-    path: list[str]
+    files: list[str]
     kmer_count: int
 
 @dataclass
@@ -19,7 +19,7 @@ class Index:
     samples: dict[str,Sample]
 
 @dataclass
-class Db: 
+class IndexTable: 
     indices: dict[str,Index]  
 
 def clean_sample_id(sample_id):
