@@ -107,7 +107,7 @@ def compose(
     format,
     verbose,
 ):
-    """Compose list of samples into input db for indexing
+    """Compose an index definition file from a list of samples.
 
     Examples:
       kmhelpers compose -o ./db -k 31 samples.yaml

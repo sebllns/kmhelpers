@@ -5,6 +5,7 @@ import click
 from pathlib import Path
 from datetime import datetime
 from pykmhelpers import KmindexRegistry
+from .experimental import experimental
 from pykmhelpers.operations.builder import IndexBuilder
 from pykmhelpers.operations.fof import FofManager
 from pykmhelpers.operations.query import KmindexQuery
@@ -16,7 +17,7 @@ from pykmhelpers.cli.shared import (
 )
 
 
-@click.group()
+@experimental.group()
 def project():
     """[EXPERIMENTAL] Opinionated project workflow for building and querying indices."""
     click.echo("⚠ Warning: The 'project' command is experimental, may not work correctly and may change in future versions.", err=True)

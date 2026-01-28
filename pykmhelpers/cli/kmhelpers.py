@@ -11,12 +11,16 @@ from pykmhelpers import __version__, Main, Bin
 from pykmhelpers.cli.fof import fof
 from pykmhelpers.cli.test import test
 from pykmhelpers.cli.registry import registry
-from pykmhelpers.cli.project import project
-from pykmhelpers.cli.build import build
-from pykmhelpers.cli.compression import compress, kmindex_compress
+from pykmhelpers.cli.kmindex import kmindex
 from pykmhelpers.cli.query import query
 from pykmhelpers.cli.count_kmers import count_kmers
 from pykmhelpers.cli.compose import compose
+from pykmhelpers.cli.build import build
+from pykmhelpers.cli.experimental import experimental
+
+# Import experimental commands
+from pykmhelpers.cli.compression import compress
+from pykmhelpers.cli.project import project
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -63,15 +67,14 @@ def cli(init_path, bin_path, check_all, chdir):
 cli.add_command(fof)
 cli.add_command(test)
 cli.add_command(registry)
-cli.add_command(project)
+cli.add_command(experimental)
+cli.add_command(kmindex)
 
 # Register all standalone commands
-cli.add_command(build)
-cli.add_command(compress)
-cli.add_command(kmindex_compress)
 cli.add_command(query)
 cli.add_command(count_kmers)
 cli.add_command(compose)
+cli.add_command(build)
 
 
 if __name__ == "__main__":
