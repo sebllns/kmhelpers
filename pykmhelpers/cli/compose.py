@@ -107,7 +107,7 @@ def compose(
     format,
     verbose,
 ):
-    """Compose an index definition file from a list of samples.
+    """Compose index definition file(s) from list(s) of samples.
 
     Examples:
       kmhelpers compose -o ./db -k 31 samples.yaml
@@ -170,7 +170,12 @@ def compose(
         for sample in all_samples:
             try:
                 span, bf_size = process_sample(
-                    sample, kmer_size, ntcard_threads, false_positive_rate, verbose, recount
+                    sample,
+                    kmer_size,
+                    ntcard_threads,
+                    false_positive_rate,
+                    verbose,
+                    recount,
                 )
 
                 orig_span = span
@@ -187,6 +192,9 @@ def compose(
                         click.echo(f"  Creating new index: {index_id}")
                     db_instance.indices[index_id] = db.Index(
                         id=index_id,
+                        kmer_size=kmer_size,
+                        minim_size=10,
+                        findere_z= 6,
                         bf_size=bf_size,
                         partition_count=partition_count,
                         stored_size_bytes=0,
@@ -218,16 +226,22 @@ def compose(
                 )
 
         if verbose:
-            click.echo(f"✓ Composed {len(all_samples)} samples into {len(db_instance.indices)} indices")
+            click.echo(
+                f"✓ Composed {len(all_samples)} samples into {len(db_instance.indices)} indices"
+            )
             for index_id, index in db_instance.indices.items():
-                click.echo(f"  {index_id}: {index.sample_count} samples, {index.stored_size_str}")
+                click.echo(
+                    f"  {index_id}: {index.sample_count} samples, {index.stored_size_str}"
+                )
             click.echo(f"Exporting database in {format} format to {output_dir}...")
 
         export_db(db_instance, output_dir=output_dir, format=format, split=split)
 
         if verbose:
             if split:
-                click.echo(f"✓ Exported {len(db_instance.indices)} index files (split mode)")
+                click.echo(
+                    f"✓ Exported {len(db_instance.indices)} index files (split mode)"
+                )
             else:
                 click.echo(f"✓ Exported database to db.{format}")
         else:
@@ -256,7 +270,7 @@ def export_db(db_obj: db.IndexTable, output_dir: str, format: str, split: bool):
 
     # Build data structures for all indices
     indices_data = {}
-    for index_id, index in db_obj.indices.items():
+    for index_id, index in sorted(db_obj.indices.items()):
         samples_dict = {}
         for sample_id, sample in index.samples.items():
             samples_dict[sample_id] = {
@@ -266,6 +280,9 @@ def export_db(db_obj: db.IndexTable, output_dir: str, format: str, split: bool):
 
         indices_data[index_id] = {
             "id": index.id,
+            "kmer_size": index.kmer_size,
+            "minim_size": index.minim_size,
+            "findere_z": index.findere_z,
             "partition_count": index.partition_count,
             "bf_size": index.bf_size,
             "stored_size_bytes": index.stored_size_bytes,
@@ -290,9 +307,9 @@ def export_db(db_obj: db.IndexTable, output_dir: str, format: str, split: bool):
         filepath = os.path.join(output_dir, f"db.{file_ext}")
         with open(filepath, "w") as f:
             if format == "yaml":
-                yaml.safe_dump(db_data, f, default_flow_style=False)
+                yaml.safe_dump(db_data, f, default_flow_style=False, sort_keys=False)
             else:
-                json.dump(db_data, f, indent=2)
+                json.dump(db_data, f, indent=2, sort_keys=False)
 
 
 def export_span(value, samples):
@@ -400,7 +417,12 @@ def read_samples(filename, cli_kmer_size=None):
 
 
 def process_sample(
-    sample: db.Sample, kmer_size, ntcard_threads, false_positive_rate, verbose, recount=False
+    sample: db.Sample,
+    kmer_size,
+    ntcard_threads,
+    false_positive_rate,
+    verbose,
+    recount=False,
 ):
     click.echo(f"  Process sample {sample.id or sample.files[0]}")
 
@@ -415,7 +437,9 @@ def process_sample(
         if verbose:
             click.echo(f"    k-mer count: {sample.kmer_count}")
     elif verbose:
-        click.echo(f"  Using cached k-mer count for sample {sample.id or sample.files[0]}: {sample.kmer_count}")
+        click.echo(
+            f"  Using cached k-mer count for sample {sample.id or sample.files[0]}: {sample.kmer_count}"
+        )
 
     span = sm.dispatch(sample.kmer_count)
     bf_size = sm.get_bf_size(span)
@@ -433,7 +457,7 @@ def process_sample(
         if verbose:
             click.echo(f"    Generated sample ID from filename: {sample.id}")
 
-    sample.id = db.clean_sample_id(sample.id)
+    sample.id = db.IndexDefinitionTools().clean_sample_id(sample.id)
     if verbose:
         click.echo(f"    Final sample ID: {sample.id}")
 
