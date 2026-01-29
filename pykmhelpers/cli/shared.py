@@ -3,7 +3,7 @@
 import os
 import yaml
 import click
-from pykmhelpers.operations.fof import FofManager
+from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.core.byte import ByteCounter, SizeFormat
 
 

@@ -3,7 +3,7 @@
 import os
 import json
 import click
-from pykmhelpers.operations.fof import FofManager
+from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.operations.fof_validation import FofValidator
 
 

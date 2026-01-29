@@ -10,9 +10,9 @@ from pathlib import Path
 from click.testing import CliRunner
 
 from pykmhelpers import KmindexRegistry
-from pykmhelpers.operations.fof import FofManager
+from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.operations.builder import IndexBuilder
-from pykmhelpers.operations.query import KmindexQuery
+from pykmhelpers.pipeline.query import KmindexQuery
 
 
 class ProjectShell:

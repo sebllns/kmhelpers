@@ -253,11 +253,23 @@ def compose(
 
         if verbose:
             if split:
-                click.echo(f"✓ Exported {len(db_instance)} index files (split mode)")
+                click.echo(f"Exported {len(db_instance)} index files (split mode)")
             else:
-                click.echo(f"✓ Exported database to db.{format}")
+                click.echo(f"Exported database to db.{format}")
+            click.echo(f"Created index definition for {len(all_samples)} samples")
+
+        # Print next command
+        if split:
+            db_file_pattern = os.path.join(output_dir, f"{name}_<span>.{format}")
+            click.echo(f"\nNext step: build the index with the command:")
+            click.echo(f"  kmhelpers build -w <workdir> {db_file_pattern}")
+            click.echo(f"Replace <span> with span value")
         else:
-            click.echo(f"✓ Composed {len(all_samples)} samples")
+            db_file = os.path.join(output_dir, f"{name}.{format}")
+            click.echo(f"\nNext step: build the index with the command:")
+            click.echo(f"  kmhelpers build -w <workdir> {db_file}")
+
+
 
     except Exception as e:
         raise click.ClickException(f"Compose failed: {e}")
@@ -406,15 +418,15 @@ def process_sample(
     verbose,
     recount=False,
 ):
-    click.echo(f"  Process sample {sample.id or sample.files[0]}")
+    if verbose:
+        click.echo(f"  Process sample {sample.id or sample.files[0]}")
 
     kc = KmerCounter(k=kmer_size, threadCount=ntcard_threads)
     sm = SpanManager(p=false_positive_rate)
 
     if sample.kmer_count == 0 or recount:
-        if verbose:
-            action = "Recounting" if recount else "Counting"
-            click.echo(f"  {action} k-mers for sample {sample.id or sample.files[0]}")
+        action = "Recounting" if recount else "Counting"
+        click.echo(f"  {action} k-mers for sample {sample.id or sample.files[0]}")
         sample.kmer_count = kc.count_files(sample.files)
         if verbose:
             click.echo(f"    k-mer count: {sample.kmer_count}")

@@ -44,12 +44,12 @@ class TestDirectImports(unittest.TestCase):
 
     def test_operations_fof_imports(self):
         """Test importing from pykmhelpers.operations.fof"""
-        from pykmhelpers.operations.fof import FofManager
+        from pykmhelpers.pipeline.fof import FofManager
         self.assertIsNotNone(FofManager)
 
     def test_operations_query_imports(self):
         """Test importing from pykmhelpers.operations.query"""
-        from pykmhelpers.operations.query import KmindexQuery, KmindexQueryResult
+        from pykmhelpers.pipeline.query import KmindexQuery, KmindexQueryResult
         self.assertIsNotNone(KmindexQuery)
         self.assertIsNotNone(KmindexQueryResult)
 
@@ -65,7 +65,7 @@ class TestDirectImports(unittest.TestCase):
 
     def test_operations_fasta_imports(self):
         """Test importing from pykmhelpers.operations.fasta"""
-        from pykmhelpers.operations.fasta import Fasta, FASTAReader
+        from pykmhelpers.core.fasta import Fasta, FASTAReader
         self.assertIsNotNone(Fasta)
         self.assertIsNotNone(FASTAReader)
 

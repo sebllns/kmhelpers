@@ -7,8 +7,8 @@ from datetime import datetime
 from pykmhelpers import KmindexRegistry
 from .experimental import experimental
 from pykmhelpers.operations.builder import IndexBuilder
-from pykmhelpers.operations.fof import FofManager
-from pykmhelpers.operations.query import KmindexQuery
+from pykmhelpers.pipeline.fof import FofManager
+from pykmhelpers.pipeline.query import KmindexQuery
 from pykmhelpers.cli.project_shell import ProjectShell
 from pykmhelpers.cli.shared import (
     estimate_build_size,

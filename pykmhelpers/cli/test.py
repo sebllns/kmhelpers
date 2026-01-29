@@ -5,9 +5,9 @@ import random
 import yaml
 import click
 from datetime import datetime
-from pykmhelpers.operations.fasta import Fasta
+from pykmhelpers.core.fasta import Fasta
 from pykmhelpers.core.sequence import Sequence
-from pykmhelpers.operations.fof import FofManager
+from pykmhelpers.pipeline.fof import FofManager
 
 
 @click.group()

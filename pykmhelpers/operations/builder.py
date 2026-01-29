@@ -6,9 +6,9 @@ from ..core import (
     BloomFilterSpecs,
 )
 from ..core.byte import ByteCounter, SizeFormat
-from .fof import FofManager
-from .fasta import Fasta, FASTAReader
-from .query import KmindexQuery, KmindexQueryResult
+from ..pipeline.fof import FofManager
+from ..core.fasta import Fasta, FASTAReader
+from ..pipeline.query import KmindexQuery, KmindexQueryResult
 import os
 import yaml
 
@@ -19,10 +19,7 @@ class IndexBuilder:
         self._path = Toolbox.get_canonical_path(output_index_path)
         os.makedirs(self.path, exist_ok=True)
         self._registry = KmindexRegistry(os.path.join(self.path, "registry"))
-
-
         self._k = k
-      
 
     @property
     def index(self) -> KmindexRegistry:
@@ -35,14 +32,6 @@ class IndexBuilder:
     @property
     def k(self) -> int:
         return self._k
-
-    @property
-    def z(self) -> int:
-        return self._z
-
-    @property
-    def s(self) -> int:
-        return self.k - self.z
 
     def load_metadata(self, file: str):
         """
@@ -227,7 +216,7 @@ class IndexBuilder:
             input_fof_file=fof_path,
             output_registry_path=self.index.root_path,
             output_index_dir=os.path.join(self.path, ".subindexes"),
-            k=self.s,
+            k=self.k,
             hard_min=hard_min,
             threads=n_threads,
             nb_partitions=n_partitions,
@@ -318,7 +307,7 @@ class IndexBuilder:
             with open(output_file, "w") as f:
                 f.write(sequence.to_fasta())
 
-    def query_test_dataset(self, dataset: str, output_dir: str):
+    def query_test_dataset(self, dataset: str, output_dir: str, z: int):
         """
         Query a whole directory (recursive) containing FASTA files.
 
@@ -349,7 +338,7 @@ class IndexBuilder:
                             query.execute(
                                 registry_path=self.index.root_path,
                                 output_dir=output_dir,
-                                z=self.z,
+                                z = z,
                             )
                         except Exception as e:
                             print(f"Warning: Failed to query {input_path}: {str(e)}")

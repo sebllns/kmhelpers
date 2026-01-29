@@ -3,7 +3,7 @@
 import click
 import os
 import traceback
-from pykmhelpers.operations.fof import FofManager
+from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.operations.builder import IndexBuilder
 from pykmhelpers.pipeline.index_db import IndexDefinitionTools, IndexTable, Index
 from pykmhelpers.cli.shared import estimate_build_size
@@ -17,6 +17,15 @@ from pykmhelpers.cli.shared import estimate_build_size
     required=True,
     type=click.Path(file_okay=False, dir_okay=True),
     help="Output directory path (created if doesn't exist)",
+)
+@click.option(
+    "--rootpath",
+    "-r",
+    required=False,
+    type=click.Path(file_okay=False, dir_okay=True),
+    help="Base path to resolve relative sample paths. By default, relative \
+paths are resolved from the run directory; use this option if you \
+need to resolve them from a different location.",
 )
 @click.option(
     "--select-ids",
@@ -74,7 +83,8 @@ def build(
             try:
 
                 builder = IndexBuilder(
-                    output_index_path=workdir, k=i.kmer_size,
+                    output_index_path=workdir,
+                    k=i.kmer_size,
                 )
 
                 fof = FofManager()

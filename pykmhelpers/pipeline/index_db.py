@@ -85,9 +85,9 @@ class IndexDefinitionTools:
                 "minim_size": index.minim_size,
                 "partition_count": index.partition_count,
                 "bf_size": index.bf_size,
+                "sample_count": index.sample_count,
                 "stored_size_bytes": index.stored_size_bytes,
                 "stored_size_str": index.stored_size_str,
-                "sample_count": index.sample_count,
                 "samples": samples_data,
             }
 

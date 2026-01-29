@@ -13,11 +13,11 @@ from pykmhelpers.core.wrapper import KmindexWrapper
 from pykmhelpers.core.bloom_filter import BloomFilterSpecs
 from pykmhelpers.operations.builder import IndexBuilder
 from pykmhelpers.operations.compressor import Compressor, CompressionParams
-from pykmhelpers.operations.fof import FofManager
-from pykmhelpers.operations.query import KmindexQuery, KmindexQueryResult
+from pykmhelpers.pipeline.fof import FofManager
+from pykmhelpers.pipeline.query import KmindexQuery, KmindexQueryResult
 from pykmhelpers.core.sequence import Sequence
 from pykmhelpers.core.kmer import Kmer
-from pykmhelpers.operations.fasta import Fasta, FASTAReader
+from pykmhelpers.core.fasta import Fasta, FASTAReader
 from pykmhelpers.core.byte import ByteCounter, SizeFormat, SizeUnit
 
 __all__ = [
