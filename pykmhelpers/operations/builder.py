@@ -14,17 +14,15 @@ import yaml
 
 
 class IndexBuilder:
-    def __init__(self, output_index_path: str, k=31, z=6) -> None:
+    def __init__(self, output_index_path: str, k=25) -> None:
         """Initialize the IndexBuilder."""
         self._path = Toolbox.get_canonical_path(output_index_path)
         os.makedirs(self.path, exist_ok=True)
         self._registry = KmindexRegistry(os.path.join(self.path, "registry"))
 
-        assert (
-            z >= 0 and k > z
-        ), f"Invalid k and z parameters: k must be greater than z. Got k={k}, z={z}"
+
         self._k = k
-        self._z = z
+      
 
     @property
     def index(self) -> KmindexRegistry:

@@ -31,6 +31,12 @@ from pykmhelpers.core.byte import ByteCounter, SizeFormat
     help="Prefix for index names",
 )
 @click.option(
+    "--name",
+    "-n",
+    default="db",
+    help="Name of created index database",
+)
+@click.option(
     "--kmer-size",
     "-k",
     type=int,
@@ -39,40 +45,44 @@ from pykmhelpers.core.byte import ByteCounter, SizeFormat
 )
 @click.option(
     "--min-span",
+    "-s",
     type=int,
     default=25,
     help="Minimum span, 0 for disabling min limit (default: 25)",
 )
 @click.option(
     "--max-span",
+    "-S",
     type=int,
     default=0,
     help="Maximum span, 0 for disabling max limit (default: 0)",
 )
 @click.option(
     "--partition-count",
+    "-p",
     type=int,
     default=0,
     help="Number of partitions per index, 0 for automatic count (default: 0)",
 )
 @click.option(
     "--ntcard-threads",
+    "--ntt",
     type=int,
     default=8,
     help="Number of threads to be used by ntcard while counting k-mers (default: 8)",
 )
 @click.option(
     "--false-positive-rate",
-    "-p",
+    "--fp",
     type=float,
     default=0.25,
-    help="False positive rate for Bloom filter (default: 0.25)",
+    help="False positive rate for Bloom filter (default: 0.25).\n\n==>IMPORTANT<== The findere algorithm optimizes queries by using (k+z)-mers to reduce the false positive rate at query time. This allows Bloom filters to be built with a higher false positive rate while still providing accurate results, which reduces disk footprint. Usually building your index with {k=25, p=0.25} and querying with z=6 provide a good balance.\n\n ",
 )
 @click.option(
     "--split",
     is_flag=True,
     default=False,
-    help="Split samples",
+    help="Export each index definition to an individual file",
 )
 @click.option(
     "--recount",
@@ -82,9 +92,10 @@ from pykmhelpers.core.byte import ByteCounter, SizeFormat
 )
 @click.option(
     "--format",
+    "-f",
     type=click.Choice(["yaml", "json"], case_sensitive=False),
     default="yaml",
-    help="Output format (default: yaml)",
+    help="Output format of created database (default: yaml)",
 )
 @click.option(
     "--verbose",
@@ -96,6 +107,7 @@ def compose(
     input_files,
     output_dir,
     prefix,
+    name,
     kmer_size,
     min_span,
     max_span,
@@ -156,7 +168,8 @@ def compose(
 
         os.makedirs(output_dir, exist_ok=True)
         all_samples = []
-        db_instance = db.IndexTable(indices={})
+        db_instance = db.IndexTable()
+        db_tools = db.IndexDefinitionTools()
 
         for input_file in input_files:
             samples = read_samples(input_file, kmer_size)
@@ -170,12 +183,13 @@ def compose(
         for sample in all_samples:
             try:
                 span, bf_size = process_sample(
-                    sample,
-                    kmer_size,
-                    ntcard_threads,
-                    false_positive_rate,
-                    verbose,
-                    recount,
+                    sample=sample,
+                    db_tools=db_tools,
+                    kmer_size=kmer_size,
+                    ntcard_threads=ntcard_threads,
+                    false_positive_rate=false_positive_rate,
+                    verbose=verbose,
+                    recount=recount,
                 )
 
                 orig_span = span
@@ -187,14 +201,13 @@ def compose(
                     click.echo(f"    Span adjusted: {orig_span} → {span}")
 
                 index_id = f"{prefix}_{span}"
-                if index_id not in db_instance.indices:
+                if index_id not in db_instance:
                     if verbose:
                         click.echo(f"  Creating new index: {index_id}")
-                    db_instance.indices[index_id] = db.Index(
+                    db_instance[index_id] = db.Index(
                         id=index_id,
                         kmer_size=kmer_size,
                         minim_size=10,
-                        findere_z= 6,
                         bf_size=bf_size,
                         partition_count=partition_count,
                         stored_size_bytes=0,
@@ -206,17 +219,11 @@ def compose(
                     if verbose:
                         click.echo(f"  Adding to existing index: {index_id}")
 
-                db_instance.indices[index_id].samples[sample.id] = sample
-                db_instance.indices[index_id].sample_count = len(
-                    db_instance.indices[index_id].samples
-                )
-                bf_specs = BloomFilterSpecs(
-                    bf_size, db_instance.indices[index_id].sample_count
-                )
-                db_instance.indices[index_id].stored_size_bytes = (
-                    bf_specs.total_byte_count
-                )
-                db_instance.indices[index_id].stored_size_str = str(
+                db_instance[index_id].samples[sample.id] = sample
+                db_instance[index_id].sample_count = len(db_instance[index_id].samples)
+                bf_specs = BloomFilterSpecs(bf_size, db_instance[index_id].sample_count)
+                db_instance[index_id].stored_size_bytes = bf_specs.total_byte_count
+                db_instance[index_id].stored_size_str = str(
                     ByteCounter.auto(bf_specs.total_byte_count, SizeFormat.BYTE)
                 )
             except Exception as e:
@@ -227,21 +234,26 @@ def compose(
 
         if verbose:
             click.echo(
-                f"✓ Composed {len(all_samples)} samples into {len(db_instance.indices)} indices"
+                f"✓ Composed {len(all_samples)} samples into {len(db_instance)} indices"
             )
-            for index_id, index in db_instance.indices.items():
+            for index_id, index in db_instance.items():
                 click.echo(
                     f"  {index_id}: {index.sample_count} samples, {index.stored_size_str}"
                 )
             click.echo(f"Exporting database in {format} format to {output_dir}...")
 
-        export_db(db_instance, output_dir=output_dir, format=format, split=split)
+        export_db(
+            indices_data=db_instance,
+            db_tools=db_tools,
+            output_dir=output_dir,
+            format=format,
+            split=split,
+            db_name=name,
+        )
 
         if verbose:
             if split:
-                click.echo(
-                    f"✓ Exported {len(db_instance.indices)} index files (split mode)"
-                )
+                click.echo(f"✓ Exported {len(db_instance)} index files (split mode)")
             else:
                 click.echo(f"✓ Exported database to db.{format}")
         else:
@@ -251,7 +263,14 @@ def compose(
         raise click.ClickException(f"Compose failed: {e}")
 
 
-def export_db(db_obj: db.IndexTable, output_dir: str, format: str, split: bool):
+def export_db(
+    indices_data: db.IndexTable,
+    db_tools: db.IndexDefinitionTools,
+    output_dir: str,
+    format: str,
+    split: bool,
+    db_name: str,
+):
     """Export database to YAML or JSON format.
 
     Args:
@@ -266,54 +285,16 @@ def export_db(db_obj: db.IndexTable, output_dir: str, format: str, split: bool):
     if format not in ("yaml", "json"):
         raise ValueError(f"Unsupported format: {format}. Must be 'yaml' or 'json'")
 
-    file_ext = format
-
-    # Build data structures for all indices
-    indices_data = {}
-    for index_id, index in sorted(db_obj.indices.items()):
-        samples_dict = {}
-        for sample_id, sample in index.samples.items():
-            samples_dict[sample_id] = {
-                "files": sample.files,
-                "kmer_count": sample.kmer_count,
-            }
-
-        indices_data[index_id] = {
-            "id": index.id,
-            "kmer_size": index.kmer_size,
-            "minim_size": index.minim_size,
-            "findere_z": index.findere_z,
-            "partition_count": index.partition_count,
-            "bf_size": index.bf_size,
-            "stored_size_bytes": index.stored_size_bytes,
-            "stored_size_str": index.stored_size_str,
-            "sample_count": index.sample_count,
-            "samples": samples_dict,
-        }
-
     # Export to file(s)
     if split:
         # Export each index to its own file
         for index_id, index_data in indices_data.items():
-            filepath = os.path.join(output_dir, f"{index_id}.{file_ext}")
-            with open(filepath, "w") as f:
-                if format == "yaml":
-                    yaml.safe_dump(index_data, f, default_flow_style=False)
-                else:
-                    json.dump(index_data, f, indent=2)
+            filepath = os.path.join(output_dir, f"{db_name}_{index_id}.{format}")
+            db_tools.save_db(db.IndexTable({index_id: index_data}), filepath)
     else:
         # Export all indices to a single file
-        db_data = {"indices": indices_data}
-        filepath = os.path.join(output_dir, f"db.{file_ext}")
-        with open(filepath, "w") as f:
-            if format == "yaml":
-                yaml.safe_dump(db_data, f, default_flow_style=False, sort_keys=False)
-            else:
-                json.dump(db_data, f, indent=2, sort_keys=False)
-
-
-def export_span(value, samples):
-    pass
+        filepath = os.path.join(output_dir, f"{db_name}.{format}")
+        db_tools.save_db(indices_data, filepath)
 
 
 def read_samples(filename, cli_kmer_size=None):
@@ -418,6 +399,7 @@ def read_samples(filename, cli_kmer_size=None):
 
 def process_sample(
     sample: db.Sample,
+    db_tools: db.IndexDefinitionTools,
     kmer_size,
     ntcard_threads,
     false_positive_rate,
@@ -457,7 +439,7 @@ def process_sample(
         if verbose:
             click.echo(f"    Generated sample ID from filename: {sample.id}")
 
-    sample.id = db.IndexDefinitionTools().clean_sample_id(sample.id)
+    sample.id = db_tools.clean_sample_id(sample.id)
     if verbose:
         click.echo(f"    Final sample ID: {sample.id}")
 

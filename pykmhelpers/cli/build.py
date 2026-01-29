@@ -68,13 +68,13 @@ def build(
 
         table = idt.load_db(input_file)
 
-        for i in table.indices.values():
+        for i in table.values():
             click.echo(f"Build {i.id}...")
 
             try:
 
                 builder = IndexBuilder(
-                    output_index_path=workdir, k=i.kmer_size, z=i.findere_z
+                    output_index_path=workdir, k=i.kmer_size,
                 )
 
                 fof = FofManager()

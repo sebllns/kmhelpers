@@ -38,8 +38,8 @@ from pykmhelpers import KmindexRegistry, KmindexWrapper
 @click.option(
     "--zvalue",
     type=int,
-    default=0,
-    help="Z-value for kmindex (default: 0)",
+    default=6,
+    help="Z-value for findere algorithm, to filter false positives (default: 6)",
 )
 @click.option(
     "--threshold",
