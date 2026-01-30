@@ -69,7 +69,11 @@ class FofManager:
         ".fna",
     ]
 
-    def __init__(self, fof_path: Optional[Union[str, Path]] = None, samples: Optional[Dict[str, str]] = None):
+    def __init__(
+        self,
+        fof_path: Optional[Union[str, Path]] = None,
+        samples: Optional[Dict[str, str]] = None,
+    ):
         """
         Initialize the FofManager.
 
@@ -159,7 +163,9 @@ class FofManager:
 
         return (sample_name, file_path)
 
-    def extract_sample_name(self, file_path: Union[str, Path], add_id: bool = False, prefix: str = "") -> str:
+    def extract_sample_name(
+        self, file_path: Union[str, Path], add_id: bool = False, prefix: str = ""
+    ) -> str:
         """
         Extract sample name from a file path.
 
@@ -203,7 +209,7 @@ class FofManager:
             sample_name = prefix + "_" + sample_name
 
         if add_id:
-            sample_name = '{:06d}'.format(self.get_sample_count()) + sample_name
+            sample_name = "{:06d}".format(self.get_sample_count()) + sample_name
 
         return sample_name
 
@@ -300,7 +306,7 @@ class FofManager:
         """Clear the internal samples dictionary."""
         self.samples.clear()
 
-    def add_sample(self, path: str, sample_id: str = "") -> None:
+    def add_sample(self, path: list[str], sample_id: str = "") -> None:
         """
         Add or update a sample in the internal dictionary.
 
@@ -308,8 +314,10 @@ class FofManager:
             sample_id: Sample identifier.
             path: File path for the sample.
         """
-        self.samples[sample_id if sample_id else self.extract_sample_name(path)] = path
-        
+        self.samples[sample_id if sample_id else self.extract_sample_name(path[0])] = (
+            ";".join(path)
+        )
+
     def remove_sample(self, sample_id: str) -> bool:
         """
         Remove a sample from the internal dictionary.
@@ -425,7 +433,7 @@ class FofManager:
                     sample_map[sample_name] = Toolbox.get_canonical_path(file_path)
 
         return sample_map
-    
+
     def validate_sample_files(self) -> bool:
         ok = self.get_sample_count() > 0
         for k, v in self.samples.items():

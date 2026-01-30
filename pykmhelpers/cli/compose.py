@@ -72,6 +72,12 @@ from pykmhelpers.core.byte import ByteCounter, SizeFormat
     help="Number of threads to be used by ntcard while counting k-mers (default: 8)",
 )
 @click.option(
+    "--ntcard-value",
+    "--ntv",
+    default="F0",
+    help="Value ID to extract from ntcard output (default: 'F0')",
+)
+@click.option(
     "--false-positive-rate",
     "--fp",
     type=float,
@@ -95,7 +101,7 @@ from pykmhelpers.core.byte import ByteCounter, SizeFormat
     "-f",
     type=click.Choice(["yaml", "json"], case_sensitive=False),
     default="yaml",
-    help="Output format of created database (default: yaml)",
+    help="Output format of created database (default: 'yaml')",
 )
 @click.option(
     "--verbose",
@@ -113,6 +119,7 @@ def compose(
     max_span,
     partition_count,
     ntcard_threads,
+    ntcard_value,
     false_positive_rate,
     split,
     recount,
@@ -187,6 +194,7 @@ def compose(
                     db_tools=db_tools,
                     kmer_size=kmer_size,
                     ntcard_threads=ntcard_threads,
+                    ntcard_value=ntcard_value,
                     false_positive_rate=false_positive_rate,
                     verbose=verbose,
                     recount=recount,
@@ -414,6 +422,7 @@ def process_sample(
     db_tools: db.IndexDefinitionTools,
     kmer_size,
     ntcard_threads,
+    ntcard_value,
     false_positive_rate,
     verbose,
     recount=False,
@@ -427,7 +436,7 @@ def process_sample(
     if sample.kmer_count == 0 or recount:
         action = "Recounting" if recount else "Counting"
         click.echo(f"  {action} k-mers for sample {sample.id or sample.files[0]}")
-        sample.kmer_count = kc.count_files(sample.files)
+        sample.kmer_count = kc.count_files(files=sample.files, verbose=verbose, target_value=ntcard_value)
         if verbose:
             click.echo(f"    k-mer count: {sample.kmer_count}")
     elif verbose:

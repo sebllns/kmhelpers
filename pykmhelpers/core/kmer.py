@@ -37,7 +37,7 @@ class KmerCounter:
     def threadCount(self):
         return self._threadCount
 
-    def count(self, filename):
+    def count(self, filename, verbose=False):
         """Count k-mers in a single file using ntcard.
 
         Args:
@@ -56,7 +56,7 @@ class KmerCounter:
 
         return self.count_files([filename])
 
-    def count_files(self, files):
+    def count_files(self, files, target_value="F0", verbose=False):
         """Count k-mers for one or more files in a single ntcard call.
 
         Args:
@@ -93,7 +93,13 @@ class KmerCounter:
                 tmp_file,
             ] + files
 
+            if verbose:
+                print(" ".join(cmd))
+
             result = subprocess.run(cmd, capture_output=True, text=True)
+
+            if verbose:
+                print(result.stderr)
 
             if result.returncode != 0:
                 raise subprocess.CalledProcessError(
@@ -104,35 +110,36 @@ class KmerCounter:
                 )
 
             # Parse first line from stdout: k=25    F1      96751
-            lines = result.stdout.strip().split("\n")
+            lines = result.stderr.strip().split("\n")
             if not lines:
                 raise ValueError("Empty output from ntcard")
 
-            first_line = lines[0]
-            parts = first_line.split()
+            value = 0
 
-            if len(parts) < 3:
-                raise ValueError(f"Unexpected ntcard output format: {first_line}")
+            for line in lines:
+                try:
+                    parts = line.split()
+                    if len(parts) >= 3 and target_value == parts[1]:
+                        value = int(parts[2])
+                        break
+                except:
+                    pass
 
-            try:
-                f1_value = int(parts[2])
-            except (ValueError, IndexError) as e:
-                raise ValueError(
-                    f"Failed to parse F1 value from ntcard output: {first_line}"
-                ) from e
+            if verbose:
+                print(f"{target_value}={value}")
 
-            if f1_value == 0:
+            if value == 0:
                 raise ValueError(
                     f"No k-mers found (F1=0). Check if files are empty or k={self._k} is larger than sequences."
                 )
 
-            return f1_value
+            return value
 
         finally:
             if os.path.exists(tmp_file):
                 os.remove(tmp_file)
 
-    def count_all(self, samples_dict):
+    def count_all(self, samples_dict, verbose=False):
         """Count k-mers for multiple samples from a dictionary.
 
         Args:
@@ -184,5 +191,3 @@ class KmerCounter:
                 ) from e
 
         return results
-
-

@@ -55,6 +55,7 @@ need to resolve them from a different location.",
 def build(
     input_files,
     workdir,
+    rootpath,
     select_ids,
     threads,
     verbose,
@@ -80,18 +81,34 @@ def build(
         for i in table.values():
             click.echo(f"Build {i.id}...")
 
-            try:
+            # Show confirmation with size estimation (skip if -f/--force is used)
+            if not force:
+                click.echo()
+                try:
+                    click.echo(f"  Estimated index size: {i.stored_size_str}")
+                    click.echo()
 
+                    if not click.confirm("Proceed with build?", default=True):
+                        click.echo("Build cancelled")
+                        return
+                except Exception as e:
+                    click.echo(f"Warning: Could not estimate build size: {e}", err=True)
+                    if not click.confirm("Proceed with build anyway?", default=True):
+                        click.echo("Build cancelled")
+                        return
+                click.echo()
+
+            try:
                 builder = IndexBuilder(
                     output_index_path=workdir,
                     k=i.kmer_size,
                 )
 
                 fof = FofManager()
+                assert builder, "Could not initialize builder"
 
                 for s in i.samples.values():
-                    assert s.id
-                    fof.add_sample(s.files[0], s.id)
+                    fof.add_sample(s.files, s.id or "")
 
                 builder.create_subindex(
                     name=i.id,
@@ -103,7 +120,6 @@ def build(
                     auto_check=True,
                 )
 
-                assert builder, "Could not initialize builder"
 
             except Exception as e:
                 traceback.print_exc()
