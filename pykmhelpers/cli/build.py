@@ -120,7 +120,17 @@ def build(
                     auto_check=True,
                 )
 
-
             except Exception as e:
-                traceback.print_exc()
-                click.echo(f"Error: {e}")
+                if verbose:
+                    click.echo(
+                        click.style(
+                            traceback.format_exc(), fg="red", bold=True, dim=True
+                        ),
+                        err=True,
+                        color=True,
+                    )
+                click.echo(
+                    click.style(f"Error: {e}", fg="red", bold=True),
+                    err=True,
+                    color=True,
+                )
