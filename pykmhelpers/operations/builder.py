@@ -147,7 +147,7 @@ class IndexBuilder:
 
         n_samples = samples.get_sample_count()
 
-        bf_specs = self.get_bf_specs(n_samples, bloom_size)
+        # bf_specs = self.get_bf_specs(n_samples, bloom_size, n_partitions)
 
         wrapper.build(
             input_fof_file=fof_path,

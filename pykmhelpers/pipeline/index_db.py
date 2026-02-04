@@ -18,6 +18,7 @@ class Index:
     kmer_size: int
     minim_size: int
     partition_count: int
+    span: int
     bf_size: int
     stored_size_bytes: int
     stored_size_str: str
@@ -57,6 +58,7 @@ class IndexDefinitionTools:
                 kmer_size=index_data.get("kmer_size"),
                 minim_size=index_data.get("minim_size"),
                 partition_count=index_data.get("partition_count"),
+                span=index_data.get("span"),
                 bf_size=index_data.get("bf_size"),
                 stored_size_bytes=index_data.get("stored_size_bytes"),
                 stored_size_str=index_data.get("stored_size_str"),
@@ -84,6 +86,7 @@ class IndexDefinitionTools:
                 "kmer_size": index.kmer_size,
                 "minim_size": index.minim_size,
                 "partition_count": index.partition_count,
+                "span": index.span,
                 "bf_size": index.bf_size,
                 "sample_count": index.sample_count,
                 "stored_size_bytes": index.stored_size_bytes,

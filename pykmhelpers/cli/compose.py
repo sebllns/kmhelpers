@@ -193,6 +193,8 @@ def compose(
                     sample=sample,
                     db_tools=db_tools,
                     kmer_size=kmer_size,
+                    min_span=min_span,
+                    max_span=max_span,
                     ntcard_threads=ntcard_threads,
                     ntcard_value=ntcard_value,
                     false_positive_rate=false_positive_rate,
@@ -200,22 +202,15 @@ def compose(
                     recount=recount,
                 )
 
-                orig_span = span
-                span = max(span, min_span)
-                if max_span > 0:
-                    span = min(span, max_span)
-
-                if verbose and span != orig_span:
-                    click.echo(f"    Span adjusted: {orig_span} → {span}")
-
                 index_id = f"{prefix}_{span}"
                 if index_id not in db_instance:
                     if verbose:
-                        click.echo(f"  Creating new index: {index_id}")
+                        click.echo(f"  Creating new index: {index_id}, span={span}, bf_size={bf_size}")
                     db_instance[index_id] = db.Index(
                         id=index_id,
                         kmer_size=kmer_size,
                         minim_size=10,
+                        span=span,
                         bf_size=bf_size,
                         partition_count=partition_count,
                         stored_size_bytes=0,
@@ -229,7 +224,7 @@ def compose(
 
                 db_instance[index_id].samples[sample.id] = sample
                 db_instance[index_id].sample_count = len(db_instance[index_id].samples)
-                bf_specs = BloomFilterSpecs(bf_size, db_instance[index_id].sample_count)
+                bf_specs = BloomFilterSpecs(bf_size, db_instance[index_id].sample_count, partition_count)
                 db_instance[index_id].stored_size_bytes = bf_specs.total_byte_count
                 db_instance[index_id].stored_size_str = str(
                     ByteCounter.auto(bf_specs.total_byte_count, SizeFormat.BYTE)
@@ -421,6 +416,8 @@ def process_sample(
     sample: db.Sample,
     db_tools: db.IndexDefinitionTools,
     kmer_size,
+    min_span,
+    max_span,
     ntcard_threads,
     ntcard_value,
     false_positive_rate,
@@ -445,10 +442,16 @@ def process_sample(
         )
 
     span = sm.dispatch(sample.kmer_count)
-    bf_size = sm.get_bf_size(span)
 
-    if verbose:
-        click.echo(f"    Span: {span}, BF size: {bf_size} bytes")
+    orig_span = span
+    span = max(span, min_span)
+    if max_span > 0:
+        span = min(span, max_span)
+
+    if verbose and span != orig_span:
+        click.echo(f"    Span adjusted: {orig_span} → {span}")
+
+    bf_size = sm.get_bf_size(span)
 
     if not sample.id:
         filename = os.path.basename(sample.files[0])
