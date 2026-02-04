@@ -65,6 +65,13 @@ from pykmhelpers.core.byte import ByteCounter, SizeFormat
     help="Number of partitions per index, 0 for automatic count (default: 0)",
 )
 @click.option(
+    "--index-max-size",
+    "-m",
+    type=int,
+    default=0,
+    help="",
+)
+@click.option(
     "--ntcard-threads",
     "--ntt",
     type=int,
@@ -225,9 +232,9 @@ def compose(
                 db_instance[index_id].samples[sample.id] = sample
                 db_instance[index_id].sample_count = len(db_instance[index_id].samples)
                 bf_specs = BloomFilterSpecs(bf_size, db_instance[index_id].sample_count, partition_count)
-                db_instance[index_id].stored_size_bytes = bf_specs.total_byte_count
+                db_instance[index_id].stored_size_bytes = bf_specs.total_storage_size()
                 db_instance[index_id].stored_size_str = str(
-                    ByteCounter.auto(bf_specs.total_byte_count, SizeFormat.BYTE)
+                    ByteCounter.auto(bf_specs.total_byte_count(), SizeFormat.BYTE)
                 )
             except Exception as e:
                 click.echo(
@@ -239,7 +246,7 @@ def compose(
             click.echo(
                 f"✓ Composed {len(all_samples)} samples into {len(db_instance)} indices"
             )
-            for index_id, index in db_instance.items():
+            for index_id, index in sorted(db_instance.items()):
                 click.echo(
                     f"  {index_id}: {index.sample_count} samples, {index.stored_size_str}"
                 )

@@ -91,6 +91,42 @@ class ByteCounter:
 
         return cls(value, unit, format)
 
+    @classmethod
+    def from_str(cls, s: str) -> "ByteCounter":
+        """Parse a ByteCounter from a human-readable string (e.g., '1.5GB', '256MB', '1.2KiB')."""
+        s = s.strip()
+
+        # Map unit prefixes to SizeUnit
+        unit_map = {
+            "K": SizeUnit.KILO,
+            "M": SizeUnit.MEGA,
+            "G": SizeUnit.GIGA,
+            "T": SizeUnit.TERA,
+            "P": SizeUnit.PETA,
+        }
+
+        # Determine format suffix
+        format_type = SizeFormat.BYTE
+        if s.endswith("b"):
+            format_type = SizeFormat.BIT
+            s = s[:-1]
+        elif s.endswith("iB"):
+            format_type = SizeFormat.BIBYTE
+            s = s[:-2]
+        elif s.endswith("B"):
+            s = s[:-1]
+
+        # Extract unit
+        unit = SizeUnit.NONE
+        if s and s[-1] in unit_map:
+            unit = unit_map[s[-1]]
+            s = s[:-1]
+
+        # Parse value
+        value = float(s)
+
+        return cls(value, unit, format_type)
+
     def __add__(self, other: "ByteCounter") -> "ByteCounter":
         """Add two ByteCounters, converting to the same unit."""
         if not isinstance(other, ByteCounter):

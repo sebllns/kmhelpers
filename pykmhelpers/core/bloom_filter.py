@@ -16,12 +16,12 @@ class BloomFilterSpecs:
         self._n_rows = n_rows
         self._n_cols = n_cols
 
-        assert (
-            self.n_cols % BYTE_SIZE == 0
-        ), f"Columns must be divisible by {BYTE_SIZE} (got {self.n_cols})"
-        assert (
-            self.n_rows % ENCODED_BITLENGTH == 0
-        ), f"Rows must be divisible by {ENCODED_BITLENGTH} (got {self.n_rows})"
+        # assert (
+        #     self.n_cols % BYTE_SIZE == 0
+        # ), f"Columns must be divisible by {BYTE_SIZE} (got {self.n_cols})"
+        # assert (
+        #     self.n_rows % ENCODED_BITLENGTH == 0
+        # ), f"Rows must be divisible by {ENCODED_BITLENGTH} (got {self.n_rows})"
 
     @property
     def rows(self) -> int:
@@ -35,36 +35,32 @@ class BloomFilterSpecs:
     def parts(self) -> int:
         return self._n_parts
 
-    @property
     def row_byte_count(self) -> int:
-        return (self.n_cols + BYTE_SIZE - 1) // BYTE_SIZE
+        return (self.cols + BYTE_SIZE - 1) // BYTE_SIZE
 
-    @property
     def column_byte_count(self) -> int:
         return (
             int(
                 (
-                    (self.n_rows / self.parts + ENCODED_BITLENGTH - 1)
+                    (self.rows / self.parts + ENCODED_BITLENGTH - 1)
                     // ENCODED_BITLENGTH
                 )
                 * ENCODED_BITLENGTH
                 * self.parts
             )
-            // BYTE_SIZE
         )
 
-    @property
     def total_byte_count(self):
-        return self.row_byte_count * self.column_byte_count
+        return self.row_byte_count() * self.column_byte_count()
 
     def total_storage_size(self):
-        return self.total_byte_count + self._n_parts * KMINDEX_HEADER_SIZE
+        return self.total_byte_count() + self._n_parts * KMINDEX_HEADER_SIZE
 
     def partition_file_size(self, n_partitions: int):
-        return KMINDEX_HEADER_SIZE + self.total_byte_count / n_partitions
+        return KMINDEX_HEADER_SIZE + self.total_byte_count() / n_partitions
 
     def get_auto_partition_count(self, max_partition_size: int):
-        return 1 + self.total_byte_count // max_partition_size
+        return 1 + self.total_byte_count() // max_partition_size
 
 
 class SpanManager:
