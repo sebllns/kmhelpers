@@ -62,14 +62,17 @@ from pykmhelpers.core.byte import ByteCounter, SizeFormat
     "-p",
     type=int,
     default=0,
-    help="Number of partitions per index, 0 for automatic count (default: 0)",
+    help="Desired number of partitions per index, 0 for automatic count (default: 0)",
 )
 @click.option(
-    "--index-max-size",
+    "--bf-max-size",
+    "-b",
+    help="Maximum Bloom Filter size (e.g., '10GB', '5000MB') before splitting samples across indices (default = no limit)",
+)
+@click.option(
+    "--partition-max-size",
     "-m",
-    type=int,
-    default=0,
-    help="",
+    help="Maximum partition file size (e.g., '500MB', '1GB'). If exceeded, partition count will increase to maintain this size limit per partition (default = no limit)",
 )
 @click.option(
     "--ntcard-threads",
@@ -125,6 +128,8 @@ def compose(
     min_span,
     max_span,
     partition_count,
+    bf_max_size,
+    partition_max_size,
     ntcard_threads,
     ntcard_value,
     false_positive_rate,
@@ -212,7 +217,9 @@ def compose(
                 index_id = f"{prefix}_{span}"
                 if index_id not in db_instance:
                     if verbose:
-                        click.echo(f"  Creating new index: {index_id}, span={span}, bf_size={bf_size}")
+                        click.echo(
+                            f"  Creating new index: {index_id}, span={span}, bf_size={bf_size}"
+                        )
                     db_instance[index_id] = db.Index(
                         id=index_id,
                         kmer_size=kmer_size,
@@ -231,7 +238,9 @@ def compose(
 
                 db_instance[index_id].samples[sample.id] = sample
                 db_instance[index_id].sample_count = len(db_instance[index_id].samples)
-                bf_specs = BloomFilterSpecs(bf_size, db_instance[index_id].sample_count, partition_count)
+                bf_specs = BloomFilterSpecs(
+                    bf_size, db_instance[index_id].sample_count, partition_count
+                )
                 db_instance[index_id].stored_size_bytes = bf_specs.total_storage_size()
                 db_instance[index_id].stored_size_str = str(
                     ByteCounter.auto(bf_specs.total_byte_count(), SizeFormat.BYTE)
@@ -278,8 +287,6 @@ def compose(
             db_file = os.path.join(output_dir, f"{name}.{format}")
             click.echo(f"\nNext step: build the index with the command:")
             click.echo(f"  kmhelpers build -w <workdir> {db_file}")
-
-
 
     except Exception as e:
         raise click.ClickException(f"Compose failed: {e}")
@@ -440,7 +447,9 @@ def process_sample(
     if sample.kmer_count == 0 or recount:
         action = "Recounting" if recount else "Counting"
         click.echo(f"  {action} k-mers for sample {sample.id or sample.files[0]}")
-        sample.kmer_count = kc.count_files(files=sample.files, verbose=verbose, target_value=ntcard_value)
+        sample.kmer_count = kc.count_files(
+            files=sample.files, verbose=verbose, target_value=ntcard_value
+        )
         if verbose:
             click.echo(f"    k-mer count: {sample.kmer_count}")
     elif verbose:
