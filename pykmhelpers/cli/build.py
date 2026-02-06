@@ -85,7 +85,7 @@ def build(
             if not force:
                 click.echo()
                 try:
-                    click.echo(f"  Estimated index size: {i.stored_size_str}")
+                    click.echo(f"  Estimated index size: {str(i.get_stored_size())}")
                     click.echo()
 
                     if not click.confirm("Proceed with build?", default=True):

@@ -1,8 +1,10 @@
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import Optional
 import re
 import json
 import yaml
+from ..core.bloom_filter import BloomFilterSpecs
+from ..core.byte import ByteCounter, SizeFormat
 
 
 @dataclass
@@ -20,10 +22,20 @@ class Index:
     partition_count: int
     span: int
     bf_size: int
-    stored_size_bytes: int
-    stored_size_str: str
-    sample_count: int
     samples: dict[str, Sample]
+
+    @property
+    def sample_count(self):
+        return len(self.samples)
+
+    def add_sample(self, sample_id: str, sample: Sample):
+        self.samples[sample_id] = sample
+
+    def get_bf_specs(self):
+        return BloomFilterSpecs(self.bf_size, self.sample_count, self.partition_count)
+
+    def get_stored_size(self):
+        return ByteCounter.auto(self.get_bf_specs().total_byte_count(), SizeFormat.BYTE)
 
 
 IndexTable = dict[str, Index]
@@ -53,16 +65,15 @@ class IndexDefinitionTools:
                     kmer_count=sample_data.get("kmer_count", 0),
                 )
 
+            parameters = index_data.get("parameters")
+
             indices[index_id] = Index(
-                id=index_data.get("id"),
-                kmer_size=index_data.get("kmer_size"),
-                minim_size=index_data.get("minim_size"),
-                partition_count=index_data.get("partition_count"),
-                span=index_data.get("span"),
-                bf_size=index_data.get("bf_size"),
-                stored_size_bytes=index_data.get("stored_size_bytes"),
-                stored_size_str=index_data.get("stored_size_str"),
-                sample_count=index_data.get("sample_count"),
+                id=index_id,
+                kmer_size=parameters.get("kmer_size", 25),
+                minim_size=parameters.get("minim_size", 10),
+                partition_count=parameters.get("partition_count", 256),
+                bf_size=parameters.get("bf_size"),
+                span=index_data.get("infos", {}).get("span", 0),
                 samples=samples,
             )
 
@@ -76,21 +87,29 @@ class IndexDefinitionTools:
             samples_data = {}
             for sample_id, sample in index.samples.items():
                 samples_data[sample_id] = {
-                    "id": sample.id,
                     "kmer_count": sample.kmer_count,
                     "files": sample.files,
                 }
 
-            data[index_id] = {
-                "id": index.id,
+            stored_size = index.get_stored_size()
+
+            infos = {
+                "span": index.span,
+                "sample_count": index.sample_count,
+                "stored_size_bytes": stored_size.byte_count,
+                "stored_size_str": str(stored_size),
+            }
+
+            parameters = {
                 "kmer_size": index.kmer_size,
                 "minim_size": index.minim_size,
                 "partition_count": index.partition_count,
-                "span": index.span,
                 "bf_size": index.bf_size,
-                "sample_count": index.sample_count,
-                "stored_size_bytes": index.stored_size_bytes,
-                "stored_size_str": index.stored_size_str,
+            }
+
+            data[index_id] = {
+                "parameters": parameters,
+                "infos": infos,
                 "samples": samples_data,
             }
 

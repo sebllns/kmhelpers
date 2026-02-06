@@ -181,12 +181,31 @@ def compose(
                 f"Constraint must be respected: partition_count >= 0 (got partition_count = {partition_count})"
             )
 
+        auto_partitioning = False
         # Default partitioning = 256
         if partition_count == 0:
+            auto_partitioning = True
             partition_count = 256
+
+        try:
+            bf_max_size = ByteCounter.from_str(bf_max_size) if bf_max_size else None
+        except ValueError:
+            raise click.BadParameter(
+                f"Invalid bf_max_size format: {bf_max_size} (use format like '1GB', '500MB')"
+            )
+
+        try:
+            partition_max_size = (
+                ByteCounter.from_str(partition_max_size) if partition_max_size else None
+            )
+        except ValueError:
+            raise click.BadParameter(
+                f"Invalid partition_max_size format: {partition_max_size} (use format like '1GB', '500MB')"
+            )
 
         os.makedirs(output_dir, exist_ok=True)
         all_samples = []
+        split_count = {}
         db_instance = db.IndexTable()
         db_tools = db.IndexDefinitionTools()
 
@@ -214,7 +233,10 @@ def compose(
                     recount=recount,
                 )
 
-                index_id = f"{prefix}_{span}"
+                if span not in split_count:
+                    split_count[span] = 0
+
+                index_id = f"{prefix}_{span}_{split_count[span]}"
                 if index_id not in db_instance:
                     if verbose:
                         click.echo(
@@ -227,24 +249,21 @@ def compose(
                         span=span,
                         bf_size=bf_size,
                         partition_count=partition_count,
-                        stored_size_bytes=0,
-                        stored_size_str="",
-                        sample_count=0,
                         samples={},
                     )
                 else:
                     if verbose:
                         click.echo(f"  Adding to existing index: {index_id}")
 
-                db_instance[index_id].samples[sample.id] = sample
-                db_instance[index_id].sample_count = len(db_instance[index_id].samples)
-                bf_specs = BloomFilterSpecs(
-                    bf_size, db_instance[index_id].sample_count, partition_count
-                )
-                db_instance[index_id].stored_size_bytes = bf_specs.total_storage_size()
-                db_instance[index_id].stored_size_str = str(
-                    ByteCounter.auto(bf_specs.total_byte_count(), SizeFormat.BYTE)
-                )
+                db_instance[index_id].add_sample(sample_id=sample.id, sample=sample)
+
+                # Split index if needed
+                if (
+                    bf_max_size
+                    and bf_max_size <= db_instance[index_id].get_stored_size()
+                ):
+                    split_count[span] += 1
+
             except Exception as e:
                 click.echo(
                     f"Could not process sample: {e}",
@@ -257,9 +276,22 @@ def compose(
             )
             for index_id, index in sorted(db_instance.items()):
                 click.echo(
-                    f"  {index_id}: {index.sample_count} samples, {index.stored_size_str}"
+                    f"  {index_id}: {index.sample_count} samples, {str(index.get_stored_size())}"
                 )
             click.echo(f"Exporting database in {format} format to {output_dir}...")
+
+        if partition_max_size or auto_partitioning:
+            for i in db_instance.values():
+                partition_max_size = partition_max_size or ByteCounter.from_str("4GB")
+                bf_specs = BloomFilterSpecs(i.bf_size, i.sample_count, 1)
+                partition_min_count = bf_specs.get_auto_partition_count(
+                    partition_max_size.byte_count
+                )
+                if not auto_partitioning:
+                    partition_min_count = max(partition_min_count, partition_count)
+                i.partition_count = partition_min_count
+                if verbose:
+                    click.echo(f"  {i.id}: partitioning into {partition_min_count} files")
 
         export_db(
             indices_data=db_instance,

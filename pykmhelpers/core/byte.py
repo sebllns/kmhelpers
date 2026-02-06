@@ -123,6 +123,7 @@ class ByteCounter:
             s = s[:-1]
 
         # Parse value
+        s = s.strip()
         value = float(s)
 
         return cls(value, unit, format_type)
