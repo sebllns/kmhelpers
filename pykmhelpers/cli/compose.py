@@ -7,9 +7,6 @@ This module provides two approaches to index compression:
 
 import os
 import click
-import yaml
-import json
-import math
 import pykmhelpers.pipeline.index_db as db
 from pykmhelpers.core.bloom_filter import SpanManager, BloomFilterSpecs
 from pykmhelpers.core.kmer import KmerCounter
@@ -75,6 +72,24 @@ from pykmhelpers.core.byte import ByteCounter, SizeFormat
     help="Maximum partition file size (e.g., '500MB', '1GB'). If exceeded, partition count will increase to maintain this size limit per partition (default = no limit)",
 )
 @click.option(
+    "--no-merge",
+    is_flag=True,
+    default=False,
+    help="Treat each part of split indices as independent indices (mostly used for partition count calculation)",
+)
+@click.option(
+    "--exact-partition-count",
+    is_flag=True,
+    default=False,
+    help="Keep exact partition count (default rounds to nearest power of 2)",
+)
+@click.option(
+    "--partition-count-limit",
+    type=int,
+    default=256,
+    help="Partition count limit for auto-partitioning (default: 256)",
+)
+@click.option(
     "--ntcard-threads",
     "--ntt",
     type=int,
@@ -95,10 +110,10 @@ from pykmhelpers.core.byte import ByteCounter, SizeFormat
     help="False positive rate for Bloom filter (default: 0.25).\n\n==>IMPORTANT<== The findere algorithm optimizes queries by using (k+z)-mers to reduce the false positive rate at query time. This allows Bloom filters to be built with a higher false positive rate while still providing accurate results, which reduces disk footprint. Usually building your index with {k=25, p=0.25} and querying with z=6 provide a good balance.\n\n ",
 )
 @click.option(
-    "--split",
+    "--no-split",
     is_flag=True,
     default=False,
-    help="Export each index definition to an individual file",
+    help="Export all index definition to a single file",
 )
 @click.option(
     "--recount",
@@ -130,10 +145,13 @@ def compose(
     partition_count,
     bf_max_size,
     partition_max_size,
+    no_merge,
+    exact_partition_count,
+    partition_count_limit,
     ntcard_threads,
     ntcard_value,
     false_positive_rate,
-    split,
+    no_split,
     recount,
     format,
     verbose,
@@ -206,6 +224,7 @@ def compose(
         os.makedirs(output_dir, exist_ok=True)
         all_samples = []
         split_count = {}
+        span_size = {}
         db_instance = db.IndexTable()
         db_tools = db.IndexDefinitionTools()
 
@@ -236,6 +255,9 @@ def compose(
                 if span not in split_count:
                     split_count[span] = 0
 
+                if span not in span_size:
+                    span_size[span] = 0
+
                 index_id = f"{prefix}_{span}_{split_count[span]}"
                 if index_id not in db_instance:
                     if verbose:
@@ -256,10 +278,11 @@ def compose(
                         click.echo(f"  Adding to existing index: {index_id}")
 
                 db_instance[index_id].add_sample(sample_id=sample.id, sample=sample)
-
+                span_size[span] += 1
                 # Split index if needed
                 if (
                     bf_max_size
+                    and span_size[span] % 8 == 0
                     and bf_max_size <= db_instance[index_id].get_stored_size()
                 ):
                     split_count[span] += 1
@@ -280,45 +303,54 @@ def compose(
                 )
             click.echo(f"Exporting database in {format} format to {output_dir}...")
 
-        if partition_max_size or auto_partitioning:
-            for i in db_instance.values():
+        for i in db_instance.values():
+            if partition_max_size or auto_partitioning:
                 partition_max_size = partition_max_size or ByteCounter.from_str("4GB")
-                bf_specs = BloomFilterSpecs(i.bf_size, i.sample_count, 1)
+                ref = db_instance[f"{prefix}_{i.span}_0"]
+                bf_specs = BloomFilterSpecs(
+                    ref.bf_size, ref.sample_count if no_merge else span_size[i.span], 1
+                )
                 partition_min_count = bf_specs.get_auto_partition_count(
                     partition_max_size.byte_count
                 )
+                print(f"{i.id} {partition_max_size} {bf_specs.cols} {bf_specs} {partition_min_count}")
                 if not auto_partitioning:
                     partition_min_count = max(partition_min_count, partition_count)
                 i.partition_count = partition_min_count
-                if verbose:
-                    click.echo(f"  {i.id}: partitioning into {partition_min_count} files")
+            if not exact_partition_count and i.partition_count > 1:
+                i.partition_count = 1 << (i.partition_count - 1).bit_length()
+
+            i.partition_count = min(max(1, i.partition_count), partition_count_limit)
+            if verbose:
+                click.echo(f"  {i.id}: partitioning into {i.partition_count} files")
 
         export_db(
             indices_data=db_instance,
             db_tools=db_tools,
             output_dir=output_dir,
             format=format,
-            split=split,
+            split=not no_split,
             db_name=name,
         )
 
         if verbose:
-            if split:
+            if not no_split:
                 click.echo(f"Exported {len(db_instance)} index files (split mode)")
             else:
                 click.echo(f"Exported database to db.{format}")
             click.echo(f"Created index definition for {len(all_samples)} samples")
 
         # Print next command
-        if split:
-            db_file_pattern = os.path.join(output_dir, f"{name}_<span>.{format}")
-            click.echo(f"\nNext step: build the index with the command:")
-            click.echo(f"  kmhelpers build -w <workdir> {db_file_pattern}")
-            click.echo(f"Replace <span> with span value")
-        else:
-            db_file = os.path.join(output_dir, f"{name}.{format}")
-            click.echo(f"\nNext step: build the index with the command:")
-            click.echo(f"  kmhelpers build -w <workdir> {db_file}")
+        if verbose:
+            if not no_split:
+                db_file_pattern = os.path.join(output_dir, f"{name}_<span>.{format}")
+                click.echo(f"\nNext step: build the index with the command:")
+                click.echo(f"  kmhelpers build -w <workdir> {db_file_pattern}")
+                click.echo(f"Replace <span> with span value")
+            else:
+                db_file = os.path.join(output_dir, f"{name}.{format}")
+                click.echo(f"\nNext step: build the index with the command:")
+                click.echo(f"  kmhelpers build -w <workdir> {db_file}")
 
     except Exception as e:
         raise click.ClickException(f"Compose failed: {e}")

@@ -56,8 +56,8 @@ class BloomFilterSpecs:
     def total_storage_size(self):
         return self.total_byte_count() + self._n_parts * KMINDEX_HEADER_SIZE
 
-    def partition_file_size(self, n_partitions: int):
-        return KMINDEX_HEADER_SIZE + self.total_byte_count() / n_partitions
+    def partition_file_size(self):
+        return KMINDEX_HEADER_SIZE + self.total_byte_count() // self.parts
 
     def get_auto_partition_count(self, max_partition_size: int):
         return 1 + self.total_byte_count() // max_partition_size

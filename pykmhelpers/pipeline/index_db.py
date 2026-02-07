@@ -35,7 +35,10 @@ class Index:
         return BloomFilterSpecs(self.bf_size, self.sample_count, self.partition_count)
 
     def get_stored_size(self):
-        return ByteCounter.auto(self.get_bf_specs().total_byte_count(), SizeFormat.BYTE)
+        return ByteCounter.auto(self.get_bf_specs().total_storage_size(), SizeFormat.BYTE)
+    
+    def get_stored_size_per_partition(self):
+        return ByteCounter.auto(self.get_bf_specs().partition_file_size(), SizeFormat.BYTE)
 
 
 IndexTable = dict[str, Index]
@@ -92,12 +95,15 @@ class IndexDefinitionTools:
                 }
 
             stored_size = index.get_stored_size()
+            partition_stored_size = index.get_stored_size_per_partition()
 
             infos = {
                 "span": index.span,
                 "sample_count": index.sample_count,
-                "stored_size_bytes": stored_size.byte_count,
-                "stored_size_str": str(stored_size),
+                "total_stored_size_bytes": stored_size.byte_count,
+                "total_stored_size_str": str(stored_size),
+                "partition_stored_size_bytes": partition_stored_size.byte_count,
+                "partition_stored_size_str": str(partition_stored_size),              
             }
 
             parameters = {
