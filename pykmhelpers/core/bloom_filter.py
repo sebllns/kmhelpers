@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import math
 
 KMINDEX_HEADER_SIZE: int = 49
@@ -6,11 +5,7 @@ BYTE_SIZE: int = 8
 ENCODED_BITLENGTH: int = 64
 
 
-@dataclass
 class BloomFilterSpecs:
-    n_rows: int = 0
-    n_cols: int = 0
-
     def __init__(self, n_rows: int, n_cols: int, n_partitions: int):
         self._n_parts = n_partitions
         self._n_rows = n_rows

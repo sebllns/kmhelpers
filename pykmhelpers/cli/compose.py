@@ -313,7 +313,6 @@ def compose(
                 partition_min_count = bf_specs.get_auto_partition_count(
                     partition_max_size.byte_count
                 )
-                print(f"{i.id} {partition_max_size} {bf_specs.cols} {bf_specs} {partition_min_count}")
                 if not auto_partitioning:
                     partition_min_count = max(partition_min_count, partition_count)
                 i.partition_count = partition_min_count
