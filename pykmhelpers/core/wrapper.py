@@ -19,36 +19,61 @@ logger = logging.getLogger(__name__)
 
 class Wrapper:
 
-    def run_cmd(
-        self, cmd: List[Any], trace: bool = True
+    def _run_cmd(
+        self, cmd: List[Any],
+        print_trace: Optional[bool] = None,
+        log_file: Optional[str] = None,
+        log_errors_only: Optional[bool] = None,
     ) -> subprocess.CompletedProcess[str]:
         """
         Run a command using subprocess and capture its output.
 
         Args:
             cmd: Command and arguments as a list (converted to List[str])
-            trace: Whether to print command output (default: True)
+            print_trace: Whether to print command output (default: computed from logger level)
+            log_file: Optional path to write stdout/stderr to
+            log_errors_only: Whether to log only errors (default: computed from logger level)
 
         Returns:
-            Standard output from the command
+            CompletedProcess with stdout and stderr
 
         Raises:
             subprocess.SubprocessError: If command returns non-zero exit code
         """
-        if trace:
-            print("Running command:", *cmd)
+        # Compute print_trace from logger level if not explicitly provided
+        if print_trace is None:
+            print_trace = logger.isEnabledFor(logging.DEBUG)
 
+        if log_errors_only is None:
+            log_errors_only = logger.getEffectiveLevel() >= logging.WARNING
+
+        # Run command
         result = subprocess.run(
             [str(arg) for arg in cmd], capture_output=True, text=True
         )
 
-        if trace:
-            for line in result.stdout.strip().split("\n"):
-                if line:
-                    print(f"1: {line}")
-            for line in result.stderr.strip().split("\n"):
-                if line:
-                    print(f"2: {line}")
+        # Build output content
+        output_lines = [
+            f"Command: {' '.join(str(arg) for arg in cmd)}",
+        ]
+
+        if not log_errors_only:
+            output_lines.extend(["\n--- STDOUT ---", result.stdout])
+
+        if result.stderr.strip():
+            output_lines.extend(["\n--- STDERR ---", result.stderr])
+
+        output_content = "\n".join(output_lines) if log_file or print_trace else ""
+
+        # Print to console if print_trace is enabled
+        if print_trace:
+            logger.info(output_content)
+
+        # Write to log file if specified
+        if log_file:
+            logger.debug(f"Logging output to: {log_file}")
+            with open(log_file, "w") as f:
+                f.write(output_content)
 
         if result.returncode != 0:
             raise subprocess.SubprocessError(
@@ -56,7 +81,7 @@ class Wrapper:
             )
         return result
 
-    def monitor_cmd(
+    def _monitor_cmd(
         self,
         cmd: List[str],
         print_trace: Optional[bool] = None,
@@ -400,7 +425,7 @@ class KmindexWrapper(Wrapper):
                 yaml.safe_dump(d, f)
 
         # Execute command
-        result = self.monitor_cmd(cmd, log_file=log_file)
+        result = self._monitor_cmd(cmd, log_file=log_file)
 
         assert result, "Failed to build index"
 
@@ -521,7 +546,7 @@ class KmindexWrapper(Wrapper):
                 ]
             )
 
-        result = self.monitor_cmd(cmd)
+        result = self._monitor_cmd(cmd)
 
         if not result:
             raise RuntimeError("Query failed.")
@@ -637,16 +662,16 @@ class KmindexWrapper(Wrapper):
         if check_results:
             cmd.append("--check")
 
-        logger.info(f"Compress index {index_name}")
-        logger.info(f"  - Registry: {input_registry}")
-        logger.info(f"  - Block size: {block_size} MB")
-        logger.info(f"  - Sampling: {sampling} rows")
-        logger.info(f"  - Compression level: {cpr_level}")
-        logger.info(f"  - Reorder: {reorder}")
-        logger.info(f"  - Threads: {threads}")
+        logger.debug(f"Compress index {index_name}")
+        logger.debug(f"  - Registry: {input_registry}")
+        logger.debug(f"  - Block size: {block_size} MB")
+        logger.debug(f"  - Sampling: {sampling} rows")
+        logger.debug(f"  - Compression level: {cpr_level}")
+        logger.debug(f"  - Reorder: {reorder}")
+        logger.debug(f"  - Threads: {threads}")
 
         # Execute command
-        result = self.monitor_cmd(cmd)
+        result = self._monitor_cmd(cmd)
 
         if not result:
             raise RuntimeError("Compression failed.")
@@ -655,13 +680,13 @@ class KmindexWrapper(Wrapper):
 
     def kmindex_version(self) -> Optional[str]:
         try:
-            v = Toolbox.run_cmd(
+            v = self._run_cmd(
                 [
                     Bin.kmindex(),
                     "--version",
                 ]
             )
-            return v[8:]
+            return v.stderr[8:]
         except Exception as e:
             logger.warning(f"Could not get kmindex version: {e}")
             return None
