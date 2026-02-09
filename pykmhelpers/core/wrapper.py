@@ -4,13 +4,185 @@ KmindexWrapper - High-level interface for kmindex build and query operations.
 
 import os
 import yaml
-from typing import List, Optional, Union
+import logging
+from typing import List, Optional, Union, Dict, Any
 from pathlib import Path
+import subprocess
+import threading
+import psutil
+import time
 
 from .utils import Bin, Toolbox, Kmindex
 
+logger = logging.getLogger(__name__)
 
-class KmindexWrapper:
+
+class Wrapper:
+
+    def run_cmd(
+        self, cmd: List[Any], trace: bool = True
+    ) -> subprocess.CompletedProcess[str]:
+        """
+        Run a command using subprocess and capture its output.
+
+        Args:
+            cmd: Command and arguments as a list (converted to List[str])
+            trace: Whether to print command output (default: True)
+
+        Returns:
+            Standard output from the command
+
+        Raises:
+            subprocess.SubprocessError: If command returns non-zero exit code
+        """
+        if trace:
+            print("Running command:", *cmd)
+
+        result = subprocess.run(
+            [str(arg) for arg in cmd], capture_output=True, text=True
+        )
+
+        if trace:
+            for line in result.stdout.strip().split("\n"):
+                if line:
+                    print(f"1: {line}")
+            for line in result.stderr.strip().split("\n"):
+                if line:
+                    print(f"2: {line}")
+
+        if result.returncode != 0:
+            raise subprocess.SubprocessError(
+                f"Command {cmd[0]} returned code {result.returncode}\nLog: {result.stderr}"
+            )
+        return result
+
+    def monitor_cmd(
+        self,
+        cmd: List[str],
+        print_trace: Optional[bool] = None,
+        log_file: Optional[str] = None,
+        log_errors_only: Optional[bool] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Run a command and monitor its resource usage.
+        Args:
+            cmd: Command and arguments as a list
+            print_trace: Whether to print trace output. If None, computed from logger level (True if DEBUG).
+            log_file: Optional path to write stdout/stderr to
+        Returns:
+            Tuple of (stdout, resource_stats) where resource_stats contains:
+                - start_time: Command start timestamp
+                - execution_time_s: Execution time in seconds
+                - max_cpu_percent: Maximum CPU usage percentage
+                - max_memory_mb: Maximum memory usage in MB
+                - return_code: Command exit code
+                - error: Error message if command failed
+            Returns None if process cannot be started
+        """
+        # Compute print_trace from logger level if not explicitly provided
+        if print_trace is None:
+            print_trace = logger.isEnabledFor(logging.DEBUG)
+
+        if log_errors_only is None:
+            log_errors_only = logger.getEffectiveLevel() >= logging.WARNING
+
+        max_cpu = 0.0
+        max_memory = 0.0
+        monitoring = True
+        monitor_lock = threading.Lock()
+
+        def monitor_resources(process):
+            nonlocal max_cpu, max_memory, monitoring
+            try:
+                psutil_process = psutil.Process(process.pid)
+                psutil_process.cpu_percent(interval=0.1)
+
+                while monitoring and process.poll() is None:
+                    try:
+                        processes = [psutil_process] + psutil_process.children(
+                            recursive=True
+                        )
+
+                        cpu_percent = sum(p.cpu_percent() for p in processes)
+                        memory_bytes = sum(p.memory_info().rss for p in processes)
+                        memory_mb = memory_bytes / 1024 / 1024
+
+                        with monitor_lock:
+                            max_cpu = max(max_cpu, cpu_percent)
+                            max_memory = max(max_memory, memory_mb)
+
+                        time.sleep(0.1)
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        break
+            except Exception as e:
+                logger.error(f"Resource monitoring error: {e}")
+
+        try:
+            start_time = time.time()
+            result = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
+
+            monitor_thread = threading.Thread(target=monitor_resources, args=(result,))
+            monitor_thread.daemon = True
+            monitor_thread.start()
+            time.sleep(0.01)
+
+            stdout, stderr = result.communicate()
+            end_time = time.time()
+            monitoring = False
+            monitor_thread.join(timeout=1)
+
+            execution_time = end_time - start_time
+
+            with monitor_lock:
+                output = {
+                    "command": " ".join(cmd),
+                    "start_time": start_time,
+                    "execution_time_s": round(execution_time, 4),
+                    "max_cpu_percent": round(max_cpu, 4),
+                    "max_memory_mb": round(max_memory, 4),
+                    "return_code": result.returncode,
+                }
+                if not log_errors_only:
+                    output["stdout"] = stdout
+                output["stderr"] = stderr
+
+            # Build output content
+            output_lines = [
+                f"Command: {output['command']}",
+                f"Execution time: {output['execution_time_s']}ms",
+                f"Max CPU: {output['max_cpu_percent']}%",
+                f"Max Memory: {output['max_memory_mb']} MB",
+                f"Return code: {output['return_code']}",
+            ]
+
+            if not log_errors_only:
+                output_lines.extend(["\n--- STDOUT ---", stdout])
+
+            if stderr.strip():
+                output_lines.extend(["\n--- STDERR ---", stderr])
+
+            output_content = "\n".join(output_lines) if log_file or print_trace else ""
+
+            # Print to console if print_trace is enabled
+            if print_trace:
+                logger.info(output_content)
+
+            # Write to log file if specified
+            if log_file:
+                logger.debug(f"Logging output to: {log_file}")
+                with open(log_file, "w") as f:
+                    f.write(output_content)
+
+            return output
+
+        except Exception as e:
+            logger.error(f"Failed to start process: {e}")
+            return None
+
+
+class KmindexWrapper(Wrapper):
     """
     High-level wrapper class for kmindex operations.
 
@@ -37,6 +209,18 @@ class KmindexWrapper:
         """Initialize the KmindexWrapper."""
         pass
 
+    def _get_verbose_level(self) -> str:
+        """Convert logger level to kmindex verbose level string."""
+        level = logger.getEffectiveLevel()
+        if level <= logging.DEBUG:
+            return "debug"
+        elif level <= logging.INFO:
+            return "info"
+        elif level <= logging.WARNING:
+            return "warning"
+        else:
+            return "error"
+
     def build(
         self,
         input_fof_file: Union[str, Path],
@@ -56,7 +240,6 @@ class KmindexWrapper:
         register_as: Optional[str] = None,
         from_index: Optional[str] = None,
         km_path: Optional[Union[str, Path]] = None,
-        verbose: str = "info",
     ) -> tuple[str, str]:
         """
         Build a kmindex index.
@@ -77,7 +260,6 @@ class KmindexWrapper:
             register_as: Index name for registration. If None, derived from output_index_dir or fof filename.
             from_index: Use parameters from a pre-registered index.
             km_path: Path to kmtricks binary (if not in $PATH).
-            verbose: Verbosity level (debug|info|warning|error).
 
         Returns:
             None. Builds the index and outputs results to specified directories.
@@ -101,7 +283,8 @@ class KmindexWrapper:
         if not output_index_dir:
             raise ValueError("output_index_dir must be provided.")
 
-        assert k >= 8 and k <= 255
+        if not (8 <= k <= 255):
+            raise ValueError(f"K-mer size must be between 8 and 255, got {k}")
 
         # Handle fof file creation if input_files provided
         input_fof_file = Toolbox.get_canonical_path(str(input_fof_file))
@@ -150,7 +333,7 @@ class KmindexWrapper:
             "--threads",
             str(threads),
             "--verbose",
-            verbose,
+            self._get_verbose_level(),
         ]
 
         # Add indexing type parameters
@@ -173,16 +356,16 @@ class KmindexWrapper:
         if km_path is not None:
             cmd.extend(["--km-path", str(km_path)])
 
-        print(f"Build index {register_as}")
-        print(f"  - Parameters:")
-        print(f"    - Input samples: {input_fof_file}")
-        print(f"    - k: {k}")
-        print(f"    - Bloom filter size: {bloom_size}")
-        print(f"    - Partition count: {nb_partitions}")
-        print(f"  - Parameters exported in: {output_log_dir}")
-        print(f"  - Output data directory: {output_index_dir}")
-        print(f"  - Registry: {output_registry_path}")
-        print(f"  - Log dir: {output_log_dir}")
+        logger.debug(f"Build index {register_as}")
+        logger.debug(f"  - Parameters:")
+        logger.debug(f"    - Input samples: {input_fof_file}")
+        logger.debug(f"    - k: {k}")
+        logger.debug(f"    - Bloom filter size: {bloom_size}")
+        logger.debug(f"    - Partition count: {nb_partitions}")
+        logger.debug(f"  - Parameters exported in: {output_log_dir}")
+        logger.debug(f"  - Output data directory: {output_index_dir}")
+        logger.debug(f"  - Registry: {output_registry_path}")
+        logger.debug(f"  - Log dir: {output_log_dir}")
 
         # Set default log dir if not provided
         log_file = None
@@ -217,7 +400,7 @@ class KmindexWrapper:
                 yaml.safe_dump(d, f)
 
         # Execute command
-        result = Toolbox.monitor_cmd(cmd, print_trace=False, log_file=log_file)
+        result = self.monitor_cmd(cmd, log_file=log_file)
 
         assert result, "Failed to build index"
 
@@ -320,6 +503,8 @@ class KmindexWrapper:
             str(threshold),
             "--threads",
             str(threads),
+            "--verbose",
+            self._get_verbose_level(),
         ]
 
         if single_query is not None:
@@ -336,7 +521,7 @@ class KmindexWrapper:
                 ]
             )
 
-        result = Toolbox.monitor_cmd(cmd, print_trace=True)
+        result = self.monitor_cmd(cmd)
 
         if not result:
             raise RuntimeError("Query failed.")
@@ -358,7 +543,6 @@ class KmindexWrapper:
         reorder: bool = False,
         delete_uncompressed: bool = False,
         check_results: bool = False,
-        verbose: str = "info",
     ) -> dict:
         """
         Compress a kmindex index.
@@ -378,7 +562,6 @@ class KmindexWrapper:
             reorder: Whether to reorder columns before compressing (default: False).
             delete_uncompressed: Delete uncompressed index after successful compression (default: False).
             check_results: Check query results after compressing (default: False).
-            verbose: Verbosity level (debug|info|warning|error) (default: info).
 
         Returns:
             Dictionary containing compression monitoring/execution results.
@@ -409,7 +592,9 @@ class KmindexWrapper:
             )
 
         if not Kmindex.b_json_exists(input_registry):
-            raise FileNotFoundError(f"index.json not found in registry {input_registry}")
+            raise FileNotFoundError(
+                f"index.json not found in registry {input_registry}"
+            )
 
         # Validate column_per_block is 0 or multiple of 8
         if column_per_block != 0 and column_per_block % 8 != 0:
@@ -439,7 +624,7 @@ class KmindexWrapper:
             "--threads",
             str(threads),
             "--verbose",
-            verbose,
+            self._get_verbose_level(),
         ]
 
         # Add optional flags
@@ -452,16 +637,16 @@ class KmindexWrapper:
         if check_results:
             cmd.append("--check")
 
-        print(f"Compress index {index_name}")
-        print(f"  - Registry: {input_registry}")
-        print(f"  - Block size: {block_size} MB")
-        print(f"  - Sampling: {sampling} rows")
-        print(f"  - Compression level: {cpr_level}")
-        print(f"  - Reorder: {reorder}")
-        print(f"  - Threads: {threads}")
+        logger.info(f"Compress index {index_name}")
+        logger.info(f"  - Registry: {input_registry}")
+        logger.info(f"  - Block size: {block_size} MB")
+        logger.info(f"  - Sampling: {sampling} rows")
+        logger.info(f"  - Compression level: {cpr_level}")
+        logger.info(f"  - Reorder: {reorder}")
+        logger.info(f"  - Threads: {threads}")
 
         # Execute command
-        result = Toolbox.monitor_cmd(cmd, print_trace=True)
+        result = self.monitor_cmd(cmd)
 
         if not result:
             raise RuntimeError("Compression failed.")
@@ -470,8 +655,13 @@ class KmindexWrapper:
 
     def kmindex_version(self) -> Optional[str]:
         try:
-            v = Toolbox.run_cmd([Bin.kmindex(), "--version",])
+            v = Toolbox.run_cmd(
+                [
+                    Bin.kmindex(),
+                    "--version",
+                ]
+            )
             return v[8:]
         except Exception as e:
-            print(f"Could not get kmindex version: {e}")
+            logger.warning(f"Could not get kmindex version: {e}")
             return None
