@@ -276,7 +276,6 @@ def compose(
                     db_instance[index_id] = db.Index(
                         id=index_id,
                         kmer_size=kmer_size,
-                        minim_size=10,
                         span=span,
                         bf_size=bf_size,
                         partition_count=partition_count,

@@ -18,7 +18,6 @@ class Sample:
 class Index:
     id: str
     kmer_size: int
-    minim_size: int
     partition_count: int
     span: int
     bf_size: int
@@ -73,7 +72,6 @@ class IndexDefinitionTools:
             indices[index_id] = Index(
                 id=index_id,
                 kmer_size=parameters.get("kmer_size", 25),
-                minim_size=parameters.get("minim_size", 10),
                 partition_count=parameters.get("partition_count", 256),
                 bf_size=parameters.get("bf_size"),
                 span=index_data.get("infos", {}).get("span", 0),
@@ -108,7 +106,6 @@ class IndexDefinitionTools:
 
             parameters = {
                 "kmer_size": index.kmer_size,
-                "minim_size": index.minim_size,
                 "partition_count": index.partition_count,
                 "bf_size": index.bf_size,
             }

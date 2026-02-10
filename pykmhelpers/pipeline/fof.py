@@ -264,7 +264,7 @@ class FofManager:
             )
 
             if not self.has_sample(sample_name) or replace_existing:
-                self.add_sample(file_path_str, sample_name)
+                self.add_sample([file_path_str], sample_name)
 
     def load_from_directory(
         self,

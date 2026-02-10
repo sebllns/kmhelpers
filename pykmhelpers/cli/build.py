@@ -108,7 +108,8 @@ def build(
                 assert builder, "Could not initialize builder"
 
                 for s in i.samples.values():
-                    fof.add_sample(s.files, s.id or "")
+                    sample_files = [rootpath + f for f in s.files] if rootpath else s.files
+                    fof.add_sample(sample_files, s.id or "")
 
                 builder.create_subindex(
                     name=i.id,
