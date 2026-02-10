@@ -12,6 +12,7 @@ import pykmhelpers.pipeline.index_db as db
 from pykmhelpers.core.bloom_filter import SpanManager, BloomFilterSpecs
 from pykmhelpers.core.kmer import KmerCounter
 from pykmhelpers.core.byte import ByteCounter, SizeFormat
+from pykmhelpers.core.constants import KMHELPERS_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -275,6 +276,7 @@ def compose(
                     )
                     db_instance[index_id] = db.Index(
                         id=index_id,
+                        kmhelpers_version=KMHELPERS_VERSION,
                         kmer_size=kmer_size,
                         span=span,
                         bf_size=bf_size,

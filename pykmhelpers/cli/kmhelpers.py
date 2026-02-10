@@ -220,29 +220,29 @@ def cli(verbose, log_file, init_path, bin_path, check_all, chdir):
 
 
 # Register main commands
-compose.section = "Main commands"
+compose.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(compose)
-build.section = "Main commands"
+build.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(build)
-query.section = "Main commands"
+query.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(query)
-kmindex_compress.section = "Main commands"
+kmindex_compress.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(kmindex_compress)
 
 # Register utilities
-count_kmers.section = "Utilities"
+count_kmers.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(count_kmers)
-fof.section = "Utilities"
+fof.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(fof)
-registry.section = "Utilities"
+registry.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(registry)
-kmindex.section = "Utilities"
+kmindex.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(kmindex)
 
 # Register other commands
-experimental.section = "Other"
+experimental.section = "Other"  # type: ignore[assignment]
 cli.add_command(experimental)
-test.section = "Other"
+test.section = "Other"  # type: ignore[assignment]
 cli.add_command(test)
 
 

@@ -17,6 +17,7 @@ class Sample:
 @dataclass
 class Index:
     id: str
+    kmhelpers_version: str
     kmer_size: int
     partition_count: int
     span: int
@@ -71,6 +72,7 @@ class IndexDefinitionTools:
 
             indices[index_id] = Index(
                 id=index_id,
+                kmhelpers_version=parameters.get("kmhelpers_version", "0.6.0"),
                 kmer_size=parameters.get("kmer_size", 25),
                 partition_count=parameters.get("partition_count", 256),
                 bf_size=parameters.get("bf_size"),
