@@ -6,11 +6,14 @@ This module provides two approaches to index compression:
 """
 
 import os
+import logging
 import click
 import pykmhelpers.pipeline.index_db as db
 from pykmhelpers.core.bloom_filter import SpanManager, BloomFilterSpecs
 from pykmhelpers.core.kmer import KmerCounter
 from pykmhelpers.core.byte import ByteCounter, SizeFormat
+
+logger = logging.getLogger(__name__)
 
 
 @click.command(name="compose")
@@ -129,10 +132,10 @@ from pykmhelpers.core.byte import ByteCounter, SizeFormat
     help="Output format of created database (default: 'yaml')",
 )
 @click.option(
-    "--verbose",
     "-v",
+    "--verbose",
     is_flag=True,
-    help="Verbose output",
+    help="Increase log level to INFO (unless already higher)",
 )
 def compose(
     input_files,
@@ -167,6 +170,16 @@ def compose(
       kmhelpers compose -o ./db --partition-count 4 samples.yaml
       kmhelpers compose -o ./db --recount samples.yaml
     """
+
+    # Bump logging level to INFO if -v is set and current level is higher
+    if verbose:
+        root_logger = logging.getLogger()
+        if root_logger.getEffectiveLevel() > logging.INFO:
+            root_logger.setLevel(logging.INFO)
+            # Also update all handlers
+            for handler in root_logger.handlers:
+                if handler.level > logging.INFO:
+                    handler.setLevel(logging.INFO)
 
     try:
         # Validate parameters
@@ -231,11 +244,9 @@ def compose(
         for input_file in input_files:
             samples = read_samples(input_file, kmer_size)
             all_samples.extend(samples)
-            if verbose:
-                click.echo(f"Loaded {len(samples)} samples from {input_file}")
+            logger.info(f"Loaded {len(samples)} samples from {input_file}")
 
-        if verbose:
-            click.echo(f"Total samples loaded: {len(all_samples)}")
+        logger.info(f"Total samples loaded: {len(all_samples)}")
 
         for sample in all_samples:
             try:
@@ -248,7 +259,6 @@ def compose(
                     ntcard_threads=ntcard_threads,
                     ntcard_value=ntcard_value,
                     false_positive_rate=false_positive_rate,
-                    verbose=verbose,
                     recount=recount,
                 )
 
@@ -260,10 +270,9 @@ def compose(
 
                 index_id = f"{prefix}_{span}_{split_count[span]}"
                 if index_id not in db_instance:
-                    if verbose:
-                        click.echo(
-                            f"  Creating new index: {index_id}, span={span}, bf_size={bf_size}"
-                        )
+                    logger.info(
+                        f"Creating new index: {index_id}, span={span}, bf_size={bf_size}"
+                    )
                     db_instance[index_id] = db.Index(
                         id=index_id,
                         kmer_size=kmer_size,
@@ -274,8 +283,7 @@ def compose(
                         samples={},
                     )
                 else:
-                    if verbose:
-                        click.echo(f"  Adding to existing index: {index_id}")
+                    logger.info(f"Adding to existing index: {index_id}")
 
                 db_instance[index_id].add_sample(sample_id=sample.id, sample=sample)
                 span_size[span] += 1
@@ -293,15 +301,14 @@ def compose(
                     err=True,
                 )
 
-        if verbose:
-            click.echo(
-                f"✓ Composed {len(all_samples)} samples into {len(db_instance)} indices"
+        logger.info(
+            f"Composed {len(all_samples)} samples into {len(db_instance)} indices"
+        )
+        for index_id, index in sorted(db_instance.items()):
+            logger.info(
+                f"  {index_id}: {index.sample_count} samples, {str(index.get_stored_size())}"
             )
-            for index_id, index in sorted(db_instance.items()):
-                click.echo(
-                    f"  {index_id}: {index.sample_count} samples, {str(index.get_stored_size())}"
-                )
-            click.echo(f"Exporting database in {format} format to {output_dir}...")
+        logger.info(f"Exporting database in {format} format to {output_dir}...")
 
         for i in db_instance.values():
             if partition_max_size or auto_partitioning:
@@ -320,8 +327,7 @@ def compose(
                 i.partition_count = 1 << (i.partition_count - 1).bit_length()
 
             i.partition_count = min(max(1, i.partition_count), partition_count_limit)
-            if verbose:
-                click.echo(f"  {i.id}: partitioning into {i.partition_count} files")
+            logger.info(f"  {i.id}: partitioning into {i.partition_count} files")
 
         export_db(
             indices_data=db_instance,
@@ -332,24 +338,11 @@ def compose(
             db_name=name,
         )
 
-        if verbose:
-            if not no_split:
-                click.echo(f"Exported {len(db_instance)} index files (split mode)")
-            else:
-                click.echo(f"Exported database to db.{format}")
-            click.echo(f"Created index definition for {len(all_samples)} samples")
-
-        # Print next command
-        if verbose:
-            if not no_split:
-                db_file_pattern = os.path.join(output_dir, f"{name}_<span>.{format}")
-                click.echo(f"\nNext step: build the index with the command:")
-                click.echo(f"  kmhelpers build -w <workdir> {db_file_pattern}")
-                click.echo(f"Replace <span> with span value")
-            else:
-                db_file = os.path.join(output_dir, f"{name}.{format}")
-                click.echo(f"\nNext step: build the index with the command:")
-                click.echo(f"  kmhelpers build -w <workdir> {db_file}")
+        if not no_split:
+            logger.info(f"Exported {len(db_instance)} index files (split mode)")
+        else:
+            logger.info(f"Exported database to db.{format}")
+        logger.info(f"Created index definition for {len(all_samples)} samples")
 
     except Exception as e:
         raise click.ClickException(f"Compose failed: {e}")
@@ -417,17 +410,15 @@ def read_samples(filename, cli_kmer_size=None):
             data = yaml.safe_load(f)
             file_k = data.get("k")
             if file_k and cli_kmer_size and file_k != cli_kmer_size:
-                click.echo(
-                    f"Warning: File k={file_k} does not match CLI k={cli_kmer_size}",
-                    err=True,
+                logger.warning(
+                    f"File k={file_k} does not match CLI k={cli_kmer_size}"
                 )
             if "samples" in data:
                 for sample_id, sample_data in data["samples"].items():
                     files = sample_data.get("files", [])
                     if not files:
-                        click.echo(
-                            f"Warning: Sample {sample_id} has no files, skipping",
-                            err=True,
+                        logger.warning(
+                            f"Sample {sample_id} has no files, skipping"
                         )
                         continue
 
@@ -441,17 +432,15 @@ def read_samples(filename, cli_kmer_size=None):
             data = json.load(f)
             file_k = data.get("k")
             if file_k and cli_kmer_size and file_k != cli_kmer_size:
-                click.echo(
-                    f"Warning: File k={file_k} does not match CLI k={cli_kmer_size}",
-                    err=True,
+                logger.warning(
+                    f"File k={file_k} does not match CLI k={cli_kmer_size}"
                 )
             if "samples" in data:
                 for sample_id, sample_data in data["samples"].items():
                     files = sample_data.get("files", [])
                     if not files:
-                        click.echo(
-                            f"Warning: Sample {sample_id} has no files, skipping",
-                            err=True,
+                        logger.warning(
+                            f"Sample {sample_id} has no files, skipping"
                         )
                         continue
 
@@ -498,25 +487,22 @@ def process_sample(
     ntcard_threads,
     ntcard_value,
     false_positive_rate,
-    verbose,
     recount=False,
 ):
-    if verbose:
-        click.echo(f"  Process sample {sample.id or sample.files[0]}")
+    logger.info(f"Processing sample {sample.id or sample.files[0]}")
 
     kc = KmerCounter(k=kmer_size, threadCount=ntcard_threads)
     sm = SpanManager(p=false_positive_rate)
 
     if sample.kmer_count == 0 or recount:
         action = "Recounting" if recount else "Counting"
-        click.echo(f"  {action} k-mers for sample {sample.id or sample.files[0]}")
+        logger.info(f"  {action} k-mers for sample {sample.id or sample.files[0]}")
         sample.kmer_count = kc.count_files(
-            files=sample.files, verbose=verbose, target_value=ntcard_value
+            files=sample.files, target_value=ntcard_value
         )
-        if verbose:
-            click.echo(f"    k-mer count: {sample.kmer_count}")
-    elif verbose:
-        click.echo(
+        logger.debug(f"    k-mer count: {sample.kmer_count}")
+    else:
+        logger.debug(
             f"  Using cached k-mer count for sample {sample.id or sample.files[0]}: {sample.kmer_count}"
         )
 
@@ -527,8 +513,8 @@ def process_sample(
     if max_span > 0:
         span = min(span, max_span)
 
-    if verbose and span != orig_span:
-        click.echo(f"    Span adjusted: {orig_span} → {span}")
+    if span != orig_span:
+        logger.debug(f"    Span adjusted: {orig_span} → {span}")
 
     bf_size = sm.get_bf_size(span)
 
@@ -539,11 +525,9 @@ def process_sample(
             filename = os.path.splitext(filename)[0]
         # Remove file extension
         sample.id = os.path.splitext(filename)[0]
-        if verbose:
-            click.echo(f"    Generated sample ID from filename: {sample.id}")
+        logger.debug(f"    Generated sample ID from filename: {sample.id}")
 
     sample.id = db_tools.clean_sample_id(sample.id)
-    if verbose:
-        click.echo(f"    Final sample ID: {sample.id}")
+    logger.debug(f"    Final sample ID: {sample.id}")
 
     return span, bf_size
