@@ -113,6 +113,7 @@ class IndexDefinitionTools:
             }
 
             data[index_id] = {
+                "kmhelpers_version": index.kmhelpers_version,
                 "parameters": parameters,
                 "infos": infos,
                 "samples": samples_data,
