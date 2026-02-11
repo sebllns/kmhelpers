@@ -151,6 +151,8 @@ class IndexBuilder:
 
         # bf_specs = self.get_bf_specs(n_samples, bloom_size, n_partitions)
 
+        self.index.load_json()
+
         wrapper.build(
             input_fof_file=fof_path,
             output_registry_path=self.index.root_path,
@@ -163,7 +165,7 @@ class IndexBuilder:
             bloom_size=bloom_size,
             output_log_dir=os.path.join(self.path, "logs", name),
             output_param_file=os.path.join(self.index.root_path, f"{name}.yaml"),
-            from_index=build_from
+            from_index=build_from if build_from and self.index.has_index(build_from) else None
         )
 
         self.index.load_json()

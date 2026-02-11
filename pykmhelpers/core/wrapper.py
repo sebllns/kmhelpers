@@ -387,6 +387,8 @@ class KmindexWrapper(Wrapper):
         logger.debug(f"    - k: {k}")
         logger.debug(f"    - Bloom filter size: {bloom_size}")
         logger.debug(f"    - Partition count: {nb_partitions}")
+        if from_index :
+            logger.debug(f"    - From: {from_index}")    
         logger.debug(f"  - Parameters exported in: {output_log_dir}")
         logger.debug(f"  - Output data directory: {output_index_dir}")
         logger.debug(f"  - Registry: {output_registry_path}")
