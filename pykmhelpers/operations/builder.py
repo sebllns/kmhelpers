@@ -12,6 +12,9 @@ from ..pipeline.query import KmindexQuery, KmindexQueryResult
 from typing import Optional
 import os
 import yaml
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class IndexBuilder:
@@ -60,7 +63,7 @@ class IndexBuilder:
             ), f"Sample ID already present in FOF: {sample_id}"
             fof.add_sample(sample_path, sample_id)
         except Exception as e:
-            print(f"Could not add sample in FOF: {e}")
+            logger.warning(f"Could not add sample in FOF: {e}")
 
     def create_fof(self, samples) -> FofManager:
         """
@@ -147,11 +150,13 @@ class IndexBuilder:
 
         n_partitions = max(n_partitions, 0)
 
-        n_samples = samples.get_sample_count()
-
-        # bf_specs = self.get_bf_specs(n_samples, bloom_size, n_partitions)
-
         self.index.load_json()
+
+        if build_from:
+            if self.index.has_index(build_from):
+                logger.info(f"Reusing parameters from index: {build_from}")
+            elif name != build_from:
+                logger.warning(f"Index '{build_from}' not found, building '{name}' from scratch")
 
         wrapper.build(
             input_fof_file=fof_path,
@@ -225,7 +230,7 @@ class IndexBuilder:
                     with open(output_file, "w") as f:
                         f.write(reader.fetch_first_n(max_length).to_fasta())
                 except Exception as e:
-                    print(f"Warning: Failed to extract sequences from {path}: {str(e)}")
+                    logger.warning(f"Failed to extract sequences from {path}: {str(e)}")
 
     def create_random_test_dataset(
         self, output_dir: str, n_samples: int = 5, average_size=1000, min_size=100
@@ -274,7 +279,7 @@ class IndexBuilder:
                     if not output_dir:
                         os.makedirs(result_dir, exist_ok=True)
                         try:
-                            print(f"Query {input_path} into {output_dir}")
+                            logger.info(f"Query {input_path} into {output_dir}")
                             query = KmindexQuery(path=input_path)
                             query.execute(
                                 registry_path=self.index.root_path,
@@ -282,7 +287,7 @@ class IndexBuilder:
                                 z=z,
                             )
                         except Exception as e:
-                            print(f"Warning: Failed to query {input_path}: {str(e)}")
+                            logger.error(f"Failed to query {input_path}: {str(e)}")
 
     def check_presence(self, results: str, samples: list[str]):
         """
@@ -298,7 +303,7 @@ class IndexBuilder:
         for s in samples:
             v = r.max_score(s)
             if v < 1:
-                print(f"Sample score is not 100%: {s} = {v}")
+                logger.error(f"Sample score is not 100%: {s} = {v}")
                 ok = False
         return ok
 

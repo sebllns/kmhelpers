@@ -20,7 +20,8 @@ logger = logging.getLogger(__name__)
 class Wrapper:
 
     def _run_cmd(
-        self, cmd: List[Any],
+        self,
+        cmd: List[Any],
         print_trace: Optional[bool] = None,
         log_file: Optional[str] = None,
         log_errors_only: Optional[bool] = None,
@@ -387,8 +388,8 @@ class KmindexWrapper(Wrapper):
         logger.debug(f"    - k: {k}")
         logger.debug(f"    - Bloom filter size: {bloom_size}")
         logger.debug(f"    - Partition count: {nb_partitions}")
-        if from_index :
-            logger.debug(f"    - From: {from_index}")    
+        if from_index:
+            logger.debug(f"    - From: {from_index}")
         logger.debug(f"  - Parameters exported in: {output_log_dir}")
         logger.debug(f"  - Output data directory: {output_index_dir}")
         logger.debug(f"  - Registry: {output_registry_path}")
@@ -427,7 +428,7 @@ class KmindexWrapper(Wrapper):
                 yaml.safe_dump(d, f)
 
         # Execute command
-        result = self._monitor_cmd(cmd, log_file=log_file)
+        result = self._monitor_cmd(cmd, log_file=log_file, log_errors_only=True)
 
         assert result, "Failed to build index"
 
@@ -548,7 +549,7 @@ class KmindexWrapper(Wrapper):
                 ]
             )
 
-        result = self._monitor_cmd(cmd)
+        result = self._monitor_cmd(cmd, log_errors_only=True)
 
         if not result:
             raise RuntimeError("Query failed.")
@@ -673,7 +674,7 @@ class KmindexWrapper(Wrapper):
         logger.debug(f"  - Threads: {threads}")
 
         # Execute command
-        result = self._monitor_cmd(cmd)
+        result = self._monitor_cmd(cmd, log_errors_only=True)
 
         if not result:
             raise RuntimeError("Compression failed.")
@@ -686,7 +687,8 @@ class KmindexWrapper(Wrapper):
                 [
                     Bin.kmindex(),
                     "--version",
-                ]
+                ],
+                log_errors_only=True,
             )
             return v.stderr[8:]
         except Exception as e:

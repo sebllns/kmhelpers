@@ -6,6 +6,13 @@ import yaml
 from ..core.bloom_filter import BloomFilterSpecs
 from ..core.byte import ByteCounter, SizeFormat
 
+@dataclass
+class Item:
+    id: int
+    name: str
+    linked_objects: Optional[dict[str, str]]
+
+
 
 @dataclass
 class Sample:
