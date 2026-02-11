@@ -236,7 +236,7 @@ def compose(
             )
 
         os.makedirs(output_dir, exist_ok=True)
-        all_samples = []
+        all_samples: list[db.Sample] = []
         split_count = {}
         span_size = {}
         db_instance = db.IndexTable()
@@ -251,6 +251,7 @@ def compose(
 
         for sample in all_samples:
             try:
+                assert sample.files and sample.files[0], "Invalid path: empty or null"
                 span, bf_size = process_sample(
                     sample=sample,
                     db_tools=db_tools,
@@ -271,7 +272,7 @@ def compose(
 
                 index_id = f"{prefix}_{span}_{split_count[span]}"
                 if index_id not in db_instance:
-                    logger.info(
+                    logger.debug(
                         f"Creating new index: {index_id}, span={span}, bf_size={bf_size}"
                     )
                     db_instance[index_id] = db.Index(
@@ -284,8 +285,9 @@ def compose(
                         samples={},
                     )
                 else:
-                    logger.info(f"Adding to existing index: {index_id}")
+                    logger.debug(f"Adding to existing index: {index_id}")
 
+                assert sample.id, "Invalid ID: empty or null"
                 db_instance[index_id].add_sample(sample_id=sample.id, sample=sample)
                 span_size[span] += 1
                 # Split index if needed
@@ -297,10 +299,7 @@ def compose(
                     split_count[span] += 1
 
             except Exception as e:
-                click.echo(
-                    f"Could not process sample: {e}",
-                    err=True,
-                )
+                logger.exception(f"Could not process sample: {e}")
 
         logger.info(
             f"Composed {len(all_samples)} samples into {len(db_instance)} indices"
@@ -490,14 +489,31 @@ def process_sample(
     false_positive_rate,
     recount=False,
 ):
-    logger.info(f"Processing sample {sample.id or sample.files[0]}")
+    logger.debug(f"Processing sample {sample.id or sample.files[0]}")
+
+    sample_id = sample.id
+    if not sample_id:
+        filename = os.path.basename(sample.files[0])
+        # Remove compression extensions (.gz, .bz2, .zip, etc.)
+        if filename.endswith((".gz", ".bz2", ".zip", ".xz")):
+            filename = os.path.splitext(filename)[0]
+        # Remove file extension
+        sample_id = os.path.splitext(filename)[0]
+
+    sample_id = db_tools.clean_sample_id(sample.id)
+
+    if(sample_id != sample.id):
+        logger.debug(f"    New sample ID: {sample_id}" + f"(ex: {sample.id})" if sample.id else "")
+        sample.id = sample_id
+
+    assert sample.id, "Sample ID empty or null"
 
     kc = KmerCounter(k=kmer_size, threadCount=ntcard_threads)
     sm = SpanManager(p=false_positive_rate)
 
     if sample.kmer_count == 0 or recount:
         action = "Recounting" if recount else "Counting"
-        logger.info(f"  {action} k-mers for sample {sample.id or sample.files[0]}")
+        logger.info(f"  {action} k-mers for sample {sample.id}")
         sample.kmer_count = kc.count_files(
             files=sample.files, target_value=ntcard_value
         )
@@ -519,16 +535,6 @@ def process_sample(
 
     bf_size = sm.get_bf_size(span)
 
-    if not sample.id:
-        filename = os.path.basename(sample.files[0])
-        # Remove compression extensions (.gz, .bz2, .zip, etc.)
-        if filename.endswith((".gz", ".bz2", ".zip", ".xz")):
-            filename = os.path.splitext(filename)[0]
-        # Remove file extension
-        sample.id = os.path.splitext(filename)[0]
-        logger.debug(f"    Generated sample ID from filename: {sample.id}")
-
-    sample.id = db_tools.clean_sample_id(sample.id)
     logger.debug(f"    Final sample ID: {sample.id}")
 
     return span, bf_size

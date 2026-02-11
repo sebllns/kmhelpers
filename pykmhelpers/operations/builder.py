@@ -9,6 +9,7 @@ from ..core.byte import ByteCounter, SizeFormat
 from ..pipeline.fof import FofManager
 from ..core.fasta import Fasta, FASTAReader
 from ..pipeline.query import KmindexQuery, KmindexQueryResult
+from typing import Optional
 import os
 import yaml
 
@@ -96,6 +97,7 @@ class IndexBuilder:
         n_partitions: int = 256,
         n_threads: int = 0,
         n_max_threads: int = 0,
+        build_from: Optional[str] = None,
         auto_check: bool = True,
     ) -> KmtricksIndex:
         """
@@ -161,6 +163,7 @@ class IndexBuilder:
             bloom_size=bloom_size,
             output_log_dir=os.path.join(self.path, "logs", name),
             output_param_file=os.path.join(self.index.root_path, f"{name}.yaml"),
+            from_index=build_from
         )
 
         self.index.load_json()

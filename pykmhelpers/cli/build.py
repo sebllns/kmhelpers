@@ -9,6 +9,33 @@ from pykmhelpers.pipeline.index_db import IndexDefinitionTools, IndexTable, Inde
 from pykmhelpers.cli.shared import estimate_build_size
 
 
+def _parse_spans(spans):
+    """Parse span arguments supporting multiple formats:
+    - Single values: --span 28
+    - Comma-separated: --span 27,28,29
+    - Range notation: --span [27-30] or --span 27-30
+    """
+    result = []
+    for item in spans:
+        item = item.strip()
+        # Handle range notation [27-30] or 27-30
+        if "[" in item and "-" in item:
+            item = item.strip("[]")
+
+        if "-" in item and not item.startswith("-"):
+            # Range notation: 27-30
+            try:
+                start, end = item.split("-")
+                result.extend(str(i) for i in range(int(start.strip()), int(end.strip()) + 1))
+            except ValueError:
+                result.append(item)
+        else:
+            # Comma-separated or single value
+            result.extend(s.strip() for s in item.split(","))
+
+    return result
+
+
 @click.command()
 @click.argument("input_files", nargs=-1, required=True, type=click.Path(exists=True))
 @click.option(
@@ -28,10 +55,16 @@ paths are resolved from the run directory; use this option if you \
 need to resolve them from a different location.",
 )
 @click.option(
-    "--select-ids",
+    "--from",
+    "reuse_from",
+    required=False,
+    help="Reuse parameters from given index ID"
+)
+@click.option(
+    "--span",
     "-s",
     multiple=True,
-    help="Build only selected IDs (comma-separated or multiple -s)",
+    help="Build only selected span (e.g., --span 28, --span 27,28,29, --span 27-30, --span [27-30])",
 )
 @click.option(
     "--threads",
@@ -56,7 +89,8 @@ def build(
     input_files,
     workdir,
     rootpath,
-    select_ids,
+    reuse_from,
+    span,
     threads,
     verbose,
     force,
@@ -66,15 +100,12 @@ def build(
     Examples:
     """
 
-    ids = []
-    for item in select_ids:
-        ids.extend(item.split(","))
-    ids = [id.strip() for id in ids]
+    selected_spans = _parse_spans(span)
 
     idt = IndexDefinitionTools()
 
     for input_file in input_files:
-        click.echo(input_file)
+        click.echo("Load db: " + input_file)
 
         table = idt.load_db(input_file)
 
@@ -119,6 +150,7 @@ def build(
                     n_partitions=i.partition_count,
                     n_threads=threads,
                     auto_check=True,
+                    build_from=reuse_from
                 )
 
             except Exception as e:
