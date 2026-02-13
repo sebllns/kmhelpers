@@ -414,7 +414,7 @@ def read_samples(filename, cli_kmer_size=None):
             files:
             - <path_to_file>
             [- <optional_additional_files>]
-      
+
         Example in YAML:
 
         k: 25
@@ -426,7 +426,7 @@ def read_samples(filename, cli_kmer_size=None):
             kmer_count: 123456
             files:
             - samples/sample_001_1.fasta
-	    - samples/sample_001_2.fasta
+            - samples/sample_001_2.fasta
 
     Returns:
         List of Sample objects with id, path (list), and kmer_count
@@ -451,7 +451,9 @@ def read_samples(filename, cli_kmer_size=None):
 
                     kmer_count = sample_data.get("kmer_count", 0)
 
-                    sample = db.Sample(name=sample_id, files=files, kmer_count=kmer_count)
+                    sample = db.Sample(
+                        name=sample_id, files=files, kmer_count=kmer_count
+                    )
                     samples.append(sample)
 
     elif filename.endswith(".json"):
@@ -469,11 +471,13 @@ def read_samples(filename, cli_kmer_size=None):
 
                     kmer_count = sample_data.get("kmer_count", 0)
 
-                    sample = db.Sample(name=sample_id, files=files, kmer_count=kmer_count)
+                    sample = db.Sample(
+                        name=sample_id, files=files, kmer_count=kmer_count
+                    )
                     samples.append(sample)
 
     else:
-        # Plain text format: each line contains file paths and optional kmer count
+        # Plain text format: [sample_id] file_1[,file_2,...] [kmer_count]
         with open(filename, "r") as f:
             for line in f:
                 line = line.strip()
@@ -481,22 +485,48 @@ def read_samples(filename, cli_kmer_size=None):
                     continue
 
                 parts = line.split()
+                if not parts:
+                    continue
+
+                sample_id = None
                 files = []
                 kmer_count = 0
 
-                # Parse file paths and optional kmer_count
-                for part in parts:
-                    # Remove surrounding quotes if present
-                    part = part.strip('"').strip("'")
+                # Check if last part is kmer_count (numeric)
+                if len(parts) > 0:
                     try:
-                        # Try to parse as integer (kmer_count)
-                        kmer_count = int(part)
+                        kmer_count = int(parts[-1])
+                        parts = parts[:-1]
                     except ValueError:
-                        # It's a file path
-                        files.append(part)
+                        pass
+
+                if not parts:
+                    logger.warning(
+                        f"Invalid line format: {line}. Expected: [sample_id] file_1[,file_2,...] [kmer_count]"
+                    )
+                    continue
+
+                # Remaining parts: [sample_id] file_1[,file_2,...]
+                if len(parts) == 1:
+                    # Only files, no sample_id
+                    files_str = parts[0]
+                elif len(parts) >= 2:
+                    # sample_id and files
+                    sample_id = parts[0]
+                    files_str = " ".join(parts[1:])
+                else:
+                    logger.warning(
+                        f"Invalid line format: {line}. Expected: [sample_id] file_1[,file_2,...] [kmer_count]"
+                    )
+                    continue
+
+                # Parse comma-separated file paths
+                files = [f.strip().strip('"').strip("'") for f in files_str.split(",")]
 
                 if files:
-                    sample = db.Sample(name=None, files=files, kmer_count=kmer_count)
+                    sample = db.Sample(
+                        name=sample_id, files=files, kmer_count=kmer_count
+                    )
                     samples.append(sample)
     return samples
 
