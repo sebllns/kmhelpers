@@ -5,7 +5,7 @@ import os
 import traceback
 from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.operations.builder import IndexBuilder
-from pykmhelpers.pipeline.index_db import IndexDefinitionTools, IndexTable, Index
+from pykmhelpers.pipeline.index_db import IndexDefinitionTools, IndexDB, IndexDefinition
 from pykmhelpers.cli.shared import estimate_build_size
 
 

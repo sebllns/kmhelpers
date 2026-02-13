@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 @click.option(
     "--name",
     "-n",
-    default="db",
+    default="index",
     help="Name of created index database",
 )
 @click.option(
@@ -239,7 +239,7 @@ def compose(
         all_samples: list[db.Sample] = []
         split_count = {}
         span_size = {}
-        db_instance = db.IndexTable()
+        db_instance = db.IndexDB(name=name)
         db_tools = db.IndexDefinitionTools()
 
         for input_file in input_files:
@@ -270,13 +270,15 @@ def compose(
                 if span not in span_size:
                     span_size[span] = 0
 
-                index_id = f"{prefix}_{span}_{split_count[span]}"
-                if index_id not in db_instance:
+                index_name = db_tools.get_index_name(
+                    name, prefix, span, split_count[span]
+                )
+                if index_name not in db_instance.index_table:
                     logger.debug(
-                        f"Creating new index: {index_id}, span={span}, bf_size={bf_size}"
+                        f"Creating new index: {index_name}, span={span}, bf_size={bf_size}"
                     )
-                    db_instance[index_id] = db.Index(
-                        id=index_id,
+                    i = db.IndexDefinition(
+                        name=index_name,
                         kmhelpers_version=KMHELPERS_VERSION,
                         kmer_size=kmer_size,
                         span=span,
@@ -284,17 +286,27 @@ def compose(
                         partition_count=partition_count,
                         samples={},
                     )
+                    if split_count[span] > 0 and not no_merge:
+                        i.create_link(
+                            db.DbFields.PARENT_INDEX.value,
+                            db_tools.get_index_name(name, prefix, span, 0),
+                        )
+                    db_instance.add_index(i)
                 else:
-                    logger.debug(f"Adding to existing index: {index_id}")
+                    logger.debug(f"Adding to existing index: {index_name}")
 
-                assert sample.id, "Invalid ID: empty or null"
-                db_instance[index_id].add_sample(sample_id=sample.id, sample=sample)
+                assert sample.name, "Invalid ID: empty or null"
+                db_instance.index_table[index_name].add_sample(
+                    sample_id=sample.name, sample=sample
+                )
+
                 span_size[span] += 1
                 # Split index if needed
                 if (
                     bf_max_size
                     and span_size[span] % 8 == 0
-                    and bf_max_size <= db_instance[index_id].get_stored_size()
+                    and bf_max_size
+                    <= db_instance.index_table[index_name].get_stored_size()
                 ):
                     split_count[span] += 1
 
@@ -302,18 +314,19 @@ def compose(
                 logger.exception(f"Could not process sample: {e}")
 
         logger.info(
-            f"Composed {len(all_samples)} samples into {len(db_instance)} indices"
+            f"Composed {len(all_samples)} samples into {len(db_instance.index_table)} indices"
         )
-        for index_id, index in sorted(db_instance.items()):
+        for index_name, index in sorted(db_instance.index_table.items()):
             logger.info(
-                f"  {index_id}: {index.sample_count} samples, {str(index.get_stored_size())}"
+                f"  {index_name}: {index.sample_count} samples, {str(index.get_stored_size())}"
             )
         logger.info(f"Exporting database in {format} format to {output_dir}...")
 
-        for i in db_instance.values():
+        for i in db_instance.index_table.values():
             if partition_max_size or auto_partitioning:
                 partition_max_size = partition_max_size or ByteCounter.from_str("4GB")
-                ref = db_instance[f"{prefix}_{i.span}_0"]
+                index_name = db_tools.get_index_name(name, prefix, i.span, 0)
+                ref = db_instance.index_table[index_name]
                 bf_specs = BloomFilterSpecs(
                     ref.bf_size, ref.sample_count if no_merge else span_size[i.span], 1
                 )
@@ -339,7 +352,9 @@ def compose(
         )
 
         if not no_split:
-            logger.info(f"Exported {len(db_instance)} index files (split mode)")
+            logger.info(
+                f"Exported {len(db_instance.index_table)} index files (split mode)"
+            )
         else:
             logger.info(f"Exported database to db.{format}")
         logger.info(f"Created index definition for {len(all_samples)} samples")
@@ -349,7 +364,7 @@ def compose(
 
 
 def export_db(
-    indices_data: db.IndexTable,
+    indices_data: db.IndexDB,
     db_tools: db.IndexDefinitionTools,
     output_dir: str,
     format: str,
@@ -373,9 +388,11 @@ def export_db(
     # Export to file(s)
     if split:
         # Export each index to its own file
-        for index_id, index_data in indices_data.items():
-            filepath = os.path.join(output_dir, f"{db_name}_{index_id}.{format}")
-            db_tools.save_db(db.IndexTable({index_id: index_data}), filepath)
+        for index_id, index_data in indices_data.index_table.items():
+            filepath = os.path.join(output_dir, f"{index_id}.{format}")
+            db_tools.save_db(
+                db.IndexDB(name=index_id, index_table={index_id: index_data}), filepath
+            )
     else:
         # Export all indices to a single file
         filepath = os.path.join(output_dir, f"{db_name}.{format}")
@@ -385,17 +402,31 @@ def export_db(
 def read_samples(filename, cli_kmer_size=None):
     """Parse sample file in YAML, JSON, or plain text format.
 
-    Supported formats:
+    - Plain text (one sample per line):
+        [sample_id] file_1[,file_2,...] [kmer_count]
+
+
     - YAML/JSON:
+        k: <integer>
+        samples:
+        <sample_id>:
+            [kmer_count: <optional_integer>]
+            files:
+            - <path_to_file>
+            [- <optional_additional_files>]
+      
+        Example in YAML:
+
         k: 25
         samples:
           sample_000:
-            kmer_count: 36564
             files:
             - samples/sample_000.fasta
-
-    - Plain text (one sample per line):
-        file_1[,file_2,...] [kmer_count]
+          sample_001:
+            kmer_count: 123456
+            files:
+            - samples/sample_001_1.fasta
+	    - samples/sample_001_2.fasta
 
     Returns:
         List of Sample objects with id, path (list), and kmer_count
@@ -410,21 +441,17 @@ def read_samples(filename, cli_kmer_size=None):
             data = yaml.safe_load(f)
             file_k = data.get("k")
             if file_k and cli_kmer_size and file_k != cli_kmer_size:
-                logger.warning(
-                    f"File k={file_k} does not match CLI k={cli_kmer_size}"
-                )
+                logger.warning(f"File k={file_k} does not match CLI k={cli_kmer_size}")
             if "samples" in data:
                 for sample_id, sample_data in data["samples"].items():
                     files = sample_data.get("files", [])
                     if not files:
-                        logger.warning(
-                            f"Sample {sample_id} has no files, skipping"
-                        )
+                        logger.warning(f"Sample {sample_id} has no files, skipping")
                         continue
 
                     kmer_count = sample_data.get("kmer_count", 0)
 
-                    sample = db.Sample(id=sample_id, files=files, kmer_count=kmer_count)
+                    sample = db.Sample(name=sample_id, files=files, kmer_count=kmer_count)
                     samples.append(sample)
 
     elif filename.endswith(".json"):
@@ -432,21 +459,17 @@ def read_samples(filename, cli_kmer_size=None):
             data = json.load(f)
             file_k = data.get("k")
             if file_k and cli_kmer_size and file_k != cli_kmer_size:
-                logger.warning(
-                    f"File k={file_k} does not match CLI k={cli_kmer_size}"
-                )
+                logger.warning(f"File k={file_k} does not match CLI k={cli_kmer_size}")
             if "samples" in data:
                 for sample_id, sample_data in data["samples"].items():
                     files = sample_data.get("files", [])
                     if not files:
-                        logger.warning(
-                            f"Sample {sample_id} has no files, skipping"
-                        )
+                        logger.warning(f"Sample {sample_id} has no files, skipping")
                         continue
 
                     kmer_count = sample_data.get("kmer_count", 0)
 
-                    sample = db.Sample(id=sample_id, files=files, kmer_count=kmer_count)
+                    sample = db.Sample(name=sample_id, files=files, kmer_count=kmer_count)
                     samples.append(sample)
 
     else:
@@ -473,7 +496,7 @@ def read_samples(filename, cli_kmer_size=None):
                         files.append(part)
 
                 if files:
-                    sample = db.Sample(id=None, files=files, kmer_count=kmer_count)
+                    sample = db.Sample(name=None, files=files, kmer_count=kmer_count)
                     samples.append(sample)
     return samples
 
@@ -489,38 +512,42 @@ def process_sample(
     false_positive_rate,
     recount=False,
 ):
-    logger.debug(f"Processing sample {sample.id or sample.files[0]}")
+    logger.debug(f"Processing sample {sample.name or sample.files[0]}")
 
-    sample_id = sample.id
-    if not sample_id:
+    sample_name = sample.name
+    if not sample_name:
         filename = os.path.basename(sample.files[0])
         # Remove compression extensions (.gz, .bz2, .zip, etc.)
         if filename.endswith((".gz", ".bz2", ".zip", ".xz")):
             filename = os.path.splitext(filename)[0]
         # Remove file extension
-        sample_id = os.path.splitext(filename)[0]
+        sample_name = os.path.splitext(filename)[0]
 
-    sample_id = db_tools.clean_sample_id(sample.id)
+    sample_name = db_tools.clean_sample_id(sample.name)
 
-    if(sample_id != sample.id):
-        logger.debug(f"    New sample ID: {sample_id}" + f"(ex: {sample.id})" if sample.id else "")
-        sample.id = sample_id
+    if sample_name != sample.name:
+        logger.debug(
+            f"    New sample ID: {sample_name}" + f"(ex: {sample.name})"
+            if sample.name
+            else ""
+        )
+        sample.name = sample_name
 
-    assert sample.id, "Sample ID empty or null"
+    assert sample.name, "Sample ID empty or null"
 
     kc = KmerCounter(k=kmer_size, threadCount=ntcard_threads)
     sm = SpanManager(p=false_positive_rate)
 
     if sample.kmer_count == 0 or recount:
         action = "Recounting" if recount else "Counting"
-        logger.info(f"  {action} k-mers for sample {sample.id}")
+        logger.info(f"  {action} k-mers for sample {sample.name}")
         sample.kmer_count = kc.count_files(
             files=sample.files, target_value=ntcard_value
         )
         logger.debug(f"    k-mer count: {sample.kmer_count}")
     else:
         logger.debug(
-            f"  Using cached k-mer count for sample {sample.id or sample.files[0]}: {sample.kmer_count}"
+            f"  Using cached k-mer count for sample {sample.name or sample.files[0]}: {sample.kmer_count}"
         )
 
     span = sm.dispatch(sample.kmer_count)
@@ -535,6 +562,6 @@ def process_sample(
 
     bf_size = sm.get_bf_size(span)
 
-    logger.debug(f"    Final sample ID: {sample.id}")
+    logger.debug(f"    Final sample ID: {sample.name}")
 
     return span, bf_size
