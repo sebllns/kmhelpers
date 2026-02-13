@@ -5,7 +5,7 @@ import os
 import traceback
 from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.operations.builder import IndexBuilder
-from pykmhelpers.pipeline.index_db import IndexDefinitionTools, IndexDB, IndexDefinition
+from pykmhelpers.pipeline.index_db import IndexDefinitionTools, DbFields
 from pykmhelpers.cli.shared import estimate_build_size
 
 
@@ -109,8 +109,9 @@ def build(
 
         table = idt.load_db(input_file)
 
-        for i in table.values():
-            click.echo(f"Build {i.id}...")
+        for i in table.index_table.values():
+            assert i.name, "Index name empty or null"
+            click.echo(f"Build {i.name}...")
 
             # Show confirmation with size estimation (skip if -f/--force is used)
             if not force:
@@ -139,18 +140,25 @@ def build(
                 assert builder, "Could not initialize builder"
 
                 for s in i.samples.values():
+                    assert s.name, "Sample name empty or null"
                     sample_files = [rootpath + f for f in s.files] if rootpath else s.files
-                    fof.add_sample(sample_files, s.id or "")
+                    fof.add_sample(sample_files, s.name)
+
+
+                parent_index = i.get_link(DbFields.PARENT_INDEX.value)
+
+                if reuse_from:
+                    parent_index = reuse_from
 
                 builder.create_subindex(
-                    name=i.id,
+                    name=i.name,
                     samples=fof,
                     assembled=True,
                     bloom_size=i.bf_size,
                     n_partitions=i.partition_count,
                     n_threads=threads,
                     auto_check=True,
-                    build_from=reuse_from
+                    build_from=parent_index
                 )
 
             except Exception as e:
