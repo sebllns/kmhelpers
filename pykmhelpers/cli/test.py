@@ -2,9 +2,11 @@
 
 import os
 import random
-import yaml
-import click
 from datetime import datetime
+
+import click
+import yaml
+
 from pykmhelpers.core.fasta import Fasta
 from pykmhelpers.core.sequence import Sequence
 from pykmhelpers.pipeline.fof import FofManager
@@ -96,7 +98,7 @@ def test_create_fasta(output_dir, n_samples, average_size, min_size, create_fof)
                     os.path.join(output_dir, f"sequence_{i}.fasta")
                 )
                 sample_name = f"sequence_{i}"
-                manager.add_sample(fasta_file, sample_name)
+                manager.add_sample([fasta_file], sample_name)
 
             manager.save(fof_path)
             click.echo(f"✓ Created FOF file: {fof_path}")

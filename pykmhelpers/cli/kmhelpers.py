@@ -21,7 +21,6 @@ from pykmhelpers.cli.experimental import experimental
 # Import all groups and commands
 from pykmhelpers.cli.fof import fof
 from pykmhelpers.cli.kmindex import kmindex
-from pykmhelpers.cli.project import project
 from pykmhelpers.cli.query import query
 from pykmhelpers.cli.registry import registry
 from pykmhelpers.cli.test import test
