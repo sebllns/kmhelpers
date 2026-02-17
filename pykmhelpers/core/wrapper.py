@@ -2,17 +2,18 @@
 KmindexWrapper - High-level interface for kmindex build and query operations.
 """
 
-import os
-import yaml
 import logging
-from typing import List, Optional, Union, Dict, Any
-from pathlib import Path
+import os
 import subprocess
 import threading
-import psutil
 import time
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
-from .utils import Bin, Toolbox, Kmindex
+import psutil
+import yaml
+
+from .utils import Bin, Kmindex, Toolbox
 
 logger = logging.getLogger(__name__)
 
@@ -390,7 +391,8 @@ class KmindexWrapper(Wrapper):
         logger.debug(f"    - Partition count: {nb_partitions}")
         if from_index:
             logger.debug(f"    - From: {from_index}")
-        logger.debug(f"  - Parameters exported in: {output_log_dir}")
+        if output_param_file:
+            logger.debug(f"  - Parameters exported in: {output_param_file}")
         logger.debug(f"  - Output data directory: {output_index_dir}")
         logger.debug(f"  - Registry: {output_registry_path}")
         logger.debug(f"  - Log dir: {output_log_dir}")

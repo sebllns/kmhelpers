@@ -3,26 +3,28 @@
 Unified CLI for kmhelpers - a toolkit for managing, compressing, and querying k-mer indices.
 """
 
-import os
 import logging
-import click
-from pykmhelpers import __version__, Main, Bin
+import os
 
-# Import all groups and commands
-from pykmhelpers.cli.fof import fof
-from pykmhelpers.cli.test import test
-from pykmhelpers.cli.registry import registry
-from pykmhelpers.cli.kmindex import kmindex
-from pykmhelpers.cli.query import query
-from pykmhelpers.cli.count_kmers import count_kmers
-from pykmhelpers.cli.compose import compose
+import click
+
+from pykmhelpers import Bin, Main, __version__
 from pykmhelpers.cli.build import build
+from pykmhelpers.cli.compose import compose
 from pykmhelpers.cli.compress import kmindex_compress
-from pykmhelpers.cli.experimental import experimental
+from pykmhelpers.cli.count_kmers import count_kmers
 
 # Import experimental commands
 from pykmhelpers.cli.exp_compression import exp_compress
+from pykmhelpers.cli.experimental import experimental
+
+# Import all groups and commands
+from pykmhelpers.cli.fof import fof
+from pykmhelpers.cli.kmindex import kmindex
 from pykmhelpers.cli.project import project
+from pykmhelpers.cli.query import query
+from pykmhelpers.cli.registry import registry
+from pykmhelpers.cli.test import test
 
 
 class ColoredFormatter(logging.Formatter):

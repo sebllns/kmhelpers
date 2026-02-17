@@ -1,14 +1,18 @@
-from dataclasses import dataclass, field
-from typing import Optional
-from enum import Enum
-import re
 import json
+import re
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Optional
+
 import yaml
+
 from ..core.bloom_filter import BloomFilterSpecs
 from ..core.byte import ByteCounter, SizeFormat
 
+
 class DbFields(str, Enum):
-      PARENT_INDEX = "parent_index"
+    PARENT_INDEX = "parent_index"
+
 
 @dataclass
 class Item:
@@ -47,7 +51,22 @@ class Item:
     def get_link(self, name: str) -> Optional[str]:
         if self.links:
             return self.links.get(name)
-        return None 
+        return None
+
+
+@dataclass
+class Span(Item, auto_increment=False):
+    value: int = 0
+    index_table: dict[str, IndexDefinition] = field(default_factory=dict)
+
+    def get_sample_count(self):
+        return sum(index.sample_count for index in self.index_table.values())
+
+    def get_total_stored_size(self):
+        total_bytes = sum(
+            index.get_stored_size().byte_count for index in self.index_table.values()
+        )
+        return ByteCounter.auto(total_bytes, SizeFormat.BYTE)
 
 
 @dataclass
@@ -60,7 +79,8 @@ class Sample(Item, auto_increment=True):
 @dataclass
 class IndexDefinition(Item, auto_increment=True):
     parent_db: Optional["IndexDB"] = field(default=None, repr=False)
-    kmhelpers_version: str = ""
+    kmhelpers_version: str = "undefined"
+    index_type: str = "kmindex"
     kmer_size: int = 0
     partition_count: int = 0
     span: int = 0
@@ -128,7 +148,7 @@ class IndexDefinitionTools:
         pass
 
     def get_index_name(self, db_name: str, prefix: str, span: int, segment: int) -> str:
-         return f"{db_name}_{prefix}_{span}_{segment}"
+        return f"{db_name}_{prefix}_{span}_{segment}"
 
     def load_db(self, filename: str) -> IndexDB:
         """Load index database from JSON or YAML file."""
@@ -159,11 +179,15 @@ class IndexDefinitionTools:
                 partition_count=int(parameters.get("partition_count", "256")),
                 bf_size=int(parameters.get("bf_size")),
                 span=index_data.get("infos", {}).get("span", 0),
+                index_type=index_data.get("type", "kmindex"),
                 samples=samples,
             )
 
             if DbFields.PARENT_INDEX.value in parameters:
-                index.create_link(DbFields.PARENT_INDEX.value, parameters.get(DbFields.PARENT_INDEX.value))
+                index.create_link(
+                    DbFields.PARENT_INDEX.value,
+                    parameters.get(DbFields.PARENT_INDEX.value),
+                )
 
             index_db.add_index(index)
 
@@ -206,6 +230,7 @@ class IndexDefinitionTools:
 
             data[index_id] = {
                 "kmhelpers_version": index.kmhelpers_version,
+                "type": index.index_type,
                 "parameters": parameters,
                 "infos": infos,
                 "samples": samples_data,

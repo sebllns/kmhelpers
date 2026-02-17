@@ -1,10 +1,23 @@
 """Shared utilities for CLI commands."""
 
+import logging
 import os
-import yaml
+
 import click
-from pykmhelpers.pipeline.fof import FofManager
+import yaml
+
 from pykmhelpers.core.byte import ByteCounter, SizeFormat
+from pykmhelpers.pipeline.fof import FofManager
+
+
+def force_verbose_mode():
+    root_logger = logging.getLogger()
+    if root_logger.getEffectiveLevel() > logging.INFO:
+        root_logger.setLevel(logging.INFO)
+        # Also update all handlers
+        for handler in root_logger.handlers:
+            if handler.level > logging.INFO:
+                handler.setLevel(logging.INFO)
 
 
 def estimate_build_size(

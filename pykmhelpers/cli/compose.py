@@ -13,6 +13,7 @@ from pykmhelpers.core.bloom_filter import SpanManager, BloomFilterSpecs
 from pykmhelpers.core.kmer import KmerCounter
 from pykmhelpers.core.byte import ByteCounter, SizeFormat
 from pykmhelpers.core.constants import KMHELPERS_VERSION
+from pykmhelpers.cli.shared import force_verbose_mode
 
 logger = logging.getLogger(__name__)
 
@@ -71,9 +72,9 @@ logger = logging.getLogger(__name__)
     help="Maximum Bloom Filter size (e.g., '10GB', '5000MB') before splitting samples across indices (default = no limit)",
 )
 @click.option(
-    "--partition-max-size",
+    "--partition-min-size",
     "-m",
-    help="Maximum partition file size (e.g., '500MB', '1GB'). If exceeded, partition count will increase to maintain this size limit per partition (default = no limit)",
+    help="Minimum partition file size (e.g., '500MB', '1GB'). If not met, partition count will decrease to maintain this size limit per partition (default = no limit)",
 )
 @click.option(
     "--no-merge",
@@ -148,7 +149,7 @@ def compose(
     max_span,
     partition_count,
     bf_max_size,
-    partition_max_size,
+    partition_min_size,
     no_merge,
     exact_partition_count,
     partition_count_limit,
@@ -174,13 +175,7 @@ def compose(
 
     # Bump logging level to INFO if -v is set and current level is higher
     if verbose:
-        root_logger = logging.getLogger()
-        if root_logger.getEffectiveLevel() > logging.INFO:
-            root_logger.setLevel(logging.INFO)
-            # Also update all handlers
-            for handler in root_logger.handlers:
-                if handler.level > logging.INFO:
-                    handler.setLevel(logging.INFO)
+        force_verbose_mode()
 
     try:
         # Validate parameters
@@ -227,12 +222,12 @@ def compose(
             )
 
         try:
-            partition_max_size = (
-                ByteCounter.from_str(partition_max_size) if partition_max_size else None
+            partition_min_size = (
+                ByteCounter.from_str(partition_min_size) if partition_min_size else None
             )
         except ValueError:
             raise click.BadParameter(
-                f"Invalid partition_max_size format: {partition_max_size} (use format like '1GB', '500MB')"
+                f"Invalid partition_min_size format: {partition_min_size} (use format like '1GB', '500MB')"
             )
 
         os.makedirs(output_dir, exist_ok=True)
@@ -316,26 +311,29 @@ def compose(
         logger.info(
             f"Composed {len(all_samples)} samples into {len(db_instance.index_table)} indices"
         )
-        for index_name, index in sorted(db_instance.index_table.items()):
-            logger.info(
-                f"  {index_name}: {index.sample_count} samples, {str(index.get_stored_size())}"
-            )
+        index_summary_file = os.path.join(output_dir, "index_summary.txt")
+        with open(index_summary_file, "w") as f:
+            f.write("span sample_count stored_size\n")
+            for index_name, index in sorted(db_instance.index_table.items()):
+                summary_line = f"  {index_name} {index.sample_count} {str(index.get_stored_size())}"
+                logger.info(summary_line)
+                f.write(summary_line + "\n")
         logger.info(f"Exporting database in {format} format to {output_dir}...")
 
         for i in db_instance.index_table.values():
-            if partition_max_size or auto_partitioning:
-                partition_max_size = partition_max_size or ByteCounter.from_str("4GB")
+            if partition_min_size or auto_partitioning:
+                partition_min_size = partition_min_size or ByteCounter.from_str("200MB")
                 index_name = db_tools.get_index_name(name, prefix, i.span, 0)
                 ref = db_instance.index_table[index_name]
                 bf_specs = BloomFilterSpecs(
                     ref.bf_size, ref.sample_count if no_merge else span_size[i.span], 1
                 )
-                partition_min_count = bf_specs.get_auto_partition_count(
-                    partition_max_size.byte_count
+                partition_max_count = bf_specs.get_auto_partition_count(
+                    partition_min_size.byte_count
                 )
                 if not auto_partitioning:
-                    partition_min_count = max(partition_min_count, partition_count)
-                i.partition_count = partition_min_count
+                    partition_max_count = min(partition_max_count, partition_count)
+                i.partition_count = partition_max_count
             if not exact_partition_count and i.partition_count > 1:
                 i.partition_count = 1 << (i.partition_count - 1).bit_length()
 

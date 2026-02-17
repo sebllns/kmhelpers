@@ -1,18 +1,20 @@
+import logging
+import os
+from typing import Optional
+
+import yaml
+
 from ..core import (
+    BloomFilterSpecs,
+    KmindexRegistry,
     KmindexWrapper,
     KmtricksIndex,
-    KmindexRegistry,
     Toolbox,
-    BloomFilterSpecs,
 )
 from ..core.byte import ByteCounter, SizeFormat
-from ..pipeline.fof import FofManager
 from ..core.fasta import Fasta, FASTAReader
+from ..pipeline.fof import FofManager
 from ..pipeline.query import KmindexQuery, KmindexQueryResult
-from typing import Optional
-import os
-import yaml
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +158,9 @@ class IndexBuilder:
             if self.index.has_index(build_from):
                 logger.info(f"Reusing parameters from index: {build_from}")
             elif name != build_from:
-                logger.warning(f"Index '{build_from}' not found, building '{name}' from scratch")
+                logger.warning(
+                    f"Index '{build_from}' not found, building '{name}' from scratch"
+                )
 
         wrapper.build(
             input_fof_file=fof_path,
@@ -169,8 +173,10 @@ class IndexBuilder:
             register_as=name,
             bloom_size=bloom_size,
             output_log_dir=os.path.join(self.path, "logs", name),
-            output_param_file=os.path.join(self.index.root_path, f"{name}.yaml"),
-            from_index=build_from if build_from and self.index.has_index(build_from) else None
+            output_param_file=os.path.join(self.path, f"{name}.yaml"),
+            from_index=(
+                build_from if build_from and self.index.has_index(build_from) else None
+            ),
         )
 
         self.index.load_json()

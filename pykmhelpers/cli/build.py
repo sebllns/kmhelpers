@@ -1,12 +1,17 @@
 """Build k-mer index command."""
 
-import click
+import logging
 import os
-import traceback
-from pykmhelpers.pipeline.fof import FofManager
+
+import click
+
+from pykmhelpers.cli.shared import force_verbose_mode
+from pykmhelpers.core.constants import KMHELPERS_VERSION
 from pykmhelpers.operations.builder import IndexBuilder
-from pykmhelpers.pipeline.index_db import IndexDefinitionTools, DbFields
-from pykmhelpers.cli.shared import estimate_build_size
+from pykmhelpers.pipeline.fof import FofManager
+from pykmhelpers.pipeline.index_db import DbFields, IndexDefinitionTools
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_spans(spans):
@@ -26,7 +31,9 @@ def _parse_spans(spans):
             # Range notation: 27-30
             try:
                 start, end = item.split("-")
-                result.extend(str(i) for i in range(int(start.strip()), int(end.strip()) + 1))
+                result.extend(
+                    str(i) for i in range(int(start.strip()), int(end.strip()) + 1)
+                )
             except ValueError:
                 result.append(item)
         else:
@@ -55,10 +62,7 @@ paths are resolved from the run directory; use this option if you \
 need to resolve them from a different location.",
 )
 @click.option(
-    "--from",
-    "reuse_from",
-    required=False,
-    help="Reuse parameters from given index ID"
+    "--from", "reuse_from", required=False, help="Reuse parameters from given index ID"
 )
 @click.option(
     "--span",
@@ -100,35 +104,36 @@ def build(
     Examples:
     """
 
+    # Bump logging level to INFO if -v is set and current level is higher
+    if verbose:
+        force_verbose_mode()
+
     selected_spans = _parse_spans(span)
 
     idt = IndexDefinitionTools()
 
     for input_file in input_files:
-        click.echo("Load db: " + input_file)
+        logger.info(f"Load db: {input_file}")
 
         table = idt.load_db(input_file)
 
         for i in table.index_table.values():
             assert i.name, "Index name empty or null"
-            click.echo(f"Build {i.name}...")
+            logger.info(f"Build {i.name}...")
 
             # Show confirmation with size estimation (skip if -f/--force is used)
             if not force:
-                click.echo()
                 try:
-                    click.echo(f"  Estimated index size: {str(i.get_stored_size())}")
-                    click.echo()
+                    logger.info(f"  Estimated index size: {str(i.get_stored_size())}")
 
                     if not click.confirm("Proceed with build?", default=True):
-                        click.echo("Build cancelled")
+                        logger.info("Build cancelled")
                         return
                 except Exception as e:
-                    click.echo(f"Warning: Could not estimate build size: {e}", err=True)
+                    logger.warning(f"Could not estimate build size: {e}")
                     if not click.confirm("Proceed with build anyway?", default=True):
-                        click.echo("Build cancelled")
+                        logger.info("Build cancelled")
                         return
-                click.echo()
 
             try:
                 builder = IndexBuilder(
@@ -141,9 +146,10 @@ def build(
 
                 for s in i.samples.values():
                     assert s.name, "Sample name empty or null"
-                    sample_files = [rootpath + f for f in s.files] if rootpath else s.files
+                    sample_files = (
+                        [rootpath + f for f in s.files] if rootpath else s.files
+                    )
                     fof.add_sample(sample_files, s.name)
-
 
                 parent_index = i.get_link(DbFields.PARENT_INDEX.value)
 
@@ -158,20 +164,11 @@ def build(
                     n_partitions=i.partition_count,
                     n_threads=threads,
                     auto_check=True,
-                    build_from=parent_index
+                    build_from=parent_index,
                 )
 
             except Exception as e:
                 if verbose:
-                    click.echo(
-                        click.style(
-                            traceback.format_exc(), fg="red", bold=True, dim=True
-                        ),
-                        err=True,
-                        color=True,
-                    )
-                click.echo(
-                    click.style(f"Error: {e}", fg="red", bold=True),
-                    err=True,
-                    color=True,
-                )
+                    logger.exception(f"Build failed for {i.name}")
+                else:
+                    logger.error(f"Error: {e}")
