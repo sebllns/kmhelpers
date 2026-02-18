@@ -89,6 +89,17 @@ need to resolve them from a different location.",
     is_flag=True,
     help="Skip confirmation prompt before building",
 )
+@click.option(
+    "--skip-compression",
+    is_flag=True,
+    help="Skip compression of intermediate files during index building. Can improve performance on fast drives where I/O is not a bottleneck",
+)
+@click.option(
+    "--minim-size",
+    type=int,
+    default=10,
+    help="Minimizer size (4-15, default: 10)",
+)
 def build(
     input_files,
     workdir,
@@ -98,6 +109,8 @@ def build(
     threads,
     verbose,
     force,
+    skip_compression,
+    minim_size,
 ):
     """Build an index from a list of definition.
 
@@ -165,6 +178,8 @@ def build(
                     n_threads=threads,
                     auto_check=True,
                     build_from=parent_index,
+                    compress_intermediate=not skip_compression,
+                    minim_size=minim_size,
                 )
 
             except Exception as e:

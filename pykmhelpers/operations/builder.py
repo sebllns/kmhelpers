@@ -104,6 +104,8 @@ class IndexBuilder:
         n_max_threads: int = 0,
         build_from: Optional[str] = None,
         auto_check: bool = True,
+        minim_size: int = 10,
+        compress_intermediate: bool = True,
     ) -> KmtricksIndex:
         """
         Docstring for create_subindex
@@ -177,6 +179,8 @@ class IndexBuilder:
             from_index=(
                 build_from if build_from and self.index.has_index(build_from) else None
             ),
+            compress_intermediate=compress_intermediate,
+            minim_size=minim_size,
         )
 
         self.index.load_json()
