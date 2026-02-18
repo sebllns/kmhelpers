@@ -2370,7 +2370,7 @@ function quick_install()
         install_kmhelpersctl_completion
     fi
 
-    local path_line="export PATH=\"${ENV_DIR}/bin:\$PATH\"  # Add kmhelper conda bin folder to PATH"    
+    local path_line="export PATH=\"\$PATH\:${ENV_DIR}/bin"  # Add kmhelper conda bin folder to PATH"    
     # Install for bash
     if [[ -f "$HOME/.bashrc" ]]; then
         # Add alias if not already present

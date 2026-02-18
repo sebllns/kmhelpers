@@ -104,7 +104,7 @@ class Item:
 @dataclass
 class Span(Item, auto_increment=False):
     value: int = DbFields.SPAN.get_default() or 0
-    index_table: dict[str, IndexDefinition] = field(default_factory=dict)
+    index_table: dict[str, "IndexDefinition"] = field(default_factory=dict)
 
     def get_sample_count(self):
         return sum(index.sample_count for index in self.index_table.values())
@@ -209,10 +209,13 @@ class IndexDefinitionTools:
     def __init__(self) -> None:
         pass
 
-    def get_field_name(self, field: DbFields):
+    def get_abundance_min(self, assembled: bool) -> int:
+        return 1 if assembled else 2
+
+    def get_field_name(self, field: DbFields) -> str:
         return field.value
 
-    def has_field(self, field: DbFields, table: dict):
+    def has_field(self, field: DbFields, table: dict) -> bool:
         return field.value in table
 
     def get_field_safe(self, field: DbFields, table: dict):
@@ -332,6 +335,7 @@ class IndexDefinitionTools:
                     DbFields.KMHELPERS_VERSION
                 ): index.kmhelpers_version,
                 self.get_field_name(DbFields.INDEX_TYPE): index.index_type,
+                self.get_field_name(DbFields.ASSEMBLED): index.assembled,
                 self.get_field_name(DbFields.PARAMETERS): parameters,
                 self.get_field_name(DbFields.INFOS): infos,
                 self.get_field_name(DbFields.SAMPLES): samples_data,

@@ -238,6 +238,8 @@ def compose(
                 f"Invalid partition_min_size format: {partition_min_size} (use format like '1GB', '500MB')"
             )
 
+        assembled = not unassembled
+
         os.makedirs(output_dir, exist_ok=True)
         all_samples: list[db.Sample] = []
         split_count = {}
@@ -287,6 +289,8 @@ def compose(
                         span=span,
                         bf_size=bf_size,
                         partition_count=partition_count,
+                        assembled=assembled,
+                        abundance_min=db_tools.get_abundance_min(assembled),
                         samples={},
                     )
                     if split_count[span] > 0 and not no_merge:

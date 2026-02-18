@@ -172,7 +172,7 @@ def build(
                 builder.create_subindex(
                     name=i.name,
                     samples=fof,
-                    assembled=not unassembled,
+                    abundance_min=i.abundance_min,
                     bloom_size=i.bf_size,
                     n_partitions=i.partition_count,
                     n_threads=threads,

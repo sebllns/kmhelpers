@@ -97,8 +97,8 @@ class IndexBuilder:
         self,
         name: str,
         samples: FofManager,
-        assembled: bool,
         bloom_size: int,
+        abundance_min: int = 2,
         n_partitions: int = 256,
         n_threads: int = 0,
         n_max_threads: int = 0,
@@ -107,29 +107,6 @@ class IndexBuilder:
         minim_size: int = 10,
         compress_intermediate: bool = True,
     ) -> KmtricksIndex:
-        """
-        Docstring for create_subindex
-
-        :param self: Description
-        :param name: Description
-        :type name: str
-        :param samples: Description
-        :type samples: FofManager
-        :param assembled: Description
-        :type assembled: bool
-        :param bloom_size: Description
-        :type bloom_size: int
-        :param n_partitions: Description
-        :type n_partitions: int
-        :param n_threads: Description
-        :type n_threads: int
-        :param n_max_threads: Description
-        :type n_max_threads: int
-        :param auto_check: Description
-        :type auto_check: bool
-        :return: Description
-        :rtype: KmtricksIndex
-        """
 
         assert (
             samples and samples.get_sample_count()
@@ -144,7 +121,6 @@ class IndexBuilder:
         wrapper = KmindexWrapper()
         fof_path = os.path.join(self.path, f"{name}.fof")
         samples.save(fof_path=fof_path)
-        hard_min = 1 if assembled else 2
 
         if n_threads == 0:
             n_threads = os.cpu_count() or 1
@@ -169,7 +145,7 @@ class IndexBuilder:
             output_registry_path=self.index.root_path,
             output_index_dir=os.path.join(self.path, ".subindexes"),
             k=self.k,
-            hard_min=hard_min,
+            hard_min=abundance_min,
             threads=n_threads,
             nb_partitions=n_partitions,
             register_as=name,
