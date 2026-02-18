@@ -2,7 +2,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 import yaml
 
@@ -11,14 +11,61 @@ from ..core.byte import ByteCounter, SizeFormat
 
 
 class DbFields(str, Enum):
+    # Base Item fields
+    ID = "id"
+    NAME = "name"
+    LINKS = "links"
+
+    # Index fields
     PARENT_INDEX = "parent_index"
+    ABUNDANCE_MIN = "abundance_min"
+    ASSEMBLED = "assembled"
+    KMER_SIZE = "kmer_size"
+    PARTITION_COUNT = "partition_count"
+    SPAN = "span"
+    BF_SIZE = "bf_size"
+    KMHELPERS_VERSION = "kmhelpers_version"
+    INDEX_TYPE = "index_type"
+    SAMPLES = "samples"
+    INFOS = "infos"
+    PARAMETERS = "parameters"
+    INFO_SAMPLE_COUNT = "sample_count"
+    INFO_TOTAL_STORED_SIZE_BYTES = "total_stored_size_bytes"
+    INFO_TOTAL_STORED_SIZE_STR = "total_stored_size_str"
+    INFO_PARTITION_STORED_SIZE_BYTES = "partition_stored_size_bytes"
+    INFO_PARTITION_STORED_SIZE_STR = "partition_stored_size_str"
+
+    # Sample fields
+    FILES = "files"
+    KMER_COUNT = "kmer_count"
+
+    def get_default(self):
+        """Get default value for this field, or None if no default is defined."""
+        defaults = {
+            DbFields.ID: 0,
+            DbFields.NAME: None,
+            DbFields.LINKS: None,
+            DbFields.PARENT_INDEX: None,
+            DbFields.ABUNDANCE_MIN: 2,
+            DbFields.ASSEMBLED: False,
+            DbFields.KMER_SIZE: 25,
+            DbFields.PARTITION_COUNT: 0,
+            DbFields.SPAN: 0,
+            DbFields.BF_SIZE: 0,
+            DbFields.KMHELPERS_VERSION: "undefined",
+            DbFields.INDEX_TYPE: "undefined",
+            DbFields.FILES: [],
+            DbFields.KMER_COUNT: 0,
+            DbFields.SAMPLES: {},
+        }
+        return defaults.get(self)
 
 
 @dataclass
 class Item:
-    id: int = field(default=0)
-    name: Optional[str] = None
-    links: Optional[dict[str, str]] = None
+    id: int = field(default=DbFields.ID.get_default() or 0)
+    name: Optional[str] = DbFields.NAME.get_default()
+    links: Optional[dict[str, str]] = DbFields.LINKS.get_default()
 
     def __init_subclass__(cls, auto_increment=False, unique_name=False, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -56,7 +103,7 @@ class Item:
 
 @dataclass
 class Span(Item, auto_increment=False):
-    value: int = 0
+    value: int = DbFields.SPAN.get_default() or 0
     index_table: dict[str, IndexDefinition] = field(default_factory=dict)
 
     def get_sample_count(self):
@@ -78,18 +125,30 @@ class Sample(Item, auto_increment=True):
 
 @dataclass
 class IndexDefinition(Item, auto_increment=True):
+
     parent_db: Optional["IndexDB"] = field(default=None, repr=False)
-    kmhelpers_version: str = "undefined"
-    index_type: str = "kmindex"
-    kmer_size: int = 0
-    partition_count: int = 0
-    span: int = 0
-    bf_size: int = 0
+    kmhelpers_version: str = DbFields.KMHELPERS_VERSION.get_default() or ""
+    index_type: str = DbFields.INDEX_TYPE.get_default() or ""
+    kmer_size: int = DbFields.KMER_SIZE.get_default() or 0
+    partition_count: int = DbFields.PARTITION_COUNT.get_default() or 0
+    span: int = DbFields.SPAN.get_default() or 0
+    bf_size: int = DbFields.BF_SIZE.get_default() or 0
+    abundance_min: int = DbFields.ABUNDANCE_MIN.get_default() or 2
+    assembled: bool = DbFields.ASSEMBLED.get_default() or False
     samples: dict[str, Sample] = field(default_factory=dict)
 
     @property
     def sample_count(self):
         return len(self.samples)
+
+    def get_parent(self):
+        return self.get_link(DbFields.PARENT_INDEX.value)
+
+    def set_parent(self, parent_name):
+        return self.create_link(
+            DbFields.PARENT_INDEX.value,
+            parent_name,
+        )
 
     def add_sample(self, sample_id: str, sample: Sample):
         # Check sample name uniqueness within this Index
@@ -142,10 +201,29 @@ class IndexDB(Item, auto_increment=True, unique_name=True):
         self.add_index(i)
         return i
 
+    def get_index(self, name):
+        return self.index_table.get(name)
+
 
 class IndexDefinitionTools:
     def __init__(self) -> None:
         pass
+
+    def get_field_name(self, field: DbFields):
+        return field.value
+
+    def has_field(self, field: DbFields, table: dict):
+        return field.value in table
+
+    def get_field_safe(self, field: DbFields, table: dict):
+        return table.get(field.value, field.get_default())
+
+    def get_field(self, field: DbFields, table: dict):
+        value = self.get_field_safe(field, table)
+        if value is None:
+            raise ValueError(f"Field not found or no default: {field.value}")
+        else:
+            return value
 
     def get_index_name(self, db_name: str, prefix: str, span: int, segment: int) -> str:
         return f"{db_name}_{prefix}_{span}_{segment}"
@@ -163,30 +241,40 @@ class IndexDefinitionTools:
         index_db = IndexDB()
         for index_id, index_data in data.items():
             samples = {}
-            for sample_id, sample_data in index_data.get("samples", {}).items():
+            for sample_id, sample_data in index_data.get(
+                self.get_field_name(DbFields.SAMPLES), {}
+            ).items():
                 samples[sample_id] = Sample(
                     name=sample_id,
-                    files=sample_data.get("files", []),
-                    kmer_count=sample_data.get("kmer_count", 0),
+                    files=self.get_field(DbFields.FILES, sample_data),
+                    kmer_count=int(self.get_field(DbFields.KMER_COUNT, sample_data)),
                 )
 
-            parameters = index_data.get("parameters")
+            parameters = index_data.get(self.get_field_name(DbFields.PARAMETERS))
 
             index = IndexDefinition(
                 name=index_id,
-                kmhelpers_version=parameters.get("kmhelpers_version", "0.6.0"),
-                kmer_size=int(parameters.get("kmer_size", "25")),
-                partition_count=int(parameters.get("partition_count", "256")),
-                bf_size=int(parameters.get("bf_size")),
-                span=index_data.get("infos", {}).get("span", 0),
-                index_type=index_data.get("type", "kmindex"),
+                kmhelpers_version=str(
+                    self.get_field(DbFields.KMHELPERS_VERSION, index_data)
+                ),
+                kmer_size=int(self.get_field(DbFields.KMER_SIZE, parameters)),
+                partition_count=int(
+                    self.get_field(DbFields.PARTITION_COUNT, parameters)
+                ),
+                bf_size=int(self.get_field(DbFields.BF_SIZE, parameters)),
+                span=index_data.get(self.get_field_name(DbFields.INFOS), {}).get(
+                    self.get_field_name(DbFields.SPAN), 0
+                ),
+                index_type=str(self.get_field(DbFields.INDEX_TYPE, index_data)),
+                assembled=bool(self.get_field(DbFields.ASSEMBLED, index_data)),
+                abundance_min=int(self.get_field(DbFields.ABUNDANCE_MIN, parameters)),
                 samples=samples,
             )
 
-            if DbFields.PARENT_INDEX.value in parameters:
+            if self.has_field(DbFields.PARENT_INDEX, parameters):
                 index.create_link(
-                    DbFields.PARENT_INDEX.value,
-                    parameters.get(DbFields.PARENT_INDEX.value),
+                    self.get_field_name(DbFields.PARENT_INDEX),
+                    self.get_field(DbFields.PARENT_INDEX, parameters),
                 )
 
             index_db.add_index(index)
@@ -201,26 +289,37 @@ class IndexDefinitionTools:
             samples_data = {}
             for sample_id, sample in index.samples.items():
                 samples_data[sample_id] = {
-                    "kmer_count": sample.kmer_count,
-                    "files": sample.files,
+                    self.get_field_name(DbFields.KMER_COUNT): sample.kmer_count,
+                    self.get_field_name(DbFields.FILES): sample.files,
                 }
 
             stored_size = index.get_stored_size()
             partition_stored_size = index.get_stored_size_per_partition()
 
             infos = {
-                "span": index.span,
-                "sample_count": index.sample_count,
-                "total_stored_size_bytes": stored_size.byte_count,
-                "total_stored_size_str": str(stored_size),
-                "partition_stored_size_bytes": partition_stored_size.byte_count,
-                "partition_stored_size_str": str(partition_stored_size),
+                self.get_field_name(DbFields.SPAN): index.span,
+                self.get_field_name(DbFields.INFO_SAMPLE_COUNT): index.sample_count,
+                self.get_field_name(
+                    DbFields.INFO_TOTAL_STORED_SIZE_BYTES
+                ): stored_size.byte_count,
+                self.get_field_name(DbFields.INFO_TOTAL_STORED_SIZE_STR): str(
+                    stored_size
+                ),
+                self.get_field_name(
+                    DbFields.INFO_PARTITION_STORED_SIZE_BYTES
+                ): partition_stored_size.byte_count,
+                self.get_field_name(DbFields.INFO_PARTITION_STORED_SIZE_STR): str(
+                    partition_stored_size
+                ),
             }
 
             parameters = {
-                "kmer_size": str(index.kmer_size),
-                "partition_count": str(index.partition_count),
-                "bf_size": str(index.bf_size),
+                self.get_field_name(DbFields.KMER_SIZE): str(index.kmer_size),
+                self.get_field_name(DbFields.PARTITION_COUNT): str(
+                    index.partition_count
+                ),
+                self.get_field_name(DbFields.BF_SIZE): str(index.bf_size),
+                self.get_field_name(DbFields.ABUNDANCE_MIN): str(index.abundance_min),
             }
 
             parent = index.get_link(DbFields.PARENT_INDEX.value)
@@ -229,11 +328,13 @@ class IndexDefinitionTools:
                 parameters[DbFields.PARENT_INDEX.value] = parent
 
             data[index_id] = {
-                "kmhelpers_version": index.kmhelpers_version,
-                "type": index.index_type,
-                "parameters": parameters,
-                "infos": infos,
-                "samples": samples_data,
+                self.get_field_name(
+                    DbFields.KMHELPERS_VERSION
+                ): index.kmhelpers_version,
+                self.get_field_name(DbFields.INDEX_TYPE): index.index_type,
+                self.get_field_name(DbFields.PARAMETERS): parameters,
+                self.get_field_name(DbFields.INFOS): infos,
+                self.get_field_name(DbFields.SAMPLES): samples_data,
             }
 
         with open(filename, "w") as f:

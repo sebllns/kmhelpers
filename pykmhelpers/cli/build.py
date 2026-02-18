@@ -164,7 +164,7 @@ def build(
                     )
                     fof.add_sample(sample_files, s.name)
 
-                parent_index = i.get_link(DbFields.PARENT_INDEX.value)
+                parent_index = i.get_parent()
 
                 if reuse_from:
                     parent_index = reuse_from
@@ -172,7 +172,7 @@ def build(
                 builder.create_subindex(
                     name=i.name,
                     samples=fof,
-                    assembled=True,
+                    assembled=not unassembled,
                     bloom_size=i.bf_size,
                     n_partitions=i.partition_count,
                     n_threads=threads,

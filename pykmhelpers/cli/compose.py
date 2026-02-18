@@ -5,15 +5,17 @@ This module provides two approaches to index compression:
 2. kmindex-compress: Registry-based compression using the KmindexWrapper
 """
 
-import os
 import logging
+import os
+
 import click
+
 import pykmhelpers.pipeline.index_db as db
-from pykmhelpers.core.bloom_filter import SpanManager, BloomFilterSpecs
-from pykmhelpers.core.kmer import KmerCounter
+from pykmhelpers.cli.shared import force_verbose_mode
+from pykmhelpers.core.bloom_filter import BloomFilterSpecs, SpanManager
 from pykmhelpers.core.byte import ByteCounter, SizeFormat
 from pykmhelpers.core.constants import KMHELPERS_VERSION
-from pykmhelpers.cli.shared import force_verbose_mode
+from pykmhelpers.core.kmer import KmerCounter
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +46,11 @@ logger = logging.getLogger(__name__)
     type=int,
     default=25,
     help="K-mer size (default: 25)",
+)
+@click.option(
+    "--unassembled",
+    is_flag=True,
+    help="Treat input data as raw reads instead of assembled genomes",
 )
 @click.option(
     "--min-span",
@@ -145,6 +152,7 @@ def compose(
     prefix,
     name,
     kmer_size,
+    unassembled,
     min_span,
     max_span,
     partition_count,
@@ -282,10 +290,7 @@ def compose(
                         samples={},
                     )
                     if split_count[span] > 0 and not no_merge:
-                        i.create_link(
-                            db.DbFields.PARENT_INDEX.value,
-                            db_tools.get_index_name(name, prefix, span, 0),
-                        )
+                        i.set_parent(db_tools.get_index_name(name, prefix, span, 0))
                     db_instance.add_index(i)
                 else:
                     logger.debug(f"Adding to existing index: {index_name}")
@@ -429,8 +434,9 @@ def read_samples(filename, cli_kmer_size=None):
     Returns:
         List of Sample objects with id, path (list), and kmer_count
     """
-    import yaml
     import json
+
+    import yaml
 
     samples = []
 
