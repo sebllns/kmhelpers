@@ -5,10 +5,12 @@ This module provides two approaches to index compression:
 2. kmindex-compress: Registry-based compression using the KmindexWrapper
 """
 
+import json
 import logging
 import os
 
 import click
+import yaml
 
 import pykmhelpers.pipeline.index_db as db
 from pykmhelpers.cli.shared import force_verbose_mode
@@ -286,6 +288,7 @@ def compose(
                         name=index_name,
                         kmhelpers_version=KMHELPERS_VERSION,
                         kmer_size=kmer_size,
+                        index_type="kmindex",
                         span=span,
                         bf_size=bf_size,
                         partition_count=partition_count,
@@ -326,7 +329,7 @@ def compose(
                 f"  {index_name} {index.sample_count} samples {str(index.get_stored_size())}"
             )
 
-        index_summary_file = os.path.join(output_dir, "index_summary.txt")
+        index_summary_file = os.path.join(output_dir, f"{name}_summary.txt")
         with open(index_summary_file, "w") as f:
             f.write("span sample_count stored_size_GB stored_size_str\n")
             for span_id, span_obj in sorted(db_instance.span_table.items()):
@@ -369,7 +372,7 @@ def compose(
                 f"Exported {len(db_instance.index_table)} index files (split mode)"
             )
         else:
-            logger.info(f"Exported database to db.{format}")
+            logger.info(f"Exported database to {output_dir}")
         logger.info(f"Created index definition for {len(all_samples)} samples")
 
     except Exception as e:
@@ -401,11 +404,21 @@ def export_db(
     # Export to file(s)
     if split:
         # Export each index to its own file
+        span_registry = {}
         for index_id, index_data in indices_data.index_table.items():
             filepath = os.path.join(output_dir, f"{index_id}.{format}")
             db_tools.save_db(
                 db.IndexDB(name=index_id, index_table={index_id: index_data}), filepath
             )
+            if not index_data.span in span_registry:
+                span_registry[index_data.span] = []
+            span_registry[index_data.span].append(f"{index_id}.{format}")
+
+        span_registry_file = os.path.join(
+            output_dir, f"{db_name}_span_registry.{format}"
+        )
+        print(span_registry_file)
+        db_tools.serialize(span_registry_file, span_registry, sort_keys=True)
     else:
         # Export all indices to a single file
         filepath = os.path.join(output_dir, f"{db_name}.{format}")
