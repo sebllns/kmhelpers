@@ -320,12 +320,18 @@ def compose(
         logger.info(
             f"Composed {len(all_samples)} samples into {len(db_instance.index_table)} indices"
         )
+
+        for index_name, index in sorted(db_instance.index_table.items()):
+            logger.info(
+                f"  {index_name} {index.sample_count} samples {str(index.get_stored_size())}"
+            )
+
         index_summary_file = os.path.join(output_dir, "index_summary.txt")
         with open(index_summary_file, "w") as f:
-            f.write("span sample_count stored_size\n")
-            for index_name, index in sorted(db_instance.index_table.items()):
-                summary_line = f"  {index_name} {index.sample_count} {str(index.get_stored_size())}"
-                logger.info(summary_line)
+            f.write("span sample_count stored_size_GB stored_size_str\n")
+            for span_id, span_obj in sorted(db_instance.span_table.items()):
+                size = span_obj.get_total_stored_size()
+                summary_line = f"{span_id} {span_obj.get_sample_count()} {size.byte_count/(1000**3)} {str(size)}"
                 f.write(summary_line + "\n")
         logger.info(f"Exporting database in {format} format to {output_dir}...")
 
@@ -347,7 +353,7 @@ def compose(
                 i.partition_count = 1 << (i.partition_count - 1).bit_length()
 
             i.partition_count = min(max(1, i.partition_count), partition_count_limit)
-            logger.info(f"  {i.id}: partitioning into {i.partition_count} files")
+            logger.debug(f"  {i.name}: partitioning into {i.partition_count} files")
 
         export_db(
             indices_data=db_instance,

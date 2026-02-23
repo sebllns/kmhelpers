@@ -2,8 +2,9 @@ try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
-from enum import Enum, IntEnum
+
 from dataclasses import dataclass
+from enum import Enum, IntEnum
 
 
 class SizeFormat(Enum):
@@ -19,6 +20,11 @@ class SizeUnit(IntEnum):
     GIGA = 3
     TERA = 4
     PETA = 5
+
+    def get_unit_value(self, format: SizeFormat = SizeFormat.BYTE):
+        byte_value = 8 if format == SizeFormat.BIT else 1
+        target_factor = 1024 if format == SizeFormat.BIBYTE else 1000
+        return (byte_value * target_factor) ** self.value
 
 
 @dataclass
@@ -56,7 +62,7 @@ class ByteCounter:
         self, unit: SizeUnit = SizeUnit.NONE, format: SizeFormat = SizeFormat.BYTE
     ) -> "ByteCounter":
         """Convert to a different unit and format, returning a new ByteCounter."""
-        byte_value = self.byte_count * 8 if format == SizeFormat.BIT else 1
+        byte_value = self.bit_count if format == SizeFormat.BIT else self.byte_count
         target_factor = 1024 if format == SizeFormat.BIBYTE else 1000
         converted_value = byte_value / (target_factor ** int(unit))
         return ByteCounter(converted_value, unit, format)

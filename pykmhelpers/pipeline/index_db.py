@@ -175,13 +175,19 @@ class IndexDefinition(Item, auto_increment=True):
 
 @dataclass
 class IndexDB(Item, auto_increment=True, unique_name=True):
-    index_table: dict[str, IndexDefinition] = field(default_factory=dict)
+    index_table: dict[str, "IndexDefinition"] = field(default_factory=dict)
+    span_table: dict[int, "Span"] = field(default_factory=dict)
 
     def add_index(self, index: IndexDefinition):
         assert index.name, "Index name empty or null"
-        assert not index.name in self.index_table, f"Duplicate name: {index.name}"
+        assert index.name not in self.index_table, f"Duplicate name: {index.name}"
         index.parent_db = self
         self.index_table[index.name] = index
+        if index.span not in self.span_table:
+            self.span_table[index.span] = Span(
+                name=str(index.span),
+            )
+        self.span_table[index.span].index_table[index.name] = index
 
     def create_index(
         self,
