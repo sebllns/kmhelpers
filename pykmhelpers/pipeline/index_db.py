@@ -290,6 +290,15 @@ class IndexDefinitionTools:
 
         return index_db
 
+    def serialize(self, filename, data, sort_keys=False):
+        with open(filename, "w") as f:
+            if filename.endswith(".json"):
+                json.dump(data, f, indent=2, sort_keys=sort_keys)
+            elif filename.endswith((".yaml", ".yml")):
+                yaml.dump(data, f, default_flow_style=False, sort_keys=sort_keys)
+            else:
+                raise ValueError(f"Unsupported file format: {filename}")
+
     def save_db(self, index_db: IndexDB, filename: str) -> None:
         """Save index database to JSON or YAML file."""
         data = {}
@@ -347,13 +356,7 @@ class IndexDefinitionTools:
                 self.get_field_name(DbFields.SAMPLES): samples_data,
             }
 
-        with open(filename, "w") as f:
-            if filename.endswith(".json"):
-                json.dump(data, f, indent=2, sort_keys=False)
-            elif filename.endswith((".yaml", ".yml")):
-                yaml.dump(data, f, default_flow_style=False, sort_keys=False)
-            else:
-                raise ValueError(f"Unsupported file format: {filename}")
+        self.serialize(filename, data)
 
     def clean_sample_id(self, sample_id) -> str:
         """
