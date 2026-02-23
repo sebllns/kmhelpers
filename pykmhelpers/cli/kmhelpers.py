@@ -21,6 +21,7 @@ from pykmhelpers.cli.experimental import experimental
 # Import all groups and commands
 from pykmhelpers.cli.fof import fof
 from pykmhelpers.cli.kmindex import kmindex
+from pykmhelpers.cli.merge_span import merge_span
 from pykmhelpers.cli.query import query
 from pykmhelpers.cli.registry import registry
 from pykmhelpers.cli.test import test
@@ -235,6 +236,8 @@ count_kmers.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(count_kmers)
 fof.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(fof)
+merge_span.section = "Utilities"  # type: ignore[assignment]
+cli.add_command(merge_span)
 registry.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(registry)
 kmindex.section = "Utilities"  # type: ignore[assignment]
