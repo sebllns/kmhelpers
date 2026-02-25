@@ -126,64 +126,88 @@ def build(
     idt = IndexDefinitionTools()
 
     for input_file in input_files:
-        logger.info(f"Load db: {input_file}")
+        logger.debug(f"Load db: {input_file}")
 
-        table = idt.load_db(input_file)
+        db = idt.deserialize(input_file)
 
-        for i in table.index_table.values():
-            assert i.name, "Index name empty or null"
-            logger.info(f"Build {i.name}...")
+        for table in db:
+            for i in table.index_table.values():
+                if selected_spans and i.span not in selected_spans:
+                    continue
 
-            # Show confirmation with size estimation (skip if -f/--force is used)
-            if not force:
+                assert i.name, "Index name empty or null"
+                logger.info(f"Build {i.name}...")
+
                 try:
-                    logger.info(f"  Estimated index size: {str(i.get_stored_size())}")
-
-                    if not click.confirm("Proceed with build?", default=True):
-                        logger.info("Build cancelled")
-                        return
-                except Exception as e:
-                    logger.warning(f"Could not estimate build size: {e}")
-                    if not click.confirm("Proceed with build anyway?", default=True):
-                        logger.info("Build cancelled")
-                        return
-
-            try:
-                builder = IndexBuilder(
-                    output_index_path=workdir,
-                    k=i.kmer_size,
-                )
-
-                fof = FofManager()
-                assert builder, "Could not initialize builder"
-
-                for s in i.samples.values():
-                    assert s.name, "Sample name empty or null"
-                    sample_files = (
-                        [rootpath + f for f in s.files] if rootpath else s.files
+                    builder = IndexBuilder(
+                        output_index_path=workdir,
+                        k=i.kmer_size,
                     )
-                    fof.add_sample(sample_files, s.name)
 
-                parent_index = i.get_parent()
+                    fof = FofManager()
+                    assert builder, "Could not initialize builder"
 
-                if reuse_from:
-                    parent_index = reuse_from
+                    if builder.has_subindex(i.name):
+                        logger.warning(
+                            f"Index {i.name} already found in registry... Skipping"
+                        )
+                        continue
 
-                builder.create_subindex(
-                    name=i.name,
-                    samples=fof,
-                    abundance_min=i.abundance_min,
-                    bloom_size=i.bf_size,
-                    n_partitions=i.partition_count,
-                    n_threads=threads,
-                    auto_check=True,
-                    build_from=parent_index,
-                    compress_intermediate=not skip_compression,
-                    minim_size=minim_size,
-                )
+                    # Show confirmation with size estimation (skip if -f/--force is used)
+                    if not force:
+                        try:
+                            logger.info(
+                                f"  Estimated index size: {str(i.get_stored_size())}"
+                            )
 
-            except Exception as e:
-                if verbose:
-                    logger.exception(f"Build failed for {i.name}")
-                else:
-                    logger.error(f"Error: {e}")
+                            if not click.confirm("Proceed with build?", default=True):
+                                logger.info("Build cancelled")
+                                continue
+                        except Exception as e:
+                            logger.warning(f"Could not estimate build size: {e}")
+                            if not click.confirm(
+                                "Proceed with build anyway?", default=True
+                            ):
+                                logger.info("Build cancelled")
+                                continue
+
+                    parent_index = i.get_parent()
+
+                    if reuse_from:
+                        parent_index = reuse_from
+
+                    if reuse_from:
+                        assert builder.has_subindex(
+                            reuse_from
+                        ), f"Could not find parent index: {reuse_from}"
+
+                    for s in i.samples.values():
+                        if s.name:
+                            try:
+                                sample_files = (
+                                    [rootpath + f for f in s.files]
+                                    if rootpath
+                                    else s.files
+                                )
+                                fof.add_sample(sample_files, s.name)
+                            except Exception as e:
+                                logger.warning(f"Error adding sample to FOF: {e}")
+
+                    builder.create_subindex(
+                        name=i.name,
+                        samples=fof,
+                        abundance_min=i.abundance_min,
+                        bloom_size=i.bf_size,
+                        n_partitions=i.partition_count,
+                        n_threads=threads,
+                        auto_check=True,
+                        build_from=parent_index,
+                        compress_intermediate=not skip_compression,
+                        minim_size=minim_size,
+                    )
+
+                except Exception as e:
+                    if verbose:
+                        logger.exception(f"Build failed for {i.name}")
+                    else:
+                        logger.error(f"Error: {e}")
