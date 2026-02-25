@@ -683,6 +683,121 @@ class KmindexWrapper(Wrapper):
 
         return result
 
+    def merge(
+        self,
+        input_registry: str,
+        new_name: str,
+        new_path: str,
+        to_merge: List[str],
+        rename: Optional[str] = None,
+        delete_old: bool = False,
+        threads: int = 14,
+    ) -> dict:
+        """
+        Merge sub-indexes into a single index.
+
+        This method wraps the kmindex merge command to combine multiple sub-indexes
+        into a new index.
+
+        Args:
+            input_registry: Path to the global index registry directory (index.json parent).
+            new_name: Name of the new merged index.
+            new_path: Output path for the merged index.
+            to_merge: List of sub-index names to merge.
+            rename: Rename sample identifiers to resolve conflicts.
+                   Can be specified in three ways:
+                   - File-based: "f:id1.txt,id2.txt,id3.txt" (one identifier per line in each file)
+                   - Format string: "s:id_{}" (where {} is replaced by integer in [0, nb_samples))
+                   - Manual: None (edit kmtricks.fof files manually)
+            delete_old: Whether to delete old sub-index files after successful merge.
+            threads: Number of threads to use (default: 14).
+
+        Returns:
+            Dictionary containing merge monitoring/execution results.
+
+        Raises:
+            NotADirectoryError: If input_registry doesn't exist or is not a directory.
+            FileNotFoundError: If index.json not found in registry.
+            ValueError: If to_merge list is empty.
+            subprocess.CalledProcessError: If kmindex merge command fails.
+
+        Example:
+            >>> wrapper = KmindexWrapper()
+            >>> result = wrapper.merge(
+            ...     input_registry="/path/to/indices",
+            ...     new_name="merged_index",
+            ...     new_path="/path/to/merged",
+            ...     to_merge=["index1", "index2", "index3"],
+            ...     rename="s:sample_{}"
+            ... )
+        """
+
+        # Validate inputs
+        input_registry = Toolbox.get_canonical_path(input_registry)
+
+        if not os.path.isdir(input_registry):
+            raise NotADirectoryError(
+                f"Registry path {input_registry} does not exist or is not a directory"
+            )
+
+        if not Kmindex.b_json_exists(input_registry):
+            raise FileNotFoundError(
+                f"index.json not found in registry {input_registry}"
+            )
+
+        if not to_merge or len(to_merge) == 0:
+            raise ValueError("to_merge list cannot be empty")
+
+        if not new_name:
+            raise ValueError("new_name must be provided")
+
+        if not new_path:
+            raise ValueError("new_path must be provided")
+
+        new_path = Toolbox.get_canonical_path(new_path)
+
+        # Build command
+        cmd = [
+            Bin.kmindex(),
+            "merge",
+            "--index",
+            input_registry,
+            "--new-name",
+            new_name,
+            "--new-path",
+            new_path,
+            "--to-merge",
+            ",".join(to_merge),
+            "--threads",
+            str(threads),
+            "--verbose",
+            self._get_verbose_level(),
+        ]
+
+        # Add optional parameters
+        if rename:
+            cmd.extend(["--rename", rename])
+
+        if delete_old:
+            cmd.append("--delete-old")
+
+        logger.debug(f"Merge indexes into {new_name}")
+        logger.debug(f"  - Registry: {input_registry}")
+        logger.debug(f"  - Sub-indexes to merge: {', '.join(to_merge)}")
+        logger.debug(f"  - New index name: {new_name}")
+        logger.debug(f"  - Output path: {new_path}")
+        logger.debug(f"  - Rename: {rename if rename else 'None'}")
+        logger.debug(f"  - Delete old: {delete_old}")
+        logger.debug(f"  - Threads: {threads}")
+
+        # Execute command
+        result = self._monitor_cmd(cmd, log_errors_only=True)
+
+        if not result:
+            raise RuntimeError("Merge failed.")
+
+        return result
+
     def kmindex_version(self) -> Optional[str]:
         try:
             v = self._run_cmd(
