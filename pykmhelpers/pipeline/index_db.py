@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from dataclasses import dataclass, field
 from enum import Enum
@@ -237,7 +238,7 @@ class IndexDefinitionTools:
     def get_index_name(self, db_name: str, prefix: str, span: int, segment: int) -> str:
         return f"{db_name}_{prefix}_{span}_{segment}"
 
-    def load_db(self, filename: str) -> IndexDB:
+    def _load_db_file(self, filename: str) -> IndexDB:
         """Load index database from JSON or YAML file."""
         with open(filename, "r") as f:
             if filename.endswith(".json"):
@@ -247,7 +248,7 @@ class IndexDefinitionTools:
             else:
                 raise ValueError(f"Unsupported file format: {filename}")
 
-        index_db = IndexDB()
+        index_db = IndexDB(name=os.path.basename(filename))
         for index_id, index_data in data.items():
             samples = {}
             for sample_id, sample_data in index_data.get(
@@ -289,6 +290,25 @@ class IndexDefinitionTools:
             index_db.add_index(index)
 
         return index_db
+
+    def _load_db_dir(self, path: str) -> list[IndexDB]:
+        assert os.path.isdir(path), f"Not a directory: {path}"
+        res = []
+        for e in os.scandir(path):
+            if e.is_file and e.path.endswith((".yaml", ".yml", ".json")):
+                try:
+                    res.append(self._load_db_file(e.path))
+                except Exception as e:
+                    print(e)
+                    pass
+        return res
+
+    def deserialize(self, path: str) -> list[IndexDB]:
+        if os.path.isfile(path) and path.endswith((".yaml", ".yml", ".json")):
+            return [self._load_db_file(path)]
+        elif os.path.isdir(path):
+            return self._load_db_dir(path)
+        raise NotImplementedError(f"Can not load DB from {path}: unsupported format.")
 
     def serialize(self, filename, data, sort_keys=False):
         with open(filename, "w") as f:
