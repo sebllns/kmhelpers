@@ -318,7 +318,9 @@ def compose(
                     split_count[span] += 1
 
             except Exception as e:
-                logger.exception(f"Could not process sample: {e}")
+                logger.exception(
+                    f"Could not process sample '{sample.name}'({sample.id}): {e} ({type(e).__name__})"
+                )
 
         logger.info(
             f"Composed {len(all_samples)} samples into {len(db_instance.index_table)} indices"
@@ -402,27 +404,34 @@ def export_db(
         raise ValueError(f"Unsupported format: {format}. Must be 'yaml' or 'json'")
 
     # Export to file(s)
-    if split:
-        # Export each index to its own file
-        span_registry = {}
-        for index_id, index_data in indices_data.index_table.items():
-            filepath = os.path.join(output_dir, f"{index_id}.{format}")
+    span_registry = {}
+    for index_id, index_data in indices_data.index_table.items():
+        filepath = os.path.join(output_dir, f"{index_id}.{format}")
+
+        if split:
+            # Export each index to its own file
             db_tools.save_db(
                 db.IndexDB(name=index_id, index_table={index_id: index_data}), filepath
             )
-            if not index_data.span in span_registry:
-                span_registry[index_data.span] = []
-            span_registry[index_data.span].append(f"{index_id}.{format}")
+        if not index_data.span in span_registry:
+            span_registry[index_data.span] = {}
+            span_registry[index_data.span]["infos"] = {}
+            span_registry[index_data.span]["indices"] = []
+        span_registry[index_data.span]["indices"].append(f"{index_id}.{format}")
 
-        span_registry_file = os.path.join(
-            output_dir, f"{db_name}_span_registry.{format}"
-        )
-        print(span_registry_file)
-        db_tools.serialize(span_registry_file, span_registry, sort_keys=True)
-    else:
+    if not split:
         # Export all indices to a single file
         filepath = os.path.join(output_dir, f"{db_name}.{format}")
         db_tools.save_db(indices_data, filepath)
+
+    span_registry_file = os.path.join(output_dir, f"{db_name}_span_registry.{format}")
+    db_tools.serialize(span_registry_file, span_registry, sort_keys=True)
+    # if indices_data.merge_table:
+    #     db_tools.serialize(
+    #         os.path.join(output_dir, f"{db_name}_merges.{format}"),
+    #         indices_data.merge_table,
+    #         sort_keys=True,
+    #     )
 
 
 def read_samples(filename, cli_kmer_size=None):

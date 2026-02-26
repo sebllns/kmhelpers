@@ -140,7 +140,7 @@ def build(
 
                 try:
                     builder = IndexBuilder(
-                        output_index_path=workdir,
+                        workdir=workdir,
                         k=i.kmer_size,
                     )
 

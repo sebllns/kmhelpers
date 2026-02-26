@@ -20,11 +20,21 @@ logger = logging.getLogger(__name__)
 
 
 class IndexBuilder:
-    def __init__(self, output_index_path: str, k=25) -> None:
+    def __init__(
+        self,
+        workdir: str,
+        k=25,
+        registry_folder="registry",
+        data_folder=".subindexes",
+        log_folder="logs",
+    ) -> None:
         """Initialize the IndexBuilder."""
-        self._path = Toolbox.get_canonical_path(output_index_path)
+        self._path = Toolbox.get_canonical_path(workdir)
         os.makedirs(self.path, exist_ok=True)
-        self._registry = KmindexRegistry(os.path.join(self.path, "registry"))
+        self._registry_folder = registry_folder
+        self._data_folder = data_folder
+        self._log_folder = log_folder
+        self._registry = KmindexRegistry(self.registry_path)
         self._k = k
 
     @property
@@ -34,6 +44,22 @@ class IndexBuilder:
     @property
     def path(self) -> str:
         return self._path
+
+    @property
+    def registry_dirname(self) -> str:
+        return self._registry_folder
+
+    @property
+    def registry_path(self) -> str:
+        return os.path.join(self.path, self.registry_dirname)
+
+    @property
+    def data_folder(self) -> str:
+        return os.path.join(self.path, self._data_folder)
+
+    @property
+    def log_folder(self) -> str:
+        return os.path.join(self.path, self._log_folder)
 
     @property
     def k(self) -> int:
@@ -143,14 +169,14 @@ class IndexBuilder:
         wrapper.build(
             input_fof_file=fof_path,
             output_registry_path=self.index.root_path,
-            output_index_dir=os.path.join(self.path, ".subindexes"),
+            output_index_dir=os.path.join(self.path, self.data_folder),
             k=self.k,
             hard_min=abundance_min,
             threads=n_threads,
             nb_partitions=n_partitions,
             register_as=name,
             bloom_size=bloom_size,
-            output_log_dir=os.path.join(self.path, "logs", name),
+            output_log_dir=os.path.join(self.path, self.log_folder, name),
             output_param_file=os.path.join(self.path, f"{name}.yaml"),
             from_index=(
                 build_from if build_from and self.index.has_index(build_from) else None
@@ -180,6 +206,36 @@ class IndexBuilder:
             self.check_index_structure(name)
 
         return idx
+
+    def merge(
+        self,
+        new_name: str,
+        to_merge: list[str],
+        rename: Optional[str] = None,
+        delete_old: bool = True,
+        threads: int = 14,
+    ) -> KmtricksIndex:
+        """Merge sub-indexes into a single index via KmindexWrapper.merge."""
+        self.index.load_json()
+        missing = [name for name in to_merge if not self.index.has_index(name)]
+        if missing:
+            raise ValueError(f"Sub-indexes not found in registry: {missing}")
+
+        wrapper = KmindexWrapper()
+        wrapper.merge(
+            input_registry=self.index.root_path,
+            new_name=new_name,
+            new_path=os.path.join(self.data_folder, new_name),
+            to_merge=to_merge,
+            rename=rename,
+            delete_old=delete_old,
+            threads=threads,
+        )
+        self.index.load_json()
+        assert self.index.has_index(
+            new_name
+        ), f"Merged index '{new_name}' not found after merge"
+        return self.index.get_index(new_name)
 
     def check_index_structure(
         self,
