@@ -250,6 +250,7 @@ def list_samples(
 
                 except Exception as e:
                     click.echo("")  # newline after the "counting..." line
+                    kmer_count = 0
                     click.echo(
                         f"Warning: could not count k-mers for {sample_id}: {e}",
                         err=True,
