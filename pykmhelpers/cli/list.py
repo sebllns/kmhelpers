@@ -8,14 +8,14 @@ import click
 import yaml
 
 from pykmhelpers.core.cache import Cache
-from pykmhelpers.core.constants import DATA_EXTENSIONS
+from pykmhelpers.core.constants import DATA_EXT
 from pykmhelpers.core.kmer import KmerCounter
 from pykmhelpers.pipeline.index_db import IndexDefinitionTools
-
 
 # ---------------------------------------------------------------------------
 # Sample discovery helpers
 # ---------------------------------------------------------------------------
+
 
 def _collect_samples_grouped(root: str) -> dict[str, list[str]]:
     """Recursively collect samples grouped by leaf folder."""
@@ -26,7 +26,7 @@ def _collect_samples_grouped(root: str) -> dict[str, list[str]]:
         dirnames.sort()
         data_files = []
         for fname in sorted(filenames):
-            for ext in DATA_EXTENSIONS:
+            for ext in DATA_EXT:
                 if fname.endswith(ext):
                     data_files.append(os.path.join(dirpath, fname))
                     break
@@ -50,11 +50,11 @@ def _collect_samples_flat(root: str) -> dict[str, list[str]]:
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames.sort()
         for fname in sorted(filenames):
-            for ext in DATA_EXTENSIONS:
+            for ext in DATA_EXT:
                 if fname.endswith(ext):
                     filepath = os.path.join(dirpath, fname)
                     base = fname
-                    for e in DATA_EXTENSIONS:
+                    for e in DATA_EXT:
                         if base.endswith(e):
                             base = base[: len(base) - len(e)]
                             break
@@ -76,7 +76,9 @@ _CACHE_TABLE = "kmer_counts"
 
 
 def _cache_dir(output_file: str) -> str:
-    return output_file + ".cache"
+    return Cache.get_cache_dir(
+        os.path.dirname(output_file), os.path.basename(output_file)
+    )
 
 
 def _sample_fingerprint(files: list[str], k: int) -> str:
@@ -95,6 +97,7 @@ def _sample_fingerprint(files: list[str], k: int) -> str:
 # ---------------------------------------------------------------------------
 # CLI command
 # ---------------------------------------------------------------------------
+
 
 @click.command(name="list")
 @click.option(
@@ -158,8 +161,14 @@ def _sample_fingerprint(files: list[str], k: int) -> str:
     help="Delete any existing cache before running",
 )
 def list_samples(
-    input_dir, output_file, kmer_size, do_count, no_grouping, threads,
-    no_cache, clear_cache,
+    input_dir,
+    output_file,
+    kmer_size,
+    do_count,
+    no_grouping,
+    threads,
+    no_cache,
+    clear_cache,
 ):
     """Recursively list samples from a directory and output a YAML file.
 
@@ -200,6 +209,7 @@ def list_samples(
     if use_cache:
         if clear_cache:
             import shutil
+
             if os.path.exists(cache_dir):
                 shutil.rmtree(cache_dir)
                 click.echo(f"Cache cleared: {cache_dir}")
