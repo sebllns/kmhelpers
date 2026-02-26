@@ -2,7 +2,7 @@ from pykmhelpers import __version__
 
 KMHELPERS_VERSION = __version__
 
-DATA_EXTENSIONS = [
+DATA_EXT = (
     ".fasta.gz",
     ".fastq.gz",
     ".fa.gz",
@@ -13,4 +13,6 @@ DATA_EXTENSIONS = [
     ".fa",
     ".fq",
     ".fna",
-]
+)
+
+COMPRESS_EXT = (".gz", ".bz2", ".zip", ".xz")

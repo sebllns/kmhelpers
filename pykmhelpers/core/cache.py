@@ -70,6 +70,7 @@ class Cache:
     def delete(self) -> None:
         """Close all handles and delete the entire cache directory."""
         import shutil
+
         self.close()
         if os.path.exists(self._path):
             shutil.rmtree(self._path)
@@ -79,3 +80,7 @@ class Cache:
 
     def __exit__(self, *_) -> None:
         self.close()
+
+    @staticmethod
+    def get_cache_dir(workdir, id) -> str:
+        return os.path.join(workdir, ".kmhelpers_cache", id)
