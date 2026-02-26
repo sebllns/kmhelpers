@@ -178,6 +178,7 @@ class IndexDefinition(Item, auto_increment=True):
 class IndexDB(Item, auto_increment=True, unique_name=True):
     index_table: dict[str, "IndexDefinition"] = field(default_factory=dict)
     span_table: dict[int, "Span"] = field(default_factory=dict)
+    # merge_table: dict[str, dict] = field(default_factory=dict)
 
     def add_index(self, index: IndexDefinition):
         assert index.name, "Index name empty or null"
@@ -189,6 +190,15 @@ class IndexDB(Item, auto_increment=True, unique_name=True):
                 name=str(index.span),
             )
         self.span_table[index.span].index_table[index.name] = index
+        # parent_index = index.get_parent()
+        # if parent_index:
+        #     if not self.merge_table:
+        #         self.merge_table = {}
+        #     merged_name = parent_index[:-2]
+        #     if not merged_name in self.merge_table:
+        #         self.merge_table[merged_name] = {}
+        #         self.merge_table[merged_name]["parts"] = [parent_index]
+        #     self.merge_table[merged_name]["parts"].append(index.name)
 
     def create_index(
         self,
@@ -322,6 +332,9 @@ class IndexDefinitionTools:
     def save_db(self, index_db: IndexDB, filename: str) -> None:
         """Save index database to JSON or YAML file."""
         data = {}
+
+        # if index_db.merge_table:
+        #     data["merges"] = index_db.merge_table
 
         for index_id, index in sorted(index_db.index_table.items()):
             samples_data = {}
