@@ -137,6 +137,7 @@ class IndexDefinition(Item, auto_increment=True):
     abundance_min: int = DbFields.ABUNDANCE_MIN.get_default() or 2
     assembled: bool = DbFields.ASSEMBLED.get_default() or False
     samples: dict[str, Sample] = field(default_factory=dict)
+    merge_name: Optional[str] = None
 
     @property
     def sample_count(self):
@@ -245,8 +246,11 @@ class IndexDefinitionTools:
         else:
             return value
 
+    def get_merge_name(self, db_name: str, prefix: str, span: int) -> str:
+        return f"{db_name}_{prefix}_{span}"
+
     def get_index_name(self, db_name: str, prefix: str, span: int, segment: int) -> str:
-        return f"{db_name}_{prefix}_{span}_{segment}"
+        return f"{db_name}_{prefix}_{span}_p{segment}"
 
     def _load_db_file(self, filename: str) -> IndexDB:
         """Load index database from JSON or YAML file."""
