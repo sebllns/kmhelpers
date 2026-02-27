@@ -108,7 +108,7 @@ class SectionedGroup(click.Group):
         """Invoke the group with global exception handling."""
         try:
             return super().invoke(ctx)
-        except (click.ClickException, SystemExit):
+        except (click.ClickException, click.exceptions.Exit, SystemExit):
             # Let Click exceptions and sys.exit pass through
             raise
         except Exception as e:
