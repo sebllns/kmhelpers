@@ -10,6 +10,7 @@ import click
 
 from pykmhelpers import Bin, Main, __version__
 from pykmhelpers.cli.build import build
+from pykmhelpers.cli.build_subindex import build_subindex
 from pykmhelpers.cli.compose import compose
 from pykmhelpers.cli.compress import kmindex_compress
 from pykmhelpers.cli.count_kmers import count_kmers
@@ -224,6 +225,8 @@ def cli(verbose, log_file, init_path, bin_path, check_all, chdir):
 
 
 # Register main commands
+list_samples.section = "Main commands"  # type: ignore[assignment]
+cli.add_command(list_samples)
 compose.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(compose)
 build.section = "Main commands"  # type: ignore[assignment]
@@ -234,8 +237,6 @@ kmindex_compress.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(kmindex_compress)
 
 # Register utilities
-list_samples.section = "Utilities"  # type: ignore[assignment]
-cli.add_command(list_samples)
 count_kmers.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(count_kmers)
 fof.section = "Utilities"  # type: ignore[assignment]
@@ -244,6 +245,8 @@ merge_span.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(merge_span)
 merge_def_files.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(merge_def_files)
+build_subindex.section = "Utilities"  # type: ignore[assignment]
+cli.add_command(build_subindex)
 registry.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(registry)
 kmindex.section = "Utilities"  # type: ignore[assignment]
