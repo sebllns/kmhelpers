@@ -21,14 +21,14 @@ logger = logging.getLogger(__name__)
     "-w",
     required=True,
     type=click.Path(file_okay=False, dir_okay=True),
-    help="📁   Output directory path (created if doesn't exist)",
+    help="📁  Output directory path (created if doesn't exist)",
 )
 @click.option(
     "--rootpath",
     "-r",
     required=False,
     type=click.Path(file_okay=False, dir_okay=True),
-    help="📁   Base path to resolve relative sample paths. By default, relative \
+    help="📁  Base path to resolve relative sample paths. By default, relative \
 paths are resolved from the run directory; use this option if you \
 need to resolve them from a different location.",
 )
