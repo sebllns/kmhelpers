@@ -21,56 +21,59 @@ logger = logging.getLogger(__name__)
     "-w",
     required=True,
     type=click.Path(file_okay=False, dir_okay=True),
-    help="Output directory path (created if doesn't exist)",
+    help="📁   Output directory path (created if doesn't exist)",
 )
 @click.option(
     "--rootpath",
     "-r",
     required=False,
     type=click.Path(file_okay=False, dir_okay=True),
-    help="Base path to resolve relative sample paths. By default, relative \
+    help="📁   Base path to resolve relative sample paths. By default, relative \
 paths are resolved from the run directory; use this option if you \
 need to resolve them from a different location.",
 )
 @click.option(
-    "--from", "reuse_from", required=False, help="Reuse parameters from given index ID"
+    "--from",
+    "reuse_from",
+    required=False,
+    help="⚙   Parent index ID to reuse parameters from. Takes precedence over parent_index that can be specified in definition file.",
 )
 @click.option(
     "--index-ids",
     "-n",
     multiple=True,
     required=False,
-    help="Index IDs to build. Can be specified multiple times (-n id1 -n id2) or comma-separated (-n id1,id2).",
+    help="⚙   Index IDs to build. Can be specified multiple times (-n id1 -n id2) or comma-separated (-n id1,id2).",
+)
+@click.option(
+    "--minim-size",
+    type=int,
+    default=10,
+    help="⚙   Minimizer size (4-15, default: 10).",
 )
 @click.option(
     "--threads",
     "-t",
     type=int,
     default=1,
-    help="Number of threads (default: 1)",
+    help="⚙   Number of threads (default: 1).",
 )
 @click.option(
     "--verbose",
     "-v",
     is_flag=True,
-    help="Verbose output",
+    help="🚩   Verbose output.",
 )
 @click.option(
     "--force",
     "-f",
     is_flag=True,
-    help="Skip confirmation prompt before building",
+    help="🚩   Skip confirmation prompt before building.",
 )
 @click.option(
     "--skip-compression",
     is_flag=True,
-    help="Skip compression of intermediate files during index building. Can improve performance on fast drives where I/O is not a bottleneck",
-)
-@click.option(
-    "--minim-size",
-    type=int,
-    default=10,
-    help="Minimizer size (4-15, default: 10)",
+    help="🚩   Skip compression of intermediate files during index building. Can improve performance on fast drives where I/O is not a bottleneck.",
 )
 def build_subindex(
     input_files,
@@ -78,15 +81,15 @@ def build_subindex(
     rootpath,
     reuse_from,
     index_ids,
+    minim_size,
     threads,
     verbose,
     force,
     skip_compression,
-    minim_size,
 ):
     """Build and register individual subindices from definition files.
 
-    INPUT_FILES are one or more serialized index definition files (.json/.yaml).
+    📄 INPUT_FILES are one or more serialized index definition files (.json/.yaml).
     Only the indices matching the given --index-ids will be built. If not specified, all indices are built.
 
     Examples:
@@ -101,7 +104,7 @@ def build_subindex(
     kmhelpers build-subindex db.yaml -w /output -n idx1 -n idx2
 
     \b
-    # Build reusing an existing parent index, skipping confirmation
+    # Build reusing parameters from an existing index, skipping confirmation
     kmhelpers build-subindex db.yaml -w /output -n my_index --from parent_index -f
     """
 
