@@ -62,18 +62,18 @@ need to resolve them from a different location.",
     "--verbose",
     "-v",
     is_flag=True,
-    help="🚩   Verbose output.",
+    help="🚩  Verbose output.",
 )
 @click.option(
     "--force",
     "-f",
     is_flag=True,
-    help="🚩   Skip confirmation prompt before building.",
+    help="🚩  Skip confirmation prompt before building.",
 )
 @click.option(
     "--skip-compression",
     is_flag=True,
-    help="🚩   Skip compression of intermediate files during index building. Can improve performance on fast drives where I/O is not a bottleneck.",
+    help="🚩  Skip compression of intermediate files during index building. Can improve performance on fast drives where I/O is not a bottleneck.",
 )
 def build_subindex(
     input_files,
