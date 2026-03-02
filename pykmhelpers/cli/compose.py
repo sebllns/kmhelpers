@@ -440,7 +440,7 @@ def export_db(
 
         total_size += span_size.byte_count
 
-    span_registry_file = os.path.join(output_dir, f"{db_name}_span_registry.{format}")
+    span_registry_file = os.path.join(output_dir, f"{db_name}.{format}")
 
     if not split:
         # Export all indices to a single file
@@ -448,12 +448,6 @@ def export_db(
         db_tools.save_db(indices_data, filepath)
 
     db_tools.serialize(span_registry_file, span_registry, sort_keys=True)
-    # if indices_data.merge_table:
-    #     db_tools.serialize(
-    #         os.path.join(output_dir, f"{db_name}_merges.{format}"),
-    #         indices_data.merge_table,
-    #         sort_keys=True,
-    #     )
 
     logger.info(f"Estimated total index size: {ByteCounter.auto(total_size)}")
 

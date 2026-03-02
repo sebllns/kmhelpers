@@ -412,8 +412,3 @@ class IndexDefinitionTools:
         cleaned = cleaned.lstrip("_")
 
         return cleaned
-
-
-class IndexBuildingTools:
-    def __init__(self) -> None:
-        pass
