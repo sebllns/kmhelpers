@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Optional
+from typing import IO, Optional
 
 import yaml
 
@@ -24,18 +24,20 @@ class IndexBuilder:
         self,
         workdir: str,
         k=25,
-        registry_folder="registry",
+        registry_name="registry",
         data_folder=".subindexes",
         log_folder="logs",
+        script_out: Optional[IO[str]] = None,
     ) -> None:
         """Initialize the IndexBuilder."""
         self._path = Toolbox.get_canonical_path(workdir)
         os.makedirs(self.path, exist_ok=True)
-        self._registry_folder = registry_folder
+        self._registry_name = registry_name
         self._data_folder = data_folder
         self._log_folder = log_folder
         self._registry = KmindexRegistry(self.registry_path)
         self._k = k
+        self._script_out = script_out
 
     @property
     def index(self) -> KmindexRegistry:
@@ -46,12 +48,12 @@ class IndexBuilder:
         return self._path
 
     @property
-    def registry_dirname(self) -> str:
-        return self._registry_folder
+    def registry_name(self) -> str:
+        return self._registry_name
 
     @property
     def registry_path(self) -> str:
-        return os.path.join(self.path, self.registry_dirname)
+        return os.path.join(self.path, self.registry_name)
 
     @property
     def data_folder(self) -> str:
@@ -132,6 +134,7 @@ class IndexBuilder:
         auto_check: bool = True,
         minim_size: int = 10,
         compress_intermediate: bool = True,
+        dry_run: bool = False,
     ) -> KmtricksIndex:
 
         assert (
@@ -144,7 +147,7 @@ class IndexBuilder:
             name
         ), f"Index '{name}' already exists in registry"
 
-        wrapper = KmindexWrapper()
+        wrapper = KmindexWrapper(dry_run=dry_run)
         fof_path = os.path.join(self.path, f"{name}.fof")
         samples.save(fof_path=fof_path)
 
@@ -214,6 +217,7 @@ class IndexBuilder:
         rename: Optional[str] = None,
         delete_old: bool = True,
         threads: int = 14,
+        dry_run: bool = False,
     ) -> KmtricksIndex:
         """Merge sub-indexes into a single index via KmindexWrapper.merge."""
         self.index.load_json()
@@ -221,7 +225,7 @@ class IndexBuilder:
         if missing:
             raise ValueError(f"Sub-indexes not found in registry: {missing}")
 
-        wrapper = KmindexWrapper()
+        wrapper = KmindexWrapper(dry_run=dry_run)
         wrapper.merge(
             input_registry=self.index.root_path,
             new_name=new_name,

@@ -19,6 +19,11 @@ logger = logging.getLogger(__name__)
 
 
 class Wrapper:
+    def __init__(
+        self,
+        dry_run: bool = False,
+    ) -> None:
+        self.dry_run = dry_run
 
     def _run_cmd(
         self,
@@ -49,17 +54,20 @@ class Wrapper:
         if log_errors_only is None:
             log_errors_only = logger.getEffectiveLevel() >= logging.WARNING
 
-        # Run command
-        result = subprocess.run(
-            [str(arg) for arg in cmd], capture_output=True, text=True
-        )
+        if self.dry_run:
+            result = subprocess.CompletedProcess[str]([str(arg) for arg in cmd], 0)
+        else:
+            # Run command
+            result = subprocess.run(
+                [str(arg) for arg in cmd], capture_output=True, text=True
+            )
 
         # Build output content
         output_lines = [
             f"Command: {' '.join(str(arg) for arg in cmd)}",
         ]
 
-        if not log_errors_only:
+        if not log_errors_only and result.stdout.strip():
             output_lines.extend(["\n--- STDOUT ---", result.stdout])
 
         if result.stderr.strip():
@@ -85,7 +93,7 @@ class Wrapper:
 
     def _monitor_cmd(
         self,
-        cmd: List[str],
+        cmd: List[Any],
         print_trace: Optional[bool] = None,
         log_file: Optional[str] = None,
         log_errors_only: Optional[bool] = None,
@@ -106,6 +114,11 @@ class Wrapper:
                 - error: Error message if command failed
             Returns None if process cannot be started
         """
+        _cmd = [str(arg) for arg in cmd]
+
+        if self.dry_run:
+            return {"command": " ".join(_cmd)}
+
         # Compute print_trace from logger level if not explicitly provided
         if print_trace is None:
             print_trace = logger.isEnabledFor(logging.DEBUG)
@@ -147,7 +160,7 @@ class Wrapper:
         try:
             start_time = time.time()
             result = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+                _cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
 
             monitor_thread = threading.Thread(target=monitor_resources, args=(result,))
@@ -164,7 +177,7 @@ class Wrapper:
 
             with monitor_lock:
                 output = {
-                    "command": " ".join(cmd),
+                    "command": " ".join(_cmd),
                     "start_time": start_time,
                     "execution_time_s": round(execution_time, 4),
                     "max_cpu_percent": round(max_cpu, 4),
@@ -232,9 +245,9 @@ class KmindexWrapper(Wrapper):
         ... )
     """
 
-    def __init__(self):
+    def __init__(self, dry_run: bool = False):
         """Initialize the KmindexWrapper."""
-        pass
+        super().__init__(dry_run=dry_run)
 
     def _get_verbose_level(self) -> str:
         """Convert logger level to kmindex verbose level string."""
