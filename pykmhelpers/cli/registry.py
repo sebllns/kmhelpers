@@ -1,8 +1,10 @@
 """K-mer index registry management commands."""
 
-import os
 import json
+import os
+
 import click
+
 from pykmhelpers import KmindexRegistry, KmtricksIndex
 
 
@@ -136,7 +138,7 @@ def registry_info(registry_path, index_id, output_json):
         if output_json:
             # Output as JSON
             data = {
-                "index_id": index.index_id,
+                "index_id": index.id,
                 "nb_samples": index.nb_samples,
                 "nb_partitions": index.nb_partitions,
                 "kmer_size": index.kmer_size,
@@ -286,6 +288,51 @@ def registry_remove(registry_path, index_id, delete_files, force):
                 click.echo(f"✓ Deleted index files from disk")
             except Exception as e:
                 click.echo(f"⚠ Failed to delete some files: {e}", err=True)
+
+    except Exception as e:
+        raise click.ClickException(f"Failed to remove index: {e}")
+
+
+@registry.command(name="rename")
+@click.option(
+    "--registry-path",
+    "-r",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    help="Path to kmindex registry",
+)
+@click.option(
+    "--from",
+    "-f",
+    "index_id",
+    required=True,
+    help="Index ID to rename",
+)
+@click.option(
+    "--to",
+    "-t",
+    "new_index_id",
+    required=True,
+    help="New index ID",
+)
+def registry_rename(registry_path, index_id, new_index_id):
+    """Rename an index"""
+
+    try:
+        registry = KmindexRegistry(registry_path)
+
+        if not registry.has_index(index_id):
+            raise click.ClickException(f"Index '{index_id}' not found in registry")
+
+        # Get index before removal (needed to delete files)
+        index = registry.get_index(index_id)
+
+        if not registry.rename_index(index_id, new_index_id):
+            raise click.ClickException(
+                f"Could not rename index from '{new_index_id}' to '{index_id}'."
+            )
+
+        click.echo(f"✓ Renamed '{index_id}' to {new_index_id}")
 
     except Exception as e:
         raise click.ClickException(f"Failed to remove index: {e}")
