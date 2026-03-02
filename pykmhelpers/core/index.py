@@ -8,10 +8,12 @@ data structures and their associated properties from index.json files.
 
 import json
 import os
+import shutil
 import warnings
-from pathlib import Path
-from typing import Dict, List, Any
 from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List
+
 from pykmhelpers.core.utils import Kmindex, Toolbox
 
 
@@ -97,15 +99,6 @@ class KmtricksIndex:
 
     @property
     def id(self) -> str:
-        return self._index_id
-
-    @property
-    def index_id(self) -> str:
-        warnings.warn(
-            "'index_id' property is deprecated, use 'id' instead",
-            DeprecationWarning,
-            stacklevel=2
-        )
         return self._index_id
 
     @property
@@ -518,6 +511,49 @@ class KmtricksIndex:
         except Exception as e:
             print(f"Error moving index: {e}")
             return False
+        
+    def rename(self, new_id) -> bool:
+        """
+        Rename this index to a new ID.
+
+        Args:
+            new_id: New index ID
+
+        Returns:
+            True if rename was successful, False otherwise
+        """
+        try:
+            # Validate new_id
+            if not new_id or not isinstance(new_id, str):
+                print(f"Error: Invalid new index ID: {new_id}")
+                return False
+
+            if new_id == self._index_id:
+                print(f"Error: New ID is the same as current ID: {new_id}")
+                return False
+
+            # Get current and new paths
+            old_path = self.dir_path
+            new_path = Kmindex.get_index_path(self._parent_dir, new_id)
+
+            # Check if new path already exists
+            if os.path.exists(new_path):
+                print(f"Error: Index with ID '{new_id}' already exists at {new_path}")
+                return False
+
+            # Rename the directory
+            os.rename(old_path, new_path)
+
+            # Update the index ID
+            self._index_id = new_id
+
+            print(f"Successfully renamed index to '{new_id}'")
+            return True
+
+        except Exception as e:
+            print(f"Error renaming index: {e}")
+            return False
+
 
     def __str__(self) -> str:
         """String representation of the index."""
@@ -578,6 +614,11 @@ class KmindexRegistry:
         if not self._standby:
             with open(self.json_path, "r") as f:
                 self._json_data = json.load(f)
+
+    def _backup_json(self) -> None:
+        """Create a backup of the index.json file with .bak extension."""
+        backup_path = f"{self.json_path}.bak"
+        shutil.copy2(self.json_path, backup_path)
 
     def list_indices(self) -> List[str]:
         """
@@ -688,6 +729,9 @@ class KmindexRegistry:
         # Remove the index from the JSON data
         del self._json_data["index"][_index_id]
 
+        # Create backup before writing
+        self._backup_json()
+
         # Write the updated JSON back to file
         with open(self.json_path, "w") as f:
             json.dump(self._json_data, f, indent=4)
@@ -701,6 +745,41 @@ class KmindexRegistry:
         assert self.add_index(index), f"Could not add index {index}"
         self._standby = False
         self.load_json()
+
+    def rename_index(self, old_index_id: str, new_index_id: str) -> bool:
+        """
+        Rename an index in the registry.
+
+        Args:
+            old_index_id: The current index ID
+            new_index_id: The new index ID
+
+        Returns:
+            True if index was renamed, False if operation failed
+        """
+        # Check if old index exists
+        if not self.has_index(old_index_id):
+            return False
+
+        # Check if new index ID already exists
+        if self.has_index(new_index_id):
+            return False
+
+        # Get the properties of the old index
+        properties = self.get_index_properties(old_index_id)
+
+        # Update the JSON data: add new entry and remove old entry
+        self._json_data["index"][new_index_id] = properties
+        del self._json_data["index"][old_index_id]
+
+        # Create backup before writing
+        self._backup_json()
+
+        # Write the updated JSON back to file
+        with open(self.json_path, "w") as f:
+            json.dump(self._json_data, f, indent=4)
+
+        return True
 
     def import_directory(self, path):
         print(f"Import indexes from {path}:")
@@ -793,7 +872,6 @@ class KmindexRegistry:
             reorder=reorder,
             delete_uncompressed=delete_uncompressed,
             check_results=check_results,
-            verbose=verbose,
         )
 
         return result

@@ -1,13 +1,16 @@
 """Build k-mer index command."""
 
 import click
-from pykmhelpers import KmindexWrapper, KmindexRegistry
+
+from pykmhelpers import KmindexRegistry, KmindexWrapper
 from pykmhelpers.cli.shared import estimate_build_size
+
 
 @click.group()
 def kmindex():
     """Wrapper commands for low-level interaction with kmindex."""
     pass
+
 
 @kmindex.command("build")
 @click.option(
@@ -172,7 +175,6 @@ def build(
             threads=threads,
             compress_intermediate=compress_intermediate,
             register_as=register_as,
-            verbose="debug" if verbose else "info",
         )
 
         click.echo(f"✓ Build completed successfully")
@@ -190,5 +192,3 @@ def build(
 
     except Exception as e:
         raise click.ClickException(f"Build failed: {e}")
-
-
