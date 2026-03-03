@@ -2,6 +2,73 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.1] - 2026-03-03
+
+### Added
+
+- **Index Composition and Building**: Complete restructuring of index build pipeline
+  - New `kmhelpers compose` command for building composed indices
+  - Support for partitioning options in index composition
+  - Parameters for splitting larger indices into smaller sub-indices
+  - Improved index size management and partitioning strategies
+
+- **Index Definition Format**: Enhanced YAML-based index definition structure
+  - New structured YAML format for index definitions 
+  - Version tracking with `KMHELPERS_VERSION` constant
+  - Improved index definition serialization and deserialization
+
+- **Span Operations**: New span management capabilities
+  - Merge commands for definition files
+  - Update span serialization for better compatibility
+  - Summary log improvements for span operations
+
+- **Build Command Enhancements**:
+  - New build options for improved control
+  - Better alignment between Builder and Wrapper implementations
+  - Split index building capabilities
+  - Improved parameter handling in build process
+
+### Changed
+
+- **Wrapper Implementation**: Complete refactoring of KmindexWrapper
+  - Improved wrapper architecture and method organization
+  - Better integration with Builder class
+  - Enhanced logging throughout wrapper operations
+  - More consistent parameter handling
+
+- **Builder Class**: Alignment with new wrapper implementation
+  - Updated builder to work with new Wrapper interface
+  - Improved index building pipeline
+
+- **Logging System**: Comprehensive logging improvements
+  - Integrated logging logic across modules
+  - Better log messages and tracing
+  - Color-coded logging output for improved readability
+
+- **Command Structure**: Reorganized CLI command groups
+  - Better command organization and grouping
+  - Removed unused interactive mode
+  - Improved help messages and command descriptions
+
+### Fixed
+
+- **Error Handling**: Filter Exit exception from fatal error handling
+  - Better exception handling in command execution
+  - Improved error reporting to users
+
+- **Build Process**: Various bug fixes in index building
+  - Fixed issues in span grouping
+  - Corrected Bloom Filter specs calculation
+  - Improved parameter validation
+
+- **Deprecated Code**: Updated and removed deprecated code patterns
+  - Modernized code to follow current best practices
+  - Minor feature improvements alongside deprecation fixes
+
+### Deprecated
+
+- Unused interactive mode removed from build process
+
 ## [0.5.7] - 2026-01-16
 
 ### Added
