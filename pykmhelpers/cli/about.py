@@ -14,22 +14,22 @@ def get_banner():
     banner = f"""
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
-║              XWWXd;.   XWX      lWW.   ;dXWWX              ║
-║              WWWWWWXl  WWW';;dddWWWl l0WWWWWW              ║
-║              ldd0WWWWX;WWWWWWWWWWWWk0WWWWXkdl              ║
-║                  .lXWWWWWWX00dddWWWWWWWk'                  ║
-║                     kWWWWWk;'.  WWWWW0'                    ║
-║                      oWWWWWWWWXKWWWWK                      ║
-║                       0WWWld00WWWWWW                       ║
-║                       lWWW   .;kWWWd                       ║
-║                       dWWWdk0WWWWWW0                       ║
-║                       WWWWWWWWWXWWWW'                      ║
-║                     .KWWWWWOo,. WWWWX,                     ║
-║                    lXWWWWWWWW0kdWWWWWWl                    ║
-║                 'l0WWWXWWWkXWWWWWWWXWWWXd;.                ║
-║              k0XWWWWWd WWW  ';ddWWWllXWWWWW00              ║
-║              WWWWW0l'  WWW      0WW;  l0WWWWW              ║
-║              lWWx,     xWl      ,WK     ,xWWK              ║
+║              OOOOO.....OOO.......OO.....OOOOO              ║
+║              OOOOOOO...OOO...OOOOOO...OOOOOOO              ║
+║              .OOOOOOOO.OOOOOOOOOOOOOOOOOOOOO.              ║
+║              ......OOOOOOOOOOOOOOOOOOOOO.....              ║
+║              .......OOOOOOO.....OOOOOO.......              ║
+║              ........OOOOOOOOOOOOOOOO........              ║
+║              .........OOOO.OOOOOOOOO.........              ║
+║              ..........OOO.....OOOOO.........              ║
+║              .........OOOOOOOOOOOOOO.........              ║
+║              .........OOOOOOOOOOOOOO.........              ║
+║              ........OOOOOOOO...OOOOO........              ║
+║              .......OOOOOOOOOOOOOOOOOO.......              ║
+║              .....OOOOOOOOOOOOOOOOOOOOOOO....              ║
+║              OOOOOOOOO.OOO....OOOOO..OOOOOOOO              ║
+║              OOOOOO....OOO......OOO....OOOOOO              ║
+║              .OOO......OO........OO......OOOO              ║
 ║                                                            ║
 ║              kmhelpers - k-mer Index Toolkit               ║
 ║                                                            ║
