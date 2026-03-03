@@ -6,11 +6,6 @@ from pykmhelpers import __version__
 
 
 def get_banner():
-    """Get the banner with optional terminal graphics for compatible terminals."""
-    # Terminal graphics escape sequence for compatible terminals (iTerm2, Kitty, etc.)
-    # This will only display in terminals that support inline images
-    graphics = ()
-
     banner = f"""
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
