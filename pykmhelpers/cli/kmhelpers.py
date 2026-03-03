@@ -20,6 +20,7 @@ from pykmhelpers.cli.exp_compression import exp_compress
 from pykmhelpers.cli.experimental import experimental
 
 # Import all groups and commands
+from pykmhelpers.cli.about import about
 from pykmhelpers.cli.fof import fof
 from pykmhelpers.cli.kmindex import kmindex
 from pykmhelpers.cli.list import list_samples
@@ -225,6 +226,8 @@ def cli(verbose, log_file, init_path, bin_path, check_all, chdir):
 
 
 # Register main commands
+about.section = "Main commands"  # type: ignore[assignment]
+cli.add_command(about)
 list_samples.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(list_samples)
 compose.section = "Main commands"  # type: ignore[assignment]
