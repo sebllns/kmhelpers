@@ -10,7 +10,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 CTL_VERSION='0.6.0'
-KMHELPERS_VERSION='dev/v0.6.1'
+KMHELPERS_VERSION='release/v0.6.1'
 KMINDEX_VERSION='v0.6.0'
 
 # Initialize global variables - KMHELPERS_PATH may be set from environment
