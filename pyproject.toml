@@ -1,0 +1,92 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pykmhelpers"
+version = "0.6.1"
+description = "A Python toolkit for managing, compressing, and querying indexes with kmindex"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Sébastien BELLENOUS", email = "kmhelpers@groupes.renater.fr"},
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+dependencies = [
+    "psutil>=5.8.0",
+    "pyyaml>=5.4",
+    "click>=8.3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=3.0",
+    "black>=22.0",
+    "flake8>=4.0",
+    "mypy>=0.950",
+]
+
+[project.scripts]
+kmhelpers = "pykmhelpers.cli.kmhelpers:cli"
+
+[project.urls]
+Repository = "https://gitlab.inria.fr/omicfinder/kmhelpers"
+
+[tool.setuptools]
+packages = [
+    "pykmhelpers",
+    "pykmhelpers.core",
+    "pykmhelpers.operations",
+    "pykmhelpers.cli",
+    "pykmhelpers.tests",
+]
+
+[tool.setuptools.package-data]
+pykmhelpers = ["py.typed"]
+
+[tool.black]
+line-length = 88
+target-version = ["py38", "py39", "py310", "py311"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=pykmhelpers --cov-report=html --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["pykmhelpers"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]

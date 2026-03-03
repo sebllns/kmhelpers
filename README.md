@@ -1,93 +1,535 @@
-# pykmindex
+# kmhelpers
 
+A Python toolkit for managing, compressing, and querying k-mer indices efficiently.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Getting Started](#getting-started)
+- [Installation with kmhelpersctl](#installation-with-kmhelpersctl-recommended)
+  - [Quick Installation](#21-quick-installation-recommended)
+  - [Verify Installation](#22-verify-installation)
+  - [Custom Installation Path](#23-custom-installation-path)
+  - [Install Components Separately](#24-install-components-separately)
+  - [Getting Help](#25-getting-help)
+- [Manual Installation](#manual-installation)
+- [Quick Start](#quick-start)
+- [Core Concepts](#core-concepts)
+- [Command-Line Interface](#command-line-interface)
+- [API Reference](#api-reference)
+- [Examples](#examples)
+- [Performance Tips for Compression](#performance-tips-for-compression)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
+- [Contact](#contact)
+- [Changelog](#changelog)
+
+## Overview
+
+**kmhelpers** provides a comprehensive interface for working with k-mer indices, specifically designed for handling large-scale genomic data. It offers tools for:
+
+- **Index Management**: Register, validate, and query k-mer indices
+- **Compression**: Optimize index storage through intelligent reordering and block compression
+- **Querying**: Fast k-mer lookup with resource monitoring
+- **Metrics**: Track compression performance and efficiency
+
+## Features
+
+- 🗂️ **Object-oriented index management** with properties and metadata
+- 🏗️ **High-level index building** with KmindexWrapper for easy index creation
+- 📁 **FOF (File-of-Files) management** for organizing input files
+- 🗜️ **ZSTD-based compression** with configurable block sizes
+- 🔄 **Intelligent column reordering** using VP-tree nearest neighbor clustering
+- 📊 **Resource monitoring** (CPU, memory, execution time)
+- 🔍 **Query system** with FASTA/FASTQ support
+- 📈 **Compression metrics** with histograms and performance tracking
 
 ## Getting started
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+Clone the repository and navigate to it
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.inria.fr/omicfinder/pykmindex.git
-git branch -M main
-git push -uf origin main
+```bash
+git clone https://gitlab.inria.fr/omicfinder/kmhelpers
+git checkout dev/v0.5.5
+cd kmhelpers
 ```
 
-## Integrate with your tools
+Once the repository is cloned, you have two options for installation:
+- [**Automated**](#installation-with-kmhelpersctl-recommended): Use the `kmhelpersctl` script for automated setup
+- [**Manual**](#manual-installation): Follow step-by-step installation instructions
 
-- [ ] [Set up project integrations](https://gitlab.inria.fr/omicfinder/pykmindex/-/settings/integrations)
+## Installation with kmhelpersctl (Recommended)
 
-## Collaborate with your team
+kmhelpersctl is a bash utility script that simplifies installation of kmhelpers and kmindex.
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+### 2.1 Quick Installation (Recommended)
 
-## Test and Deploy
+If you have **Conda** installed, the easiest way to install kmhelpers and all dependencies in one go:
 
-Use the built-in continuous integration in GitLab.
+```bash
+./kmhelpersctl.sh install all
+```
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+This will automatically:
+- Install kmindex from bioconda
+- Install kmhelpers Python package
+- Set up shell completions for both tools
+- Create activation aliases for convenient use
+- Add tools to your PATH
 
-***
+**Prerequisites:** Conda (Miniconda or Anaconda) must be installed. If you don't have it, see [Installation Instructions](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
 
-# Editing this README
+### 2.2 Verify Installation
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+After installation, you need to reload your shell for the changes to take effect:
 
-## Suggestions for a good README
+```bash
+# Reload your shell
+source ~/.bashrc
+# Or if using zsh
+source ~/.zshrc
+```
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+Once reloaded, verify the installation:
 
-## Name
-Choose a self-explaining name for your project.
+```bash
+# Check the installed version
+kmhelpersctl --version
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+# View available commands
+kmhelpersctl --help
+```
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+### 2.3 Custom Installation Path
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+By default, kmhelpers installs to `~/.kmhelpers`. To use a different path:
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+```bash
+./kmhelpersctl.sh -w /custom/path install all
+```
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+The installation path is stored in `KMHELPERS_PATH` environment variable, which is loaded automatically when you run `kmhelpersctl` after installation.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+### Override Path Per Command
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+After installation, you can also manually point to another path with any command:
+```bash
+kmhelpersctl -w /custom/path <command>
+```
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+### 2.4 Install Components Separately
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+If you prefer to install components individually:
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+```bash
+# Install only kmindex from bioconda
+./kmhelpersctl.sh install kmindex
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+# Install only the kmhelpers Python package
+./kmhelpersctl.sh install python
+
+# Install zsh completions
+./kmhelpersctl.sh completion kmindex
+./kmhelpersctl.sh completion kmhelpersctl
+```
+
+### 2.5 Getting Help
+
+For detailed information on any command, use `help`, `-h`, or `--help`:
+
+```bash
+# Show all available commands
+kmhelpersctl -h
+
+# Show detailed help for a command
+kmhelpersctl <command> help
+# Equivalent to
+kmhelpersctl <command> -h
+# Or
+kmhelpersctl <command> --help
+
+# Examples
+kmhelpersctl install -h
+kmhelpersctl install kmindex -h
+kmhelpersctl register -h
+```
+
+## Manual Installation
+
+### Quick Install with Conda 
+
+```bash
+# Create environment with kmindex pre-installed
+conda env create -f conda/environment.yml
+
+# Activate the environment
+conda activate kmhelpers
+```
+
+This automatically installs kmindex >= 0.5.3 from bioconda along with all Python dependencies.
+
+### Install with Pip
+
+```bash
+# Install kmhelpers in development mode
+pip install -e .
+```
+
+Then install kmindex separately:
+
+```bash
+# Via bioconda (requires conda/mamba)
+conda install -c bioconda kmindex>=0.5.3
+```
+
+### Override kmindex Installation (advanced)
+
+If you prefer to use a custom-compiled kmindex or a different version:
+
+1. **Install kmindex from source:**
+    Follow the guide:
+    https://tlemane.github.io/kmindex/installation/#install-from-sources
+
+
+2. **Add the binary to your PATH:**
+   ```bash
+   # Temporary (for current session)
+   export PATH=/path/to/kmindex/build:$PATH
+
+   # Permanent (add to ~/.bashrc or ~/.zshrc)
+   echo 'export PATH=/path/to/kmindex/build:$PATH' >> ~/.bashrc
+   ```
+
+3. **Verify installation:**
+   ```bash
+   kmindex --version
+   ```
+
+## Quick Start
+
+### 1. Initialize the environment
+
+```python
+from kmhelpers import Main, Bin
+
+# Initialize and check binaries
+Main.init()
+
+# Optionally check specifically for kmindex with helpful error message
+Bin.check_kmindex()
+```
+
+If kmindex is not found, you'll see a helpful error message with installation instructions for bioconda or source compilation.
+
+### 2. Building an index
+
+```python
+from kmhelpers import Main, KmindexWrapper
+
+# Initialize
+Main.init()
+
+# Create wrapper
+wrapper = KmindexWrapper()
+
+# Create index from directory of FASTA files
+wrapper.fof_manager.create_fof_from_directory(
+    directory="data/samples",
+    fof_path="samples.fof"
+)
+
+# Build presence/absence index
+index = wrapper.build(
+    index_path="my_index",
+    fof_file="samples.fof",
+    kmer_size=31,
+    bloom_size=10000000
+)
+
+# Access index properties
+print(f"Built index with {index.nb_samples} samples")
+print(f"K-mer size: {index.kmer_size}")
+```
+
+### 3. Working with indices
+
+```python
+from kmhelpers import IndexRegistry, Index
+
+# Load an index registry
+registry = IndexRegistry("/path/to/indices")
+
+# List available indices
+print(registry.list_indices())
+
+# Get a specific index
+index = registry.get_index("GENOMIC_HUMAN_19")
+
+# Access index properties
+print(f"Samples: {index.nb_samples}")
+print(f"Partitions: {index.nb_partitions}")
+print(f"K-mer size: {index.smer_size}")
+
+# Iterate through all indices
+for idx in registry:
+    print(f"{idx.index_id}: {idx.nb_samples} samples")
+```
+
+### 3. Compression workflow
+
+```python
+from kmhelpers import Compressor, CompressionParams, PermutationFlag
+
+# Create compression parameters
+params = CompressionParams(
+    block_size=8388608,           # 8MB blocks
+    group_size=0,                 # All columns
+    subsample_size=20000,         # Rows to sample for computing distances
+    threshold=0.0,
+    enable_overwrite=False,
+    with_size_comparison=True     # Enable size comparison CSV
+)
+
+# Initialize compressor with metrics
+compressor = Compressor(enable_metrics=True)
+
+# Compress all partitions of an index
+compressor.compress_full_index(params, index, output_dir="/path/to/output")
+
+# Or compress selected partitions
+compressor.compress_index_selection(
+    params,
+    index,
+    ref_matrix=1,                          # Reference partition for permutation
+    matrix_list=[2, 3, 4],                 # Other partitions to compress
+    permutation_flag=PermutationFlag.PERMUTATION_ENABLED,
+    compare_unordered=True                 # Compare with unordered compression
+)
+```
+
+### 4. Managing file-of-files (FOF)
+
+```python
+from kmhelpers import FofManager
+
+manager = FofManager()
+
+# Create FOF from a directory
+fof_path = manager.create_fof_from_directory(
+    directory="/path/to/samples",
+    fof_path="samples.fof",
+    recursive=True  # Include subdirectories
+)
+
+# Load sample IDs from FOF
+samples = manager.get_sample_ids("samples.fof")
+print(f"Found {len(samples)} samples")
+
+# Load with paths
+sample_map = manager.load_with_paths("samples.fof")
+for name, path in sample_map.items():
+    print(f"{name}: {path}")
+
+# Validate FOF file
+manager.validate_fof_file("samples.fof")
+
+# List files in directory matching extensions
+files = manager.list_files_in_directory(
+    directory="/path/to/samples",
+    extensions=[".fasta.gz", ".fastq.gz"]
+)
+```
+
+### 5. Query an index
+
+```python
+from kmhelpers import Kmindex
+
+# Query with monitoring
+result = Kmindex.query_index(
+    names=["sample1", "sample2"],
+    index_path="/path/to/index",
+    output_dir="/path/to/results",
+    format="json",
+    fastx="/path/to/query.fasta",
+    zvalue=0,
+    threshold=0.0,
+    monitor=True
+)
+
+stdout, resource_stats = result
+print(f"Query time: {resource_stats['execution_time_ms']}ms")
+print(f"Peak memory: {resource_stats['max_memory_mb']}MB")
+```
+
+## Core Concepts
+
+### Index Structure
+
+A k-mer index consists of:
+- **Partitions**: 256 matrix files (default) splitting k-mer space
+- **Matrices**: Bit matrices (Bloom Filters) where rows = k-mers, columns = samples  
+Each row is a bit vector indicating k-mer presence across samples  
+- **Metadata**: Stored in `index.json` with sample counts, parameters, etc.
+
+### Compression Pipeline
+
+The compression workflow consists of:
+
+1. **Reference Selection**: Choose one partition as the reference matrix
+2. **Permutation Computation**: Analyze the reference matrix to find optimal column (sample) ordering using VP-tree clustering
+3. **Reference Compression**: Compress the reference matrix with the computed column permutation
+4. **Permutation Application**: Apply the same column permutation to other partitions
+5. **Block Compression**: Split matrices into fixed-size blocks and compress with ZSTD
+6. **Metrics Collection**: Track compression ratios, histograms, and optional size comparisons
+
+**Key Features:**
+- Single column permutation computed from reference matrix, applied to all partitions
+- Reorders columns (samples) to group similar patterns together for better compression
+- Optional size comparison between ordered and unordered compression
+- Detailed metrics in JSON format for each partition
+- CSV summary with original, ordered, and optionally unordered sizes
+
+### Index Registry
+
+The `IndexRegistry` manages multiple indices through a single `index.json` file:
+
+```json
+{
+  "index": {
+    "index_id_1": {
+      "nb_samples": 1000,
+      "nb_partitions": 256,
+      "bloom_size": 10000000,
+      "smer_size": 31,
+      ...
+    }
+  },
+  "path": "/absolute/path/to/indices"
+}
+```
+
+## Command-Line Interface
+
+## API Reference
+
+## Examples
+
+### Example 1: Index Information
+
+```python
+from kmhelpers import Main, IndexRegistry
+
+Main.init()
+
+registry = IndexRegistry("/data/indices")
+index = registry.get_index("my_index")
+
+print(f"Index: {index.index_id}")
+print(f"Samples: {index.nb_samples}")
+print(f"Partitions: {index.nb_partitions}")
+print(f"K-mer size: {index.smer_size}")
+print(f"Total elements: {sum(index.get_matrix_element_count(p) for p in range(index.nb_partitions))}")
+```
+
+### Example 2: Query
+
+```python
+
+```
+
+### Example 3: Compression with Metrics and Size Comparison
+
+```python
+from kmhelpers import Main, IndexRegistry, Compressor, CompressionParams, PermutationFlag
+
+Main.init()
+
+registry = IndexRegistry("/data/indices")
+index = registry.get_index("my_index")
+
+params = CompressionParams(
+    block_size=8388608,
+    subsample_size=50000,
+    enable_overwrite=False,
+    with_size_comparison=True  # Generate sizes.csv
+)
+
+compressor = Compressor(enable_metrics=True)
+
+# Compress with size comparison
+output_dir = "/data/compressed"
+compressor.compress_index_selection(
+    params,
+    index,
+    ref_matrix=1,
+    matrix_list=list(range(2, 10)),  # Compress partitions 2-9
+    output_dir=output_dir,
+    permutation_flag=PermutationFlag.PERMUTATION_ENABLED,
+    compare_unordered=True  # Also compress without ordering for comparison
+)
+
+# Results will be in:
+# - /data/compressed/matrices/*.zst (compressed matrices)
+# - /data/compressed/permutation.bin (permutation file)
+# - /data/compressed/metrics/*.json (compression metrics)
+# - /data/compressed/metrics/sizes.csv (size comparison data)
+```
+
+## Performance Tips for Compression
+
+1. **Subsampling**: Use larger `subsample_size` for better reordering (slower but better compression)
+2. **Block size**: Larger blocks = better compression, more memory usage
+3. **Reference Matrix**: Choose a representative partition as reference for best permutation quality
+4. **Partitions**: Process partitions in parallel for faster compression
+5. **Monitoring**: Disable monitoring for production to reduce overhead
+6. **Size Comparison**: Disable `with_size_comparison` and `compare_unordered` in production for faster compression
+
+## Troubleshooting
+
+### Binary not found
+```python
+# Check binary paths
+from kmhelpers import Bin
+print(Bin.get_bin_dir())
+Bin.check_all()
+```
+
+### Import errors after restructure
+```python
+# Use absolute imports
+from kmhelpers.core.utils import Kmindex
+from kmhelpers.core.index import Index
+```
+
+### Index structure validation
+```python
+from kmhelpers import Kmindex
+
+# Check if all files are present
+Kmindex.check_index_structure("/path/to/index", partition_count=256)
+```
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2026 Sébastien BELLENOUS
+
+## Contact
+
+For questions, bug reports, or contributions, please contact:
+
+- **Author**: Sébastien BELLENOUS
+- **Email**: kmhelpers@groupes.renater.fr
+- **Repository**: [GitLab](https://gitlab.inria.fr/omicfinder/kmhelpers)
+
+---
+
+**Version**: 0.6.0
+**Status**: Development
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
