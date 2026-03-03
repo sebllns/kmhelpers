@@ -1,18 +1,13 @@
 # kmhelpers
 
-<div align="center">
-  <br/>
-  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.1);">
-    <img src="kmhelpers-logo-v1.png" alt="Kmhelpers Logo" width="200" style="margin-bottom: 20px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));">
-    <h1 style="color: white; margin: 20px 0 10px 0; font-size: 2.5em;">kmhelpers</h1>
-    <p style="color: rgba(255,255,255,0.95); font-size: 1.1em; margin: 10px 0; font-weight: 300;">
-      <strong>A Python toolkit for managing, compressing, and querying k-mer indices efficiently.</strong>
-    </p>
-    <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.3); color: rgba(255,255,255,0.9); font-size: 0.95em;">
-      ✨ <strong>Fast</strong> • <strong>Efficient</strong> • <strong>Flexible</strong> • <strong>Scalable</strong> ✨
-    </div>
-  </div>
-  <br/>
+<div style="text-align: center;">
+
+╔════════════════════════════════════════════════════════════╗  
+![logo](kmhelpers-logo-v1.png "Kmhelpers Logo")
+
+A Python toolkit for managing, compressing, and querying k-mer indices efficiently.
+╚════════════════════════════════════════════════════════════╝
+
 </div>
 
 ## Table of Contents
