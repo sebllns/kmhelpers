@@ -4,7 +4,7 @@
 
 ![logo](kmhelpers-logo-v1.png "Kmhelpers Logo")
 
-A Python toolkit for managing, compressing, and querying k-mer indices efficiently.
+A Python toolkit for managing, compressing, and querying [kmindex](https://github.com/tlemane/kmindex) indices efficiently.
 
 ---
 
