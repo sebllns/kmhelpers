@@ -1,10 +1,12 @@
 # kmhelpers
 
+---
 
 ![logo](kmhelpers-logo-v1.png "Kmhelpers Logo")
 
 A Python toolkit for managing, compressing, and querying k-mer indices efficiently.
 
+---
 
 ## Table of Contents
 
