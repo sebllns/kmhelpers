@@ -533,7 +533,7 @@ For questions, bug reports, or contributions, please contact:
 
 ---
 
-**Version**: 0.6.0
+**Version**: 0.6.2
 **Status**: Development
 
 ## Changelog
