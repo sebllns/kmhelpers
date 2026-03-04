@@ -11,6 +11,11 @@ from ..core.bloom_filter import BloomFilterSpecs
 from ..core.byte import ByteCounter, SizeFormat
 
 
+class SerializedDataType(str, Enum):
+    INDEX_DEFINITION = "index"
+    SPAN_DEFINITION = "span"
+
+
 class DbFields(str, Enum):
     # Base Item fields
     ID = "id"
@@ -254,13 +259,7 @@ class IndexDefinitionTools:
 
     def _load_db_file(self, filename: str) -> IndexDB:
         """Load index database from JSON or YAML file."""
-        with open(filename, "r") as f:
-            if filename.endswith(".json"):
-                data = json.load(f)
-            elif filename.endswith((".yaml", ".yml")):
-                data = yaml.safe_load(f)
-            else:
-                raise ValueError(f"Unsupported file format: {filename}")
+        data = self.deserialize(filename)
 
         index_db = IndexDB(name=os.path.basename(filename))
         for index_id, index_data in data.items():
@@ -317,13 +316,6 @@ class IndexDefinitionTools:
                     pass
         return res
 
-    def deserialize(self, path: str) -> list[IndexDB]:
-        if os.path.isfile(path) and path.endswith((".yaml", ".yml", ".json")):
-            return [self._load_db_file(path)]
-        elif os.path.isdir(path):
-            return self._load_db_dir(path)
-        raise NotImplementedError(f"Can not load DB from {path}: unsupported format.")
-
     def serialize(self, filename, data, sort_keys=False):
         with open(filename, "w") as f:
             if filename.endswith(".json"):
@@ -333,12 +325,20 @@ class IndexDefinitionTools:
             else:
                 raise ValueError(f"Unsupported file format: {filename}")
 
+    def deserialize(self, filename) -> Any:
+        data = None
+        with open(filename, "r") as f:
+            if filename.endswith(".json"):
+                data = json.load(f)
+            elif filename.endswith((".yaml", ".yml")):
+                data = yaml.safe_load(f)
+            else:
+                raise ValueError(f"Unsupported file format: {filename}")
+        return data
+
     def save_db(self, index_db: IndexDB, filename: str) -> None:
         """Save index database to JSON or YAML file."""
         data = {}
-
-        # if index_db.merge_table:
-        #     data["merges"] = index_db.merge_table
 
         for index_id, index in sorted(index_db.index_table.items()):
             samples_data = {}
@@ -393,7 +393,16 @@ class IndexDefinitionTools:
                 self.get_field_name(DbFields.SAMPLES): samples_data,
             }
 
-        self.serialize(filename, data)
+        self.serialize(
+            filename, {"type": SerializedDataType.INDEX_DEFINITION.value, "data": data}
+        )
+
+    def load_db(self, path: str) -> list[IndexDB]:
+        if os.path.isfile(path) and path.endswith((".yaml", ".yml", ".json")):
+            return [self._load_db_file(path)]
+        elif os.path.isdir(path):
+            return self._load_db_dir(path)
+        raise NotImplementedError(f"Can not load DB from {path}: unsupported format.")
 
     def clean_sample_id(self, sample_id) -> str:
         """

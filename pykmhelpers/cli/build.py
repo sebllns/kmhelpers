@@ -128,7 +128,7 @@ def build(
     for input_file in input_files:
         logger.debug(f"Load db: {input_file}")
 
-        db = idt.deserialize(input_file)
+        db = idt.load_db(input_file)
 
         for table in db:
             for i in table.index_table.values():

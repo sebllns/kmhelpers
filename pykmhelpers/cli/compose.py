@@ -340,12 +340,12 @@ def compose(
                 f"  {index_name} {index.sample_count} samples {str(index.get_stored_size())}"
             )
 
-        index_summary_file = os.path.join(output_dir, f"{name}_summary.txt")
+        index_summary_file = os.path.join(output_dir, f"{name}_summary.csv")
         with open(index_summary_file, "w") as f:
-            f.write("span sample_count stored_size_GB stored_size_str\n")
+            f.write("span,sample_count,stored_size_GB,stored_size_str\n")
             for span_id, span_obj in sorted(db_instance.span_table.items()):
                 size = span_obj.get_total_stored_size()
-                summary_line = f"{span_id} {span_obj.get_sample_count()} {size.byte_count/(1000**3)} {str(size)}"
+                summary_line = f"{span_id},{span_obj.get_sample_count()},{size.byte_count/(1000**3)},{str(size)}"
                 f.write(summary_line + "\n")
         logger.info(f"Exporting database in {format} format to {output_dir}...")
 
@@ -447,7 +447,11 @@ def export_db(
         filepath = os.path.join(output_dir, f"{db_name}.{format}")
         db_tools.save_db(indices_data, filepath)
 
-    db_tools.serialize(span_registry_file, span_registry, sort_keys=True)
+    db_tools.serialize(
+        span_registry_file,
+        {"type": db.SerializedDataType.SPAN_DEFINITION.value, "data": span_registry},
+        sort_keys=True,
+    )
 
     logger.info(f"Estimated total index size: {ByteCounter.auto(total_size)}")
 
