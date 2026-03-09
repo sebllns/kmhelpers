@@ -1,0 +1,297 @@
+"""Build k-mer index command."""
+
+import logging
+import os
+
+import click
+
+import pykmhelpers.cli.shared as shared
+import pykmhelpers.pipeline.index_ops as ops
+from pykmhelpers.core.constants import KMHELPERS_VERSION
+from pykmhelpers.core.log import Log
+from pykmhelpers.operations.builder import IndexBuilder
+from pykmhelpers.pipeline.fof import FofManager
+
+logger = logging.getLogger(__name__)
+
+
+def _parse_spans(spans):
+    """Parse span arguments supporting multiple formats:
+    - Single values: --span 28
+    - Comma-separated: --span 27,28,29
+    - Range notation: --span [27-30] or --span 27-30
+    """
+    result = []
+    for item in spans:
+        # Handle range notation [27-30] or 27-30
+        item = item.strip(" []-")
+        if "-" in item:
+            # Range notation: 27-30
+            try:
+                start, end = item.split("-")
+                result.extend(
+                    i for i in range(int(start.strip()), int(end.strip()) + 1)
+                )
+            except ValueError:
+                result.append(item)
+        else:
+            # Comma-separated or single value
+            result.extend(int(s.strip()) for s in item.split(","))
+    return result
+
+
+@click.command(name="apply")
+@click.argument("input_files", nargs=-1, required=True, type=click.Path(exists=True))
+@click.option(
+    "--config",
+    "-c",
+    envvar="KMHELPERS_CONFIG",
+    required=False,
+    type=click.Path(file_okay=True, dir_okay=False),
+    help="📄  Input configuration file (command line arguments take precedence when both are provided).",
+)
+@click.option(
+    "--workdir",
+    "-w",
+    envvar="KMHELPERS_WORKDIR",
+    required=False,
+    type=click.Path(file_okay=False, dir_okay=True),
+    help="📁  Output directory path (created if doesn't exist).",
+)
+@click.option(
+    "--rootpath",
+    "-r",
+    envvar="KMHELPERS_INPUT_PATH",
+    required=False,
+    type=click.Path(file_okay=False, dir_okay=True),
+    help="📁  Base path to resolve relative sample paths. By default, relative \
+paths are resolved from the run directory; use this option if you \
+need to resolve them from a different location.",
+)
+@click.option(
+    "--span",
+    "-s",
+    multiple=True,
+    required=False,
+    help="⚙   Build only selected span (e.g., --span 28, --span 27,28,29, --span 27-30, --span [27-30]).",
+)
+@click.option(
+    "--name",
+    "-n",
+    "index_ids",
+    multiple=True,
+    required=False,
+    help="⚙   Index IDs to build. Can be specified multiple times (-n id1 -n id2) or comma-separated (-n id1,id2).",
+)
+@click.option(
+    "--from",
+    "reuse_from",
+    required=False,
+    help="⚙   Parent index ID to reuse parameters from. Takes precedence over parent_index that can be specified in definition file.",
+)
+@click.option(
+    "--minim-size",
+    type=int,
+    required=False,
+    help="⚙   Minimizer size (4-15, default: 10).",
+)
+@click.option(
+    "--threads",
+    "-t",
+    envvar="KMHELPERS_THREADS",
+    type=int,
+    required=False,
+    help="⚙   Number of threads (default: 1).",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    envvar="KMHELPERS_VERBOSE",
+    is_flag=True,
+    help="🚩  Verbose output.",
+)
+@click.option(
+    "--force",
+    "-f",
+    envvar="KMHELPERS_SKIP_CONFIRMATION",
+    is_flag=True,
+    help="🚩  Skip confirmation prompt before building.",
+)
+@click.option(
+    "--skip-compression",
+    envvar="KMHELPERS_SKIP_COMPRESSION",
+    is_flag=True,
+    help="🚩  Skip compression of intermediate files during index building. Can improve performance on fast drives where I/O is not a bottleneck.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="🚩  Output a bash script with build commands without executing them.",
+)
+def apply(
+    input_files,
+    config,
+    workdir,
+    rootpath,
+    span,
+    index_ids,
+    reuse_from,
+    minim_size,
+    threads,
+    verbose,
+    force,
+    skip_compression,
+    dry_run,
+):
+    """Apply changes and build indices from definition files.
+
+    📄 INPUT_FILES are one or more index definition files (.json/.yaml). For each file,
+    the declared indices are built and registered. If the file type is an index definition,
+    indices are built directly; if it is a span registry, sub-index definition files are
+    resolved from the same directory and merged into the named indices after building.
+    Parent indices are built automatically when required. Only indices matching --name or
+    --span are processed; if neither is specified, all declared indices are built.
+
+    Examples:
+
+    \b
+    # Build all indices declared in a definition file
+    kmhelpers apply index.yaml -w /output
+
+    \b
+    # Build only selected indices by name (comma-separated or repeated flags)
+    kmhelpers apply index.yaml -w /output -n idx1,idx2
+    kmhelpers apply index.yaml -w /output -n idx1 -n idx2
+
+    \b
+    # Build only selected k-mer spans from a span registry
+    kmhelpers apply registry.yaml -w /output -s 28
+    kmhelpers apply registry.yaml -w /output -s 27,28,29
+
+    \b
+    # Dry run: print build commands without executing
+    kmhelpers apply index.yaml -w /output --dry-run
+
+    \b
+    # Reuse parameters from an existing parent index
+    kmhelpers apply index.yaml -w /output -n my_index --from parent_index
+    """
+
+    # Bump logging level to INFO if -v is set and current level is higher
+    if verbose:
+        shared.force_verbose_mode()
+
+    if config:
+        try:
+            shared.deserialize(config)
+        except Exception as e:
+            Log.handle_exception(
+                logger, f"Could not deserialize config from {config}", e
+            )
+            raise click.ClickException("Abort.")
+
+    selected_ids = [id for entry in index_ids for id in entry.split(",") if id]
+    selected_spans = _parse_spans(span)
+
+    iops = ops.IndexOps(
+        config=ops.IndexOpsConfig(
+            workdir=workdir,
+            index_data_folder="",
+            registry_name="",
+            minimizer_length=minim_size,
+            sample_rootpath=rootpath,
+            kmindex_threads=threads,
+            kmindex_skip_compression=skip_compression,
+            kmindex_build_from=reuse_from,
+            filter_names=selected_ids,
+            filter_spans=selected_spans,
+            log_folder="logs",
+            dry_run=dry_run,
+        )
+    )
+
+    # for input_file in input_files:
+    #     logger.debug(f"Load db: {input_file}")
+
+    #     db = idt.load_db(input_file)
+
+    #     for table in db:
+    #         for i in table.index_table.values():
+    #             if selected_spans and i.span not in selected_spans:
+    #                 continue
+
+    #             assert i.name, "Index name empty or null"
+    #             logger.info(f"Build {i.name}...")
+
+    #             try:
+    #                 builder = IndexBuilder(
+    #                     workdir=workdir,
+    #                 )
+
+    #                 fof = FofManager()
+    #                 assert builder, "Could not initialize builder"
+
+    #                 if builder.has_subindex(i.name):
+    #                     logger.warning(
+    #                         f"Index {i.name} already found in registry... Skipping"
+    #                     )
+    #                     continue
+
+    #                 # Show confirmation with size estimation (skip if -f/--force is used)
+    #                 if not force:
+    #                     try:
+    #                         logger.info(
+    #                             f"  Estimated index size: {str(i.get_stored_size())}"
+    #                         )
+
+    #                         if not click.confirm("Proceed with build?", default=True):
+    #                             logger.info("Build cancelled")
+    #                             continue
+    #                     except Exception as e:
+    #                         logger.warning(f"Could not estimate build size: {e}")
+    #                         if not click.confirm(
+    #                             "Proceed with build anyway?", default=True
+    #                         ):
+    #                             logger.info("Build cancelled")
+    #                             continue
+
+    #                 parent_index = i.get_parent()
+
+    #                 if reuse_from:
+    #                     parent_index = reuse_from
+
+    #                 if reuse_from:
+    #                     assert builder.has_subindex(
+    #                         reuse_from
+    #                     ), f"Could not find parent index: {reuse_from}"
+
+    #                 for s in i.samples.values():
+    #                     if s.name:
+    #                         try:
+    #                             sample_files = (
+    #                                 [rootpath + f for f in s.files]
+    #                                 if rootpath
+    #                                 else s.files
+    #                             )
+    #                             fof.add_sample(sample_files, s.name)
+    #                         except Exception as e:
+    #                             logger.warning(f"Error adding sample to FOF: {e}")
+
+    #                 builder.create_subindex(
+    #                     name=i.name,
+    #                     samples=fof,
+    #                     abundance_min=i.abundance_min,
+    #                     bloom_size=i.bf_size,
+    #                     n_partitions=i.partition_count,
+    #                     n_threads=threads,
+    #                     auto_check=True,
+    #                     build_from=parent_index,
+    #                     compress_intermediate=not skip_compression,
+    #                     minim_size=minim_size,
+    #                 )
+
+    #             except Exception as e:
+    #                 if verbose:
+    #                     logger.exception(f"Build failed for {i.name}")
+    #                 else:
+    #                     logger.error(f"Error: {e}")

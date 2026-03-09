@@ -33,17 +33,17 @@ paths are resolved from the run directory; use this option if you \
 need to resolve them from a different location.",
 )
 @click.option(
-    "--from",
-    "reuse_from",
-    required=False,
-    help="⚙   Parent index ID to reuse parameters from. Takes precedence over parent_index that can be specified in definition file.",
-)
-@click.option(
     "--index-ids",
     "-n",
     multiple=True,
     required=False,
     help="⚙   Index IDs to build. Can be specified multiple times (-n id1 -n id2) or comma-separated (-n id1,id2).",
+)
+@click.option(
+    "--from",
+    "reuse_from",
+    required=False,
+    help="⚙   Parent index ID to reuse parameters from. Takes precedence over parent_index that can be specified in definition file.",
 )
 @click.option(
     "--minim-size",
@@ -79,8 +79,8 @@ def build_subindex(
     input_files,
     workdir,
     rootpath,
-    reuse_from,
     index_ids,
+    reuse_from,
     minim_size,
     threads,
     verbose,

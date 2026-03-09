@@ -3,13 +3,18 @@
 Unified CLI for kmhelpers - a toolkit for managing, compressing, and querying k-mer indices.
 """
 
+import datetime
 import logging
 import os
+import traceback
 
 import click
 
 from pykmhelpers import Bin, Main, __version__
-from pykmhelpers.cli.build import build
+
+# Import all groups and commands
+from pykmhelpers.cli.about import about
+from pykmhelpers.cli.apply import apply
 from pykmhelpers.cli.build_subindex import build_subindex
 from pykmhelpers.cli.compose import compose
 from pykmhelpers.cli.compress import kmindex_compress
@@ -18,9 +23,6 @@ from pykmhelpers.cli.count_kmers import count_kmers
 # Import experimental commands
 from pykmhelpers.cli.exp_compression import exp_compress
 from pykmhelpers.cli.experimental import experimental
-
-# Import all groups and commands
-from pykmhelpers.cli.about import about
 from pykmhelpers.cli.fof import fof
 from pykmhelpers.cli.kmindex import kmindex
 from pykmhelpers.cli.list import list_samples
@@ -117,6 +119,23 @@ class SectionedGroup(click.Group):
             logger = logging.getLogger(__name__)
             logger.critical(f"Unhandled exception: {type(e).__name__}", exc_info=True)
             click.echo(f"\nFATAL: {type(e).__name__}: {str(e)}", err=True)
+
+            # Write crash dump with timestamp
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            dump_path = f"kmhelpers_{timestamp}.dump"
+            try:
+                with open(dump_path, "w") as f:
+                    f.write(
+                        f"kmhelpers crash dump - {datetime.datetime.now().isoformat()}\n"
+                    )
+                    f.write("=" * 60 + "\n\n")
+                    f.write(f"Exception: {type(e).__name__}: {e}\n\n")
+                    f.write("Traceback:\n")
+                    traceback.print_exc(file=f)
+                click.echo(f"Crash dump written to: {dump_path}", err=True)
+            except Exception:
+                pass
+
             ctx.exit(1)
 
 
@@ -132,32 +151,37 @@ class SectionedGroup(click.Group):
 )
 @click.option(
     "--log-file",
+    envvar="KMHELPERS_LOG_FILE",
     type=click.Path(),
     default=None,
     help="Path to log file (logs will be written in addition to console output)",
 )
 @click.option(
     "--init-path",
+    envvar="KMHELPERS_WITH_INIT",
     is_flag=True,
     default=False,
     help="Initialize environment paths and check for required binaries",
 )
 @click.option(
     "--bin-path",
+    envvar="KMHELPERS_BIN_DIR",
     type=click.Path(file_okay=False, dir_okay=True),
     default="./bin",
     help="Default path for binary executables (default: ./bin)",
 )
 @click.option(
     "--check-all",
+    envvar="KMHELPERS_WITH_BIN_CHECK",
     is_flag=True,
-    default=True,
+    default=False,
     help="Check that all required binaries are available in PATH",
 )
 @click.option(
     "--chdir",
+    envvar="KMHELPERS_RUN_DIR",
     type=click.Path(file_okay=False, dir_okay=True),
-    default="",
+    required=False,
     help="Change to directory before initialization",
 )
 def cli(verbose, log_file, init_path, bin_path, check_all, chdir):
@@ -216,13 +240,12 @@ def cli(verbose, log_file, init_path, bin_path, check_all, chdir):
     if init_path:
         Main.init(default_bin_path=bin_path, check_all=check_all, chdir=chdir)
     elif chdir:
-        logging.info(f"cd {chdir}")
+        click.echo(f"cd {chdir}", err=True)
         os.chdir(chdir)
     try:
         Bin.check_kmindex()
     except RuntimeError as e:
-        click.echo("Could not fin kmindex command in path.", err=True)
-        click.echo(e, err=True)
+        click.echo("Could not find kmindex command in path.", err=True)
 
 
 # Register main commands
@@ -232,8 +255,8 @@ list_samples.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(list_samples)
 compose.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(compose)
-build.section = "Main commands"  # type: ignore[assignment]
-cli.add_command(build)
+apply.section = "Main commands"  # type: ignore[assignment]
+cli.add_command(apply)
 query.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(query)
 kmindex_compress.section = "Main commands"  # type: ignore[assignment]

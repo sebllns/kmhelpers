@@ -280,7 +280,7 @@ class KmindexWrapper(Wrapper):
         register_as: Optional[str] = None,
         from_index: Optional[str] = None,
         km_path: Optional[Union[str, Path]] = None,
-    ) -> tuple[str, str]:
+    ) -> Dict[str, str]:
         """
         Build a kmindex index.
 
@@ -460,7 +460,7 @@ class KmindexWrapper(Wrapper):
             os.path.join(output_registry_path, register_as)
         ), f"Could not find index in registry {output_registry_path}"
 
-        return output_registry_path, register_as
+        return result
 
     def query(
         self,

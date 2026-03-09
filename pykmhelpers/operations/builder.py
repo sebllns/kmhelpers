@@ -23,7 +23,6 @@ class IndexBuilder:
     def __init__(
         self,
         workdir: str,
-        k=25,
         registry_name="registry",
         data_folder=".subindexes",
         log_folder="logs",
@@ -36,7 +35,6 @@ class IndexBuilder:
         self._data_folder = data_folder
         self._log_folder = log_folder
         self._registry = KmindexRegistry(self.registry_path)
-        self._k = k
         self._script_out = script_out
 
     @property
@@ -62,10 +60,6 @@ class IndexBuilder:
     @property
     def log_folder(self) -> str:
         return os.path.join(self.path, self._log_folder)
-
-    @property
-    def k(self) -> int:
-        return self._k
 
     def load_metadata(self, file: str):
         """
@@ -126,6 +120,7 @@ class IndexBuilder:
         name: str,
         samples: FofManager,
         bloom_size: int,
+        kmer_size: int = 25,
         abundance_min: int = 2,
         n_partitions: int = 256,
         n_threads: int = 0,
@@ -135,7 +130,7 @@ class IndexBuilder:
         minim_size: int = 10,
         compress_intermediate: bool = True,
         dry_run: bool = False,
-    ) -> KmtricksIndex:
+    ):
 
         assert (
             samples and samples.get_sample_count()
@@ -169,11 +164,11 @@ class IndexBuilder:
                     f"Index '{build_from}' not found, building '{name}' from scratch"
                 )
 
-        wrapper.build(
+        result = wrapper.build(
             input_fof_file=fof_path,
             output_registry_path=self.index.root_path,
             output_index_dir=os.path.join(self.path, self.data_folder),
-            k=self.k,
+            k=kmer_size,
             hard_min=abundance_min,
             threads=n_threads,
             nb_partitions=n_partitions,
@@ -188,27 +183,28 @@ class IndexBuilder:
             minim_size=minim_size,
         )
 
-        self.index.load_json()
-        assert self.index.has_index(
-            name
-        ), f"Index '{name}' was not successfully created"
-        idx = self.index.get_index(name)
+        if not dry_run:
+            self.index.load_json()
+            assert self.index.has_index(
+                name
+            ), f"Index '{name}' was not successfully created"
+            idx = self.index.get_index(name)
 
-        if auto_check:
-            if n_partitions > 0:
+            if auto_check:
+                if n_partitions > 0:
+                    assert (
+                        idx.nb_partitions == n_partitions
+                    ), f"Partition count mismatch: expected {n_partitions}, got {idx.nb_partitions}"
+
+                # assert (
+                #     idx.bloom_size == bloom_size
+                # ), f"Bloom size mismatch: expected {bloom_size}, got {idx.bloom_size}"
                 assert (
-                    idx.nb_partitions == n_partitions
-                ), f"Partition count mismatch: expected {n_partitions}, got {idx.nb_partitions}"
+                    idx.kmer_size == kmer_size
+                ), f"K-mer size mismatch: expected {kmer_size}, got {idx.kmer_size}"
+                self.check_index_structure(name)
 
-            # assert (
-            #     idx.bloom_size == bloom_size
-            # ), f"Bloom size mismatch: expected {bloom_size}, got {idx.bloom_size}"
-            assert (
-                idx.kmer_size == self.k
-            ), f"K-mer size mismatch: expected {self.k}, got {idx.kmer_size}"
-            self.check_index_structure(name)
-
-        return idx
+        return result
 
     def merge(
         self,
@@ -218,7 +214,7 @@ class IndexBuilder:
         delete_old: bool = True,
         threads: int = 14,
         dry_run: bool = False,
-    ) -> KmtricksIndex:
+    ):
         """Merge sub-indexes into a single index via KmindexWrapper.merge."""
         self.index.load_json()
         missing = [name for name in to_merge if not self.index.has_index(name)]
@@ -226,7 +222,7 @@ class IndexBuilder:
             raise ValueError(f"Sub-indexes not found in registry: {missing}")
 
         wrapper = KmindexWrapper(dry_run=dry_run)
-        wrapper.merge(
+        result = wrapper.merge(
             input_registry=self.index.root_path,
             new_name=new_name,
             new_path=os.path.join(self.data_folder, new_name),
@@ -235,11 +231,14 @@ class IndexBuilder:
             delete_old=delete_old,
             threads=threads,
         )
-        self.index.load_json()
-        assert self.index.has_index(
-            new_name
-        ), f"Merged index '{new_name}' not found after merge"
-        return self.index.get_index(new_name)
+
+        if not dry_run:
+            self.index.load_json()
+            assert self.index.has_index(
+                new_name
+            ), f"Merged index '{new_name}' not found after merge"
+
+        return result
 
     def check_index_structure(
         self,

@@ -325,7 +325,7 @@ class IndexDefinitionTools:
             else:
                 raise ValueError(f"Unsupported file format: {filename}")
 
-    def deserialize(self, filename) -> Any:
+    def deserialize(self, filename: str) -> Any:
         data = None
         with open(filename, "r") as f:
             if filename.endswith(".json"):

@@ -4,8 +4,10 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
+from ..core.log import Log
 from ..operations.builder import IndexBuilder
-from .index_db import IndexDefinition, IndexDefinitionTools
+from ..pipeline.fof import FofManager
+from .index_db import IndexDB, IndexDefinition, IndexDefinitionTools
 
 logger = logging.getLogger(__name__)
 
@@ -16,13 +18,11 @@ class ApplyStatus(str, Enum):
     SUCCESS = "success"
     PARTIAL = "partial"
     FAILED = "failed"
-    DRY_RUN = "dry_run"
     NONE = "none"
 
 
 class ApplyInputType(str, Enum):
     UNKNOWN = "unknown"
-    DIRECTORY = "directory"
     SPAN_REGISTRY = "span registry"
     INDEX_DEFINITION = "index definition"
     NONE = "none"
@@ -34,23 +34,101 @@ class ApplyResult:
     input_type: ApplyInputType = ApplyInputType.NONE
 
 
+@dataclass
+class IndexOpsConfig:
+    workdir: str
+    index_data_folder: str
+    registry_name: str
+    minimizer_length: int = 10
+    sample_rootpath: Optional[str] = None
+    kmindex_threads: int = 1
+    kmindex_skip_compression: bool = False
+    kmindex_build_from: Optional[str] = None
+    filter_spans: Optional[list[int]] = None
+    filter_names: Optional[list[str]] = None
+    log_folder: str = "logs"
+    dry_run: bool = False
+
+
 class IndexOps:
     # PRIVATE METHODS
-    def __init__(self, config: dict) -> None:
-        self._config = config or {}
+    def __init__(self, config: IndexOpsConfig) -> None:
+        self._config = config
 
-    def _build_single(self, index_definition: IndexDefinition):
-        pass
+    def _build_single(self, builder: IndexBuilder, i: IndexDefinition):
+
+        assert i.name, "IndexDefinition is missing required 'name' field"
+        assert (
+            i.bf_size
+        ), f"IndexDefinition {i.name} is missing required 'bf_size' field"
+
+        parent_index = i.get_parent()
+
+        if self.config.kmindex_build_from:
+            parent_index = self.config.kmindex_build_from
+
+        if parent_index:
+            assert builder.has_subindex(
+                parent_index
+            ), f"Could not find index '{parent_index}' required to build index '{i.name}'"
+
+        fof = FofManager()
+
+        for s in i.samples.values():
+            if s.name and s.name != "_":
+                try:
+                    sample_files = (
+                        [self.config.sample_rootpath + f for f in s.files]
+                        if self.config.sample_rootpath
+                        else s.files
+                    )
+                    if not self.config.dry_run:
+                        for f in sample_files:
+                            assert os.path.isfile(f), f"Sample file not found: {f}"
+                    fof.add_sample(sample_files, s.name)
+                except Exception as e:
+                    logger.warning(f"Error adding sample '{s.name}' to FOF: {e}")
+
+        if fof.get_sample_count() > 0:
+            return builder.create_subindex(
+                name=i.name,
+                samples=fof,
+                abundance_min=i.abundance_min,
+                bloom_size=i.bf_size,
+                n_partitions=i.partition_count,
+                n_threads=self.config.kmindex_threads,
+                auto_check=True,
+                build_from=parent_index,
+                compress_intermediate=not self.config.kmindex_skip_compression,
+                minim_size=self.config.minimizer_length,
+                dry_run=self.config.dry_run,
+                kmer_size=i.kmer_size,
+            )
+        return None
+
+    def _find_definition(
+        self, dbs: list[IndexDB], name: str
+    ) -> Optional[IndexDefinition]:
+        for db in dbs:
+            if name in db.index_table:
+                return db.index_table.get(name)
+
+    # def _assert_field(self, field):
+    #     assert self.has_field_in_config(field), f"Field '{field}' not found in config"
+
+    # def _check_config(self):
+    #     self._assert_field("workdir")
+    #     self._assert_field("")
+
+    # def has_field_in_config(self, field_name: str) -> bool:
+    #     return field_name in self._config
 
     # ---
 
     # PROPERTIES AND GETTERS
     @property
-    def minimizer_length(self) -> int:
-        return self._config.get("minimizer_length", 10)
-
-    def has_field_in_config(self, field_name: str) -> bool:
-        return field_name in self._config
+    def config(self) -> IndexOpsConfig:
+        return self._config
 
     # ---
 
@@ -66,25 +144,153 @@ class IndexOps:
         result = ApplyResult()
         idt = IndexDefinitionTools()
 
+        result.status = ApplyStatus.NONE
         result.input_type = ApplyInputType.UNKNOWN
 
+        idt = IndexDefinitionTools()
+        data = None
         if os.path.isfile(path) and path.endswith((".yaml", ".yml", ".json")):
-            data = idt.deserialize(path)
-            # TODO
-        elif os.path.isdir(path):
-            result.input_type = ApplyInputType.DIRECTORY
-        if result.input_type in (
-            ApplyInputType.DIRECTORY,
-            ApplyInputType.INDEX_DEFINITION,
-        ):
+            try:
+                data = dict(idt.deserialize(path))
+            except Exception as e:
+                Log.handle_exception(
+                    logger=logger, msg=f"Could not parse schema from {path}", e=e
+                )
+
+            if data:
+                try:
+                    result.input_type = ApplyInputType(data.get("type"))
+                except (ValueError, KeyError):
+                    logger.error(f"Invalid type value: {data.get('type')}")
+
+        if data is None or result.input_type is ApplyInputType.UNKNOWN:
+            logger.error(f"Could not retrieve data type.")
+            result.status = ApplyStatus.FAILED
+            return result
+
+        dbs = list[IndexDB]()
+        merges = dict[str, list[str]]()
+        builder = IndexBuilder(
+            workdir=self.config.workdir,
+            registry_name=self.config.registry_name,
+            data_folder=self.config.index_data_folder,
+            log_folder=self.config.log_folder,
+        )
+
+        if result.input_type is ApplyInputType.INDEX_DEFINITION:
             try:
                 dbs = idt.load_db(path)
             except Exception as e:
-                logger.error(f"Failed to load definition file '{path}': {e}")
+                Log.handle_exception(
+                    logger, f"Failed to load definition file '{path}'", e
+                )
                 result.status = ApplyStatus.FAILED
                 return result
+        elif result.input_type is ApplyInputType.SPAN_REGISTRY:
+            try:
+                spans = dict[int, dict](data["data"])
+                for k, v in spans.items():
+                    if self.config.filter_spans and k not in self.config.filter_spans:
+                        continue
+                    v = v.get(["indices"])
+                    if v:
+                        indices = dict[str, list[str]](v)
+                        for name, subindices in indices.items():
+                            if (
+                                not self.config.filter_names
+                                or name in self.config.filter_names
+                            ):
+                                merges[name] = subindices
 
-        result.status = ApplyStatus.SUCCESS
+                            for subindex in subindices:
+                                if name in merges or (
+                                    self.config.filter_names
+                                    and subindex in self.config.filter_names
+                                ):
+                                    db_path = os.path.join(
+                                        os.path.dirname(path),
+                                        subindex + os.path.splitext(path)[1],
+                                    )
+                                    assert os.path.isfile(
+                                        db_path
+                                    ), f"Could not find required data file at {db_path}"
+                                    dbs.extend(idt.load_db(db_path))
+
+            except Exception as e:
+                Log.handle_exception(
+                    logger, f"Failed to load definition file '{path}'", e
+                )
+                result.status = ApplyStatus.FAILED
+                return result
+            pass
+
+        for db in dbs:
+            for i in db.index_table.values():
+                parent_index = i.get_parent()
+
+                if self.config.kmindex_build_from:
+                    parent_index = self.config.kmindex_build_from
+
+                try:
+                    assert i.name, "IndexDefinition is missing required 'name' field"
+                    assert (
+                        i.bf_size > 0
+                    ), f"IndexDefinition {i.name} is missing required 'bf_size' field"
+
+                    if parent_index and not builder.has_subindex(parent_index):
+                        logger.info(f"Building required parent index {parent_index}")
+                        parent_def = self._find_definition(dbs, parent_index)
+
+                        if not parent_def:
+                            db_path = os.path.join(
+                                os.path.dirname(path),
+                                parent_index + os.path.splitext(path)[1],
+                            )
+                            if os.path.isfile(db_path):
+                                parent_def = idt.load_db(db_path)[0].index_table.get(
+                                    parent_index
+                                )
+                        assert (
+                            parent_def
+                        ), f"Could not find definition for required parent index {parent_index}"
+                        builder.index.load_json()
+                        build_result = self._build_single(builder, parent_def)
+                        if build_result:
+                            logger.info(build_result.get("command"))
+                except Exception as e:
+                    Log.handle_exception(logger, f"Failed to build index '{i.name}'", e)
+
+        for k, v in merges.items():
+            try:
+                if len(v) > 0:
+                    builder.index.load_json()
+                    missing = None
+                    if not self.config.dry_run:
+                        missing = [
+                            name for name in v if not builder.index.has_index(name)
+                        ]
+                    if missing:
+                        logger.warning(
+                            f"Sub-indexes to merge not found in registry: {missing}"
+                        )
+                        logger.warning(
+                            f"Cannot merge '{k}' due to some sub-indexes missing"
+                        )
+                    else:
+                        merge_result = builder.merge(
+                            k, v, delete_old=True, dry_run=self.config.dry_run
+                        )
+                        if merge_result:
+                            logger.info(merge_result.get("command"))
+                elif self.config.dry_run:
+                    logger.info(f"mv {v[0]} -> {k}")
+                else:
+                    builder.index.load_json()
+                    builder.index.rename_index(v[0], k)
+            except Exception as e:
+                Log.handle_exception(logger, f"Failed to merge index '{k}'", e)
+
+        result.status = ApplyStatus.NONE
         return result
 
     # ---
