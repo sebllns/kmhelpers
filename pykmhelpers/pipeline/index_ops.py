@@ -1,13 +1,14 @@
 import logging
 import os
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from typing import Optional
 
 from ..core.log import Log
 from ..operations.builder import IndexBuilder
 from ..pipeline.fof import FofManager
-from .index_db import IndexDB, IndexDefinition, IndexDefinitionTools
+from .index_db import IndexDB, IndexDefinition, IndexDefinitionTools, SerializedDataType
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,11 @@ class IndexOps:
     # PRIVATE METHODS
     def __init__(self, config: IndexOpsConfig) -> None:
         self._config = config
+        logger.debug(f"Init {type(self).__name__}")
+        logger.debug("workdir: " + config.workdir)
+        if not os.path.exists(config.workdir):
+            logger.info(f"Creating 'workdir' at {config.workdir}")
+            os.makedirs(config.workdir, exist_ok=True)
 
     def _build_single(self, builder: IndexBuilder, i: IndexDefinition):
 
@@ -67,7 +73,7 @@ class IndexOps:
         if self.config.kmindex_build_from:
             parent_index = self.config.kmindex_build_from
 
-        if parent_index:
+        if parent_index and not self.config.dry_run:
             assert builder.has_subindex(
                 parent_index
             ), f"Could not find index '{parent_index}' required to build index '{i.name}'"
@@ -87,10 +93,12 @@ class IndexOps:
                             assert os.path.isfile(f), f"Sample file not found: {f}"
                     fof.add_sample(sample_files, s.name)
                 except Exception as e:
-                    logger.warning(f"Error adding sample '{s.name}' to FOF: {e}")
+                    logger.warning(f"Error adding sample '{s.name}' to index | {e}")
+
+        result = None
 
         if fof.get_sample_count() > 0:
-            return builder.create_subindex(
+            result = builder.create_subindex(
                 name=i.name,
                 samples=fof,
                 abundance_min=i.abundance_min,
@@ -104,7 +112,14 @@ class IndexOps:
                 dry_run=self.config.dry_run,
                 kmer_size=i.kmer_size,
             )
-        return None
+        else:
+            logger.warning(f"Skipping index '{i.name}' as no sample was added to it")
+
+        if not self.config.dry_run:
+            builder.index.load_json()
+            if not self.config.dry_run:
+                assert builder.has_subindex(i.name), f"Could not find index '{i.name}'"
+        return result
 
     def _find_definition(
         self, dbs: list[IndexDB], name: str
@@ -140,6 +155,7 @@ class IndexOps:
         pass
 
     def apply(self, path: str) -> ApplyResult:
+
         # Load desired state
         result = ApplyResult()
         idt = IndexDefinitionTools()
@@ -149,6 +165,12 @@ class IndexOps:
 
         idt = IndexDefinitionTools()
         data = None
+
+        script_lines = [
+            "#!/usr/bin/bash",
+            f"cd {os.path.realpath(self.config.workdir)}",
+        ]
+
         if os.path.isfile(path) and path.endswith((".yaml", ".yml", ".json")):
             try:
                 data = dict(idt.deserialize(path))
@@ -159,7 +181,16 @@ class IndexOps:
 
             if data:
                 try:
-                    result.input_type = ApplyInputType(data.get("type"))
+                    result.input_type = (
+                        ApplyInputType.INDEX_DEFINITION
+                        if data.get("type") == SerializedDataType.INDEX_DEFINITION.value
+                        else (
+                            ApplyInputType.SPAN_REGISTRY
+                            if data.get("type")
+                            == SerializedDataType.SPAN_DEFINITION.value
+                            else ApplyInputType.UNKNOWN
+                        )
+                    )
                 except (ValueError, KeyError):
                     logger.error(f"Invalid type value: {data.get('type')}")
 
@@ -182,7 +213,7 @@ class IndexOps:
                 dbs = idt.load_db(path)
             except Exception as e:
                 Log.handle_exception(
-                    logger, f"Failed to load definition file '{path}'", e
+                    logger, e, f"Failed to load definition file '{path}'"
                 )
                 result.status = ApplyStatus.FAILED
                 return result
@@ -218,7 +249,7 @@ class IndexOps:
 
             except Exception as e:
                 Log.handle_exception(
-                    logger, f"Failed to load definition file '{path}'", e
+                    logger, e, f"Failed to load definition file '{path}'"
                 )
                 result.status = ApplyStatus.FAILED
                 return result
@@ -226,6 +257,7 @@ class IndexOps:
 
         for db in dbs:
             for i in db.index_table.values():
+                logger.info(f"Processing index definition '{i.name}'...")
                 parent_index = i.get_parent()
 
                 if self.config.kmindex_build_from:
@@ -238,7 +270,7 @@ class IndexOps:
                     ), f"IndexDefinition {i.name} is missing required 'bf_size' field"
 
                     if parent_index and not builder.has_subindex(parent_index):
-                        logger.info(f"Building required parent index {parent_index}")
+                        logger.info(f"Building required parent index '{parent_index}'")
                         parent_def = self._find_definition(dbs, parent_index)
 
                         if not parent_def:
@@ -255,10 +287,16 @@ class IndexOps:
                         ), f"Could not find definition for required parent index {parent_index}"
                         builder.index.load_json()
                         build_result = self._build_single(builder, parent_def)
-                        if build_result:
-                            logger.info(build_result.get("command"))
+                        if build_result and "command" in build_result:
+                            script_lines.append(build_result["command"])
+
+                    builder.index.load_json()
+                    build_result = self._build_single(builder, i)
+                    if build_result and "command" in build_result:
+                        script_lines.append(build_result["command"])
+
                 except Exception as e:
-                    Log.handle_exception(logger, f"Failed to build index '{i.name}'", e)
+                    Log.handle_exception(logger, e, f"Failed to build index '{i.name}'")
 
         for k, v in merges.items():
             try:
@@ -288,9 +326,17 @@ class IndexOps:
                     builder.index.load_json()
                     builder.index.rename_index(v[0], k)
             except Exception as e:
-                Log.handle_exception(logger, f"Failed to merge index '{k}'", e)
+                Log.handle_exception(logger, e, f"Failed to merge index '{k}'")
 
-        result.status = ApplyStatus.NONE
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        script_path = os.path.join(
+            self.config.workdir, f"kmhelpers_apply_{timestamp}.sh"
+        )
+        with open(script_path, "w") as f:
+            f.write("\n".join(script_lines) + "\n")
+        logger.info(f"Script written to {script_path}")
+
+        result.status = ApplyStatus.SUCCESS
         return result
 
     # ---

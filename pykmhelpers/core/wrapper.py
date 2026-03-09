@@ -453,12 +453,13 @@ class KmindexWrapper(Wrapper):
             ) as f:
                 yaml.safe_dump(result, f)
 
-        assert os.path.isdir(
-            output_index_dir
-        ), f"Could not find data directory {output_index_dir}"
-        assert os.path.exists(
-            os.path.join(output_registry_path, register_as)
-        ), f"Could not find index in registry {output_registry_path}"
+        if not self.dry_run:
+            assert os.path.isdir(
+                output_index_dir
+            ), f"Could not find data directory {output_index_dir}"
+            assert os.path.exists(
+                os.path.join(output_registry_path, register_as)
+            ), f"Could not find index in registry {output_registry_path}"
 
         return result
 

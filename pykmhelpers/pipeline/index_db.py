@@ -260,7 +260,14 @@ class IndexDefinitionTools:
     def _load_db_file(self, filename: str) -> IndexDB:
         """Load index database from JSON or YAML file."""
         data = self.deserialize(filename)
+        assert data, f"Could not deserialize definition data from {filename}"
+        assert "type" in data, "Definition file is missing required field 'type'"
+        assert "data" in data, "Definition file is missing required field 'data'"
+        assert (
+            data["type"] == SerializedDataType.INDEX_DEFINITION
+        ), f"Bad input type: {data["type"]}"
 
+        data = data["data"]
         index_db = IndexDB(name=os.path.basename(filename))
         for index_id, index_data in data.items():
             samples = {}

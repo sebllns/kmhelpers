@@ -16,5 +16,5 @@ class Log:
             logger.error(f"{e} ({type(e).__name__}) | {msg}")
 
     @staticmethod
-    def handle_exception(logger: logging.Logger, msg: str, e: Exception):
+    def handle_exception(logger: logging.Logger, e: Exception, msg: str):
         Log._handle_exception(logger, msg, e, Log.is_verbose(logger))

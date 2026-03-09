@@ -135,12 +135,14 @@ class IndexBuilder:
         assert (
             samples and samples.get_sample_count()
         ), "Samples dictionary cannot be empty"
-        assert samples.validate_sample_files(), "Some sample files are missing"
         assert bloom_size, "Bloom size must be specified and greater than 0"
         assert name, "Index name cannot be empty"
         assert not self.index.has_index(
             name
         ), f"Index '{name}' already exists in registry"
+
+        if not dry_run:
+            assert samples.validate_sample_files(), "Some sample files are missing"
 
         wrapper = KmindexWrapper(dry_run=dry_run)
         fof_path = os.path.join(self.path, f"{name}.fof")

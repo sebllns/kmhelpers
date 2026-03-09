@@ -69,6 +69,12 @@ paths are resolved from the run directory; use this option if you \
 need to resolve them from a different location.",
 )
 @click.option(
+    "--registry",
+    required=False,
+    type=click.Path(file_okay=False, dir_okay=True),
+    help="📁  Base path to kmindex registry, absolute or relative from workdir (created if doesn't exist).",
+)
+@click.option(
     "--span",
     "-s",
     multiple=True,
@@ -133,6 +139,7 @@ def apply(
     config,
     workdir,
     rootpath,
+    registry,
     span,
     index_ids,
     reuse_from,
@@ -177,28 +184,55 @@ def apply(
     kmhelpers apply index.yaml -w /output -n my_index --from parent_index
     """
 
+    abort_msg = "Command 'apply' aborted."
+
     # Bump logging level to INFO if -v is set and current level is higher
     if verbose:
         shared.force_verbose_mode()
 
+    config_map = {}
     if config:
         try:
-            shared.deserialize(config)
+            config_map = shared.deserialize(config)
         except Exception as e:
             Log.handle_exception(
-                logger, f"Could not deserialize config from {config}", e
+                logger, e, f"Could not deserialize config from {config}"
             )
-            raise click.ClickException("Abort.")
+            raise click.ClickException(abort_msg)
 
-    selected_ids = [id for entry in index_ids for id in entry.split(",") if id]
-    selected_spans = _parse_spans(span)
+    try:
+        selected_ids = [id for entry in index_ids for id in entry.split(",") if id]
+        selected_spans = _parse_spans(span)
+
+        if not workdir:
+            workdir = config_map.get("workdir")
+        assert workdir, "Required parameter 'workdir' was not provided."
+
+        if not registry:
+            registry = config_map.get("registry", "")
+
+        if not rootpath:
+            rootpath = config_map.get("rootpath", "")
+
+        if rootpath and not os.path.isdir(rootpath):
+            logger.warning(f"Data root directory not found at {rootpath}")
+
+        if not threads:
+            threads = config_map.get("threads", 1)
+
+        if not minim_size:
+            minim_size = config_map.get("minim_size", 10)
+
+    except Exception as e:
+        Log.handle_exception(logger, e, f"Invalid argument.")
+        raise click.ClickException(abort_msg)
 
     iops = ops.IndexOps(
         config=ops.IndexOpsConfig(
             workdir=workdir,
-            index_data_folder="",
-            registry_name="",
-            minimizer_length=minim_size,
+            index_data_folder="index",  # TODO
+            registry_name=registry,
+            minimizer_length=int(minim_size),
             sample_rootpath=rootpath,
             kmindex_threads=threads,
             kmindex_skip_compression=skip_compression,
@@ -210,8 +244,14 @@ def apply(
         )
     )
 
-    # for input_file in input_files:
-    #     logger.debug(f"Load db: {input_file}")
+    for input_file in input_files:
+        try:
+            logger.info(f"Apply {input_file}...")
+            iops.apply(input_file)
+        except Exception as e:
+            Log.handle_exception(
+                logger, e, f"Could not apply {os.path.basename(input_file)}"
+            )
 
     #     db = idt.load_db(input_file)
 
