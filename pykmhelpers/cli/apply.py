@@ -48,7 +48,7 @@ def _parse_spans(spans):
     "-c",
     envvar="KMHELPERS_CONFIG",
     required=False,
-    type=click.Path(file_okay=True, dir_okay=False),
+    type=click.Path(file_okay=True, dir_okay=False, exists=True),
     help="📄  Input configuration file (command line arguments take precedence when both are provided).",
 )
 @click.option(
@@ -74,6 +74,12 @@ need to resolve them from a different location.",
     required=False,
     type=click.Path(file_okay=False, dir_okay=True),
     help="📁  Base path to kmindex registry, absolute or relative from workdir (created if doesn't exist).",
+)
+@click.option(
+    "--output-dir",
+    required=False,
+    type=click.Path(file_okay=False, dir_okay=True),
+    help="📁  Base path to kmindex output directory, absolute or relative from workdir (created if doesn't exist).",
 )
 @click.option(
     "--span",
@@ -141,6 +147,7 @@ def apply(
     workdir,
     rootpath,
     registry,
+    output_dir,
     span,
     index_ids,
     reuse_from,
@@ -218,6 +225,9 @@ def apply(
         if rootpath and not os.path.isdir(rootpath):
             logger.warning(f"Data root directory not found at {rootpath}")
 
+        if not output_dir:
+            output_dir = config_map.get("output_dir", "kmindex_data")
+
         if not threads:
             threads = config_map.get("threads", 1)
 
@@ -231,7 +241,7 @@ def apply(
     iops = ops.IndexOps(
         config=ops.IndexOpsConfig(
             workdir=workdir,
-            index_data_folder="index",  # TODO
+            index_data_folder=output_dir,
             registry_name=registry,
             minimizer_length=int(minim_size),
             sample_rootpath=rootpath,
