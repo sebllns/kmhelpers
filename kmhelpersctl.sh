@@ -10,7 +10,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 CTL_VERSION='0.6.0'
-KMHELPERS_VERSION='release/v0.6.1'
+KMHELPERS_VERSION='dev/v0.6.2'
 KMINDEX_VERSION='v0.6.0'
 
 # Initialize global variables - KMHELPERS_PATH may be set from environment
@@ -49,7 +49,7 @@ function init_kmhelpers_path()
 
     # Override with command-line argument if provided
     if [[ -n "$workdir_override" ]]; then
-        KMHELPERS_PATH="$workdir_override"
+        KMHELPERS_PATH="$(realpath "${workdir_override}")"
     fi
 
     # Set derived paths
