@@ -158,7 +158,7 @@ class IndexBuilder:
 
         self.index.load_json()
 
-        if build_from:
+        if build_from and not dry_run:
             if self.index.has_index(build_from):
                 logger.info(f"Reusing parameters from index: {build_from}")
             elif name != build_from:
@@ -219,9 +219,11 @@ class IndexBuilder:
     ):
         """Merge sub-indexes into a single index via KmindexWrapper.merge."""
         self.index.load_json()
-        missing = [name for name in to_merge if not self.index.has_index(name)]
-        if missing:
-            raise ValueError(f"Sub-indexes not found in registry: {missing}")
+
+        if not dry_run:
+            missing = [name for name in to_merge if not self.index.has_index(name)]
+            if missing:
+                raise ValueError(f"Sub-indexes not found in registry: {missing}")
 
         wrapper = KmindexWrapper(dry_run=dry_run)
         result = wrapper.merge(

@@ -1,5 +1,6 @@
 """Build k-mer index command."""
 
+import datetime
 import logging
 import os
 
@@ -252,6 +253,9 @@ def apply(
             Log.handle_exception(
                 logger, e, f"Could not apply {os.path.basename(input_file)}"
             )
+
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    iops.write_script(os.path.join(workdir, f"kmhelpers_apply_{timestamp}.sh"))
 
     #     db = idt.load_db(input_file)
 

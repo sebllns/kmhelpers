@@ -79,7 +79,7 @@ class Item:
             cls._id_counter = 0
             cls._auto_increment_enabled = True
         if unique_name:
-            cls._used_names = set()
+            cls._instances: dict[str, "Item"] = {}
             cls._unique_name_enabled = True
 
     def __post_init__(self):
@@ -90,11 +90,34 @@ class Item:
 
         # Global uniqueness check
         if hasattr(type(self), "_unique_name_enabled") and self.name:
-            if self.name in type(self)._used_names:
+            if self.name in type(self)._instances:
                 raise ValueError(
                     f"Name '{self.name}' already exists in {type(self).__name__}"
                 )
-            type(self)._used_names.add(self.name)
+            type(self)._instances[self.name] = self
+
+    def __del__(self):
+        if hasattr(type(self), "_unique_name_enabled") and self.name:
+            if type(self)._instances and self.name in type(self)._instances:
+                del type(self)._instances[self.name]
+
+    @classmethod
+    def get_instance(cls, name: str) -> Optional["Item"]:
+        if hasattr(cls, "_unique_name_enabled"):
+            return cls._instances.get(name)
+        return None
+
+    @classmethod
+    def remove_instance(cls, name: str) -> Optional["Item"]:
+        if hasattr(cls, "_unique_name_enabled"):
+            return cls._instances.pop(name)
+        return None
+
+    @classmethod
+    def get_all(cls) -> Optional[list["Item"]]:
+        if hasattr(cls, "_unique_name_enabled"):
+            return list(cls._instances.values())
+        return None
 
     def create_link(self, name: str, value: str):
         if not self.links:
@@ -268,7 +291,7 @@ class IndexDefinitionTools:
         ), f"Bad input type: {data["type"]}"
 
         data = data["data"]
-        index_db = IndexDB(name=os.path.basename(filename))
+        index_db = IndexDB(name=os.path.splitext(os.path.basename(filename))[0])
         for index_id, index_data in data.items():
             samples = {}
             for sample_id, sample_data in index_data.get(

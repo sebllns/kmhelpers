@@ -280,6 +280,7 @@ class KmindexWrapper(Wrapper):
         register_as: Optional[str] = None,
         from_index: Optional[str] = None,
         km_path: Optional[Union[str, Path]] = None,
+        inplace: bool = False,
     ) -> Dict[str, str]:
         """
         Build a kmindex index.
@@ -320,7 +321,7 @@ class KmindexWrapper(Wrapper):
         if not input_fof_file:
             raise ValueError("Input sample file (FOF) must be provided.")
 
-        if not output_index_dir:
+        if not output_index_dir and not inplace:
             raise ValueError("output_index_dir must be provided.")
 
         if not (8 <= k <= 255):
@@ -337,18 +338,21 @@ class KmindexWrapper(Wrapper):
         if register_as is None:
             register_as = os.path.splitext(os.path.basename(input_fof_file))[0]
 
-        output_index_dir = Toolbox.get_canonical_path(
-            os.path.join(
-                os.path.dirname(output_registry_path), output_index_dir, register_as
-            )
-        )
-
-        if os.path.exists(output_index_dir):
-            raise FileExistsError(
-                f"output_index_dir directory already exists: {output_index_dir}"
+        if inplace:
+            output_index_dir = "@inplace"
+        else:
+            output_index_dir = Toolbox.get_canonical_path(
+                os.path.join(
+                    os.path.dirname(output_registry_path), output_index_dir, register_as
+                )
             )
 
-        os.makedirs(os.path.dirname(output_index_dir), exist_ok=True)
+            if not self.dry_run and os.path.exists(output_index_dir):
+                raise FileExistsError(
+                    f"output_index_dir directory already exists: {output_index_dir}"
+                )
+
+            os.makedirs(os.path.dirname(output_index_dir), exist_ok=True)
 
         # Build command
         cmd = [
