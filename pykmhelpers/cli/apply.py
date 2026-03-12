@@ -267,7 +267,8 @@ def apply(
             filter_names=selected_ids,
             filter_spans=selected_spans,
             log_folder="logs",
-            plan=dry_run,
+            plan=plan,
+            dry_run=dry_run,
         )
     )
 
