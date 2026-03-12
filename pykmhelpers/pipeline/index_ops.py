@@ -76,9 +76,7 @@ class IndexOps:
 
         assert i.name, "IndexDefinition is missing required 'name' field"
 
-        print(f"NAME IS {i.name}, building is {self._building}")
-
-        if i.name in self._building:
+        if i.name in self._building or builder.has_subindex(i.name):
             return None
 
         assert (
@@ -115,6 +113,7 @@ class IndexOps:
         result = None
         self._building.add(i.name)
         if fof.get_sample_count() > 0:
+            logger.info(f"Building index '{i.name}'")
             result = builder.create_subindex(
                 name=i.name,
                 samples=fof,
@@ -332,10 +331,9 @@ class IndexOps:
                         and parent_index not in self._building
                         and not builder.has_subindex(parent_index)
                     ):
-                        logger.info(f"Building required parent index '{parent_index}'")
                         parent_def = self._find_definition(parent_index, path, idt)
-
                         builder.index.load_json()
+                        logger.debug(f"Building required parent index '{parent_index}'")
                         build_result = self._build_single(builder, parent_def)
 
                     builder.index.load_json()
