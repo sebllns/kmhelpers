@@ -249,8 +249,6 @@ def cli(verbose, log_file, init_path, bin_path, check_all, chdir):
 
 
 # Register main commands
-about.section = "Main commands"  # type: ignore[assignment]
-cli.add_command(about)
 list_samples.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(list_samples)
 compose.section = "Main commands"  # type: ignore[assignment]
@@ -267,12 +265,9 @@ count_kmers.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(count_kmers)
 fof.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(fof)
-merge_span.section = "Utilities"  # type: ignore[assignment]
-cli.add_command(merge_span)
-merge_def_files.section = "Utilities"  # type: ignore[assignment]
-cli.add_command(merge_def_files)
-build_subindex.section = "Utilities"  # type: ignore[assignment]
-cli.add_command(build_subindex)
+# ! DEPRECATED
+# build_subindex.section = "Utilities"  # type: ignore[assignment]
+# cli.add_command(build_subindex)
 registry.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(registry)
 kmindex.section = "Utilities"  # type: ignore[assignment]
@@ -283,7 +278,8 @@ experimental.section = "Other"  # type: ignore[assignment]
 cli.add_command(experimental)
 test.section = "Other"  # type: ignore[assignment]
 cli.add_command(test)
-
+about.section = "Other"  # type: ignore[assignment]
+cli.add_command(about)
 
 if __name__ == "__main__":
     cli()

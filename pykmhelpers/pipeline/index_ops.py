@@ -48,6 +48,7 @@ class IndexOpsConfig:
     filter_spans: Optional[list[int]] = None
     filter_names: Optional[list[str]] = None
     log_folder: str = "logs"
+    plan: bool = False
     dry_run: bool = False
 
 
@@ -56,6 +57,8 @@ class IndexOps:
     def __init__(self, config: IndexOpsConfig) -> None:
         self._config = config
         self._config.workdir = os.path.realpath(self.config.workdir)
+        if self._config.dry_run:
+            self._config.plan = True
         self._dbs = dict[str, list[IndexDB]]()
         self._building = set[str]()
         self._script_lines = [
@@ -87,7 +90,7 @@ class IndexOps:
         if self.config.kmindex_build_from:
             parent_index = self.config.kmindex_build_from
 
-        if parent_index and not self.config.dry_run:
+        if parent_index and not self.config.plan:
             assert builder.has_subindex(
                 parent_index
             ), f"Could not find index '{parent_index}' required to build index '{i.name}'"
@@ -123,7 +126,7 @@ class IndexOps:
                 build_from=parent_index,
                 compress_intermediate=not self.config.kmindex_skip_compression,
                 minim_size=self.config.minimizer_length,
-                dry_run=self.config.dry_run,
+                dry_run=self.config.plan,
                 kmer_size=i.kmer_size,
             )
             if result and "command" in result:
@@ -134,9 +137,9 @@ class IndexOps:
         else:
             logger.warning(f"Skipping index '{i.name}' as no sample was added to it")
 
-        if not self.config.dry_run:
+        if not self.config.plan:
             builder.index.load_json()
-            if not self.config.dry_run:
+            if not self.config.plan:
                 assert builder.has_subindex(i.name), f"Could not find index '{i.name}'"
 
         return result
@@ -346,7 +349,7 @@ class IndexOps:
                 if len(v) > 0:
                     builder.index.load_json()
                     missing = None
-                    if not self.config.dry_run:
+                    if not self.config.plan:
                         missing = [
                             name for name in v if not builder.index.has_index(name)
                         ]
@@ -359,7 +362,7 @@ class IndexOps:
                         )
                     else:
                         merge_result = builder.merge(
-                            k, v, delete_old=True, dry_run=self.config.dry_run
+                            k, v, delete_old=True, dry_run=self.config.plan
                         )
                         if result and "command" in merge_result:
                             self._script_lines.append(
@@ -367,7 +370,7 @@ class IndexOps:
                                     self.config.workdir, "${WORKDIR}"
                                 )
                             )
-                elif self.config.dry_run:
+                elif self.config.plan:
                     logger.info(f"mv {v[0]} -> {k}")
                 else:
                     builder.index.load_json()

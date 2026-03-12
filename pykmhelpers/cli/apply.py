@@ -60,9 +60,9 @@ def _parse_spans(spans):
     help="📁  Output directory path (created if doesn't exist).",
 )
 @click.option(
-    "--rootpath",
-    "-r",
-    envvar="KMHELPERS_INPUT_PATH",
+    "--basepath",
+    "-b",
+    envvar="KMHELPERS_SAMPLE_ROOT",
     required=False,
     type=click.Path(file_okay=False, dir_okay=True),
     help="📁  Base path to resolve relative sample paths. By default, relative \
@@ -71,12 +71,14 @@ need to resolve them from a different location.",
 )
 @click.option(
     "--registry",
+    "-r",
     required=False,
     type=click.Path(file_okay=False, dir_okay=True),
     help="📁  Base path to kmindex registry, absolute or relative from workdir (created if doesn't exist).",
 )
 @click.option(
     "--output-dir",
+    "-o",
     required=False,
     type=click.Path(file_okay=False, dir_okay=True),
     help="📁  Base path to kmindex output directory, absolute or relative from workdir (created if doesn't exist).",
@@ -128,7 +130,7 @@ need to resolve them from a different location.",
     "-f",
     envvar="KMHELPERS_SKIP_CONFIRMATION",
     is_flag=True,
-    help="🚩  Skip confirmation prompt before building.",
+    help="🚩  Skip confirmation prompt before building. NOTE: disabled for now",
 )
 @click.option(
     "--skip-compression",
@@ -141,11 +143,23 @@ need to resolve them from a different location.",
     is_flag=True,
     help="🚩  Output a bash script with build commands without executing them.",
 )
+@click.option(
+    "--plan",
+    is_flag=True,
+    help="🚩  Like dry-run, but with paths checking (e.g. samples with missing files won't be exported in FOF file) \n NOTE: this option will become a command itself in a future release.",
+)
+@click.option(
+    "--merge-spans",
+    "-m",
+    required=False,
+    type=click.Path(file_okay=True, dir_okay=False, exists=True),
+    help="📄  TODO: Input file, defining span merges. Currently does nothing, will be added in a future release.",
+)
 def apply(
     input_files,
     config,
     workdir,
-    rootpath,
+    basepath,
     registry,
     output_dir,
     span,
@@ -157,6 +171,8 @@ def apply(
     force,
     skip_compression,
     dry_run,
+    plan,
+    merge_spans,
 ):
     """Apply changes and build indices from definition files.
 
@@ -219,11 +235,11 @@ def apply(
         if not registry:
             registry = config_map.get("registry", "")
 
-        if not rootpath:
-            rootpath = config_map.get("rootpath", "")
+        if not basepath:
+            basepath = config_map.get("rootpath", "")
 
-        if rootpath and not os.path.isdir(rootpath):
-            logger.warning(f"Data root directory not found at {rootpath}")
+        if basepath and not os.path.isdir(basepath):
+            logger.warning(f"Data root directory not found at {basepath}")
 
         if not output_dir:
             output_dir = config_map.get("output_dir", "kmindex_data")
@@ -244,14 +260,14 @@ def apply(
             index_data_folder=output_dir,
             registry_name=registry,
             minimizer_length=int(minim_size),
-            sample_rootpath=rootpath,
+            sample_rootpath=basepath,
             kmindex_threads=threads,
             kmindex_skip_compression=skip_compression,
             kmindex_build_from=reuse_from,
             filter_names=selected_ids,
             filter_spans=selected_spans,
             log_folder="logs",
-            dry_run=dry_run,
+            plan=dry_run,
         )
     )
 
@@ -266,86 +282,3 @@ def apply(
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     iops.write_script(os.path.join(workdir, f"kmhelpers_apply_{timestamp}.sh"))
-
-    #     db = idt.load_db(input_file)
-
-    #     for table in db:
-    #         for i in table.index_table.values():
-    #             if selected_spans and i.span not in selected_spans:
-    #                 continue
-
-    #             assert i.name, "Index name empty or null"
-    #             logger.info(f"Build {i.name}...")
-
-    #             try:
-    #                 builder = IndexBuilder(
-    #                     workdir=workdir,
-    #                 )
-
-    #                 fof = FofManager()
-    #                 assert builder, "Could not initialize builder"
-
-    #                 if builder.has_subindex(i.name):
-    #                     logger.warning(
-    #                         f"Index {i.name} already found in registry... Skipping"
-    #                     )
-    #                     continue
-
-    #                 # Show confirmation with size estimation (skip if -f/--force is used)
-    #                 if not force:
-    #                     try:
-    #                         logger.info(
-    #                             f"  Estimated index size: {str(i.get_stored_size())}"
-    #                         )
-
-    #                         if not click.confirm("Proceed with build?", default=True):
-    #                             logger.info("Build cancelled")
-    #                             continue
-    #                     except Exception as e:
-    #                         logger.warning(f"Could not estimate build size: {e}")
-    #                         if not click.confirm(
-    #                             "Proceed with build anyway?", default=True
-    #                         ):
-    #                             logger.info("Build cancelled")
-    #                             continue
-
-    #                 parent_index = i.get_parent()
-
-    #                 if reuse_from:
-    #                     parent_index = reuse_from
-
-    #                 if reuse_from:
-    #                     assert builder.has_subindex(
-    #                         reuse_from
-    #                     ), f"Could not find parent index: {reuse_from}"
-
-    #                 for s in i.samples.values():
-    #                     if s.name:
-    #                         try:
-    #                             sample_files = (
-    #                                 [rootpath + f for f in s.files]
-    #                                 if rootpath
-    #                                 else s.files
-    #                             )
-    #                             fof.add_sample(sample_files, s.name)
-    #                         except Exception as e:
-    #                             logger.warning(f"Error adding sample to FOF: {e}")
-
-    #                 builder.create_subindex(
-    #                     name=i.name,
-    #                     samples=fof,
-    #                     abundance_min=i.abundance_min,
-    #                     bloom_size=i.bf_size,
-    #                     n_partitions=i.partition_count,
-    #                     n_threads=threads,
-    #                     auto_check=True,
-    #                     build_from=parent_index,
-    #                     compress_intermediate=not skip_compression,
-    #                     minim_size=minim_size,
-    #                 )
-
-    #             except Exception as e:
-    #                 if verbose:
-    #                     logger.exception(f"Build failed for {i.name}")
-    #                 else:
-    #                     logger.error(f"Error: {e}")

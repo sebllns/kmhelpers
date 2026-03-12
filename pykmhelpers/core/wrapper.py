@@ -443,6 +443,9 @@ class KmindexWrapper(Wrapper):
             if nb_cell:
                 d["nb_cell"] = nb_cell
 
+            if from_index:
+                d["from"] = from_index
+
             with open(output_param_file, "w") as f:
                 yaml.safe_dump(d, f)
 

@@ -6,6 +6,8 @@ import os
 import click
 import yaml
 
+from .experimental import experimental
+
 logger = logging.getLogger(__name__)
 
 
@@ -18,7 +20,7 @@ def format_bytes(num_bytes):
     return f"{num_bytes:.2f}PB"
 
 
-@click.command(name="merge-span")
+@experimental.command(name="merge-span")
 @click.argument("source_span")
 @click.argument("target_span")
 @click.option(

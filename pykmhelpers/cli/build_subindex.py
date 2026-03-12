@@ -132,7 +132,6 @@ def build_subindex(
                 try:
                     builder = IndexBuilder(
                         workdir=workdir,
-                        k=i.kmer_size,
                     )
 
                     fof = FofManager()
