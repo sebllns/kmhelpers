@@ -172,6 +172,7 @@ def apply(
     reuse_from,
     minim_size,
     threads,
+    existing,
     verbose,
     force,
     skip_compression,
@@ -241,13 +242,16 @@ def apply(
             registry = config_map.get("registry", "")
 
         if not basepath:
-            basepath = config_map.get("rootpath", "")
+            basepath = config_map.get("basepath", "")
 
         if basepath and not os.path.isdir(basepath):
             logger.warning(f"Data root directory not found at {basepath}")
 
         if not output_dir:
             output_dir = config_map.get("output_dir", "kmindex_data")
+
+        if not existing:
+            existing = config_map.get("existing", "fail")
 
         if not threads:
             threads = config_map.get("threads", 1)

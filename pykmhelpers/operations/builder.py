@@ -198,6 +198,10 @@ class IndexBuilder:
                         shutil.move(output_indexdir, f"{output_indexdir}_{timestamp}")
                 else:
                     return {"register": True}
+            else:
+                raise ValueError(
+                    f"Unknown value for parameter 'on_existing': {on_existing}"
+                )
 
         result = wrapper.build(
             input_fof_file=fof_path,
