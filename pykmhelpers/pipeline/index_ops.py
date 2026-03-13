@@ -50,6 +50,7 @@ class IndexOpsConfig:
     log_folder: str = "logs"
     plan: bool = False
     dry_run: bool = False
+    on_existing: str = "fail"
 
 
 class IndexOps:
@@ -127,6 +128,7 @@ class IndexOps:
                 minim_size=self.config.minimizer_length,
                 dry_run=self.config.plan,
                 kmer_size=i.kmer_size,
+                on_existing=self.config.on_existing,
             )
             if result and "command" in result:
                 self._script_lines.append(
