@@ -5,8 +5,8 @@ channels:
   - defaults
 dependencies:
   - python>=3.8
-  - bioconda::kmindex>=0.5.3
+  - bioconda::kmindex>=0.6.0
   - bioconda::ntcard>=1.2.2
   - pip
   - pip:
-    - -e ..
+      - -e ..
