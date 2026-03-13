@@ -119,6 +119,11 @@ need to resolve them from a different location.",
     help="⚙   Number of threads (default: 1).",
 )
 @click.option(
+    "--existing",
+    required=False,
+    help="⚙   Action when an existing unregistered index folder is found: fail, register, rename,  replace, register_or_replace, register_or_rename (default: fail).",
+)
+@click.option(
     "--verbose",
     "-v",
     envvar="KMHELPERS_VERBOSE",

@@ -97,7 +97,7 @@ class Wrapper:
         print_trace: Optional[bool] = None,
         log_file: Optional[str] = None,
         log_errors_only: Optional[bool] = None,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict]:
         """
         Run a command and monitor its resource usage.
         Args:
@@ -281,7 +281,7 @@ class KmindexWrapper(Wrapper):
         from_index: Optional[str] = None,
         km_path: Optional[Union[str, Path]] = None,
         inplace: bool = False,
-    ) -> Dict[str, str]:
+    ) -> dict:
         """
         Build a kmindex index.
 
@@ -482,7 +482,7 @@ class KmindexWrapper(Wrapper):
         single_query: Optional[str] = None,
         aggregate: bool = False,
         threads: int = 1,
-    ) -> dict[str, str]:
+    ) -> dict:
         """
         Query a kmindex index.
 

@@ -1,5 +1,7 @@
+import datetime
 import logging
 import os
+import shutil
 from typing import IO, Optional
 
 import yaml
@@ -130,7 +132,8 @@ class IndexBuilder:
         minim_size: int = 10,
         compress_intermediate: bool = True,
         dry_run: bool = False,
-    ):
+        on_existing: str = "fail",
+    ) -> dict:
 
         assert (
             samples and samples.get_sample_count()
@@ -167,10 +170,39 @@ class IndexBuilder:
                 )
                 build_from = None
 
+        output_basedir = os.path.join(self.path, self.data_folder)
+        output_indexdir = os.path.join(output_basedir, name)
+
+        if not dry_run and os.path.exists(output_indexdir):
+            if on_existing == "fail":
+                raise FileExistsError(f"Directory already exists: {output_indexdir}")
+            elif on_existing == "rename":
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                shutil.move(output_indexdir, f"{output_indexdir}_{timestamp}")
+            elif on_existing == "replace":
+                os.rmdir(output_indexdir)
+            elif on_existing in (
+                "register",
+                "register_or_replace",
+                "register_or_rename",
+            ):
+                try:
+                    r = self.index.add_index(KmtricksIndex(output_basedir, name))
+                except:
+                    r = False
+                if r == False:
+                    if on_existing == "register_or_replace":
+                        os.rmdir(output_indexdir)
+                    elif on_existing == "register_or_rename":
+                        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                        shutil.move(output_indexdir, f"{output_indexdir}_{timestamp}")
+                else:
+                    return {"register": True}
+
         result = wrapper.build(
             input_fof_file=fof_path,
             output_registry_path=self.index.root_path,
-            output_index_dir=os.path.join(self.path, self.data_folder),
+            output_index_dir=output_basedir,
             k=kmer_size,
             hard_min=abundance_min,
             threads=n_threads,
