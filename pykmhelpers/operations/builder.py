@@ -158,13 +158,14 @@ class IndexBuilder:
 
         self.index.load_json()
 
-        if build_from and not dry_run:
-            if self.index.has_index(build_from):
+        if build_from:
+            if self.index.has_index(build_from) or dry_run:
                 logger.info(f"Reusing parameters from index: {build_from}")
             elif name != build_from:
                 logger.warning(
                     f"Index '{build_from}' not found, building '{name}' from scratch"
                 )
+                build_from = None
 
         result = wrapper.build(
             input_fof_file=fof_path,
@@ -178,9 +179,7 @@ class IndexBuilder:
             bloom_size=bloom_size,
             output_log_dir=os.path.join(self.path, self.log_folder, name),
             output_param_file=os.path.join(self.path, f"{name}.yaml"),
-            from_index=(
-                build_from if build_from and self.index.has_index(build_from) else None
-            ),
+            from_index=build_from,
             compress_intermediate=compress_intermediate,
             minim_size=minim_size,
         )
