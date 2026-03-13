@@ -278,6 +278,7 @@ def apply(
             log_folder="logs",
             plan=plan,
             dry_run=dry_run,
+            on_existing=existing,
         )
     )
 
