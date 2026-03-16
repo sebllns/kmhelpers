@@ -51,6 +51,7 @@ class IndexOpsConfig:
     plan: bool = False
     dry_run: bool = False
     on_existing: str = "fail"
+    show_progress: bool = False
 
 
 class IndexOps:
@@ -114,7 +115,33 @@ class IndexOps:
         result = None
         self._building.add(i.name)
         if fof.get_sample_count() > 0:
-            logger.info(f"Building index '{i.name}'")
+            logger.info(f"Building index '{i.name}'...")
+
+            progress_handler = None
+            if self.config.show_progress:
+
+                start = datetime.now()
+
+                def _on_progress(value: float):
+                    elapsed = (datetime.now() - start).total_seconds()
+                    if value > 0:
+                        estimated_total = elapsed / value
+                        remaining = estimated_total - elapsed
+                        mins, secs = divmod(int(remaining), 60)
+                        eta = f"~{mins}m{secs:02d}s remaining"
+                    else:
+                        eta = "estimating..."
+                    bar_len = 30
+                    filled = int(round(bar_len * value))
+                    bar = "■" * filled + " " * (bar_len - filled)
+                    print(
+                        f"\r[{bar}] {value * 100:.1f}%  elapsed: {int(elapsed // 60)}m{int(elapsed % 60):02d}s  {eta}",
+                        end="",
+                        flush=True,
+                    )
+
+                progress_handler = IndexBuilder.Progress(_on_progress, delay=60)
+
             result = builder.create_subindex(
                 name=i.name,
                 samples=fof,
@@ -129,6 +156,7 @@ class IndexOps:
                 dry_run=self.config.plan,
                 kmer_size=i.kmer_size,
                 on_existing=self.config.on_existing,
+                progress=progress_handler,
             )
             if result and "command" in result:
                 self._script_lines.append(
@@ -140,8 +168,7 @@ class IndexOps:
 
         if not self.config.plan:
             builder.index.load_json()
-            if not self.config.plan:
-                assert builder.has_subindex(i.name), f"Could not find index '{i.name}'"
+            assert builder.has_subindex(i.name), f"Could not find index '{i.name}'"
 
         return result
 

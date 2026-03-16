@@ -130,13 +130,13 @@ need to resolve them from a different location.",
     is_flag=True,
     help="🚩  Verbose output.",
 )
-@click.option(
-    "--force",
-    "-f",
-    envvar="KMHELPERS_SKIP_CONFIRMATION",
-    is_flag=True,
-    help="🚩  Skip confirmation prompt before building. NOTE: disabled for now",
-)
+# @click.option(
+#     "--force",
+#     "-f",
+#     envvar="KMHELPERS_SKIP_CONFIRMATION",
+#     is_flag=True,
+#     help="🚩  Skip confirmation prompt before building. ⚠️ NOTE: disabled for now",
+# )
 @click.option(
     "--skip-compression",
     envvar="KMHELPERS_SKIP_COMPRESSION",
@@ -174,7 +174,7 @@ def apply(
     threads,
     existing,
     verbose,
-    force,
+    # force,
     skip_compression,
     dry_run,
     plan,

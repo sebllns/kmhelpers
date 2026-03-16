@@ -2,6 +2,7 @@ import datetime
 import logging
 import os
 import shutil
+import threading
 from typing import IO, Optional
 
 import yaml
@@ -22,6 +23,27 @@ logger = logging.getLogger(__name__)
 
 
 class IndexBuilder:
+    class Progress:
+        def __init__(self, on_change, delay: int = 30):
+            self._delay: int = delay
+            self._progress: float = 0
+            self._on_change = on_change
+
+        @property
+        def delay(self) -> int:
+            return self._delay
+
+        @property
+        def progress(self) -> float:
+            return self._progress
+
+        @progress.setter
+        def progress(self, value: float):
+            p = self._progress
+            self._progress = value
+            if p != value:
+                self._on_change(value)
+
     def __init__(
         self,
         workdir: str,
@@ -113,7 +135,8 @@ class IndexBuilder:
         )
 
     def get_storage_size(
-        self, bf_specs: BloomFilterSpecs, n_partitions: int
+        self,
+        bf_specs: BloomFilterSpecs,
     ) -> ByteCounter:
         return ByteCounter.auto(bf_specs.total_storage_size(), SizeFormat.BYTE)
 
@@ -133,6 +156,7 @@ class IndexBuilder:
         compress_intermediate: bool = True,
         dry_run: bool = False,
         on_existing: str = "fail",
+        progress: Optional[Progress] = None,
     ) -> dict:
 
         assert (
@@ -159,6 +183,12 @@ class IndexBuilder:
 
         n_partitions = max(n_partitions, 0)
 
+        bf_specs = self.get_bf_specs(
+            n_samples=samples.get_sample_count(),
+            bloom_size=bloom_size,
+            n_partitions=max(256, n_partitions),
+        )
+
         self.index.load_json()
 
         if build_from:
@@ -178,9 +208,15 @@ class IndexBuilder:
                 raise FileExistsError(f"Directory already exists: {output_indexdir}")
             elif on_existing == "rename":
                 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                logger.info(
+                    f"Rename {output_indexdir} to {os.path.basename(output_indexdir)}_{timestamp}"
+                )
                 shutil.move(output_indexdir, f"{output_indexdir}_{timestamp}")
             elif on_existing == "replace":
-                os.rmdir(output_indexdir)
+                logger.info(f"Delete {output_indexdir}")
+                shutil.rmtree(
+                    output_indexdir,
+                )
             elif on_existing in (
                 "register",
                 "register_or_replace",
@@ -192,9 +228,13 @@ class IndexBuilder:
                     r = False
                 if r == False:
                     if on_existing == "register_or_replace":
-                        os.rmdir(output_indexdir)
+                        logger.info(f"Delete {output_indexdir}")
+                        shutil.rmtree(output_indexdir)
                     elif on_existing == "register_or_rename":
                         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                        logger.info(
+                            f"Rename {output_indexdir} to {os.path.basename(output_indexdir)}_{timestamp}"
+                        )
                         shutil.move(output_indexdir, f"{output_indexdir}_{timestamp}")
                 else:
                     return {"register": True}
@@ -202,6 +242,27 @@ class IndexBuilder:
                 raise ValueError(
                     f"Unknown value for parameter 'on_existing': {on_existing}"
                 )
+
+        progress_handler = None
+        stop_event = None
+
+        if progress and progress.delay > 0:
+            stop_event = threading.Event()
+
+            def _progress_worker():
+                while not stop_event.wait(timeout=progress.delay):
+                    total_size = 0
+                    for p in range(n_partitions):
+                        m_path = wrapper.get_matrix_path(output_indexdir, p, False)
+                        if os.path.isfile(m_path):
+                            try:
+                                total_size += os.stat(m_path).st_size
+                            except Exception as e:
+                                logger.debug(e)
+                    progress.progress = (1.0 * total_size) / bf_specs.total_byte_count()
+
+            progress_handler = threading.Thread(target=_progress_worker, daemon=True)
+            progress_handler.start()
 
         result = wrapper.build(
             input_fof_file=fof_path,
@@ -219,6 +280,12 @@ class IndexBuilder:
             compress_intermediate=compress_intermediate,
             minim_size=minim_size,
         )
+
+        if stop_event:
+            stop_event.set()
+
+        if progress_handler:
+            progress_handler.join()
 
         if not dry_run:
             self.index.load_json()

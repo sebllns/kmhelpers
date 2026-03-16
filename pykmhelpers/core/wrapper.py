@@ -481,6 +481,7 @@ class KmindexWrapper(Wrapper):
         threshold: float = 0.0,
         single_query: Optional[str] = None,
         aggregate: bool = False,
+        is_compressed: bool = False,
         threads: int = 1,
     ) -> dict:
         """
@@ -539,7 +540,7 @@ class KmindexWrapper(Wrapper):
 
         cmd = [
             Bin.kmindex(),
-            "query",
+            "query2" if is_compressed else "query",
             "--index",
             index_path,
             "--output",
@@ -832,3 +833,36 @@ class KmindexWrapper(Wrapper):
         except Exception as e:
             logger.warning(f"Could not get kmindex version: {e}")
             return None
+
+    ####################################################
+    def get_matrix_dir(self, index_path: str) -> str:
+        """
+        Get the path to the matrices directory within an index.
+
+        Args:
+            index_path: Path to the index directory
+
+        Returns:
+            Canonical path to the matrices directory
+        """
+        return Toolbox.get_canonical_path(os.path.join(index_path, "matrices"))
+
+    ####################################################
+    def get_matrix_path(
+        self, index_path: str, partition: int, is_compressed: bool = False
+    ) -> str:
+        """
+        Get the path to a specific matrix partition file.
+
+        Args:
+            index_path: Path to the index directory
+            partition: Partition number
+            is_compressed: Whether to get the compressed matrix path (default: False)
+
+        Returns:
+            Path to the matrix file (either matrix_N.cmbf or blocks_N for compressed)
+        """
+        return os.path.join(
+            self.get_matrix_dir(index_path),
+            f"blocks_{partition}" if is_compressed else f"matrix_{partition}.cmbf",
+        )

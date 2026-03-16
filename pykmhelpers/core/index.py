@@ -511,7 +511,7 @@ class KmtricksIndex:
         except Exception as e:
             print(f"Error moving index: {e}")
             return False
-        
+
     def rename(self, new_id) -> bool:
         """
         Rename this index to a new ID.
@@ -553,7 +553,6 @@ class KmtricksIndex:
         except Exception as e:
             print(f"Error renaming index: {e}")
             return False
-
 
     def __str__(self) -> str:
         """String representation of the index."""
@@ -723,8 +722,7 @@ class KmindexRegistry:
         if not self.has_index(_index_id):
             return False
 
-        i = self.get_index(_index_id)
-        os.unlink(i.dir_path)
+        os.unlink(self.get_index_path(_index_id))
 
         # Remove the index from the JSON data
         del self._json_data["index"][_index_id]
