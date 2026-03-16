@@ -1,8 +1,10 @@
 import logging
 import os
+import threading
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from time import sleep
 from typing import Optional
 
 from ..core.log import Log
@@ -117,7 +119,28 @@ class IndexOps:
         result = None
         self._building.add(i.name)
         if fof.get_sample_count() > 0:
-            logger.info(f"Building index '{i.name}'...")
+            stop_event = None
+            wait_handler = None
+            if not self.config.dry_run and not self.config.plan:
+                stop_event = threading.Event()
+
+                def _progress_worker():
+                    sleep(2)
+                    s = 0
+                    wait_steps = ["⢿", "⣻", "⣽", "⣾", "⣷", "⣯", "⣟", "⡿"]
+                    while not stop_event.wait(timeout=0.5):
+                        print(
+                            f"\r\033[1;32m{wait_steps[s]} Building index '{i.name}'...\033[0m ",
+                            end="",
+                            flush=True,
+                        )
+                        s = (s + 1) % len(wait_steps)
+
+                wait_handler = threading.Thread(target=_progress_worker, daemon=True)
+                wait_handler.start()
+
+            else:
+                logger.info(f"Building index '{i.name}'...")
 
             progress_handler = None
             if self.config.show_progress:
@@ -141,6 +164,11 @@ class IndexOps:
                         end="",
                         flush=True,
                     )
+                    if stop_event:
+                        stop_event.set()
+
+                    if wait_handler:
+                        wait_handler.join()
 
                 progress_handler = IndexBuilder.Progress(_on_progress, delay=60)
 
