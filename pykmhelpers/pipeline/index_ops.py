@@ -61,6 +61,8 @@ class IndexOps:
         self._config.workdir = os.path.realpath(self.config.workdir)
         if self._config.dry_run:
             self._config.plan = True
+        if self._config.dry_run or self._config.plan:
+            self._config.show_progress = False
         self._dbs = dict[str, list[IndexDB]]()
         self._building = set[str]()
         self._script_lines = [

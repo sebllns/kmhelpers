@@ -154,6 +154,11 @@ need to resolve them from a different location.",
     help="🚩  Like dry-run, but with paths checking (e.g. samples with missing files won't be exported in FOF file) \n NOTE: this option will become a command itself in a future release.",
 )
 @click.option(
+    "--show-progress",
+    is_flag=True,
+    help="🚩  Show a progress bar with elapsed time and estimated remaining time during index building.",
+)
+@click.option(
     "--merge-spans",
     "-m",
     required=False,
@@ -178,6 +183,7 @@ def apply(
     skip_compression,
     dry_run,
     plan,
+    show_progress,
     merge_spans,
 ):
     """Apply changes and build indices from definition files.
@@ -212,6 +218,30 @@ def apply(
     \b
     # Reuse parameters from an existing parent index
     kmhelpers apply index.yaml -w /output -n my_index --from parent_index
+
+    \b
+    # Show progress bar during building
+    kmhelpers apply index.yaml -w /output --show-progress
+
+    \b
+    # Plan: check paths and preview build without executing
+    kmhelpers apply index.yaml -w /output --plan
+
+    \b
+    # Skip compression of intermediate files
+    kmhelpers apply index.yaml -w /output --skip-compression
+
+    \b
+    # Resolve sample paths from a base directory
+    kmhelpers apply index.yaml -w /output -b /data/samples
+
+    \b
+    # Set number of threads and minimizer size
+    kmhelpers apply index.yaml -w /output -t 8 --minim-size 12
+
+    \b
+    # Load options from a config file (CLI flags take precedence)
+    kmhelpers apply index.yaml -c config.yaml
     """
 
     abort_msg = "Command 'apply' aborted."
@@ -259,6 +289,21 @@ def apply(
         if not minim_size:
             minim_size = config_map.get("minim_size", 10)
 
+        if not show_progress:
+            show_progress = config_map.get("show_progress", False)
+
+        if not reuse_from:
+            reuse_from = config_map.get("reuse_from", "")
+
+        if not skip_compression:
+            skip_compression = config_map.get("skip_compression", False)
+
+        if not dry_run:
+            dry_run = config_map.get("dry_run", False)
+
+        if not plan:
+            plan = config_map.get("plan", False)
+
     except Exception as e:
         Log.handle_exception(logger, e, f"Invalid argument.")
         raise click.ClickException(abort_msg)
@@ -279,6 +324,7 @@ def apply(
             plan=plan,
             dry_run=dry_run,
             on_existing=existing,
+            show_progress=show_progress,
         )
     )
 

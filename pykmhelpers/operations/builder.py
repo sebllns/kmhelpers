@@ -246,7 +246,7 @@ class IndexBuilder:
         progress_handler = None
         stop_event = None
 
-        if progress and progress.delay > 0:
+        if not dry_run and progress and progress.delay > 0:
             stop_event = threading.Event()
 
             def _progress_worker():
