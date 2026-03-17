@@ -9,7 +9,6 @@ data structures and their associated properties from index.json files.
 import json
 import os
 import shutil
-import warnings
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List
@@ -855,7 +854,7 @@ class KmindexRegistry:
             )
 
         # Import here to avoid circular imports
-        from pykmhelpers.core.wrapper import KmindexWrapper
+        from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
 
         # Use KmindexWrapper to compress the index
         wrapper = KmindexWrapper()

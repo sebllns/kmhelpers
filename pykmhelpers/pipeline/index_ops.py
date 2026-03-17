@@ -54,6 +54,7 @@ class IndexOpsConfig:
     dry_run: bool = False
     on_existing: str = "fail"
     show_progress: bool = False
+    fail_on_error: bool = False
 
 
 class IndexOps:
@@ -172,27 +173,34 @@ class IndexOps:
 
                 progress_handler = IndexBuilder.Progress(_on_progress, delay=60)
 
-            result = builder.create_subindex(
-                name=i.name,
-                samples=fof,
-                abundance_min=i.abundance_min,
-                bloom_size=i.bf_size,
-                n_partitions=i.partition_count,
-                n_threads=self.config.kmindex_threads,
-                auto_check=True,
-                build_from=parent_index,
-                compress_intermediate=not self.config.kmindex_skip_compression,
-                minim_size=self.config.minimizer_length,
-                dry_run=self.config.plan,
-                kmer_size=i.kmer_size,
-                on_existing=self.config.on_existing,
-                progress=progress_handler,
-            )
-            if result and "command" in result:
-                self._script_lines.append(
-                    result["command"].replace(self.config.workdir, "${WORKDIR}")
+            try:
+                result = builder.create_subindex(
+                    name=i.name,
+                    samples=fof,
+                    abundance_min=i.abundance_min,
+                    bloom_size=i.bf_size,
+                    n_partitions=i.partition_count,
+                    n_threads=self.config.kmindex_threads,
+                    auto_check=True,
+                    build_from=parent_index,
+                    compress_intermediate=not self.config.kmindex_skip_compression,
+                    minim_size=self.config.minimizer_length,
+                    dry_run=self.config.plan,
+                    kmer_size=i.kmer_size,
+                    on_existing=self.config.on_existing,
+                    progress=progress_handler,
                 )
-
+                if result and "command" in result:
+                    self._script_lines.append(
+                        result["command"].replace(self.config.workdir, "${WORKDIR}")
+                    )
+            except:
+                raise
+            finally:
+                if stop_event:
+                    stop_event.set()
+                if wait_handler:
+                    wait_handler.join()
         else:
             logger.warning(f"Skipping index '{i.name}' as no sample was added to it")
 
@@ -307,8 +315,8 @@ class IndexOps:
         builder = IndexBuilder(
             workdir=self.config.workdir,
             registry_name=self.config.registry_name,
-            data_folder=self.config.index_data_folder,
-            log_folder=self.config.log_folder,
+            data_folder=os.path.realpath(self.config.index_data_folder),
+            log_folder=os.path.realpath(self.config.log_folder),
         )
 
         if result.input_type is ApplyInputType.INDEX_DEFINITION:
@@ -400,6 +408,10 @@ class IndexOps:
 
                 except Exception as e:
                     Log.handle_exception(logger, e, f"Failed to build index '{i.name}'")
+                    result.status = ApplyStatus.PARTIAL
+                    if self.config.fail_on_error:
+                        result.status = ApplyStatus.FAILED
+                        return result
 
         for k, v in merges.items():
             try:
@@ -434,6 +446,10 @@ class IndexOps:
                     builder.index.rename_index(v[0], k)
             except Exception as e:
                 Log.handle_exception(logger, e, f"Failed to merge index '{k}'")
+                result.status = ApplyStatus.PARTIAL
+                if self.config.fail_on_error:
+                    result.status = ApplyStatus.FAILED
+                    return result
 
         result.status = ApplyStatus.SUCCESS
         return result

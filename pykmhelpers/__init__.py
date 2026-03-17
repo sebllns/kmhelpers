@@ -15,7 +15,7 @@ from pykmhelpers.core.sequence import Sequence
 
 # Import core classes for easy access
 from pykmhelpers.core.utils import Bin, BlockCompressorZSTD, Kmindex, Main, Toolbox
-from pykmhelpers.core.wrapper import KmindexWrapper
+from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
 from pykmhelpers.operations.builder import IndexBuilder
 from pykmhelpers.operations.compressor import CompressionParams, Compressor
 from pykmhelpers.pipeline.fof import FofManager

@@ -159,6 +159,11 @@ need to resolve them from a different location.",
     help="🚩  Show a progress bar with elapsed time and estimated remaining time during index building.",
 )
 @click.option(
+    "--fail-on-error",
+    is_flag=True,
+    help="🚩  Abort the entire run if any index fails to build, instead of skipping it and continuing.",
+)
+@click.option(
     "--merge-spans",
     "-m",
     required=False,
@@ -184,6 +189,7 @@ def apply(
     dry_run,
     plan,
     show_progress,
+    fail_on_error,
     merge_spans,
 ):
     """Apply changes and build indices from definition files.
@@ -304,6 +310,9 @@ def apply(
         if not plan:
             plan = config_map.get("plan", False)
 
+        if not fail_on_error:
+            fail_on_error = config_map.get("fail_on_error", False)
+
     except Exception as e:
         Log.handle_exception(logger, e, f"Invalid argument.")
         raise click.ClickException(abort_msg)
@@ -325,6 +334,7 @@ def apply(
             dry_run=dry_run,
             on_existing=existing,
             show_progress=show_progress,
+            fail_on_error=fail_on_error,
         )
     )
 

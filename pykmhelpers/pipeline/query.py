@@ -1,13 +1,15 @@
+import json
 import os
 import shutil
-import yaml
-import json
-from typing import List, Optional, Union
-from ..core.utils import Toolbox
-from ..core.wrapper import KmindexWrapper
-from ..core.sequence import Sequence
 import sys
 from pathlib import Path
+from typing import Optional
+
+import yaml
+
+from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
+from pykmhelpers.core.sequence import Sequence
+from pykmhelpers.core.utils import Toolbox
 
 
 class KmindexQueryResult:
