@@ -1,17 +1,21 @@
 """Build k-mer index command."""
 
+import atexit
 import datetime
 import logging
 import os
+import signal
+import sys
+import tempfile
 
 import click
+import yaml
 
 import pykmhelpers.cli.shared as shared
 import pykmhelpers.pipeline.index_ops as ops
 from pykmhelpers.core.constants import KMHELPERS_VERSION
 from pykmhelpers.core.log import Log
-from pykmhelpers.operations.builder import IndexBuilder
-from pykmhelpers.pipeline.fof import FofManager
+from pykmhelpers.pipeline.mail_notifier import MailNotifier
 
 logger = logging.getLogger(__name__)
 
@@ -170,6 +174,12 @@ need to resolve them from a different location.",
     type=click.Path(file_okay=True, dir_okay=False, exists=True),
     help="📄  TODO: Input file, defining span merges. Currently does nothing, will be added in a future release.",
 )
+@click.option(
+    "--notify",
+    required=False,
+    metavar="EMAIL",
+    help="📧  Send an email notification on exit (success, failure, or timeout).",
+)
 def apply(
     input_files,
     config,
@@ -191,6 +201,7 @@ def apply(
     show_progress,
     fail_on_error,
     merge_spans,
+    notify,
 ):
     """Apply changes and build indices from definition files.
 
@@ -251,6 +262,53 @@ def apply(
     """
 
     abort_msg = "Command 'apply' aborted."
+    attachements = []
+
+    if Log.log_file:
+        attachements.append(Log.log_file)
+
+    # Notification setup
+    _notify_state = {
+        "status": ops.ApplyStatus.NONE.value,
+        "recipient": notify,
+        "sender": "kmhelpers@groupes.renater.fr",
+    }
+
+    # def _build_attachment() -> str:
+    #     # TODO: fill with details
+    #     tmp = tempfile.NamedTemporaryFile(
+    #         mode="w", suffix=".txt", delete=False, prefix="kmhelpers_apply_"
+    #     )
+    #     tmp.write("TEST")
+    #     tmp.close()
+    #     return tmp.name
+
+    def _send_notification():
+        recipient = _notify_state.get("recipient")
+        if not recipient:
+            return
+        status = _notify_state["status"]
+        # attachment = _build_attachment()
+        try:
+            MailNotifier(dry_run=False).send(
+                to=recipient,
+                subject=f"[kmhelpers apply] {status}",
+                body=f"kmhelpers apply exited with status: {status}\nkmindex logs can be found",
+                sender=_notify_state["sender"],
+                attachments=attachements,
+            )
+        except Exception as e:
+            logger.warning(f"Could not send notification email: {e}")
+        # finally:
+        #     os.unlink(attachment)
+
+    def _handle_sigterm(sig, frame):
+        _notify_state["status"] = "TIMEOUT"
+        sys.exit(1)
+
+    if notify:
+        atexit.register(_send_notification)
+        signal.signal(signal.SIGTERM, _handle_sigterm)
 
     # Bump logging level to INFO if -v is set and current level is higher
     if verbose:
@@ -338,14 +396,26 @@ def apply(
         )
     )
 
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    i = 0
     for input_file in input_files:
         try:
             logger.info(f"Apply {input_file}...")
-            iops.apply(input_file)
+            result = iops.apply(input_file)
+            _notify_state["status"] = result.status.value
+            if result.details:
+                details_path = os.path.join(
+                    workdir, f"kmhelpers_apply_{timestamp}_{i}.yaml"
+                )
+                with open(details_path, "w") as f:
+                    yaml.dump(result.details, f, default_flow_style=False)
+                attachements.append(details_path)
+                logger.info(f"Result details written to {details_path}")
+                i += 1
         except Exception as e:
+            _notify_state["status"] = ops.ApplyStatus.FAILED.value
             Log.handle_exception(
                 logger, e, f"Could not apply {os.path.basename(input_file)}"
             )
 
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     iops.write_script(os.path.join(workdir, f"kmhelpers_apply_{timestamp}.sh"))

@@ -18,10 +18,10 @@ logger = logging.getLogger(__name__)
 class ApplyStatus(str, Enum):
     """Status of an apply operation."""
 
-    SUCCESS = "success"
-    PARTIAL = "partial"
-    FAILED = "failed"
-    NONE = "none"
+    SUCCESS = "SUCCESS"
+    PARTIAL = "PARTIAL"
+    FAILED = "FAILED"
+    NONE = "NONE"
 
 
 class ApplyInputType(str, Enum):
@@ -35,6 +35,7 @@ class ApplyInputType(str, Enum):
 class ApplyResult:
     status: ApplyStatus = ApplyStatus.NONE
     input_type: ApplyInputType = ApplyInputType.NONE
+    details: dict = {}
 
 
 @dataclass
@@ -278,6 +279,8 @@ class IndexOps:
 
         result.status = ApplyStatus.NONE
         result.input_type = ApplyInputType.UNKNOWN
+        result.details = dict()
+        result.details["input_file"] = path
 
         idt = IndexDefinitionTools()
         data = None
@@ -402,12 +405,35 @@ class IndexOps:
                         builder.index.load_json()
                         logger.debug(f"Building required parent index '{parent_index}'")
                         build_result = self._build_single(builder, parent_def)
+                        if build_result:
+                            if build_result["return_code"] == 0:
+                                result.details[i.name] = (
+                                    f"[{ApplyStatus.SUCCESS.value}]"
+                                )
+                            else:
+                                result.details[i.name] = (
+                                    f"[{ApplyStatus.FAILED.value}] error_code={build_result["return_code"]}"
+                                )
+                    else:
+                        result.details[i.name] = f"[{ApplyStatus.NONE.value}]"
 
                     builder.index.load_json()
                     build_result = self._build_single(builder, i)
+                    if build_result:
+                        if build_result["return_code"] == 0:
+                            result.details[i.name] = f"[{ApplyStatus.SUCCESS.value}]"
+                        else:
+                            result.details[i.name] = (
+                                f"[{ApplyStatus.FAILED.value}] error_code={build_result["return_code"]}"
+                            )
+                    else:
+                        result.details[i.name] = f"[{ApplyStatus.NONE.value}]"
 
                 except Exception as e:
                     Log.handle_exception(logger, e, f"Failed to build index '{i.name}'")
+                    result.details[i.name] = (
+                        f"[{ApplyStatus.FAILED.value}] {Log.format_exception(e)}"
+                    )
                     result.status = ApplyStatus.PARTIAL
                     if self.config.fail_on_error:
                         result.status = ApplyStatus.FAILED
@@ -415,37 +441,44 @@ class IndexOps:
 
         for k, v in merges.items():
             try:
-                if len(v) > 0:
-                    builder.index.load_json()
-                    missing = None
-                    if not self.config.plan:
-                        missing = [
-                            name for name in v if not builder.index.has_index(name)
-                        ]
-                    if missing:
-                        logger.warning(
-                            f"Sub-indexes to merge not found in registry: {missing}"
-                        )
-                        logger.warning(
-                            f"Cannot merge '{k}' due to some sub-indexes missing"
-                        )
-                    else:
-                        merge_result = builder.merge(
-                            k, v, delete_old=True, dry_run=self.config.plan
-                        )
-                        if result and "command" in merge_result:
-                            self._script_lines.append(
-                                merge_result["command"].replace(
-                                    self.config.workdir, "${WORKDIR}"
-                                )
-                            )
-                elif self.config.plan:
-                    logger.info(f"mv {v[0]} -> {k}")
+                # if len(v) > 0:
+                builder.index.load_json()
+                missing = None
+                if not self.config.plan:
+                    missing = [name for name in v if not builder.index.has_index(name)]
+                if missing:
+                    logger.warning(
+                        f"Sub-indexes to merge not found in registry: {missing}"
+                    )
+                    logger.warning(
+                        f"Cannot merge '{k}' due to some sub-indexes missing"
+                    )
+                    result.details[k] = (
+                        f"[{ApplyStatus.FAILED.value}] Missing sub-indexes: {missing}"
+                    )
                 else:
-                    builder.index.load_json()
-                    builder.index.rename_index(v[0], k)
+                    merge_result = builder.merge(
+                        k, v, delete_old=True, dry_run=self.config.plan
+                    )
+                    if result and "command" in merge_result:
+                        self._script_lines.append(
+                            merge_result["command"].replace(
+                                self.config.workdir, "${WORKDIR}"
+                            )
+                        )
+                        result.details[k] = f"[{ApplyStatus.SUCCESS.value}]"
+                    else:
+                        raise Exception("Malformed result")
+            # elif self.config.plan:
+            #     self._script_lines.append(f"mv {v[0]} {k}")
+            # else:
+            #     builder.index.load_json()
+            #     builder.index.rename_index(v[0], k)
             except Exception as e:
                 Log.handle_exception(logger, e, f"Failed to merge index '{k}'")
+                result.details[k] = (
+                    f"[{ApplyStatus.FAILED.value}] {Log.format_exception(e)}"
+                )
                 result.status = ApplyStatus.PARTIAL
                 if self.config.fail_on_error:
                     result.status = ApplyStatus.FAILED

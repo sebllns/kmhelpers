@@ -31,6 +31,8 @@ from pykmhelpers.cli.merge_span import merge_span
 from pykmhelpers.cli.query import query
 from pykmhelpers.cli.registry import registry
 from pykmhelpers.cli.test import test
+from pykmhelpers.core.log import Log
+from pykmhelpers.core.utils import Toolbox
 
 
 class ColoredFormatter(logging.Formatter):
@@ -234,6 +236,7 @@ def cli(verbose, log_file, init_path, bin_path, check_all, chdir):
             root_logger.addHandler(file_handler)
             logger = logging.getLogger(__name__)
             logger.debug(f"Logging to file: {log_file}")
+            Log.log_file = Toolbox.get_canonical_path(log_file)
         except Exception as e:
             click.echo(f"Warning: Could not open log file '{log_file}': {e}", err=True)
 
