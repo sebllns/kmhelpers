@@ -1,7 +1,7 @@
 import logging
 import os
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from time import sleep
@@ -35,7 +35,7 @@ class ApplyInputType(str, Enum):
 class ApplyResult:
     status: ApplyStatus = ApplyStatus.NONE
     input_type: ApplyInputType = ApplyInputType.NONE
-    details: dict = {}
+    details: dict = field(default_factory=dict)
 
 
 @dataclass
