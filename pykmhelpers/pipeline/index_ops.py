@@ -458,8 +458,15 @@ class IndexOps:
                     )
                 else:
                     merge_result = builder.merge(
-                        k, v, delete_old=True, dry_run=self.config.plan
+                        k, v, delete_old=False, dry_run=self.config.plan
                     )
+                    builder.index.load_json()
+                    assert builder.has_subindex(k), f"Sub-index {k} not found"
+                    for vv in v:
+                        try:
+                            builder.index.remove_index(vv, delete_files=True)
+                        except:
+                            logger.warning(f"Failed to remove {vv} from registry.")
                     if result and "command" in merge_result:
                         self._script_lines.append(
                             merge_result["command"].replace(
