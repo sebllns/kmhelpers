@@ -2,10 +2,11 @@
 
 import json
 import os
+import shutil
 
 import click
 
-from pykmhelpers import KmindexRegistry, KmtricksIndex
+from pykmhelpers import Kmindex, KmindexRegistry, KmtricksIndex
 
 
 @click.group()
@@ -273,21 +274,8 @@ def registry_remove(registry_path, index_id, delete_files, force):
             if not click.confirm(msg):
                 click.echo("Operation cancelled")
                 return
-
-        # Get index before removal (needed to delete files)
-        index = registry.get_index(index_id)
-
-        # Remove from registry
-        registry.remove_index(index_id)
+        registry.remove_index(index_id, delete_files=True)
         click.echo(f"✓ Removed '{index_id}' from registry")
-
-        # Delete files if requested
-        if delete_files:
-            try:
-                index.destroy_entire_index()
-                click.echo(f"✓ Deleted index files from disk")
-            except Exception as e:
-                click.echo(f"⚠ Failed to delete some files: {e}", err=True)
 
     except Exception as e:
         raise click.ClickException(f"Failed to remove index: {e}")

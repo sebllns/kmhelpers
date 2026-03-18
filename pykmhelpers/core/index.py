@@ -708,7 +708,7 @@ class KmindexRegistry:
         self.load_json()
         return True
 
-    def remove_index(self, _index_id: str) -> bool:
+    def remove_index(self, index_id: str, delete_files: bool = False) -> bool:
         """
         Remove an index from the registry.
 
@@ -718,13 +718,25 @@ class KmindexRegistry:
         Returns:
             True if index was removed, False if it doesn't exist
         """
-        if not self.has_index(_index_id):
+        if not self.has_index(index_id):
             return False
 
-        os.unlink(self.get_index_path(_index_id))
+        # Delete files if requested
+        if delete_files:
+            try:
+                # Get index before removal (needed to delete files)
+                shutil.rmtree(
+                    os.path.realpath(self.get_index_path(index_id)),
+                    ignore_errors=True,
+                )
+                print(f"✓ Deleted index files from disk")
+            except Exception as e:
+                print(f"⚠ Failed to delete some files: {e}")
+
+        os.unlink(self.get_index_path(index_id))
 
         # Remove the index from the JSON data
-        del self._json_data["index"][_index_id]
+        del self._json_data["index"][index_id]
 
         # Create backup before writing
         self._backup_json()
