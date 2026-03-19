@@ -263,6 +263,7 @@ def apply(
 
     abort_msg = "Command 'apply' aborted."
     attachements = []
+    log_dir = "UNDEFINED_LOG_DIR"
 
     if Log.log_file:
         attachements.append(Log.log_file)
@@ -295,7 +296,7 @@ def apply(
             MailNotifier(dry_run=False).send(
                 to=recipient,
                 subject=f"[kmhelpers apply] {status}",
-                body=f"kmhelpers apply exited with status: {status}\nkmindex logs can be found",
+                body=f"kmhelpers apply exited with status: {status}\nkmindex logs can be found in {log_dir}",
                 sender=_notify_state["sender"],
                 attachments=attachements,
             )
@@ -381,7 +382,7 @@ def apply(
         config=ops.IndexOpsConfig(
             workdir=workdir,
             index_data_folder=output_dir,
-            registry_name=registry,
+            registry_dir=registry,
             minimizer_length=int(minim_size),
             sample_rootpath=basepath,
             kmindex_threads=threads,
@@ -389,7 +390,6 @@ def apply(
             kmindex_build_from=reuse_from,
             filter_names=selected_ids,
             filter_spans=selected_spans,
-            log_folder="logs",
             plan=plan,
             dry_run=dry_run,
             on_existing=existing,
@@ -398,7 +398,8 @@ def apply(
         )
     )
 
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_dir = iops.log_dir
+
     i = 0
     for input_file in input_files:
         try:
@@ -407,7 +408,7 @@ def apply(
             _notify_state["status"] = result.status.value
             if result.details:
                 details_path = os.path.join(
-                    workdir, f"kmhelpers_apply_{timestamp}_{i}.yaml"
+                    iops.asset_dir, f"kmhelpers_apply_{iops.timestamp}_{i}.yaml"
                 )
                 with open(details_path, "w") as f:
                     yaml.dump(
@@ -422,4 +423,4 @@ def apply(
                 logger, e, f"Could not apply {os.path.basename(input_file)}"
             )
 
-    iops.write_script(os.path.join(workdir, f"kmhelpers_apply_{timestamp}.sh"))
+    iops.write_script()

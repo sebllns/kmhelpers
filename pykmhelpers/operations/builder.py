@@ -50,6 +50,7 @@ class IndexBuilder:
         registry_name="registry",
         data_folder=".subindexes",
         log_folder="logs",
+        assets_folder="assets",
         script_out: Optional[IO[str]] = None,
     ) -> None:
         """Initialize the IndexBuilder."""
@@ -59,6 +60,7 @@ class IndexBuilder:
         self._data_folder = data_folder
         self._log_folder = log_folder
         self._registry = KmindexRegistry(self.registry_path)
+        self._assets_folder = assets_folder
         self._script_out = script_out
 
     @property
@@ -84,6 +86,10 @@ class IndexBuilder:
     @property
     def log_folder(self) -> str:
         return os.path.join(self.path, self._log_folder)
+
+    @property
+    def assets_folder(self) -> str:
+        return os.path.join(self.path, self._assets_folder)
 
     def load_metadata(self, file: str):
         """
@@ -172,7 +178,7 @@ class IndexBuilder:
             assert samples.validate_sample_files(), "Some sample files are missing"
 
         wrapper = KmindexWrapper(dry_run=dry_run)
-        fof_path = os.path.join(self.path, f"{name}.fof")
+        fof_path = os.path.join(self.assets_folder, f"{name}.fof")
         samples.save(fof_path=fof_path)
 
         if n_threads == 0:
@@ -274,8 +280,8 @@ class IndexBuilder:
             nb_partitions=n_partitions,
             register_as=name,
             bloom_size=bloom_size,
-            output_log_dir=os.path.join(self.path, self.log_folder, name),
-            output_param_file=os.path.join(self.path, f"{name}.yaml"),
+            output_log_dir=os.path.join(self.log_folder, name),
+            output_param_file=os.path.join(self.assets_folder, f"{name}.yaml"),
             from_index=build_from,
             compress_intermediate=compress_intermediate,
             minim_size=minim_size,

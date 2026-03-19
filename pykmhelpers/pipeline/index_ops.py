@@ -42,7 +42,7 @@ class ApplyResult:
 class IndexOpsConfig:
     workdir: str
     index_data_folder: str
-    registry_name: str
+    registry_dir: str
     minimizer_length: int = 10
     sample_rootpath: Optional[str] = None
     kmindex_threads: int = 1
@@ -50,7 +50,6 @@ class IndexOpsConfig:
     kmindex_build_from: Optional[str] = None
     filter_spans: Optional[list[int]] = None
     filter_names: Optional[list[str]] = None
-    log_folder: str = "logs"
     plan: bool = False
     dry_run: bool = False
     on_existing: str = "fail"
@@ -63,6 +62,11 @@ class IndexOps:
     def __init__(self, config: IndexOpsConfig) -> None:
         self._config = config
         self._config.workdir = os.path.realpath(self.config.workdir)
+        self._config.index_data_folder = os.path.realpath(self.config.index_data_folder)
+        self._config.registry_dir = os.path.realpath(self.config.registry_dir)
+        self._timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        self.config
         if self._config.dry_run:
             self._config.plan = True
         if self._config.dry_run or self._config.plan:
@@ -262,6 +266,30 @@ class IndexOps:
     def config(self) -> IndexOpsConfig:
         return self._config
 
+    @property
+    def work_dir(self) -> str:
+        return self.config.workdir
+
+    @property
+    def asset_dir(self) -> str:
+        return os.path.join(self.work_dir, "assets")
+
+    @property
+    def log_dir(self) -> str:
+        return os.path.join(self.work_dir, "logs")
+
+    @property
+    def kmindex_registry_dir(self) -> str:
+        return self.config.registry_dir
+
+    @property
+    def kmindex_data_dir(self) -> str:
+        return self.config.index_data_folder
+
+    @property
+    def timestamp(self) -> str:
+        return self._timestamp
+
     # ---
 
     # PUBLIC METHODS
@@ -316,10 +344,10 @@ class IndexOps:
         dbs = list[IndexDB]()
         merges = dict[str, list[str]]()
         builder = IndexBuilder(
-            workdir=self.config.workdir,
-            registry_name=self.config.registry_name,
-            data_folder=os.path.realpath(self.config.index_data_folder),
-            log_folder=os.path.realpath(self.config.log_folder),
+            workdir=self.work_dir,
+            registry_name=self.kmindex_registry_dir,
+            data_folder=self.kmindex_data_dir,
+            log_folder=self.log_dir,
         )
 
         if result.input_type is ApplyInputType.INDEX_DEFINITION:
@@ -494,7 +522,10 @@ class IndexOps:
         result.status = ApplyStatus.SUCCESS
         return result
 
-    def write_script(self, script_path):
+    def write_script(self):
+        script_path = os.path.join(
+            self.asset_dir, f"kmhelpers_apply_{self.timestamp}.sh"
+        )
         with open(script_path, "w") as f:
             f.write("\n".join(self._script_lines) + "\n")
         logger.info(f"Script written to {script_path}")
