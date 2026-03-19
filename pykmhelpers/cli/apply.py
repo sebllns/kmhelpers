@@ -410,7 +410,9 @@ def apply(
                     workdir, f"kmhelpers_apply_{timestamp}_{i}.yaml"
                 )
                 with open(details_path, "w") as f:
-                    yaml.dump(result.details, f, default_flow_style=False)
+                    yaml.dump(
+                        result.details, f, default_flow_style=False, sort_keys=False
+                    )
                 attachements.append(details_path)
                 logger.info(f"Result details written to {details_path}")
                 i += 1
