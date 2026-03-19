@@ -774,6 +774,8 @@ class KmindexRegistry:
         self.load_json()
 
     def relink(self, index_id: str | None, path: str):
+        path = Toolbox.get_canonical_path(path)
+
         if not os.path.isdir(path):
             raise NotADirectoryError(path)
 
