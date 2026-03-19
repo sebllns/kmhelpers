@@ -13,8 +13,8 @@ from pykmhelpers import Kmindex, KmindexRegistry, KmtricksIndex
 @click.option(
     "--registry-path",
     "-r",
-    required=True,
-    type=click.Path(file_okay=False, dir_okay=True),
+    default=".",
+    type=click.Path(file_okay=False, dir_okay=True, exists=True, readable=True),
     help="Path to kmindex registry",
 )
 @click.pass_context
