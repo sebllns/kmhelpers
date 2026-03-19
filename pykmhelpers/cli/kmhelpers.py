@@ -190,12 +190,26 @@ def cli(verbose, log_file, init_path, bin_path, check_all, chdir):
     """kmhelpers - A toolkit for managing, compressing, and querying k-mer indices."""
     # Configure logging based on verbosity level
     log_levels = {
-        0: logging.ERROR,  # default
-        1: logging.WARNING,  # -v
-        2: logging.INFO,  # -vv
-        3: logging.DEBUG,  # -vvv
+        0: logging.WARNING,  # default
+        1: logging.INFO,  # -v
+        2: logging.DEBUG,  # -vv
     }
-    log_level = log_levels.get(min(verbose, 3), logging.ERROR)
+
+    # TODO
+    # Add -q option
+    # Change to
+    # logging_TRACE = logging.DEBUG - 1
+    # logging.addLevelName(logging_TRACE, "TRACE")
+    #    logging.log()
+    # log_levels = {
+    #     0: logging.WARNING,  # default
+    #     1: logging.INFO,  # -v
+    #     2: logging.DEBUG,  # -vv
+    #     3: logging_TRACE # -vvv
+    # }
+    # Use Log. as interface
+
+    log_level = log_levels.get(min(verbose, 2), logging.ERROR)
 
     # Configure root logger with different format for debug level
     log_format = (
