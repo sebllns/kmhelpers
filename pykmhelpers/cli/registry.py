@@ -306,3 +306,28 @@ def registry_rename(obj, index_id, new_index_id):
 
     except Exception as e:
         raise click.ClickException(f"Failed to remove index: {e}")
+
+
+@registry.command(name="relink")
+@click.pass_obj
+@click.option(
+    "--input-dir",
+    "-i",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    help="Input directory containing kmtricks indices",
+)
+@click.option(
+    "--index-id",
+    "-n",
+    required=False,
+    help="Index ID to relink. (If not specified, will relink all registered indices).",
+)
+def registry_relink(obj, input_dir, index_id):
+    """Recreate links in an index registry. Useful if links are broken or indices moved."""
+    try:
+        registry_path = obj["registry_path"]
+        registry = KmindexRegistry(registry_path)
+        registry.relink(index_id, input_dir)
+    except Exception as e:
+        click.ClickException(f"Relink failed: {e}")
