@@ -272,6 +272,7 @@ class IndexOps:
         pass
 
     def apply(self, path: str) -> ApplyResult:
+        path = os.path.realpath(path)
 
         # Load desired state
         result = ApplyResult()
@@ -281,7 +282,6 @@ class IndexOps:
         result.input_type = ApplyInputType.UNKNOWN
         result.details = dict()
         result.details["input_file"] = path
-
         idt = IndexDefinitionTools()
         data = None
 

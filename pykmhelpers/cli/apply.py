@@ -288,6 +288,8 @@ def apply(
         if not recipient:
             return
         status = _notify_state["status"]
+        if status == "NONE":
+            status = "CANCELLED"
         # attachment = _build_attachment()
         try:
             MailNotifier(dry_run=False).send(
@@ -303,7 +305,7 @@ def apply(
         #     os.unlink(attachment)
 
     def _handle_sigterm(sig, frame):
-        _notify_state["status"] = "TIMEOUT"
+        _notify_state["status"] = ops.ApplyStatus.NONE.value
         sys.exit(1)
 
     if notify:
