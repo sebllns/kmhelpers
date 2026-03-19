@@ -327,6 +327,7 @@ def registry_relink(obj, input_dir, index_id):
     """Recreate links in an index registry. Useful if links are broken or indices moved."""
     try:
         registry_path = obj["registry_path"]
+        click.echo("Relinking...")
         registry = KmindexRegistry(registry_path)
         registry.relink(index_id, input_dir)
     except Exception as e:
