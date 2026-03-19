@@ -789,6 +789,7 @@ class KmindexRegistry:
         for i in ids:
             index_link = self.get_index_path(i)
             index_path = os.path.join(path, i)
+            print(f"Relink {i}")
             try:
                 if os.path.isdir(index_path):
                     KmtricksIndex(path, i)
