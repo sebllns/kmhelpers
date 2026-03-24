@@ -390,7 +390,7 @@ def apply(
         config=ops.IndexOpsConfig(
             workdir=workdir,
             index_data_folder=output_dir,
-            registry_dir=registry,
+            registry_dir=os.path.join(workdir, registry),
             minimizer_length=int(minim_size),
             sample_rootpath=basepath,
             kmindex_threads=threads,
