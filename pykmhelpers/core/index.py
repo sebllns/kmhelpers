@@ -587,7 +587,7 @@ class KmindexRegistry:
     multiple indices from a single index.json file.
     """
 
-    def __init__(self, root_path: str):
+    def __init__(self, root_path: str, auto_create: bool = True):
         """
         Initialize an IndexRegistry.
 
@@ -600,7 +600,10 @@ class KmindexRegistry:
         self._root_path = Toolbox.get_canonical_path(root_path)
 
         if not self.json_exists:
-            Kmindex.create_empty_index_json(self._root_path)
+            if auto_create:
+                Kmindex.create_empty_index_json(self._root_path)
+            else:
+                raise NotAnIndexError(root_path)
 
         self._standby = False
         self.load_json()

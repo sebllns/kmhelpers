@@ -36,6 +36,7 @@ def registry(ctx, registry_path):
     "--index-ids",
     "-n",
     multiple=True,
+    required=False,
     help="Specific index IDs to register (register all if not specified)",
 )
 @click.pass_obj
@@ -88,7 +89,7 @@ def registry_list(obj):
     """List all indices in a registry."""
     registry_path = obj["registry_path"]
 
-    registry = KmindexRegistry(registry_path)
+    registry = KmindexRegistry(registry_path, auto_create=False)
 
     indices = registry.list_indices()
     if not indices:
@@ -126,7 +127,7 @@ def registry_info(obj, index_id, output_json):
     registry_path = obj["registry_path"]
 
     try:
-        registry = KmindexRegistry(registry_path)
+        registry = KmindexRegistry(registry_path, auto_create=False)
 
         if not registry.has_index(index_id):
             raise click.ClickException(f"Index '{index_id}' not found in registry")
@@ -178,7 +179,7 @@ def registry_check(obj, verbose):
     registry_path = obj["registry_path"]
 
     try:
-        registry = KmindexRegistry(registry_path)
+        registry = KmindexRegistry(registry_path, auto_create=False)
         indices = registry.list_indices()
 
         if not indices:
@@ -224,10 +225,11 @@ def registry_check(obj, verbose):
 
 @registry.command(name="remove")
 @click.option(
-    "--index-id",
+    "--index-ids",
     "-n",
+    multiple=True,
     required=True,
-    help="Index ID to remove",
+    help="Specific index IDs to remove",
 )
 @click.option(
     "--delete-files",
@@ -241,31 +243,37 @@ def registry_check(obj, verbose):
     help="Skip confirmation prompt",
 )
 @click.pass_obj
-def registry_remove(obj, index_id, delete_files, force):
+def registry_remove(obj, index_ids, delete_files, force):
     """Remove index from registry (optionally delete files)."""
     registry_path = obj["registry_path"]
 
     try:
-        registry = KmindexRegistry(registry_path)
+        registry = KmindexRegistry(registry_path, auto_create=False)
 
-        if not registry.has_index(index_id):
-            raise click.ClickException(f"Index '{index_id}' not found in registry")
+        for index_id in index_ids:
+            try:
+                if not registry.has_index(index_id):
+                    raise click.ClickException(
+                        f"Index '{index_id}' not found in registry"
+                    )
 
-        # Confirm if not forced
-        if not force:
-            msg = f"Remove '{index_id}' from registry"
-            if delete_files:
-                msg += " and delete index files"
-            msg += "?"
+                # Confirm if not forced
+                if not force:
+                    msg = f"Remove '{index_id}' from registry"
+                    if delete_files:
+                        msg += " and delete index files"
+                    msg += "?"
 
-            if not click.confirm(msg):
-                click.echo("Operation cancelled")
-                return
-        registry.remove_index(index_id, delete_files=True)
-        click.echo(f"✓ Removed '{index_id}' from registry")
+                    if not click.confirm(msg):
+                        click.echo("Operation cancelled")
+                        continue
+                registry.remove_index(index_id, delete_files=True)
+                click.echo(f"✓ Removed '{index_id}' from registry")
 
+            except Exception as e:
+                raise click.ClickException(f"Failed to remove index: {e}")
     except Exception as e:
-        raise click.ClickException(f"Failed to remove index: {e}")
+        raise click.ClickException(f"Remove command failed: {e}")
 
 
 @registry.command(name="rename")

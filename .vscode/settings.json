@@ -3,6 +3,7 @@
       "source.organizeImports": "explicit"
     },
     "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
     "[python]": {
       "editor.defaultFormatter": "ms-python.black-formatter"
     }
