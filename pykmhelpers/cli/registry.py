@@ -232,6 +232,7 @@ def registry_check(obj, verbose):
     help="Specific index IDs to remove",
 )
 @click.option(
+    "-d",
     "--delete-files",
     is_flag=True,
     help="Also delete index files from disk (destructive!)",
