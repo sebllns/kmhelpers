@@ -134,13 +134,13 @@ need to resolve them from a different location.",
     is_flag=True,
     help="🚩  Verbose output.",
 )
-# @click.option(
-#     "--force",
-#     "-f",
-#     envvar="KMHELPERS_SKIP_CONFIRMATION",
-#     is_flag=True,
-#     help="🚩  Skip confirmation prompt before building. ⚠️ NOTE: disabled for now",
-# )
+@click.option(
+    "--force",
+    "-f",
+    envvar="KMHELPERS_SKIP_CONFIRMATION",
+    is_flag=True,
+    help="🚩 Skip confirmation prompt before building when using dangerous options. ⚠️",
+)
 @click.option(
     "--skip-compression",
     envvar="KMHELPERS_SKIP_COMPRESSION",
@@ -194,7 +194,7 @@ def apply(
     threads,
     existing,
     verbose,
-    # force,
+    force,
     skip_compression,
     dry_run,
     plan,
@@ -377,6 +377,14 @@ def apply(
     except Exception as e:
         Log.handle_exception(logger, e, f"Invalid argument.")
         raise click.ClickException(abort_msg)
+
+    if (
+        existing in ("replace", "register_or_replace")
+        and not force
+        and not click.confirm(f"Proceed build with '{existing}' option?", default=True)
+    ):
+        logger.warning("Build cancelled")
+        return
 
     iops = ops.IndexOps(
         config=ops.IndexOpsConfig(

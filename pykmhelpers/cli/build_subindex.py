@@ -158,7 +158,7 @@ def build_subindex(
                             if not click.confirm(
                                 "Proceed with build anyway?", default=True
                             ):
-                                logger.info("Build cancelled")
+                                logger.warning("Build cancelled")
                                 continue
 
                     parent_index = i.get_parent()
