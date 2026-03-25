@@ -243,7 +243,7 @@ class IndexBuilder:
                         )
                         shutil.move(output_indexdir, f"{output_indexdir}_{timestamp}")
                 else:
-                    return {"register": True}
+                    return {"return_code": 0, "register": True}
             else:
                 raise ValueError(
                     f"Unknown value for parameter 'on_existing': {on_existing}"

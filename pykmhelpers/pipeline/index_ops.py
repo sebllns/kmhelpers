@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 import threading
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -362,12 +363,15 @@ class IndexOps:
         elif result.input_type is ApplyInputType.SPAN_REGISTRY:
             try:
                 spans = dict[int, dict](data["data"])
-                for k, v in spans.items():
-                    if self.config.filter_spans and k not in self.config.filter_spans:
+                for to_index, parts in spans.items():
+                    if (
+                        self.config.filter_spans
+                        and to_index not in self.config.filter_spans
+                    ):
                         continue
-                    v = v.get("indices")
-                    assert v, f"Span registry is missing field 'indices'"
-                    indices = dict[str, list[str]](v)
+                    parts = parts.get("indices")
+                    assert parts, f"Span registry is missing field 'indices'"
+                    indices = dict[str, list[str]](parts)
                     for name, subindices in indices.items():
                         if (
                             not self.config.filter_names
@@ -467,51 +471,61 @@ class IndexOps:
                         result.status = ApplyStatus.FAILED
                         return result
 
-        for k, v in merges.items():
+        for to_index, parts in merges.items():
             try:
                 # if len(v) > 0:
                 builder.index.load_json()
                 missing = None
                 if not self.config.plan:
-                    missing = [name for name in v if not builder.index.has_index(name)]
+                    missing = [
+                        name for name in parts if not builder.index.has_index(name)
+                    ]
                 if missing:
                     logger.warning(
                         f"Sub-indexes to merge not found in registry: {missing}"
                     )
                     logger.warning(
-                        f"Cannot merge '{k}' due to some sub-indexes missing"
+                        f"Cannot merge '{to_index}' due to some sub-indexes missing"
                     )
-                    result.details[k] = (
+                    result.details[to_index] = (
                         f"[{ApplyStatus.FAILED.value}] Missing sub-indexes: {missing}"
                     )
                 else:
                     merge_result = builder.merge(
-                        k, v, delete_old=False, dry_run=self.config.plan
+                        to_index,
+                        parts,
+                        delete_old=False,
+                        dry_run=self.config.plan,
                     )
-                    builder.index.load_json()
-                    assert builder.has_subindex(k), f"Sub-index {k} not found"
-                    for vv in v:
-                        try:
-                            builder.index.remove_index(vv, delete_files=True)
-                        except:
-                            logger.warning(f"Failed to remove {vv} from registry.")
+
                     if result and "command" in merge_result:
                         self._script_lines.append(
                             merge_result["command"].replace(
                                 self.config.workdir, "${WORKDIR}"
                             )
                         )
-                        result.details[k] = f"[{ApplyStatus.SUCCESS.value}]"
+                        result.details[to_index] = f"[{ApplyStatus.SUCCESS.value}]"
                     else:
                         raise Exception("Malformed result")
-            # elif self.config.plan:
-            #     self._script_lines.append(f"mv {v[0]} {k}")
-            # else:
-            #     builder.index.load_json()
-            #     builder.index.rename_index(v[0], k)
+
+                    builder.index.load_json()
+                    assert builder.has_subindex(
+                        to_index
+                    ), f"Sub-index {to_index} not found"
+                    if builder.index.get_index(to_index).check_structure():
+                        for segment in parts:
+                            try:
+                                builder.index.remove_index(
+                                    segment, delete_files=True, skip_unregistered=False
+                                )
+                            except:
+                                logger.warning(
+                                    f"Failed to remove {segment} from registry."
+                                )
+
             except Exception as e:
-                Log.handle_exception(logger, e, f"Failed to merge index '{k}'")
-                result.details[k] = (
+                Log.handle_exception(logger, e, f"Failed to merge index '{to_index}'")
+                result.details[to_index] = (
                     f"[{ApplyStatus.FAILED.value}] {Log.format_exception(e)}"
                 )
                 result.status = ApplyStatus.PARTIAL

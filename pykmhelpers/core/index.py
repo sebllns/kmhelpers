@@ -723,7 +723,9 @@ class KmindexRegistry:
         self.load_json()
         return True
 
-    def remove_index(self, index_id: str, delete_files: bool = False) -> bool:
+    def remove_index(
+        self, index_id: str, delete_files: bool = False, skip_unregistered: bool = True
+    ) -> bool:
         """
         Remove an index from the registry.
 
@@ -733,7 +735,7 @@ class KmindexRegistry:
         Returns:
             True if index was removed, False if it doesn't exist
         """
-        if not self.has_index(index_id):
+        if not self.has_index(index_id) and skip_unregistered:
             return False
 
         index_path = self.get_index_path(index_id)
