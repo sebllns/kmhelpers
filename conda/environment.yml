@@ -2,7 +2,7 @@ name: kmhelpers
 channels:
   - bioconda
   - conda-forge
-  - defaults
+  - nodefaults
 dependencies:
   - python>=3.8
   - bioconda::kmindex>=0.6.0
