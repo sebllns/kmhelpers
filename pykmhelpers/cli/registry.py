@@ -46,7 +46,7 @@ def registry_add(obj, input_dir, index_ids):
 
     click.echo("Initializing kmhelpers...")
 
-    registry = KmindexRegistry(registry_path)
+    registry = KmindexRegistry(registry_path, auto_create=False)
 
     # Get list of indices to register
     if index_ids:
@@ -62,12 +62,18 @@ def registry_add(obj, input_dir, index_ids):
     skipped = 0
 
     for index_id in indices_to_process:
-        entry_path = os.path.join(input_dir, index_id)
-        if not os.path.isdir(entry_path):
-            click.echo(f"Warning: {index_id} is not a directory, skipping", err=True)
-            continue
-
         try:
+            entry_path = os.path.join(input_dir, index_id)
+            if not os.path.isdir(entry_path):
+                click.echo(
+                    f"Warning: {index_id} is not a directory, skipping", err=True
+                )
+                skipped += 1
+                continue
+            if registry.has_index(index_id):
+                click.echo(f"⊙ Already registered: {index_id}")
+                skipped += 1
+                continue
             index = KmtricksIndex(input_dir, index_id)
             index.load_kmtricks_index()
             if index.check_structure():
@@ -75,10 +81,12 @@ def registry_add(obj, input_dir, index_ids):
                     click.echo(f"✓ Registered: {index_id}")
                     registered += 1
                 else:
-                    click.echo(f"⊙ Already registered: {index_id}")
+                    click.echo(f"✗ Could not register: {index_id}")
                     skipped += 1
+                    continue
         except Exception as e:
             click.echo(f"✗ Error processing {index_id}: {e}", err=True)
+            skipped += 1
 
     click.echo(f"\nSummary: {registered} registered, {skipped} skipped")
 
