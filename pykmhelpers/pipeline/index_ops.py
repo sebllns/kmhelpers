@@ -222,6 +222,13 @@ class IndexOps:
                     continue
 
                 logger.info(f"Processing index definition '{i.name}'...")
+
+                assert i.name, "IndexDefinition is missing required 'name' field"
+                if builder.index.has_index(i.name):
+                    logger.info(f"{i.name} found in registry: skip")
+                    result.details[i.name] = f"[{ApplyStatus.NONE.value}]"
+                    continue
+
                 parent_index = i.get_parent()
 
                 if self.config.kmindex_build_from:
@@ -459,7 +466,7 @@ class IndexOps:
                         dbs.extend(self._get_dbs(db_path, idt))
 
     def _build(self, path, result, idt, builder, i, parent_index):
-        assert i.name, "IndexDefinition is missing required 'name' field"
+
         assert (
             i.bf_size > 0
         ), f"IndexDefinition {i.name} is missing required 'bf_size' field"
