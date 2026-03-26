@@ -15,13 +15,15 @@ class Log:
 
     @staticmethod
     def _handle_exception(
-        logger: logging.Logger, msg: str, e: Exception, verbose: bool
+        logger: logging.Logger, msg: str, e: Exception, verbose: bool, level: int
     ):
-        if verbose:
+        if verbose and level == logging.ERROR:
             logger.exception(f"{Log.format_exception(e)} | {msg}")
         else:
-            logger.error(f"{Log.format_exception(e)} | {msg}")
+            logger.log(level, f"{Log.format_exception(e)} | {msg}")
 
     @staticmethod
-    def handle_exception(logger: logging.Logger, e: Exception, msg: str):
-        Log._handle_exception(logger, msg, e, Log.is_verbose(logger))
+    def handle_exception(
+        logger: logging.Logger, e: Exception, msg: str, level: int = logging.ERROR
+    ):
+        Log._handle_exception(logger, msg, e, Log.is_verbose(logger), level)

@@ -85,6 +85,178 @@ class IndexOps:
             logger.info(f"Creating 'workdir' at {config.workdir}")
             os.makedirs(config.workdir, exist_ok=True)
 
+    # ---
+
+    # PROPERTIES AND GETTERS
+    @property
+    def config(self) -> IndexOpsConfig:
+        return self._config
+
+    @property
+    def work_dir(self) -> str:
+        return self.config.workdir
+
+    @property
+    def asset_dir(self) -> str:
+        return os.path.join(self.work_dir, "assets")
+
+    @property
+    def log_dir(self) -> str:
+        return os.path.join(self.work_dir, "logs")
+
+    @property
+    def kmindex_registry_dir(self) -> str:
+        return self.config.registry_dir
+
+    @property
+    def kmindex_data_dir(self) -> str:
+        return self.config.index_data_folder
+
+    @property
+    def timestamp(self) -> str:
+        return self._timestamp
+
+    # ---
+
+    # PUBLIC METHODS
+
+    def write_script(self):
+        script_path = os.path.join(
+            self.asset_dir, f"kmhelpers_apply_{self.timestamp}.sh"
+        )
+        with open(script_path, "w") as f:
+            f.write("\n".join(self._script_lines) + "\n")
+        logger.info(f"Script written to {script_path}")
+
+    def compose(self):
+        pass
+
+    def plan(self, def_file: str):
+        pass
+
+    def apply(self, path: str) -> ApplyResult:
+        path = os.path.realpath(path)
+
+        # Load desired state
+        result = ApplyResult()
+        idt = IndexDefinitionTools()
+
+        result.status = ApplyStatus.NONE
+        result.input_type = ApplyInputType.UNKNOWN
+        result.details = dict()
+        result.details["input_file"] = path
+        idt = IndexDefinitionTools()
+        data = None
+
+        if os.path.isfile(path) and path.endswith((".yaml", ".yml", ".json")):
+            try:
+                data = dict(idt.deserialize(path))
+            except Exception as e:
+                Log.handle_exception(
+                    logger=logger, msg=f"Could not parse schema from {path}", e=e
+                )
+
+            if data:
+                try:
+                    result.input_type = (
+                        ApplyInputType.INDEX_DEFINITION
+                        if data.get("type") == SerializedDataType.INDEX_DEFINITION.value
+                        else (
+                            ApplyInputType.SPAN_REGISTRY
+                            if data.get("type")
+                            == SerializedDataType.SPAN_DEFINITION.value
+                            else ApplyInputType.UNKNOWN
+                        )
+                    )
+                except (ValueError, KeyError):
+                    logger.error(f"Invalid type value: {data.get('type')}")
+
+        if data is None or result.input_type is ApplyInputType.UNKNOWN:
+            logger.error(f"Could not retrieve data type.")
+            result.status = ApplyStatus.FAILED
+            return result
+
+        dbs = list[IndexDB]()
+        merges = dict[str, list[str]]()
+        builder = IndexBuilder(
+            workdir=self.work_dir,
+            registry_name=self.kmindex_registry_dir,
+            data_folder=self.kmindex_data_dir,
+            log_folder=self.log_dir,
+        )
+
+        if result.input_type is ApplyInputType.INDEX_DEFINITION:
+            try:
+                dbs = self._get_dbs(path, idt)
+            except Exception as e:
+                Log.handle_exception(
+                    logger, e, f"Failed to load definition file '{path}'"
+                )
+                result.status = ApplyStatus.FAILED
+                return result
+        elif result.input_type is ApplyInputType.SPAN_REGISTRY:
+            try:
+                self._load_span_registry(path, idt, data, dbs, merges)
+
+            except Exception as e:
+                Log.handle_exception(
+                    logger, e, f"Failed to load definition file '{path}'"
+                )
+                result.status = ApplyStatus.FAILED
+                return result
+            pass
+
+        for db in dbs:
+            for i in db.index_table.values():
+
+                if result.input_type is ApplyInputType.INDEX_DEFINITION and (
+                    (
+                        self.config.filter_names
+                        and i.name not in self.config.filter_names
+                    )
+                    or (
+                        self.config.filter_spans
+                        and i.span not in self.config.filter_spans
+                    )
+                ):
+                    continue
+
+                logger.info(f"Processing index definition '{i.name}'...")
+                parent_index = i.get_parent()
+
+                if self.config.kmindex_build_from:
+                    parent_index = self.config.kmindex_build_from
+
+                try:
+                    self._build(path, result, idt, builder, i, parent_index)
+
+                except Exception as e:
+                    Log.handle_exception(logger, e, f"Failed to build index '{i.name}'")
+                    result.details[i.name] = (
+                        f"[{ApplyStatus.FAILED.value}] {Log.format_exception(e)}"
+                    )
+                    result.status = ApplyStatus.PARTIAL
+                    if self.config.fail_on_error:
+                        result.status = ApplyStatus.FAILED
+                        return result
+
+        for to_index, parts in merges.items():
+            try:
+                self._merge(result, builder, to_index, parts)
+
+            except Exception as e:
+                Log.handle_exception(logger, e, f"Failed to merge index '{to_index}'")
+                result.details[to_index] = (
+                    f"[{ApplyStatus.FAILED.value}] {Log.format_exception(e)}"
+                )
+                result.status = ApplyStatus.PARTIAL
+                if self.config.fail_on_error:
+                    result.status = ApplyStatus.FAILED
+                    return result
+
+        result.status = ApplyStatus.SUCCESS
+        return result
+
     def _build_single(self, builder: IndexBuilder, i: IndexDefinition):
 
         assert i.name, "IndexDefinition is missing required 'name' field"
@@ -260,288 +432,143 @@ class IndexOps:
     # def has_field_in_config(self, field_name: str) -> bool:
     #     return field_name in self._config
 
-    # ---
+    def _load_span_registry(self, path, idt, data, dbs, merges):
+        spans = dict[int, dict](data["data"])
+        for to_index, parts in spans.items():
+            if self.config.filter_spans and to_index not in self.config.filter_spans:
+                continue
+            parts = parts.get("indices")
+            assert parts, f"Span registry is missing field 'indices'"
+            indices = dict[str, list[str]](parts)
+            for name, subindices in indices.items():
+                if not self.config.filter_names or name in self.config.filter_names:
+                    merges[name] = subindices
 
-    # PROPERTIES AND GETTERS
-    @property
-    def config(self) -> IndexOpsConfig:
-        return self._config
-
-    @property
-    def work_dir(self) -> str:
-        return self.config.workdir
-
-    @property
-    def asset_dir(self) -> str:
-        return os.path.join(self.work_dir, "assets")
-
-    @property
-    def log_dir(self) -> str:
-        return os.path.join(self.work_dir, "logs")
-
-    @property
-    def kmindex_registry_dir(self) -> str:
-        return self.config.registry_dir
-
-    @property
-    def kmindex_data_dir(self) -> str:
-        return self.config.index_data_folder
-
-    @property
-    def timestamp(self) -> str:
-        return self._timestamp
-
-    # ---
-
-    # PUBLIC METHODS
-    def compose(self):
-        pass
-
-    def plan(self, def_file: str):
-        pass
-
-    def apply(self, path: str) -> ApplyResult:
-        path = os.path.realpath(path)
-
-        # Load desired state
-        result = ApplyResult()
-        idt = IndexDefinitionTools()
-
-        result.status = ApplyStatus.NONE
-        result.input_type = ApplyInputType.UNKNOWN
-        result.details = dict()
-        result.details["input_file"] = path
-        idt = IndexDefinitionTools()
-        data = None
-
-        if os.path.isfile(path) and path.endswith((".yaml", ".yml", ".json")):
-            try:
-                data = dict(idt.deserialize(path))
-            except Exception as e:
-                Log.handle_exception(
-                    logger=logger, msg=f"Could not parse schema from {path}", e=e
-                )
-
-            if data:
-                try:
-                    result.input_type = (
-                        ApplyInputType.INDEX_DEFINITION
-                        if data.get("type") == SerializedDataType.INDEX_DEFINITION.value
-                        else (
-                            ApplyInputType.SPAN_REGISTRY
-                            if data.get("type")
-                            == SerializedDataType.SPAN_DEFINITION.value
-                            else ApplyInputType.UNKNOWN
-                        )
-                    )
-                except (ValueError, KeyError):
-                    logger.error(f"Invalid type value: {data.get('type')}")
-
-        if data is None or result.input_type is ApplyInputType.UNKNOWN:
-            logger.error(f"Could not retrieve data type.")
-            result.status = ApplyStatus.FAILED
-            return result
-
-        dbs = list[IndexDB]()
-        merges = dict[str, list[str]]()
-        builder = IndexBuilder(
-            workdir=self.work_dir,
-            registry_name=self.kmindex_registry_dir,
-            data_folder=self.kmindex_data_dir,
-            log_folder=self.log_dir,
-        )
-
-        if result.input_type is ApplyInputType.INDEX_DEFINITION:
-            try:
-                dbs = self._get_dbs(path, idt)
-            except Exception as e:
-                Log.handle_exception(
-                    logger, e, f"Failed to load definition file '{path}'"
-                )
-                result.status = ApplyStatus.FAILED
-                return result
-        elif result.input_type is ApplyInputType.SPAN_REGISTRY:
-            try:
-                spans = dict[int, dict](data["data"])
-                for to_index, parts in spans.items():
-                    if (
-                        self.config.filter_spans
-                        and to_index not in self.config.filter_spans
-                    ):
-                        continue
-                    parts = parts.get("indices")
-                    assert parts, f"Span registry is missing field 'indices'"
-                    indices = dict[str, list[str]](parts)
-                    for name, subindices in indices.items():
-                        if (
-                            not self.config.filter_names
-                            or name in self.config.filter_names
-                        ):
-                            merges[name] = subindices
-
-                        for subindex in subindices:
-                            if name in merges or (
-                                self.config.filter_names
-                                and subindex in self.config.filter_names
-                            ):
-                                db_path = os.path.join(
-                                    os.path.dirname(path),
-                                    subindex + os.path.splitext(path)[1],
-                                )
-                                assert os.path.isfile(
-                                    db_path
-                                ), f"Could not find required data file at {db_path}"
-                                dbs.extend(self._get_dbs(db_path, idt))
-
-            except Exception as e:
-                Log.handle_exception(
-                    logger, e, f"Failed to load definition file '{path}'"
-                )
-                result.status = ApplyStatus.FAILED
-                return result
-            pass
-
-        for db in dbs:
-            for i in db.index_table.values():
-
-                if result.input_type is ApplyInputType.INDEX_DEFINITION and (
-                    (
+                for subindex in subindices:
+                    if name in merges or (
                         self.config.filter_names
-                        and i.name not in self.config.filter_names
-                    )
-                    or (
-                        self.config.filter_spans
-                        and i.span not in self.config.filter_spans
-                    )
-                ):
-                    continue
-
-                logger.info(f"Processing index definition '{i.name}'...")
-                parent_index = i.get_parent()
-
-                if self.config.kmindex_build_from:
-                    parent_index = self.config.kmindex_build_from
-
-                try:
-                    assert i.name, "IndexDefinition is missing required 'name' field"
-                    assert (
-                        i.bf_size > 0
-                    ), f"IndexDefinition {i.name} is missing required 'bf_size' field"
-
-                    if (
-                        parent_index
-                        and parent_index not in self._building
-                        and not builder.has_subindex(parent_index)
+                        and subindex in self.config.filter_names
                     ):
-                        parent_def = self._find_definition(parent_index, path, idt)
-                        builder.index.load_json()
-                        logger.debug(f"Building required parent index '{parent_index}'")
-                        build_result = self._build_single(builder, parent_def)
-                        if build_result:
-                            if build_result["return_code"] == 0:
-                                result.details[i.name] = (
-                                    f"[{ApplyStatus.SUCCESS.value}]"
-                                )
-                            else:
-                                result.details[i.name] = (
-                                    f"[{ApplyStatus.FAILED.value}] error_code={build_result["return_code"]}"
-                                )
-                    else:
-                        result.details[i.name] = f"[{ApplyStatus.NONE.value}]"
-
-                    builder.index.load_json()
-                    build_result = self._build_single(builder, i)
-                    if build_result:
-                        if build_result["return_code"] == 0:
-                            result.details[i.name] = f"[{ApplyStatus.SUCCESS.value}]"
-                        else:
-                            result.details[i.name] = (
-                                f"[{ApplyStatus.FAILED.value}] error_code={build_result["return_code"]}"
-                            )
-                    else:
-                        result.details[i.name] = f"[{ApplyStatus.NONE.value}]"
-
-                except Exception as e:
-                    Log.handle_exception(logger, e, f"Failed to build index '{i.name}'")
-                    result.details[i.name] = (
-                        f"[{ApplyStatus.FAILED.value}] {Log.format_exception(e)}"
-                    )
-                    result.status = ApplyStatus.PARTIAL
-                    if self.config.fail_on_error:
-                        result.status = ApplyStatus.FAILED
-                        return result
-
-        for to_index, parts in merges.items():
-            try:
-                # if len(v) > 0:
-                builder.index.load_json()
-                missing = None
-                if not self.config.plan:
-                    missing = [
-                        name for name in parts if not builder.index.has_index(name)
-                    ]
-                if missing:
-                    logger.warning(
-                        f"Sub-indexes to merge not found in registry: {missing}"
-                    )
-                    logger.warning(
-                        f"Cannot merge '{to_index}' due to some sub-indexes missing"
-                    )
-                    result.details[to_index] = (
-                        f"[{ApplyStatus.FAILED.value}] Missing sub-indexes: {missing}"
-                    )
-                else:
-                    merge_result = builder.merge(
-                        to_index,
-                        parts,
-                        delete_old=False,
-                        dry_run=self.config.plan,
-                    )
-
-                    if result and "command" in merge_result:
-                        self._script_lines.append(
-                            merge_result["command"].replace(
-                                self.config.workdir, "${WORKDIR}"
-                            )
+                        db_path = os.path.join(
+                            os.path.dirname(path),
+                            subindex + os.path.splitext(path)[1],
                         )
-                        result.details[to_index] = f"[{ApplyStatus.SUCCESS.value}]"
-                    else:
-                        raise Exception("Malformed result")
+                        assert os.path.isfile(
+                            db_path
+                        ), f"Could not find required data file at {db_path}"
+                        dbs.extend(self._get_dbs(db_path, idt))
 
-                    builder.index.load_json()
-                    assert builder.has_subindex(
-                        to_index
-                    ), f"Sub-index {to_index} not found"
-                    if builder.index.get_index(to_index).check_structure():
-                        for segment in parts:
-                            try:
-                                builder.index.remove_index(
-                                    segment, delete_files=True, skip_unregistered=False
-                                )
-                            except:
-                                logger.warning(
-                                    f"Failed to remove {segment} from registry."
-                                )
+    def _build(self, path, result, idt, builder, i, parent_index):
+        assert i.name, "IndexDefinition is missing required 'name' field"
+        assert (
+            i.bf_size > 0
+        ), f"IndexDefinition {i.name} is missing required 'bf_size' field"
 
-            except Exception as e:
-                Log.handle_exception(logger, e, f"Failed to merge index '{to_index}'")
-                result.details[to_index] = (
-                    f"[{ApplyStatus.FAILED.value}] {Log.format_exception(e)}"
+        if (
+            parent_index
+            and parent_index not in self._building
+            and not builder.has_subindex(parent_index)
+        ):
+            parent_def = self._find_definition(parent_index, path, idt)
+            builder.index.load_json()
+            logger.debug(f"Building required parent index '{parent_index}'")
+            build_result = self._build_single(builder, parent_def)
+            if build_result:
+                if build_result["return_code"] == 0:
+                    result.details[i.name] = f"[{ApplyStatus.SUCCESS.value}]"
+                else:
+                    result.details[i.name] = (
+                        f"[{ApplyStatus.FAILED.value}] error_code={build_result["return_code"]}"
+                    )
+        else:
+            result.details[i.name] = f"[{ApplyStatus.NONE.value}]"
+
+        builder.index.load_json()
+        build_result = self._build_single(builder, i)
+        if build_result:
+            if build_result["return_code"] == 0:
+                result.details[i.name] = f"[{ApplyStatus.SUCCESS.value}]"
+            else:
+                result.details[i.name] = (
+                    f"[{ApplyStatus.FAILED.value}] error_code={build_result["return_code"]}"
                 )
-                result.status = ApplyStatus.PARTIAL
-                if self.config.fail_on_error:
-                    result.status = ApplyStatus.FAILED
-                    return result
+        else:
+            result.details[i.name] = f"[{ApplyStatus.NONE.value}]"
 
-        result.status = ApplyStatus.SUCCESS
-        return result
+    def _merge(self, result, builder, to_index, parts):
+        builder.index.load_json()
+        missing = None
+        if not self.config.plan:
+            missing = [name for name in parts if not builder.index.has_index(name)]
+        if missing:
+            logger.warning(
+                f"Cannot merge '{to_index}' due to some sub-indexes missing: {missing}"
+            )
+            result.details[to_index] = (
+                f"[{ApplyStatus.FAILED.value}] Missing sub-indexes: {missing}"
+            )
+        else:
+            merge_result = builder.merge(
+                to_index,
+                parts,
+                delete_old=False,
+                dry_run=self.config.plan,
+            )
 
-    def write_script(self):
-        script_path = os.path.join(
-            self.asset_dir, f"kmhelpers_apply_{self.timestamp}.sh"
-        )
-        with open(script_path, "w") as f:
-            f.write("\n".join(self._script_lines) + "\n")
-        logger.info(f"Script written to {script_path}")
+            if result and "command" in merge_result:
+                self._script_lines.append(
+                    merge_result["command"].replace(self.config.workdir, "${WORKDIR}")
+                )
+                result.details[to_index] = f"[{ApplyStatus.SUCCESS.value}]"
+            else:
+                raise Exception("Malformed result")
+
+            builder.index.load_json()
+            assert builder.has_subindex(to_index), f"Sub-index {to_index} not found"
+            if builder.index.get_index(to_index).check_structure():
+                for segment in parts:
+                    self._delete_segment(builder, segment)
+
+    def _delete_segment(self, builder, segment):
+        logging.info(f"Delete {segment}...")
+        try:
+            builder.index.remove_index(
+                segment, delete_files=False, skip_unregistered=True
+            )
+
+        except Exception as e:
+            logger.warning(f"Failed to remove {segment} from registry: {e}")
+
+        index_path = os.path.join(self.config.index_data_folder, segment)
+
+        try:
+            # Get index before removal (needed to delete files)
+            shutil.rmtree(
+                os.path.realpath(index_path),
+                ignore_errors=True,
+            )
+        except Exception as e:
+            Log.handle_exception(
+                logger,
+                e,
+                f"Failed to delete some files",
+                logging.WARNING,
+            )
+
+        try:
+            if os.path.islink(index_path):
+                os.unlink(index_path)
+        except Exception as e:
+            Log.handle_exception(
+                logger,
+                e,
+                f"Error deleting link {index_path}",
+                logging.WARNING,
+            )
+
+        if os.path.exists(index_path):
+            logging.warning(
+                f"Could not remove dir {index_path}, please remove it manually."
+            )
 
     # ---
