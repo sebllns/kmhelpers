@@ -3,21 +3,14 @@ import logging
 import os
 import shutil
 import threading
-from typing import IO, Optional
+import typing
 
 import yaml
 
-from ..core import (
-    BloomFilterSpecs,
-    KmindexRegistry,
-    KmindexWrapper,
-    KmtricksIndex,
-    Toolbox,
-)
-from ..core.byte import ByteCounter, SizeFormat
-from ..core.fasta import Fasta, FASTAReader
-from ..pipeline.fof import FofManager
-from ..pipeline.query import KmindexQuery, KmindexQueryResult
+import pykmhelpers.core.byte
+import pykmhelpers.core.fasta
+import pykmhelpers.pipeline.fof
+import pykmhelpers.pipeline.query
 
 logger = logging.getLogger(__name__)
 
@@ -51,20 +44,20 @@ class IndexBuilder:
         data_folder=".subindexes",
         log_folder="logs",
         assets_folder="assets",
-        script_out: Optional[IO[str]] = None,
+        script_out: typing.Optional[typing.IO[str]] = None,
     ) -> None:
         """Initialize the IndexBuilder."""
-        self._path = Toolbox.get_canonical_path(workdir)
+        self._path = pykmhelpers.core.Toolbox.get_canonical_path(workdir)
         os.makedirs(self.path, exist_ok=True)
         self._registry_name = registry_name
         self._data_folder = data_folder
         self._log_folder = log_folder
-        self._registry = KmindexRegistry(self.registry_path)
+        self._registry = pykmhelpers.core.KmindexRegistry(self.registry_path)
         self._assets_folder = assets_folder
         self._script_out = script_out
 
     @property
-    def index(self) -> KmindexRegistry:
+    def index(self) -> pykmhelpers.core.KmindexRegistry:
         return self._registry
 
     @property
@@ -107,7 +100,9 @@ class IndexBuilder:
     def has_subindex(self, name: str):
         return self.index.has_index(name)
 
-    def add_sample_to_fof(self, sample, fof: FofManager) -> None:
+    def add_sample_to_fof(
+        self, sample, fof: pykmhelpers.pipeline.fof.FofManager
+    ) -> None:
         try:
             sample_id = sample["sample_id"]
             sample_path = sample["file_path"]
@@ -119,7 +114,7 @@ class IndexBuilder:
         except Exception as e:
             logger.warning(f"Could not add sample in FOF: {e}")
 
-    def create_fof(self, samples) -> FofManager:
+    def create_fof(self, samples) -> pykmhelpers.pipeline.fof.FofManager:
         """
         Docstring for create_fof
 
@@ -128,41 +123,43 @@ class IndexBuilder:
         :return: Description
         :rtype: FofManager
         """
-        fof = FofManager()
+        fof = pykmhelpers.pipeline.fof.FofManager()
         for s in samples:
             self.add_sample_to_fof(s, fof)
         return fof
 
     def get_bf_specs(
         self, n_samples: int, bloom_size: int, n_partitions: int
-    ) -> BloomFilterSpecs:
-        return BloomFilterSpecs(
+    ) -> pykmhelpers.core.BloomFilterSpecs:
+        return pykmhelpers.core.BloomFilterSpecs(
             n_cols=n_samples, n_rows=bloom_size, n_partitions=n_partitions
         )
 
     def get_storage_size(
         self,
-        bf_specs: BloomFilterSpecs,
-    ) -> ByteCounter:
-        return ByteCounter.auto(bf_specs.total_storage_size(), SizeFormat.BYTE)
+        bf_specs: pykmhelpers.core.BloomFilterSpecs,
+    ) -> pykmhelpers.core.byte.ByteCounter:
+        return pykmhelpers.core.byte.ByteCounter.auto(
+            bf_specs.total_storage_size(), pykmhelpers.core.byte.SizeFormat.BYTE
+        )
 
     def create_subindex(
         self,
         name: str,
-        samples: FofManager,
+        samples: pykmhelpers.pipeline.fof.FofManager,
         bloom_size: int,
         kmer_size: int = 25,
         abundance_min: int = 2,
         n_partitions: int = 256,
         n_threads: int = 0,
         n_max_threads: int = 0,
-        build_from: Optional[str] = None,
+        build_from: typing.Optional[str] = None,
         auto_check: bool = True,
         minim_size: int = 10,
         compress_intermediate: bool = True,
         dry_run: bool = False,
         on_existing: str = "fail",
-        progress: Optional[Progress] = None,
+        progress: typing.Optional[Progress] = None,
     ) -> dict:
 
         assert (
@@ -177,7 +174,7 @@ class IndexBuilder:
         if not dry_run:
             assert samples.validate_sample_files(), "Some sample files are missing"
 
-        wrapper = KmindexWrapper(dry_run=dry_run)
+        wrapper = pykmhelpers.core.KmindexWrapper(dry_run=dry_run)
         fof_path = os.path.join(self.assets_folder, f"{name}.fof")
         samples.save(fof_path=fof_path)
 
@@ -229,7 +226,9 @@ class IndexBuilder:
                 "register_or_rename",
             ):
                 try:
-                    r = self.index.add_index(KmtricksIndex(output_basedir, name))
+                    r = self.index.add_index(
+                        pykmhelpers.core.KmtricksIndex(output_basedir, name)
+                    )
                 except:
                     r = False
                 if r == False:
@@ -320,7 +319,7 @@ class IndexBuilder:
         self,
         new_name: str,
         to_merge: list[str],
-        rename: Optional[str] = None,
+        rename: typing.Optional[str] = None,
         delete_old: bool = True,
         threads: int = 14,
         dry_run: bool = False,
@@ -333,7 +332,7 @@ class IndexBuilder:
             if missing:
                 raise ValueError(f"Sub-indexes not found in registry: {missing}")
 
-        wrapper = KmindexWrapper(dry_run=dry_run)
+        wrapper = pykmhelpers.core.KmindexWrapper(dry_run=dry_run)
         result = wrapper.merge(
             input_registry=self.index.root_path,
             new_name=new_name,
@@ -360,7 +359,11 @@ class IndexBuilder:
         idx.check_structure()
 
     def create_test_dataset(
-        self, idx: KmtricksIndex, output_dir: str, n_samples: int = 5, max_length=2000
+        self,
+        idx: pykmhelpers.core.KmtricksIndex,
+        output_dir: str,
+        n_samples: int = 5,
+        max_length=2000,
     ):
         """
         Create test dataset by extracting sequences from the index.
@@ -373,7 +376,7 @@ class IndexBuilder:
         :type n_samples: int
         """
         os.makedirs(output_dir, exist_ok=True)
-        fof = FofManager(idx.fof_path)
+        fof = pykmhelpers.pipeline.fof.FofManager(idx.fof_path)
         i = 0
         for s in idx:
             if i >= n_samples:
@@ -382,7 +385,7 @@ class IndexBuilder:
             if path and os.path.isfile(path):
                 i += 1
                 try:
-                    reader = FASTAReader(path)
+                    reader = pykmhelpers.core.fasta.FASTAReader(path)
                     output_file = os.path.join(output_dir, f"{s}.fasta")
                     with open(output_file, "w") as f:
                         f.write(reader.fetch_first_n(max_length).to_fasta())
@@ -401,7 +404,7 @@ class IndexBuilder:
         :type n_samples: int
         """
         os.makedirs(output_dir, exist_ok=True)
-        fasta = Fasta()
+        fasta = pykmhelpers.core.fasta.Fasta()
         fasta.fill_random(
             num_sequences=n_samples, average_size=average_size, min_size=min_size
         )
@@ -437,7 +440,9 @@ class IndexBuilder:
                         os.makedirs(result_dir, exist_ok=True)
                         try:
                             logger.info(f"Query {input_path} into {output_dir}")
-                            query = KmindexQuery(path=input_path)
+                            query = pykmhelpers.pipeline.query.KmindexQuery(
+                                path=input_path
+                            )
                             query.execute(
                                 registry_path=self.index.root_path,
                                 output_dir=output_dir,
@@ -455,7 +460,7 @@ class IndexBuilder:
         :param samples: List of sample names to check
         :type samples: list[str]
         """
-        r = KmindexQueryResult(results)
+        r = pykmhelpers.pipeline.query.KmindexQueryResult(results)
         ok = True
         for s in samples:
             v = r.max_score(s)
@@ -473,4 +478,6 @@ class IndexBuilder:
         :param ground_truth: Path to ground truth results directory
         :type ground_truth: str
         """
-        return KmindexQueryResult(results) == KmindexQueryResult(ground_truth)
+        return pykmhelpers.pipeline.query.KmindexQueryResult(
+            results
+        ) == pykmhelpers.pipeline.query.KmindexQueryResult(ground_truth)

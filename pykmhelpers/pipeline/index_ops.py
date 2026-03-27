@@ -8,10 +8,15 @@ from enum import Enum
 from time import sleep
 from typing import Optional
 
-from ..core.log import Log
-from ..operations.builder import IndexBuilder
-from ..pipeline.fof import FofManager
-from .index_db import IndexDB, IndexDefinition, IndexDefinitionTools, SerializedDataType
+from pykmhelpers.core.log import Log
+from pykmhelpers.operations.builder import IndexBuilder
+from pykmhelpers.pipeline.fof import FofManager
+from pykmhelpers.pipeline.index_db import (
+    IndexDB,
+    IndexDefinition,
+    IndexDefinitionTools,
+    SerializedDataType,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +31,17 @@ class ApplyStatus(str, Enum):
 
 
 class ApplyInputType(str, Enum):
+    """Type of the input file passed to an apply operation.
+
+    Values:
+        UNKNOWN: File type could not be determined.
+        SPAN_REGISTRY: Input is a span registry file describing how partial
+            indexes should be merged.
+        INDEX_DEFINITION: Input is an index definition file describing one or
+            more sub-indexes to build.
+        NONE: No input file has been inspected yet.
+    """
+
     UNKNOWN = "unknown"
     SPAN_REGISTRY = "span registry"
     INDEX_DEFINITION = "index definition"
@@ -34,6 +50,15 @@ class ApplyInputType(str, Enum):
 
 @dataclass
 class ApplyResult:
+    """Result of an apply operation.
+
+    Attributes:
+        status: Overall outcome of the operation.
+        input_type: Detected type of the input file that was processed.
+        details: Per-index outcome strings keyed by index name, plus an
+            ``"input_file"`` entry with the resolved path of the source file.
+    """
+
     status: ApplyStatus = ApplyStatus.NONE
     input_type: ApplyInputType = ApplyInputType.NONE
     details: dict = field(default_factory=dict)
@@ -41,6 +66,41 @@ class ApplyResult:
 
 @dataclass
 class IndexOpsConfig:
+    """Configuration for an ``IndexOps`` instance.
+
+    Attributes:
+        workdir: Root working directory.  Created automatically if absent.
+        index_data_folder: Directory that holds the raw index data files.
+        registry_dir: Path to the kmindex registry used to track sub-indexes.
+        minimizer_length: K-mer minimizer size passed to the builder.
+            Defaults to ``10``.
+        sample_rootpath: Optional prefix prepended to every sample file path
+            in an index definition.  Useful when paths are stored relative to
+            a root that differs from the current working directory.
+        kmindex_threads: Number of threads passed to kmindex build commands.
+            Defaults to ``1``.
+        kmindex_skip_compression: When ``True``, intermediate files are not
+            compressed during the build.  Defaults to ``False``.
+        kmindex_build_from: Override the parent index for all build operations,
+            replacing the value declared in each index definition.
+        filter_spans: If set, only process index definitions whose span value is
+            in this list.
+        filter_names: If set, only process index definitions whose name is in
+            this list.
+        plan: When ``True``, commands are logged and collected for script
+            output but not executed.  Defaults to ``False``.
+        dry_run: Implies ``plan=True``.  Skips file existence checks in
+            addition to not executing commands.  Defaults to ``False``.
+        on_existing: Behaviour when a sub-index folder already exists on disk but is not registered.
+            Passed directly to the builder (e.g. ``"fail"``, ``"register"``).
+            Defaults to ``"fail"``.
+        show_progress: Display a progress bar with ETA during builds.
+            Disabled automatically in plan/dry-run mode.  Defaults to ``False``.
+        fail_on_error: Abort the entire apply operation on the first build or
+            merge error instead of continuing and returning ``PARTIAL``.
+            Defaults to ``False``.
+    """
+
     workdir: str
     index_data_folder: str
     registry_dir: str
@@ -59,6 +119,38 @@ class IndexOpsConfig:
 
 
 class IndexOps:
+    """Orchestrates k-mer index build and merge operations against a kmindex registry.
+
+    This class drives the full lifecycle of index management: loading index
+    definitions or span registries from YAML/JSON files, building sub-indexes
+    via ``IndexBuilder``, merging partial indexes into a combined index, and
+    cleaning up superseded segments.  It supports a plan/dry-run mode that
+    logs commands without executing them and can emit a shell script of the
+    equivalent commands for manual replay.
+
+    Args:
+        config: Runtime configuration governing paths, build parameters,
+            filtering, and execution behaviour.  See ``IndexOpsConfig``.
+
+    Attributes:
+        config (IndexOpsConfig): The resolved configuration (paths are
+            converted to absolute paths on construction).
+        work_dir (str): Absolute path to the working directory.
+        asset_dir (str): ``<work_dir>/assets`` — output location for generated
+            shell scripts.
+        log_dir (str): ``<work_dir>/logs`` — log file destination.
+        kmindex_registry_dir (str): Path to the kmindex registry directory.
+        kmindex_data_dir (str): Path to the folder that holds index data.
+        timestamp (str): ``YYYYmmdd_HHMMSS`` string captured at construction,
+            used to name generated artefacts.
+
+    Note:
+        When ``dry_run=True`` is set in the config, ``plan`` is also forced
+        to ``True`` and ``show_progress`` is disabled.  Build commands are
+        collected internally and can be written to a shell script via
+        ``write_script()``.
+    """
+
     # PRIVATE METHODS
     def __init__(self, config: IndexOpsConfig) -> None:
         self._config = config
@@ -121,6 +213,13 @@ class IndexOps:
     # PUBLIC METHODS
 
     def write_script(self):
+        """Write the collected build/merge commands to a timestamped shell script.
+
+        The script is placed under ``asset_dir`` and named
+        ``kmhelpers_apply_<timestamp>.sh``.  It is only meaningful after
+        ``apply()`` has been called in plan or dry-run mode, since that is when
+        commands are accumulated into ``_script_lines``.
+        """
         script_path = os.path.join(
             self.asset_dir, f"kmhelpers_apply_{self.timestamp}.sh"
         )
@@ -129,12 +228,36 @@ class IndexOps:
         logger.info(f"Script written to {script_path}")
 
     def compose(self):
+        """Compose an index definition from the current configuration. (Not yet implemented.)"""
         pass
 
     def plan(self, def_file: str):
+        """Preview the operations that would be performed for a definition file. (Not yet implemented.)
+
+        Args:
+            def_file: Path to the index definition or span registry file to
+                inspect.
+        """
         pass
 
     def apply(self, path: str) -> ApplyResult:
+        """Apply an index definition or span registry file to the kmindex registry.
+
+        Reads ``path``, detects whether it is an index definition or a span
+        registry, then builds any missing sub-indexes and merges partial indexes
+        as required.  Skips any sub-index already present in the registry.
+
+        Args:
+            path: Path to a YAML or JSON file containing either an
+                ``IndexDefinition`` or a span registry.
+
+        Returns:
+            An ``ApplyResult`` with the overall status and a per-index details
+            dict.  Status is ``SUCCESS`` when all operations complete without
+            error, ``PARTIAL`` when at least one operation fails but others
+            succeed (only when ``fail_on_error=False``), or ``FAILED`` when a
+            fatal error occurs before any index is built.
+        """
         path = os.path.realpath(path)
 
         # Load desired state
@@ -265,7 +388,20 @@ class IndexOps:
         return result
 
     def _build_single(self, builder: IndexBuilder, i: IndexDefinition):
+        """Build a single sub-index, showing a progress spinner or bar if configured.
 
+        Resolves sample file paths, populates a ``FofManager``, and delegates
+        the actual build to ``IndexBuilder.create_subindex``.  The generated
+        command is appended to ``_script_lines`` for later script export.
+
+        Args:
+            builder: The ``IndexBuilder`` instance managing the target registry.
+            i: The index definition describing the sub-index to build.
+
+        Returns:
+            The result dict returned by ``IndexBuilder.create_subindex``, or
+            ``None`` if the index was already building or no samples were added.
+        """
         assert i.name, "IndexDefinition is missing required 'name' field"
 
         if i.name in self._building or builder.has_subindex(i.name):
@@ -396,6 +532,17 @@ class IndexOps:
         return result
 
     def _get_dbs(self, path, idt):
+        """Load and cache ``IndexDB`` objects from a definition file.
+
+        Args:
+            path: Absolute path to the definition file.
+            idt: ``IndexDefinitionTools`` instance used for deserialization.
+
+        Returns:
+            A list of ``IndexDB`` objects loaded from ``path``.  Subsequent
+            calls with the same path return the cached result without re-reading
+            the file.
+        """
         if path in self._dbs:
             dbs = self._dbs[path]
         else:
@@ -406,6 +553,26 @@ class IndexOps:
     def _find_definition(
         self, name: str, source_file: str, idt: IndexDefinitionTools
     ) -> IndexDefinition:
+        """Look up an ``IndexDefinition`` by name across all loaded databases.
+
+        Searches already-cached databases first.  If not found, constructs a
+        sibling file path (same directory and extension as ``source_file``,
+        named ``<name>.<ext>``) and attempts to load it.
+
+        Args:
+            name: Name of the index definition to find.
+            source_file: Path of the file that referenced this index, used to
+                resolve sibling definition files.
+            idt: ``IndexDefinitionTools`` instance used to load sibling files.
+
+        Returns:
+            The matching ``IndexDefinition``.
+
+        Raises:
+            FileNotFoundError: If the sibling file does not exist.
+            AssertionError: If the definition is still not found after loading
+                the sibling file.
+        """
         res = None
 
         for l in self._dbs.values():
@@ -440,6 +607,26 @@ class IndexOps:
     #     return field_name in self._config
 
     def _load_span_registry(self, path, idt, data, dbs, merges):
+        """Parse a span registry and populate the ``dbs`` and ``merges`` structures.
+
+        Iterates over each span in the registry, optionally filtering by
+        ``config.filter_spans`` and ``config.filter_names``.  For each index
+        that passes the filter, the merge target and its constituent sub-index
+        names are recorded in ``merges``, and the corresponding definition files
+        are loaded into ``dbs``.
+
+        Args:
+            path: Absolute path to the span registry file (used to resolve
+                sibling definition files).
+            idt: ``IndexDefinitionTools`` instance for loading definition files.
+            data: Deserialized registry dict (``{"data": {span_id: {...}}}``)
+            dbs: List to extend with loaded ``IndexDB`` objects.
+            merges: Dict to populate with ``{merge_target: [sub_index_names]}``.
+
+        Raises:
+            AssertionError: If a span entry is missing the ``"indices"`` field
+                or a required definition file does not exist on disk.
+        """
         spans = dict[int, dict](data["data"])
         for to_index, parts in spans.items():
             if self.config.filter_spans and to_index not in self.config.filter_spans:
@@ -466,7 +653,26 @@ class IndexOps:
                         dbs.extend(self._get_dbs(db_path, idt))
 
     def _build(self, path, result, idt, builder, i, parent_index):
+        """Build a sub-index, first building its parent if necessary.
 
+        If ``parent_index`` is specified and not yet present in the registry,
+        the parent's definition is resolved via ``_find_definition`` and built
+        first.  The target index ``i`` is then built via ``_build_single``.
+        Build outcomes are written into ``result.details``.
+
+        Args:
+            path: Source definition file path, forwarded to ``_find_definition``
+                for sibling lookups.
+            result: The ``ApplyResult`` being accumulated; ``details`` is
+                updated in place.
+            idt: ``IndexDefinitionTools`` for loading sibling definition files.
+            builder: The ``IndexBuilder`` managing the target registry.
+            i: The ``IndexDefinition`` of the index to build.
+            parent_index: Name of the required parent index, or ``None``.
+
+        Raises:
+            AssertionError: If ``bf_size`` is not set on the definition.
+        """
         assert (
             i.bf_size > 0
         ), f"IndexDefinition {i.name} is missing required 'bf_size' field"
@@ -503,6 +709,25 @@ class IndexOps:
             result.details[i.name] = f"[{ApplyStatus.NONE.value}]"
 
     def _merge(self, result, builder, to_index, parts):
+        """Merge a list of sub-indexes into a combined index and clean up the parts.
+
+        Verifies that all constituent sub-indexes are present in the registry
+        (skipped in plan mode), calls ``IndexBuilder.merge``, and if the
+        resulting index passes a structure check, removes each constituent
+        segment via ``_delete_segment``.
+
+        Args:
+            result: The ``ApplyResult`` being accumulated; ``details`` is
+                updated in place.
+            builder: The ``IndexBuilder`` managing the target registry.
+            to_index: Name of the target merged index.
+            parts: List of sub-index names to merge into ``to_index``.
+
+        Raises:
+            Exception: If the builder returns a malformed result dict.
+            AssertionError: If the merged sub-index is not found in the registry
+                after the merge.
+        """
         builder.index.load_json()
         missing = None
         if not self.config.plan:
@@ -537,6 +762,17 @@ class IndexOps:
                     self._delete_segment(builder, segment)
 
     def _delete_segment(self, builder, segment):
+        """Remove a segment sub-index from the registry and delete its files.
+
+        Unregisters ``segment`` from the kmindex registry (ignoring it if
+        already unregistered), then removes the corresponding directory under
+        ``index_data_folder`` and any dangling symlink at that path.  Failures
+        during file deletion are logged as warnings rather than raised.
+
+        Args:
+            builder: The ``IndexBuilder`` whose registry entry should be removed.
+            segment: Name of the sub-index segment to delete.
+        """
         logging.info(f"Delete {segment}...")
         try:
             builder.index.remove_index(
