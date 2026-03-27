@@ -1,8 +1,12 @@
 """Query command for searching sequences in indices."""
 
 import os
+import sys
+import tempfile
+
 import click
-from pykmhelpers import KmindexRegistry, KmindexWrapper
+
+from pykmhelpers import KmindexQuery, KmindexQueryResult, KmindexRegistry
 
 
 @click.command()
@@ -17,16 +21,13 @@ from pykmhelpers import KmindexRegistry, KmindexWrapper
     "--index-ids",
     "-n",
     multiple=True,
-    required=True,
-    help="Index ID(s) to query against (can specify multiple)",
+    required=False,
+    help="Index ID(s) to query against (can specify multiple, default: all)",
 )
-@click.option(
-    "--query-file",
-    "-q",
-    multiple=True,
+@click.argument(
+    "query_files",
+    nargs=-1,
     required=True,
-    type=click.Path(exists=True, file_okay=True, dir_okay=False),
-    help="Query file(s) in FASTA/FASTQ format (can specify multiple)",
 )
 @click.option(
     "--output-dir",
@@ -37,14 +38,16 @@ from pykmhelpers import KmindexRegistry, KmindexWrapper
 )
 @click.option(
     "--zvalue",
+    "-z",
     type=int,
     default=6,
     help="Z-value for findere algorithm, to filter false positives (default: 6)",
 )
 @click.option(
     "--threshold",
+    "-r",
     type=float,
-    default=0.0,
+    default=0.01,
     help="Score threshold for results filtering (default: 0.0)",
 )
 @click.option(
@@ -56,18 +59,32 @@ from pykmhelpers import KmindexRegistry, KmindexWrapper
 )
 @click.option(
     "--single-query",
+    "-s",
     help="Treat all sequences as single query with this identifier",
 )
 @click.option(
     "--aggregate",
+    "-a",
     is_flag=True,
     help="Aggregate batch results into one file",
 )
 @click.option(
+    "--compressed",
+    "-c",
+    is_flag=True,
+    help="Index is compressed",
+)
+@click.option(
     "--format",
-    type=click.Choice(["json", "txt"]),
+    type=click.Choice(["json", "yaml", "md", "html", "csv"]),
     default="json",
-    help="Output format (default: json)",
+    help="Output format for results (default: json)",
+)
+@click.option(
+    "--print",
+    "-p",
+    is_flag=True,
+    help="Print result to console (stderr)",
 )
 @click.option(
     "--verbose",
@@ -78,74 +95,108 @@ from pykmhelpers import KmindexRegistry, KmindexWrapper
 def query(
     registry_path,
     index_ids,
-    query_file,
+    query_files,
     output_dir,
     zvalue,
     threshold,
     threads,
     single_query,
     aggregate,
+    compressed,
     format,
     verbose,
 ):
     """Query indices with FASTA/FASTQ sequences.
 
+    QUERY_FILES: Query file(s) in FASTA/FASTQ format. Use '-' to read from stdin.
+
     Examples:
       # Single query file against single index
-      kmhelpers query -r ./registry -n idx1 -q query.fa -o results
+      kmhelpers query -r ./registry -n idx1 -o results query.fa
 
       # Multiple query files with threading
-      kmhelpers query -r ./registry -n idx1 -q q1.fa -q q2.fa -t 4 -o results
+      kmhelpers query -r ./registry -n idx1 -t 4 -o results q1.fa q2.fa
 
       # Multiple indices
-      kmhelpers query -r ./registry -n idx1 -n idx2 -q query.fa -o results
+      kmhelpers query -r ./registry -n idx1 -n idx2 -o results query.fa
+
+      # Pipe from stdin
+      cat query.fa | kmhelpers query -r ./registry -n idx1 -o results -
 
       # Treat all sequences as one query
-      kmhelpers query -r ./registry -n idx1 -q multi.fa --single-query batch1 -o out
+      kmhelpers query -r ./registry -n idx1 --single-query batch1 -o out multi.fa
     """
 
     # Verify registry and indices
     registry = KmindexRegistry(registry_path)
     available_indices = registry.list_indices()
 
-    for idx_id in index_ids:
-        if idx_id not in available_indices:
-            raise click.BadParameter(f"Index {idx_id} not found in registry")
+    if not index_ids:
+        index_ids = tuple(available_indices)
+    else:
+        for idx_id in index_ids:
+            if idx_id not in available_indices:
+                raise click.BadParameter(f"Index {idx_id} not found in registry")
+
+    # Resolve query files, handling '-' as stdin
+    resolved_files = []
+    temp_files = []
+    for qfile in query_files:
+        if qfile == "-":
+            tmp = tempfile.NamedTemporaryFile(mode="wb", suffix=".fa", delete=False)
+            tmp.write(sys.stdin.buffer.read())
+            tmp.close()
+            resolved_files.append(tmp.name)
+            temp_files.append(tmp.name)
+        else:
+            if not os.path.exists(qfile):
+                raise click.BadParameter(
+                    f"File not found: {qfile}", param_hint="QUERY_FILES"
+                )
+            resolved_files.append(qfile)
 
     if verbose:
         click.echo(f"Registry: {registry_path}")
         click.echo(f"Indices: {', '.join(index_ids)}")
-        click.echo(f"Query files: {', '.join(query_file)}\n")
+        click.echo(f"Query files: {', '.join(resolved_files)}\n")
 
     os.makedirs(output_dir, exist_ok=True)
 
-    # Create wrapper and perform query
-    wrapper = KmindexWrapper()
-    total_queries = len(query_file)
+    total_queries = len(resolved_files)
 
     try:
-        for query_idx, qfile in enumerate(query_file, 1):
+        for query_idx, qfile in enumerate(resolved_files, 1):
             qfile_name = os.path.splitext(os.path.basename(qfile))[0]
             query_output = os.path.join(output_dir, qfile_name)
 
             if verbose or total_queries > 1:
                 click.echo(f"[{query_idx}/{total_queries}] Querying: {qfile_name}")
 
-            results_dir = wrapper.query(
-                input_registry=registry_path,
-                query_file=qfile,
+            kq = KmindexQuery(path=qfile)
+            kq.execute(
+                registry_path=registry_path,
                 output_dir=query_output,
-                names=list(index_ids),
-                zvalue=zvalue,
-                threshold=threshold,
-                threads=threads,
+                index_ids=list(index_ids),
+                z=zvalue,
                 single_query=single_query,
                 aggregate=aggregate,
-                format=format,
+                threads=threads,
+                is_compressed=compressed,
             )
 
-            if verbose:
-                click.echo(f"  Results: {results_dir}")
+            if format != "json":
+                result_dir = os.path.join(query_output, "result")
+                for fname in os.listdir(result_dir):
+                    if fname.endswith(".json"):
+                        json_path = os.path.join(result_dir, fname)
+                        result = KmindexQueryResult(json_path)
+                        stem = os.path.splitext(fname)[0]
+                        out_file = os.path.join(result_dir, f"{stem}.{format}")
+                        result.convert(format=format, threshold=threshold)
+                        if verbose:
+                            click.echo(f"  Converted: {out_file}")
+            elif verbose:
+                click.echo(f"  Results: {os.path.join(query_output, 'result')}")
 
         click.echo(f"✓ Query completed")
         click.echo(f"  Output directory: {output_dir}")
@@ -153,3 +204,6 @@ def query(
 
     except Exception as e:
         raise click.ClickException(f"Query failed: {e}")
+    finally:
+        for tmp in temp_files:
+            os.unlink(tmp)

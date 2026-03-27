@@ -123,6 +123,13 @@ need to resolve them from a different location.",
     help="⚙   Number of threads (default: 1).",
 )
 @click.option(
+    "--partition-count",
+    "-p",
+    type=int,
+    required=False,
+    help="⚙   Override number of partitions.",
+)
+@click.option(
     "--existing",
     required=False,
     help="⚙   Action when an existing unregistered index folder is found: fail, register, rename,  replace, register_or_replace, register_or_rename (default: fail).",
@@ -167,13 +174,13 @@ need to resolve them from a different location.",
     is_flag=True,
     help="🚩  Abort the entire run if any index fails to build, instead of skipping it and continuing.",
 )
-@click.option(
-    "--merge-spans",
-    "-m",
-    required=False,
-    type=click.Path(file_okay=True, dir_okay=False, exists=True),
-    help="📄  TODO: Input file, defining span merges. Currently does nothing, will be added in a future release.",
-)
+# @click.option(
+#     "--merge-spans",
+#     "-m",
+#     required=False,
+#     type=click.Path(file_okay=True, dir_okay=False, exists=True),
+#     help="📄  TODO: Input file, defining span merges. Currently does nothing, will be added in a future release.",
+# )
 @click.option(
     "--notify",
     required=False,
@@ -192,6 +199,7 @@ def apply(
     reuse_from,
     minim_size,
     threads,
+    partition_count,
     existing,
     verbose,
     force,
@@ -371,6 +379,9 @@ def apply(
         if not plan:
             plan = config_map.get("plan", False)
 
+        if not partition_count:
+            partition_count = config_map.get("partition_count", None)
+
         if not fail_on_error:
             fail_on_error = config_map.get("fail_on_error", False)
 
@@ -403,6 +414,7 @@ def apply(
             on_existing=existing,
             show_progress=show_progress,
             fail_on_error=fail_on_error,
+            partition_count=partition_count,
         )
     )
 

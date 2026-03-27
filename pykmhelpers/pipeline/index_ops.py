@@ -116,6 +116,7 @@ class IndexOpsConfig:
     on_existing: str = "fail"
     show_progress: bool = False
     fail_on_error: bool = False
+    partition_count: Optional[int] = None
 
 
 class IndexOps:
@@ -471,18 +472,11 @@ class IndexOps:
 
                 def _on_progress(value: float):
                     elapsed = (datetime.now() - start).total_seconds()
-                    if value > 0:
-                        estimated_total = elapsed / value
-                        remaining = estimated_total - elapsed
-                        mins, secs = divmod(int(remaining), 60)
-                        eta = f"~{mins}m{secs:02d}s remaining"
-                    else:
-                        eta = "estimating..."
                     bar_len = 30
                     filled = int(round(bar_len * value))
                     bar = "■" * filled + " " * (bar_len - filled)
                     print(
-                        f"\r[{bar}] {value * 100:.1f}%  elapsed: {int(elapsed // 60)}m{int(elapsed % 60):02d}s  {eta}",
+                        f"\r[{bar}] {value * 100:.1f}%  elapsed: {int(elapsed // 60)}m{int(elapsed % 60):02d}s      ",
                         end="",
                         flush=True,
                     )
@@ -495,12 +489,17 @@ class IndexOps:
                 progress_handler = IndexBuilder.Progress(_on_progress, delay=60)
 
             try:
+                partition_count = (
+                    self.config.partition_count
+                    if self.config.partition_count
+                    else i.partition_count
+                )
                 result = builder.create_subindex(
                     name=i.name,
                     samples=fof,
                     abundance_min=i.abundance_min,
                     bloom_size=i.bf_size,
-                    n_partitions=i.partition_count,
+                    n_partitions=partition_count,
                     n_threads=self.config.kmindex_threads,
                     auto_check=True,
                     build_from=parent_index,

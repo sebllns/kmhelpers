@@ -57,8 +57,6 @@ class KmindexQueryResult:
             lines.append(
                 f"## Query {query_name} on {self.index_name} - Filter scores ≥ {threshold}\n"
             )
-            lines.append("| Sample  | Score |")
-            lines.append("|---------|-------|")
 
             # Sort by score (descending) and filter by threshold
             sorted_samples = sorted(
@@ -67,8 +65,13 @@ class KmindexQueryResult:
                 reverse=True,
             )
 
+            col_w = max((len(s) for s, _ in sorted_samples), default=len("Sample"))
+            col_w = max(col_w, len("Sample"))
+            lines.append(f"| {'Sample':<{col_w}} | Score |")
+            lines.append(f"| {'-' * col_w} | ----- |")
+
             for sample, score in sorted_samples:
-                lines.append(f"| {sample} | {score:.3f} |")
+                lines.append(f"| {sample:<{col_w}} | {score:.3f} |")
 
             lines.append("")  # Empty line between queries
 
@@ -135,23 +138,63 @@ class KmindexQueryResult:
 
         return "\n".join(html)
 
-    def convert(self, output_file: str, threshold: float = 0.0):
-        """Convert JSON to specified output format."""
-        output_path = Path(output_file)
+    def generate_csv(self, threshold: float = 0.0) -> str:
+        """Generate CSV output."""
+        lines = ["query,sample,score"]
 
-        if output_path.suffix.lower() == ".md":
-            print(f"Generating Markdown (threshold={threshold})...", file=sys.stderr)
-            content = self.generate_markdown(threshold)
-        elif output_path.suffix.lower() == ".html":
-            print(f"Generating HTML (threshold={threshold})...", file=sys.stderr)
-            content = self.generate_html(threshold)
-        else:
-            raise ValueError(
-                f"Unsupported output format: {output_path.suffix}. Use .md or .html"
+        for query_name, samples in self.queries.items():
+            sorted_samples = sorted(
+                [(s, sc) for s, sc in samples.items() if sc >= threshold],
+                key=lambda x: x[1],
+                reverse=True,
             )
 
-        with open(output_path, "w") as f:
-            f.write(content)
+            for sample, score in sorted_samples:
+                lines.append(f"{query_name},{sample},{score:.3f}")
+
+        return "\n".join(lines)
+
+    def generate_json(self, threshold: float = 0.0) -> str:
+        """Generate filtered JSON output."""
+        filtered = {
+            self.index_name: {
+                query_name: {s: sc for s, sc in samples.items() if sc >= threshold}
+                for query_name, samples in self.queries.items()
+            }
+        }
+        return json.dumps(filtered, indent=2)
+
+    def generate_yaml(self, threshold: float = 0.0) -> str:
+        """Generate filtered YAML output."""
+        filtered = {
+            self.index_name: {
+                query_name: {
+                    s: round(sc, 3) for s, sc in samples.items() if sc >= threshold
+                }
+                for query_name, samples in self.queries.items()
+            }
+        }
+        return yaml.dump(filtered, default_flow_style=False, sort_keys=False)
+
+    def convert(self, format: str, threshold: float = 0.01):
+        """Convert JSON to specified output format."""
+
+        if format.lower() == "md":
+            content = self.generate_markdown(threshold)
+        elif format.lower() == "html":
+            content = self.generate_html(threshold)
+        elif format.lower() == "csv":
+            content = self.generate_csv(threshold)
+        elif format.lower() == "json":
+            content = self.generate_json(threshold)
+        elif format.lower() == "yaml":
+            content = self.generate_yaml(threshold)
+        else:
+            raise ValueError(
+                f"Unsupported output format: {format}. Use 'md', 'html', 'csv', 'json', or 'yaml'"
+            )
+
+        return content
 
 
 class KmindexQuery:
@@ -186,6 +229,7 @@ class KmindexQuery:
         single_query: Optional[str] = None,
         aggregate: bool = False,
         threads: int = 1,
+        is_compressed: bool = False,
     ):
         """
         Run a query against the kmindex registry.
@@ -223,6 +267,7 @@ class KmindexQuery:
             aggregate=aggregate,
             threads=threads,
             zvalue=z,
+            is_compressed=is_compressed,
         )
 
         # Save result to info.yaml
@@ -233,10 +278,11 @@ class KmindexQuery:
         result = []
 
         for f in os.listdir(result_dir):
-            if os.path.isfile(f) and f.endswith(".json"):
+            fpath = os.path.join(result_dir, f)
+            if os.path.isfile(fpath) and f.endswith(".json"):
                 try:
-                    result.append(KmindexQueryResult(f))
-                except:
-                    print(f"Could not read result from {f}")
+                    result.append(KmindexQueryResult(fpath))
+                except Exception as e:
+                    print(f"Could not read result from {fpath}: {e}")
 
         return result

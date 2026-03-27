@@ -1,5 +1,7 @@
 """Build k-mer index command."""
 
+# TODO: update to use new index definition format
+
 import logging
 import os
 
