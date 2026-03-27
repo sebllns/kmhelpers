@@ -444,7 +444,10 @@ class IndexOps:
         if fof.get_sample_count() > 0:
             stop_event = None
             wait_handler = None
-            if not self.config.dry_run and not self.config.plan:
+            progress_handler = None
+            if self.config.show_progress:
+
+                start = datetime.now()
                 stop_event = threading.Event()
 
                 def _progress_worker():
@@ -461,14 +464,6 @@ class IndexOps:
 
                 wait_handler = threading.Thread(target=_progress_worker, daemon=True)
                 wait_handler.start()
-
-            else:
-                logger.info(f"Building index '{i.name}'...")
-
-            progress_handler = None
-            if self.config.show_progress:
-
-                start = datetime.now()
 
                 def _on_progress(value: float):
                     elapsed = (datetime.now() - start).total_seconds()
@@ -487,6 +482,8 @@ class IndexOps:
                         wait_handler.join()
 
                 progress_handler = IndexBuilder.Progress(_on_progress, delay=60)
+            else:
+                logger.info(f"Building index '{i.name}'...")
 
             try:
                 partition_count = (
