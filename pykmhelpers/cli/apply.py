@@ -174,13 +174,6 @@ need to resolve them from a different location.",
     is_flag=True,
     help="🚩  Abort the entire run if any index fails to build, instead of skipping it and continuing.",
 )
-# @click.option(
-#     "--merge-spans",
-#     "-m",
-#     required=False,
-#     type=click.Path(file_okay=True, dir_okay=False, exists=True),
-#     help="📄  TODO: Input file, defining span merges. Currently does nothing, will be added in a future release.",
-# )
 @click.option(
     "--notify",
     required=False,
@@ -208,7 +201,6 @@ def apply(
     plan,
     show_progress,
     fail_on_error,
-    merge_spans,
     notify,
 ):
     """Apply changes and build indices from definition files.
