@@ -213,7 +213,6 @@ def build(
 )
 @click.option(
     "--query-file",
-    # "-q",
     multiple=True,
     required=True,
     type=click.Path(exists=True, file_okay=True, dir_okay=False),

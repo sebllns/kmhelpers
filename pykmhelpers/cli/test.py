@@ -7,7 +7,8 @@ from datetime import datetime
 import click
 import yaml
 
-from pykmhelpers.core.fasta import Fasta
+from pykmhelpers.core import KmindexRegistry, KmtricksIndex
+from pykmhelpers.core.fasta import Fasta, FASTAReader
 from pykmhelpers.core.sequence import Sequence
 from pykmhelpers.pipeline.fof import FofManager
 
@@ -230,5 +231,89 @@ def test_create_db(output_dir, n_samples, average_size, min_size, kmer_size, ver
 
     except click.BadParameter:
         raise
+    except Exception as e:
+        raise click.ClickException(f"Failed to create test database: {e}")
+
+
+def _create_single_dataset(
+    idx: KmtricksIndex,
+    output_dir: str,
+    n_samples: int = 5,
+    max_length=2000,
+):
+    """
+    Create test dataset by extracting sequences from the index.
+
+    :param idx: The kmtricks index to extract sequences from
+    :type idx: KmtricksIndex
+    :param output_dir: Output directory for test FASTA files
+    :type output_dir: str
+    :param n_samples: Number of samples to extract
+    :type n_samples: int
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    fof = FofManager(idx.fof_path)
+    i = 0
+    for s in idx:
+        if i >= n_samples:
+            break
+        path = fof.get_sample_path(s)
+        if path and os.path.isfile(path):
+            i += 1
+            try:
+                reader = FASTAReader(path)
+                output_file = os.path.join(output_dir, f"{s}.fasta")
+                with open(output_file, "w") as f:
+                    f.write(reader.fetch_first_n(max_length).to_fasta())
+            except Exception as e:
+                print(f"Failed to extract sequences from {path}: {str(e)}")
+
+
+@test.command(name="extract-dataset")
+@click.option(
+    "--registry-path",
+    "-r",
+    default=".",
+    type=click.Path(file_okay=False, dir_okay=True, exists=True, readable=True),
+    help="Path to kmindex registry",
+)
+@click.option(
+    "--output-dir",
+    "-o",
+    required=True,
+    type=click.Path(file_okay=False, dir_okay=True),
+    help="Output directory for test database",
+)
+@click.option(
+    "--n-samples",
+    "-n",
+    type=int,
+    default=5,
+    help="Number of sequences to extract per sub-index (default: 5)",
+)
+@click.option(
+    "--average-size",
+    "-a",
+    type=int,
+    default=1000,
+    help="Average sequence size in bases (default: 1000)",
+)
+@click.option(
+    "--min-size",
+    "-m",
+    type=int,
+    default=100,
+    help="Minimum sequence size in bases (default: 100)",
+)
+def extract_dataset(registry_path, output_dir, n_samples, average_size, min_size):
+    try:
+        kreg = KmindexRegistry(registry_path, auto_create=False)
+        size = random.randint(min_size, average_size)
+        for i in kreg:
+            try:
+                print(f"Extract sequences from {i.id}")
+                _create_single_dataset(i, output_dir, n_samples, size)
+            except Exception as e:
+                print(f"Failed to extract sequences from {i.id}: {str(e)}")
     except Exception as e:
         raise click.ClickException(f"Failed to create test database: {e}")

@@ -13,7 +13,7 @@ from pykmhelpers import KmindexQuery, KmindexQueryResult, KmindexRegistry
 @click.option(
     "--registry-path",
     "-r",
-    required=True,
+    default=".",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     help="Path to kmindex registry",
 )
@@ -24,14 +24,9 @@ from pykmhelpers import KmindexQuery, KmindexQueryResult, KmindexRegistry
     required=False,
     help="Index ID(s) to query against (can specify multiple, default: all)",
 )
-@click.argument(
-    "query_files",
-    nargs=-1,
-    required=True,
-)
 @click.option(
     "--output-dir",
-    "-o",
+    "-d",
     required=True,
     type=click.Path(file_okay=False, dir_okay=True),
     help="Output directory for query results",
@@ -45,7 +40,7 @@ from pykmhelpers import KmindexQuery, KmindexQueryResult, KmindexRegistry
 )
 @click.option(
     "--threshold",
-    "-r",
+    "-e",
     type=float,
     default=0.01,
     help="Score threshold for results filtering (default: 0.0)",
@@ -76,6 +71,7 @@ from pykmhelpers import KmindexQuery, KmindexQueryResult, KmindexRegistry
 )
 @click.option(
     "--format",
+    "-o",
     type=click.Choice(["json", "yaml", "md", "html", "csv"]),
     default="json",
     help="Output format for results (default: json)",
@@ -92,10 +88,14 @@ from pykmhelpers import KmindexQuery, KmindexQueryResult, KmindexRegistry
     is_flag=True,
     help="Verbose output",
 )
+@click.argument(
+    "query_files",
+    nargs=-1,
+    required=True,
+)
 def query(
     registry_path,
     index_ids,
-    query_files,
     output_dir,
     zvalue,
     threshold,
@@ -105,10 +105,12 @@ def query(
     compressed,
     format,
     verbose,
+    query_files,
 ):
     """Query indices with FASTA/FASTQ sequences.
 
-    QUERY_FILES: Query file(s) in FASTA/FASTQ format. Use '-' to read from stdin.
+    QUERY_FILES: Query file(s) or directory/ies in FASTA/FASTQ format. Directories are
+    scanned recursively. Use '-' to read from stdin.
 
     Examples:
       # Single query file against single index
@@ -125,6 +127,9 @@ def query(
 
       # Treat all sequences as one query
       kmhelpers query -r ./registry -n idx1 --single-query batch1 -o out multi.fa
+
+      # Scan a directory recursively
+      kmhelpers query -r ./registry -n idx1 -o results ./queries_dir/
     """
 
     # Verify registry and indices
@@ -153,7 +158,12 @@ def query(
                 raise click.BadParameter(
                     f"File not found: {qfile}", param_hint="QUERY_FILES"
                 )
-            resolved_files.append(qfile)
+            if os.path.isdir(qfile):
+                for root, _, files in os.walk(qfile):
+                    for fname in files:
+                        resolved_files.append(os.path.join(root, fname))
+            else:
+                resolved_files.append(qfile)
 
     if verbose:
         click.echo(f"Registry: {registry_path}")

@@ -149,7 +149,19 @@ class SectionedGroup(click.Group):
     "-v",
     "--verbose",
     count=True,
-    help="Increase verbosity: -v for WARNING, -vv for INFO, -vvv for DEBUG",
+    help="Increase verbosity: -v for INFO, -vv for DEBUG",  # TODO , -vvv for TRACE
+)
+@click.option(
+    "-q",
+    "--quiet",
+    count=True,
+    help="Decrease verbosity: -q for ERROR, -qq for CRITICAL,",
+)
+@click.option(
+    "--no-formatting",
+    envvar="KMHELPERS_WITHOUT_FORMATTING",
+    is_flag=True,
+    help="Disable log formatter",
 )
 @click.option(
     "--log-file",
@@ -186,30 +198,29 @@ class SectionedGroup(click.Group):
     required=False,
     help="Change to directory before initialization",
 )
-def cli(verbose, log_file, init_path, bin_path, check_all, chdir):
+def cli(verbose, quiet, no_formatting, log_file, init_path, bin_path, check_all, chdir):
     """kmhelpers - A toolkit for managing, compressing, and querying k-mer indices."""
     # Configure logging based on verbosity level
     log_levels = {
-        0: logging.WARNING,  # default
-        1: logging.INFO,  # -v
-        2: logging.DEBUG,  # -vv
+        0: logging.CRITICAL,  # -qq
+        1: logging.ERROR,  # -q
+        2: logging.WARNING,  # default
+        3: logging.INFO,  # -v
+        4: logging.DEBUG,  # -vv
+        # 5: logging_TRACE # -vvv
     }
 
     # TODO
-    # Add -q option
     # Change to
     # logging_TRACE = logging.DEBUG - 1
     # logging.addLevelName(logging_TRACE, "TRACE")
     #    logging.log()
-    # log_levels = {
-    #     0: logging.WARNING,  # default
-    #     1: logging.INFO,  # -v
-    #     2: logging.DEBUG,  # -vv
-    #     3: logging_TRACE # -vvv
-    # }
     # Use Log. as interface
 
-    log_level = log_levels.get(min(verbose, 2), logging.ERROR)
+    default_level = os.getenv("KMHELPERS_LOG_LEVEL", 2)
+    log_level = log_levels.get(
+        max(min(default_level + verbose - quiet, 4), 0), logging.ERROR
+    )
 
     # Configure root logger with different format for debug level
     log_format = (
@@ -225,11 +236,18 @@ def cli(verbose, log_file, init_path, bin_path, check_all, chdir):
     # Create console handler with colored formatter
     console_handler = logging.StreamHandler()
     console_handler.setLevel(log_level)
-    formatter = ColoredFormatter(
-        log_format,
-        datefmt="%Y-%m-%d %H:%M:%S",
-        debug_mode=(log_level == logging.DEBUG),
-    )
+
+    if not no_formatting:
+        formatter = ColoredFormatter(
+            log_format,
+            datefmt="%Y-%m-%d %H:%M:%S",
+            debug_mode=(log_level == logging.DEBUG),
+        )
+    else:
+        formatter = logging.Formatter(
+            "%(levelname)-8s | %(message)s",
+        )
+
     console_handler.setFormatter(formatter)
 
     # Remove any existing handlers and add the new one
@@ -242,10 +260,15 @@ def cli(verbose, log_file, init_path, bin_path, check_all, chdir):
             file_handler = logging.FileHandler(log_file, mode="w")
             file_handler.setLevel(log_level)
             # Use plain formatter for file (no colors)
-            file_formatter = logging.Formatter(
-                log_format,
-                datefmt="%Y-%m-%d %H:%M:%S",
-            )
+            if not no_formatting:
+                file_formatter = logging.Formatter(
+                    log_format,
+                    datefmt="%Y-%m-%d %H:%M:%S",
+                )
+            else:
+                file_formatter = logging.Formatter(
+                    "%(levelname)-8s | %(message)s",
+                )
             file_handler.setFormatter(file_formatter)
             root_logger.addHandler(file_handler)
             logger = logging.getLogger(__name__)
