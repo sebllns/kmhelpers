@@ -309,7 +309,9 @@ def extract_dataset(registry_path, output_dir, n_samples, average_size, min_size
         for i in kreg:
             try:
                 print(f"Extract sequences from {i.id}...")
-                _create_single_dataset(i, output_dir, n_samples, size)
+                _create_single_dataset(
+                    i, os.path.join(output_dir, i.id), n_samples, size
+                )
             except Exception as e:
                 print(f"Failed to extract sequences from {i.id}: {str(e)}")
     except Exception as e:
