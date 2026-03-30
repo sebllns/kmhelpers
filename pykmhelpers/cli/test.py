@@ -238,8 +238,9 @@ def test_create_db(output_dir, n_samples, average_size, min_size, kmer_size, ver
 def _create_single_dataset(
     idx: KmtricksIndex,
     output_dir: str,
-    n_samples: int = 5,
-    max_length=2000,
+    n_samples: int,
+    average_size,
+    min_size,
 ):
     """
     Create test dataset by extracting sequences from the index.
@@ -261,6 +262,7 @@ def _create_single_dataset(
                 reader = FASTAReader(path)
                 output_file = os.path.join(output_dir, f"{s}.fasta")
                 with open(output_file, "w") as f:
+                    max_length = random.randint(min_size, average_size)
                     f.write(reader.fetch_first_n(max_length).to_fasta())
             except Exception as e:
                 print(f"Failed to extract sequences from {path}: {str(e)}")
@@ -305,12 +307,11 @@ def _create_single_dataset(
 def extract_dataset(registry_path, output_dir, n_samples, average_size, min_size):
     try:
         kreg = KmindexRegistry(registry_path, auto_create=False)
-        size = random.randint(min_size, average_size)
         for i in kreg:
             try:
                 print(f"Extract sequences from {i.id}...")
                 _create_single_dataset(
-                    i, os.path.join(output_dir, i.id), n_samples, size
+                    i, os.path.join(output_dir, i.id), n_samples, average_size, min_size
                 )
             except Exception as e:
                 print(f"Failed to extract sequences from {i.id}: {str(e)}")
