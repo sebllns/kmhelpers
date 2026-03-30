@@ -3,6 +3,7 @@
 import os
 import sys
 import tempfile
+import time
 
 import click
 
@@ -174,48 +175,30 @@ def query(
     os.makedirs(output_dir, exist_ok=True)
 
     total_queries = len(resolved_files)
+    start_time = time.time()
 
     try:
         for query_idx, qfile in enumerate(resolved_files, 1):
-            qfile_name = os.path.splitext(os.path.basename(qfile))[0]
-            query_output = os.path.join(output_dir, qfile_name)
-
-            if verbose or total_queries > 1:
-                click.echo(f"[{query_idx}/{total_queries}] Querying: {qfile_name}")
-
-            kq = KmindexQuery(path=qfile)
-            kq.execute(
-                registry_path=registry_path,
-                output_dir=query_output,
-                index_ids=list(index_ids),
-                z=zvalue,
-                single_query=single_query,
-                aggregate=aggregate,
-                threads=threads,
-                is_compressed=compressed,
-                fast=not compressed,
-                threshold=threshold,
+            _run_query(
+                registry_path,
+                index_ids,
+                output_dir,
+                zvalue,
+                threshold,
+                threads,
+                single_query,
+                aggregate,
+                compressed,
+                format,
+                print,
+                verbose,
+                qfile,
+                total_queries,
+                query_idx,
             )
 
-            if format != "json":
-                result_dir = os.path.join(query_output, "result")
-                for fname in os.listdir(result_dir):
-                    if fname.endswith(".json"):
-                        json_path = os.path.join(result_dir, fname)
-                        result = KmindexQueryResult(json_path)
-                        stem = os.path.splitext(fname)[0]
-                        out_file = os.path.join(result_dir, f"{stem}.{format}")
-                        formatted_result = result.convert(
-                            format=format, threshold=threshold
-                        )
-                        if verbose:
-                            click.echo(f"  Converted: {out_file}")
-                        if print:
-                            click.echo(formatted_result, err=True)
-            elif verbose:
-                click.echo(f"  Results: {os.path.join(query_output, 'result')}")
-
-        click.echo(f"✓ Query completed")
+        elapsed = time.time() - start_time
+        click.echo(f"✓ Completed in {elapsed:.2f}s")
         click.echo(f"  Output directory: {output_dir}")
         click.echo(f"  Query files processed: {total_queries}")
 
@@ -224,3 +207,65 @@ def query(
     finally:
         for tmp in temp_files:
             os.unlink(tmp)
+
+
+def _run_query(
+    registry_path,
+    index_ids,
+    output_dir,
+    zvalue,
+    threshold,
+    threads,
+    single_query,
+    aggregate,
+    compressed,
+    format,
+    print,
+    verbose,
+    qfile,
+    total_queries,
+    query_idx,
+):
+    start_time = time.time()
+
+    qfile_name = os.path.splitext(os.path.basename(qfile))[0]
+    query_output = os.path.join(output_dir, qfile_name)
+
+    if verbose or total_queries > 1:
+        click.echo(f"[{query_idx}/{total_queries}] Querying: {qfile_name}...")
+
+    kq = KmindexQuery(path=qfile)
+    kq.execute(
+        registry_path=registry_path,
+        output_dir=query_output,
+        index_ids=list(index_ids),
+        z=zvalue,
+        single_query=single_query,
+        aggregate=aggregate,
+        threads=threads,
+        is_compressed=compressed,
+        fast=not compressed,
+        threshold=threshold,
+    )
+
+    elapsed = time.time() - start_time
+
+    if verbose:
+        click.echo(f"  Time={elapsed:.2f}s")
+
+    result_dir = os.path.join(query_output, "result")
+
+    if format != "json":
+        for fname in os.listdir(result_dir):
+            if fname.endswith(".json"):
+                json_path = os.path.join(result_dir, fname)
+                result = KmindexQueryResult(json_path)
+                stem = os.path.splitext(fname)[0]
+                out_file = os.path.join(result_dir, f"{stem}.{format}")
+                formatted_result = result.convert(format=format, threshold=threshold)
+                if verbose:
+                    click.echo(f"  Converted: {out_file}")
+                if print:
+                    click.echo(formatted_result, err=True)
+    elif verbose:
+        click.echo(f"  Results: {result_dir}")
