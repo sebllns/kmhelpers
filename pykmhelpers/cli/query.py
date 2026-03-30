@@ -203,9 +203,13 @@ def query(
                         result = KmindexQueryResult(json_path)
                         stem = os.path.splitext(fname)[0]
                         out_file = os.path.join(result_dir, f"{stem}.{format}")
-                        result.convert(format=format, threshold=threshold)
+                        formatted_result = result.convert(
+                            format=format, threshold=threshold
+                        )
                         if verbose:
                             click.echo(f"  Converted: {out_file}")
+                        if print:
+                            click.echo(formatted_result, err=True)
             elif verbose:
                 click.echo(f"  Results: {os.path.join(query_output, 'result')}")
 
