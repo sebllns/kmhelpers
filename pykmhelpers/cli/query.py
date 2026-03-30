@@ -179,23 +179,26 @@ def query(
 
     try:
         for query_idx, qfile in enumerate(resolved_files, 1):
-            _run_query(
-                registry_path,
-                index_ids,
-                output_dir,
-                zvalue,
-                threshold,
-                threads,
-                single_query,
-                aggregate,
-                compressed,
-                format,
-                print,
-                verbose,
-                qfile,
-                total_queries,
-                query_idx,
-            )
+            try:
+                _run_query(
+                    registry_path,
+                    index_ids,
+                    output_dir,
+                    zvalue,
+                    threshold,
+                    threads,
+                    single_query,
+                    aggregate,
+                    compressed,
+                    format,
+                    print,
+                    verbose,
+                    qfile,
+                    total_queries,
+                    query_idx,
+                )
+            except Exception as e:
+                click.echo(f"  Error: {e}", err=True)
 
         elapsed = time.time() - start_time
         click.echo(f"✓ Completed in {elapsed:.2f}s")
