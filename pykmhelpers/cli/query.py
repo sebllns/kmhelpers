@@ -193,6 +193,7 @@ def query(
                 aggregate=aggregate,
                 threads=threads,
                 is_compressed=compressed,
+                fast=not compressed,
             )
 
             if format != "json":

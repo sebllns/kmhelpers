@@ -274,6 +274,7 @@ class KmindexWrapper(Wrapper):
         threshold: float = 0.0,
         single_query: Optional[str] = None,
         aggregate: bool = False,
+        fast: bool = True,
         is_compressed: bool = False,
         threads: int = 1,
     ) -> dict:
@@ -365,6 +366,14 @@ class KmindexWrapper(Wrapper):
                     ",".join(names),
                 ]
             )
+
+        if fast:
+            if is_compressed:
+                logging.warning(
+                    "Fast mode is not supported for compressed indexes; ignoring --fast flag."
+                )
+            else:
+                cmd.append("--fast")
 
         result = self._monitor_cmd(cmd, log_errors_only=True)
 

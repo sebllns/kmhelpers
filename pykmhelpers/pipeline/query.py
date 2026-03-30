@@ -229,6 +229,7 @@ class KmindexQuery:
         single_query: Optional[str] = None,
         aggregate: bool = False,
         threads: int = 1,
+        fast: bool = True,
         is_compressed: bool = False,
     ):
         """
@@ -268,6 +269,7 @@ class KmindexQuery:
             threads=threads,
             zvalue=z,
             is_compressed=is_compressed,
+            fast=fast and not is_compressed,
         )
 
         # Save result to info.yaml
