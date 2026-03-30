@@ -253,13 +253,10 @@ def _create_single_dataset(
     """
     os.makedirs(output_dir, exist_ok=True)
     fof = FofManager(idx.fof_path)
-    i = 0
-    for s in idx:
-        if i >= n_samples:
-            break
+    samples = random.sample(idx.samples, min(n_samples, idx.nb_samples))
+    for s in samples:
         path = fof.get_sample_path(s)
         if path and os.path.isfile(path):
-            i += 1
             try:
                 reader = FASTAReader(path)
                 output_file = os.path.join(output_dir, f"{s}.fasta")
@@ -311,7 +308,7 @@ def extract_dataset(registry_path, output_dir, n_samples, average_size, min_size
         size = random.randint(min_size, average_size)
         for i in kreg:
             try:
-                print(f"Extract sequences from {i.id}")
+                print(f"Extract sequences from {i.id}...")
                 _create_single_dataset(i, output_dir, n_samples, size)
             except Exception as e:
                 print(f"Failed to extract sequences from {i.id}: {str(e)}")
