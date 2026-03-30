@@ -194,6 +194,7 @@ def query(
                 threads=threads,
                 is_compressed=compressed,
                 fast=not compressed,
+                threshold=threshold,
             )
 
             if format != "json":

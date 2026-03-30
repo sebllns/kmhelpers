@@ -226,6 +226,7 @@ class KmindexQuery:
         output_dir="query",
         index_ids: list[str] = [],
         z: int = 6,
+        threshold=0.01,
         single_query: Optional[str] = None,
         aggregate: bool = False,
         threads: int = 1,
@@ -270,6 +271,7 @@ class KmindexQuery:
             zvalue=z,
             is_compressed=is_compressed,
             fast=fast and not is_compressed,
+            threshold=threshold,
         )
 
         # Save result to info.yaml
