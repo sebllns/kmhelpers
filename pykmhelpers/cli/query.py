@@ -42,8 +42,8 @@ from pykmhelpers import KmindexQuery, KmindexQueryResult, KmindexRegistry
     "--threshold",
     "-e",
     type=float,
-    default=0.01,
-    help="Score threshold for results filtering (default: 0.0)",
+    default=0.05,
+    help="Score threshold for results filtering (default: 0.05)",
 )
 @click.option(
     "--threads",
@@ -104,6 +104,7 @@ def query(
     aggregate,
     compressed,
     format,
+    print,
     verbose,
     query_files,
 ):
