@@ -334,18 +334,19 @@ def apply(
         if not workdir:
             workdir = config_map.get("workdir")
         assert workdir, "Required parameter 'workdir' was not provided."
+        workdir = os.path.realpath(workdir)
 
         if not registry:
-            registry = config_map.get("registry", "")
+            registry = os.path.realpath(config_map.get("registry", ""))
 
         if not basepath:
-            basepath = config_map.get("basepath", "")
+            basepath = os.path.realpath(config_map.get("basepath", ""))
 
         if basepath and not os.path.isdir(basepath):
             logger.warning(f"Data root directory not found at {basepath}")
 
         if not output_dir:
-            output_dir = config_map.get("output_dir", "kmindex_data")
+            output_dir = os.path.realpath(config_map.get("output_dir", "kmindex_data"))
 
         if not existing:
             existing = config_map.get("existing", "fail")
