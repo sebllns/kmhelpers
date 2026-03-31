@@ -61,7 +61,7 @@ def _parse_spans(spans):
     envvar="KMHELPERS_WORKDIR",
     required=False,
     type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Output directory path (created if doesn't exist).",
+    help="📁  Output directory path.",
 )
 @click.option(
     "--basepath",
@@ -78,14 +78,14 @@ need to resolve them from a different location.",
     "-r",
     required=False,
     type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Base path to kmindex registry, absolute or relative from workdir (created if doesn't exist).",
+    help="📁  Custom base path to kmindex registry (created if doesn't exist).",
 )
 @click.option(
     "--output-dir",
     "-o",
     required=False,
     type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Base path to kmindex output directory, absolute or relative from workdir (created if doesn't exist).",
+    help="📁  Custom base path to kmindex Bloom filters directory (created if doesn't exist).",
 )
 @click.option(
     "--span",
@@ -334,19 +334,15 @@ def apply(
         if not workdir:
             workdir = config_map.get("workdir")
         assert workdir, "Required parameter 'workdir' was not provided."
-        workdir = os.path.realpath(workdir)
 
         if not registry:
-            registry = os.path.realpath(config_map.get("registry", ""))
+            registry = config_map.get("registry", "")
 
         if not basepath:
-            basepath = os.path.realpath(config_map.get("basepath", ""))
-
-        if basepath and not os.path.isdir(basepath):
-            logger.warning(f"Data root directory not found at {basepath}")
+            basepath = config_map.get("basepath", ".")
 
         if not output_dir:
-            output_dir = os.path.realpath(config_map.get("output_dir", "kmindex_data"))
+            output_dir = config_map.get("output_dir")
 
         if not existing:
             existing = config_map.get("existing", "fail")
@@ -381,6 +377,29 @@ def apply(
     except Exception as e:
         Log.handle_exception(logger, e, f"Invalid argument.")
         raise click.ClickException(abort_msg)
+
+    workdir = os.path.realpath(workdir)
+
+    if not registry:
+        registry = workdir
+    else:
+        registry = os.path.realpath(registry)
+
+    if not output_dir:
+        output_dir = os.path.join(workdir, "kmindex_data")
+    else:
+        output_dir = os.path.realpath(output_dir)
+
+    if not basepath:
+        basepath = os.getcwd()
+
+    basepath = os.path.realpath(basepath)
+
+    if not os.path.isdir(basepath):
+        if fail_on_error:
+            click.ClickException(f"Data root directory not found at {basepath}")
+        else:
+            logger.warning(f"Data root directory not found at {basepath}")
 
     if (
         existing in ("replace", "register_or_replace")

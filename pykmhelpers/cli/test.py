@@ -256,7 +256,10 @@ def _create_single_dataset(
     fof = FofManager(idx.fof_path)
     samples = random.sample(idx.samples, min(n_samples, idx.nb_samples))
     for s in samples:
-        path = fof.get_sample_path(s)
+        p = fof.get_sample_paths(s)
+        if not p:
+            raise click.ClickException(f"No path for {s}")
+        path = p[0]
         if path and os.path.isfile(path):
             try:
                 reader = FASTAReader(path)

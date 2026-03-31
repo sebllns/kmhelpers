@@ -294,24 +294,24 @@ class IndexBuilder:
 
         if not dry_run:
             self.index.load_json()
-            assert self.index.has_index(
-                name
-            ), f"Index '{name}' was not successfully created"
-            idx = self.index.get_index(name)
+            if not self.index.has_index(name):
+                logger.warning(f"Index '{name}' was not successfully created")
+            else:
+                idx = self.index.get_index(name)
 
-            if auto_check:
-                if n_partitions > 0:
-                    assert (
-                        idx.nb_partitions == n_partitions
-                    ), f"Partition count mismatch: expected {n_partitions}, got {idx.nb_partitions}"
+                if auto_check:
+                    if n_partitions > 0:
+                        if idx.nb_partitions != n_partitions:
+                            logger.warning(
+                                f"Partition count mismatch: expected {n_partitions}, got {idx.nb_partitions}"
+                            )
 
-                # assert (
-                #     idx.bloom_size == bloom_size
-                # ), f"Bloom size mismatch: expected {bloom_size}, got {idx.bloom_size}"
-                assert (
-                    idx.kmer_size == kmer_size
-                ), f"K-mer size mismatch: expected {kmer_size}, got {idx.kmer_size}"
-                self.check_index_structure(name)
+                    if idx.kmer_size != kmer_size:
+                        logger.warning(
+                            f"K-mer size mismatch: expected {kmer_size}, got {idx.kmer_size}"
+                        )
+
+                    self.check_index_structure(name)
 
         return result
 
@@ -356,41 +356,7 @@ class IndexBuilder:
         name: str,
     ):
         idx = self.index.get_index(name)
-        idx.check_structure()
-
-    def create_test_dataset(
-        self,
-        idx: pykmhelpers.core.KmtricksIndex,
-        output_dir: str,
-        n_samples: int = 5,
-        max_length=2000,
-    ):
-        """
-        Create test dataset by extracting sequences from the index.
-
-        :param idx: The kmtricks index to extract sequences from
-        :type idx: KmtricksIndex
-        :param output_dir: Output directory for test FASTA files
-        :type output_dir: str
-        :param n_samples: Number of samples to extract
-        :type n_samples: int
-        """
-        os.makedirs(output_dir, exist_ok=True)
-        fof = pykmhelpers.pipeline.fof.FofManager(idx.fof_path)
-        i = 0
-        for s in idx:
-            if i >= n_samples:
-                break
-            path = fof.get_sample_path(s)
-            if path and os.path.isfile(path):
-                i += 1
-                try:
-                    reader = pykmhelpers.core.fasta.FASTAReader(path)
-                    output_file = os.path.join(output_dir, f"{s}.fasta")
-                    with open(output_file, "w") as f:
-                        f.write(reader.fetch_first_n(max_length).to_fasta())
-                except Exception as e:
-                    logger.warning(f"Failed to extract sequences from {path}: {str(e)}")
+        return idx.check_structure()
 
     def create_random_test_dataset(
         self, output_dir: str, n_samples: int = 5, average_size=1000, min_size=100

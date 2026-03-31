@@ -433,7 +433,7 @@ class IndexOps:
             if s.name and s.name != "_":
                 try:
                     sample_files = (
-                        [self.config.sample_rootpath + f for f in s.files]
+                        [os.path.join(self.config.sample_rootpath, f) for f in s.files]
                         if self.config.sample_rootpath
                         else s.files
                     )

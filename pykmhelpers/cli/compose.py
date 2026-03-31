@@ -366,7 +366,7 @@ def compose(
             if not exact_partition_count and i.partition_count > 1:
                 i.partition_count = 1 << (i.partition_count - 1).bit_length()
 
-            i.partition_count = min(max(1, i.partition_count), partition_count_limit)
+            i.partition_count = min(max(4, i.partition_count), partition_count_limit)
             logger.debug(f"  {i.name}: partitioning into {i.partition_count} files")
 
         export_db(
