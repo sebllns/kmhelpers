@@ -169,14 +169,19 @@ class IndexOps:
         self._building = set[str]()
         self._script_lines = [
             "#!/usr/bin/bash",
-            f"WORKDIR='{self.config.workdir}'",
+            f"WORKDIR='{self.work_dir}'",
             "cd ${WORKDIR}",
         ]
         logger.debug(f"Init {type(self).__name__}")
-        logger.debug("workdir: " + config.workdir)
-        if not os.path.exists(config.workdir):
-            logger.info(f"Creating 'workdir' at {config.workdir}")
-            os.makedirs(config.workdir, exist_ok=True)
+        logger.debug("workdir: " + self.work_dir)
+        logger.debug("registry_dir: " + self.kmindex_registry_dir)
+        logger.debug("asset_dir: " + self.asset_dir)
+        logger.debug("data_dir: " + self.kmindex_data_dir)
+
+        os.makedirs(self.log_dir, exist_ok=True)
+        os.makedirs(self.asset_dir, exist_ok=True)
+        os.makedirs(self.kmindex_registry_dir, exist_ok=True)
+        os.makedirs(self.kmindex_data_dir, exist_ok=True)
 
     # ---
 
