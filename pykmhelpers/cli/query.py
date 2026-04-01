@@ -270,5 +270,9 @@ def _run_query(
                     click.echo(f"  Converted: {out_file}")
                 if print:
                     click.echo(formatted_result, err=True)
+                else:
+                    with open(out_file, "w") as f:
+                        f.write(formatted_result)
+
     elif verbose:
         click.echo(f"  Results: {result_dir}")
