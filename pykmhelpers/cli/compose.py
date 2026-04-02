@@ -197,9 +197,9 @@ def compose(
             raise click.BadParameter(
                 f"Constraint must be respected: k < 64 (got k = {kmer_size})"
             )
-        if min_span >= 30:
+        if min_span < 0:
             raise click.BadParameter(
-                f"Constraint must be respected: min_span < 30 (got min_span = {min_span})"
+                f"Constraint must be respected: min_span >= 0 (got min_span = {min_span})"
             )
         if max_span < 0:
             raise click.BadParameter(

@@ -203,7 +203,7 @@ class Wrapper:
                     except (psutil.NoSuchProcess, psutil.AccessDenied):
                         break
             except Exception as e:
-                logger.error(f"Resource monitoring error: {e}")
+                logger.debug(f"Monitoring: {e}")
 
         try:
             start_time = time.time()
