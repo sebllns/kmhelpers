@@ -82,8 +82,8 @@ def kmindex():
     help="Verbose output",
 )
 @click.option(
-    "--force",
-    "-f",
+    "--yes",
+    "-y",
     is_flag=True,
     help="Skip confirmation prompt before building",
 )
@@ -99,7 +99,7 @@ def build(
     register_as,
     compress_intermediate,
     verbose,
-    force,
+    yes,
 ):
     """Build k-mer index from FOF file.
 
@@ -141,8 +141,8 @@ def build(
 
         click.echo(f"  Threads: {threads}")
 
-        # Show confirmation with size estimation (skip if -f/--force is used)
-        if not force:
+        # Show confirmation with size estimation (skip if -y/--yes is used)
+        if not yes:
             click.echo()
             try:
                 size_est = estimate_build_size(

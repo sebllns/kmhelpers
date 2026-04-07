@@ -246,13 +246,13 @@ def registry_check(obj, verbose):
     help="Also delete index files from disk (destructive!)",
 )
 @click.option(
-    "--force",
-    "-f",
+    "--yes",
+    "-y",
     is_flag=True,
     help="Skip confirmation prompt",
 )
 @click.pass_obj
-def registry_remove(obj, index_ids, delete_files, force):
+def registry_remove(obj, index_ids, delete_files, yes):
     """Remove index from registry (optionally delete files)."""
     registry_path = obj["registry_path"]
 
@@ -266,8 +266,8 @@ def registry_remove(obj, index_ids, delete_files, force):
                         f"Index '{index_id}' not found in registry"
                     )
 
-                # Confirm if not forced
-                if not force:
+                # Confirm if not yes
+                if not yes:
                     msg = f"Remove '{index_id}' from registry"
                     if delete_files:
                         msg += " and delete index files"

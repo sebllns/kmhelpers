@@ -1,6 +1,8 @@
 """Query command for searching sequences in indices."""
 
+import logging
 import os
+import shutil
 import sys
 import tempfile
 import time
@@ -8,6 +10,8 @@ import time
 import click
 
 from pykmhelpers import KmindexQuery, KmindexQueryResult, KmindexRegistry
+
+logger = logging.getLogger(__name__)
 
 
 @click.command()
@@ -84,23 +88,25 @@ from pykmhelpers import KmindexQuery, KmindexQueryResult, KmindexRegistry
     help="Print result to console (stderr)",
 )
 @click.option(
-    "--verbose",
-    "-v",
+    "--timestamp",
+    "-T",
     is_flag=True,
-    help="Verbose output",
+    help="Append a timestamp suffix to the output directory name to avoid overwriting previous results",
 )
 @click.option(
-    "--timestamp",
-    "-i",
+    "--delete",
+    "-d",
     is_flag=True,
-    help="Print result to console (stderr)",
+    help="Delete the output directory before running if it already exists",
 )
 @click.argument(
     "query_files",
     nargs=-1,
     required=True,
 )
+@click.pass_context
 def query(
+    ctx,
     registry_path,
     index_ids,
     output_dir,
@@ -112,7 +118,8 @@ def query(
     compressed,
     format,
     print,
-    verbose,
+    timestamp,
+    delete,
     query_files,
 ):
     """Query indices with FASTA/FASTQ sequences.
@@ -173,10 +180,20 @@ def query(
             else:
                 resolved_files.append(qfile)
 
-    if verbose:
-        click.echo(f"Registry: {registry_path}")
-        click.echo(f"Indices: {', '.join(index_ids)}")
-        click.echo(f"Query files: {', '.join(resolved_files)}\n")
+    if timestamp:
+        suffix = time.strftime("%Y%m%d_%H%M%S")
+        output_dir = f"{output_dir}_{suffix}"
+
+    if delete and os.path.exists(output_dir):
+        yes = (ctx.obj or {}).get("yes", False)
+        if not yes and not click.confirm(f"Delete existing output directory '{output_dir}'?"):
+            raise click.Abort()
+        logger.debug(f"Deleting existing output directory: {output_dir}")
+        shutil.rmtree(output_dir)
+
+    logger.debug(f"Registry: {registry_path}")
+    logger.debug(f"Indices: {', '.join(index_ids)}")
+    logger.debug(f"Query files: {', '.join(resolved_files)}")
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -198,18 +215,17 @@ def query(
                     compressed,
                     format,
                     print,
-                    verbose,
                     qfile,
                     total_queries,
                     query_idx,
                 )
             except Exception as e:
-                click.echo(f"  Error: {e}", err=True)
+                logger.error(f"Error querying {qfile}: {e}")
 
         elapsed = time.time() - start_time
-        click.echo(f"✓ Completed in {elapsed:.2f}s")
-        click.echo(f"  Output directory: {output_dir}")
-        click.echo(f"  Query files processed: {total_queries}")
+        logger.info(f"Completed in {elapsed:.2f}s")
+        logger.info(f"Output directory: {output_dir}")
+        logger.info(f"Query files processed: {total_queries}")
 
     except Exception as e:
         raise click.ClickException(f"Query failed: {e}")
@@ -230,7 +246,6 @@ def _run_query(
     compressed,
     format,
     print,
-    verbose,
     qfile,
     total_queries,
     query_idx,
@@ -240,8 +255,7 @@ def _run_query(
     qfile_name = os.path.splitext(os.path.basename(qfile))[0]
     query_output = os.path.join(output_dir, qfile_name)
 
-    if verbose or total_queries > 1:
-        click.echo(f"[{query_idx}/{total_queries}] Querying: {qfile_name}...")
+    logger.info(f"[{query_idx}/{total_queries}] Querying: {qfile_name}...")
 
     kq = KmindexQuery(path=qfile)
     kq.execute(
@@ -259,8 +273,7 @@ def _run_query(
 
     elapsed = time.time() - start_time
 
-    if verbose:
-        click.echo(f"  Time={elapsed:.2f}s")
+    logger.debug(f"Time: {elapsed:.2f}s")
 
     result_dir = os.path.join(query_output, "result")
 
@@ -272,13 +285,11 @@ def _run_query(
                 stem = os.path.splitext(fname)[0]
                 out_file = os.path.join(result_dir, f"{stem}.{format}")
                 formatted_result = result.convert(format=format, threshold=threshold)
-                if verbose:
-                    click.echo(f"  Converted: {out_file}")
+                logger.debug(f"Converted: {out_file}")
                 if print:
-                    click.echo(formatted_result, err=True)
+                    logger.info(formatted_result)
                 else:
                     with open(out_file, "w") as f:
                         f.write(formatted_result)
-
-    elif verbose:
-        click.echo(f"  Results: {result_dir}")
+    else:
+        logger.debug(f"Results: {result_dir}")

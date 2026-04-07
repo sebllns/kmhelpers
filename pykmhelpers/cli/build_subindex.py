@@ -67,8 +67,8 @@ need to resolve them from a different location.",
     help="🚩  Verbose output.",
 )
 @click.option(
-    "--force",
-    "-f",
+    "--yes",
+    "-y",
     is_flag=True,
     help="🚩  Skip confirmation prompt before building.",
 )
@@ -86,7 +86,7 @@ def build_subindex(
     minim_size,
     threads,
     verbose,
-    force,
+    yes,
     skip_compression,
 ):
     """Build and register individual subindices from definition files.
@@ -107,7 +107,7 @@ def build_subindex(
 
     \b
     # Build reusing parameters from an existing index, skipping confirmation
-    kmhelpers build-subindex db.yaml -w /output -n my_index --from parent_index -f
+    kmhelpers build-subindex db.yaml -w /output -n my_index --from parent_index -y
     """
 
     # Bump logging level to INFO if -v is set and current level is higher
@@ -145,8 +145,8 @@ def build_subindex(
                         )
                         continue
 
-                    # Show confirmation with size estimation (skip if -f/--force is used)
-                    if not force:
+                    # Show confirmation with size estimation (skip if -y/--yes is used)
+                    if not yes:
                         try:
                             logger.info(
                                 f"  Estimated index size: {str(i.get_stored_size())}"

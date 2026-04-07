@@ -255,7 +255,7 @@ def apply(
     kmhelpers apply index.yaml -c config.yaml
     """
 
-    force = (ctx.obj or {}).get("force", False)
+    force = (ctx.obj or {}).get("yes", False)
 
     abort_msg = "Command 'apply' aborted."
     attachements = []

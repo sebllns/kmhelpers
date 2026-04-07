@@ -172,27 +172,6 @@ class SectionedGroup(click.Group):
     help="Path to log file (logs will be written in addition to console output)",
 )
 @click.option(
-    "--init-path",
-    envvar="KMHELPERS_WITH_INIT",
-    is_flag=True,
-    default=False,
-    help="Initialize environment paths and check for required binaries",
-)
-@click.option(
-    "--bin-path",
-    envvar="KMHELPERS_BIN_DIR",
-    type=click.Path(file_okay=False, dir_okay=True),
-    default="./bin",
-    help="Default path for binary executables (default: ./bin)",
-)
-@click.option(
-    "--check-all",
-    envvar="KMHELPERS_WITH_BIN_CHECK",
-    is_flag=True,
-    default=False,
-    help="Check that all required binaries are available in PATH",
-)
-@click.option(
     "--chdir",
     envvar="KMHELPERS_RUN_DIR",
     type=click.Path(file_okay=False, dir_okay=True),
@@ -200,11 +179,11 @@ class SectionedGroup(click.Group):
     help="Change to directory before initialization",
 )
 @click.option(
-    "--force",
-    "-f",
+    "--yes",
+    "-y",
     envvar="KMHELPERS_SKIP_CONFIRMATION",
     is_flag=True,
-    help="🚩 Skip confirmation prompt when using dangerous options. ⚠️",
+    help="Automatically answer yes to all confirmation prompts.",
 )
 @click.pass_context
 def cli(
@@ -213,15 +192,12 @@ def cli(
     quiet,
     no_formatting,
     log_file,
-    init_path,
-    bin_path,
-    check_all,
     chdir,
-    force,
+    yes,
 ):
     """kmhelpers - A toolkit for managing, compressing, and querying k-mer indices."""
     ctx.ensure_object(dict)
-    ctx.obj["force"] = force
+    ctx.obj["yes"] = yes
     # Configure logging based on verbosity level
     log_levels = {
         0: logging.CRITICAL,  # -qq
@@ -299,9 +275,7 @@ def cli(
         except Exception as e:
             click.echo(f"Warning: Could not open log file '{log_file}': {e}", err=True)
 
-    if init_path:
-        Main.init(default_bin_path=bin_path, check_all=check_all, chdir=chdir)
-    elif chdir:
+    if chdir:
         click.echo(f"cd {chdir}", err=True)
         os.chdir(chdir)
     try:
