@@ -76,7 +76,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--format",
-    "-o",
+    "-f",
     type=click.Choice(["json", "yaml", "md", "html", "csv"]),
     default="json",
     help="Output format for results (default: json)",
@@ -186,7 +186,9 @@ def query(
 
     if delete and os.path.exists(output_dir):
         yes = (ctx.obj or {}).get("yes", False)
-        if not yes and not click.confirm(f"Delete existing output directory '{output_dir}'?"):
+        if not yes and not click.confirm(
+            f"Delete existing output directory '{output_dir}'?"
+        ):
             raise click.Abort()
         logger.debug(f"Deleting existing output directory: {output_dir}")
         shutil.rmtree(output_dir)
