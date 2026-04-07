@@ -142,13 +142,6 @@ need to resolve them from a different location.",
     help="🚩  Verbose output.",
 )
 @click.option(
-    "--force",
-    "-f",
-    envvar="KMHELPERS_SKIP_CONFIRMATION",
-    is_flag=True,
-    help="🚩 Skip confirmation prompt before building when using dangerous options. ⚠️",
-)
-@click.option(
     "--skip-compression",
     envvar="KMHELPERS_SKIP_COMPRESSION",
     is_flag=True,
@@ -180,7 +173,9 @@ need to resolve them from a different location.",
     metavar="EMAIL",
     help="📧  Send an email notification on exit (success, failure, or timeout).",
 )
+@click.pass_context
 def apply(
+    ctx,
     input_files,
     config,
     workdir,
@@ -195,7 +190,6 @@ def apply(
     partition_count,
     existing,
     verbose,
-    force,
     skip_compression,
     dry_run,
     plan,
@@ -260,6 +254,8 @@ def apply(
     # Load options from a config file (CLI flags take precedence)
     kmhelpers apply index.yaml -c config.yaml
     """
+
+    force = (ctx.obj or {}).get("force", False)
 
     abort_msg = "Command 'apply' aborted."
     attachements = []

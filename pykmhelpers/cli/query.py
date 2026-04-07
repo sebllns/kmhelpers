@@ -27,7 +27,7 @@ from pykmhelpers import KmindexQuery, KmindexQueryResult, KmindexRegistry
 )
 @click.option(
     "--output-dir",
-    "-d",
+    "-o",
     required=True,
     type=click.Path(file_okay=False, dir_okay=True),
     help="Output directory for query results",
@@ -88,6 +88,12 @@ from pykmhelpers import KmindexQuery, KmindexQueryResult, KmindexRegistry
     "-v",
     is_flag=True,
     help="Verbose output",
+)
+@click.option(
+    "--timestamp",
+    "-i",
+    is_flag=True,
+    help="Print result to console (stderr)",
 )
 @click.argument(
     "query_files",

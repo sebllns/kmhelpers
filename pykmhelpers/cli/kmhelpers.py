@@ -142,7 +142,8 @@ class SectionedGroup(click.Group):
 
 
 @click.command(
-    cls=SectionedGroup, context_settings={"help_option_names": ["-h", "--help"]}
+    cls=SectionedGroup,
+    context_settings={"help_option_names": ["-h", "--help"]},
 )
 @click.version_option(version=__version__, prog_name="kmhelpers")
 @click.option(
@@ -198,8 +199,29 @@ class SectionedGroup(click.Group):
     required=False,
     help="Change to directory before initialization",
 )
-def cli(verbose, quiet, no_formatting, log_file, init_path, bin_path, check_all, chdir):
+@click.option(
+    "--force",
+    "-f",
+    envvar="KMHELPERS_SKIP_CONFIRMATION",
+    is_flag=True,
+    help="🚩 Skip confirmation prompt when using dangerous options. ⚠️",
+)
+@click.pass_context
+def cli(
+    ctx,
+    verbose,
+    quiet,
+    no_formatting,
+    log_file,
+    init_path,
+    bin_path,
+    check_all,
+    chdir,
+    force,
+):
     """kmhelpers - A toolkit for managing, compressing, and querying k-mer indices."""
+    ctx.ensure_object(dict)
+    ctx.obj["force"] = force
     # Configure logging based on verbosity level
     log_levels = {
         0: logging.CRITICAL,  # -qq
