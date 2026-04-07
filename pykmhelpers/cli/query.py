@@ -180,19 +180,6 @@ def query(
             else:
                 resolved_files.append(qfile)
 
-    if timestamp:
-        suffix = time.strftime("%Y%m%d_%H%M%S")
-        output_dir = f"{output_dir}_{suffix}"
-
-    if delete and os.path.exists(output_dir):
-        yes = (ctx.obj or {}).get("yes", False)
-        if not yes and not click.confirm(
-            f"Delete existing output directory '{output_dir}'?"
-        ):
-            raise click.Abort()
-        logger.debug(f"Deleting existing output directory: {output_dir}")
-        shutil.rmtree(output_dir)
-
     logger.debug(f"Registry: {registry_path}")
     logger.debug(f"Indices: {', '.join(index_ids)}")
     logger.debug(f"Query files: {', '.join(resolved_files)}")
@@ -206,6 +193,7 @@ def query(
         for query_idx, qfile in enumerate(resolved_files, 1):
             try:
                 _run_query(
+                    ctx,
                     registry_path,
                     index_ids,
                     output_dir,
@@ -217,6 +205,8 @@ def query(
                     compressed,
                     format,
                     print,
+                    timestamp,
+                    delete,
                     qfile,
                     total_queries,
                     query_idx,
@@ -237,6 +227,7 @@ def query(
 
 
 def _run_query(
+    ctx,
     registry_path,
     index_ids,
     output_dir,
@@ -248,6 +239,8 @@ def _run_query(
     compressed,
     format,
     print,
+    timestamp,
+    delete,
     qfile,
     total_queries,
     query_idx,
@@ -256,6 +249,19 @@ def _run_query(
 
     qfile_name = os.path.splitext(os.path.basename(qfile))[0]
     query_output = os.path.join(output_dir, qfile_name)
+
+    if timestamp:
+        suffix = time.strftime("%Y%m%d_%H%M%S")
+        query_output = f"{query_output}_{suffix}"
+
+    if delete and os.path.exists(query_output):
+        yes = (ctx.obj or {}).get("yes", False)
+        if not yes and not click.confirm(
+            f"Delete existing output directory '{query_output}'?"
+        ):
+            raise click.Abort()
+        logger.debug(f"Deleting existing output directory: {query_output}")
+        shutil.rmtree(query_output)
 
     logger.info(f"[{query_idx}/{total_queries}] Querying: {qfile_name}...")
 
