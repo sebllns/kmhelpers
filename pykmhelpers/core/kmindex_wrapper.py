@@ -276,6 +276,7 @@ class KmindexWrapper(Wrapper):
         aggregate: bool = False,
         fast: bool = True,
         is_compressed: bool = False,
+        method: str = "seq",
         threads: int = 1,
     ) -> dict:
         """
@@ -334,7 +335,7 @@ class KmindexWrapper(Wrapper):
 
         cmd = [
             self.main_cmd,
-            "query2" if is_compressed else "query",
+            "query2" if is_compressed or method == "sub" else "query",
             "--index",
             index_path,
             "--output",

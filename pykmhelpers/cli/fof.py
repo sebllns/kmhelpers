@@ -39,7 +39,7 @@ def fof():
 )
 @click.option(
     "--extensions",
-    "-e",
+    "-x",
     multiple=True,
     default=[".fasta", ".fastq", ".fa", ".fq", ".fasta.gz", ".fastq.gz"],
     help="File extensions to include (default: common bioinformatics formats)",

@@ -954,3 +954,6 @@ class KmindexRegistry:
 
     def __setitem__(self, index: KmtricksIndex) -> None:
         self.set_index(index)
+
+    def __contains__(self, index_id: str) -> bool:
+        return self.has_index(index_id)

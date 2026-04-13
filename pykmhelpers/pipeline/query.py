@@ -232,6 +232,7 @@ class KmindexQuery:
         threads: int = 1,
         fast: bool = True,
         is_compressed: bool = False,
+        method: str = "seq",
     ):
         """
         Run a query against the kmindex registry.
@@ -272,6 +273,7 @@ class KmindexQuery:
             is_compressed=is_compressed,
             fast=fast and not is_compressed,
             threshold=threshold,
+            method=method,
         )
 
         # Save result to info.yaml

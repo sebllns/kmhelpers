@@ -10,6 +10,7 @@ import time
 import click
 
 from pykmhelpers import KmindexQuery, KmindexQueryResult, KmindexRegistry
+from pykmhelpers.core.constants import DATA_EXT
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--threshold",
-    "-e",
+    "-T",
     type=float,
     default=0.05,
     help="Score threshold for results filtering (default: 0.05)",
@@ -61,6 +62,12 @@ logger = logging.getLogger(__name__)
     "--single-query",
     "-s",
     help="Treat all sequences as single query with this identifier",
+)
+@click.option(
+    "--batch-query",
+    "-b",
+    is_flag=True,
+    help="Treat all sequences across all query files as a single batched query instead of querying each sequence individually",
 )
 @click.option(
     "--aggregate",
@@ -89,15 +96,23 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--timestamp",
-    "-T",
+    "-P",
     is_flag=True,
     help="Append a timestamp suffix to the output directory name to avoid overwriting previous results",
 )
 @click.option(
-    "--delete",
-    "-d",
-    is_flag=True,
-    help="Delete the output directory before running if it already exists",
+    "--existing",
+    "-e",
+    type=click.Choice(["skip", "fail", "delete", "new-name"]),
+    default="skip",
+    help="Action when result directory already exists: skip (default), fail, delete, new-name",
+)
+@click.option(
+    "--method",
+    "-M",
+    type=click.Choice(["seq", "sub"]),
+    default="seq",
+    help="Query method: seq (parallelizes across sequences, default) or sub (parallelizes across sub-indices). Forced to sub when --compressed is set.",
 )
 @click.argument(
     "query_files",
@@ -114,12 +129,14 @@ def query(
     threshold,
     threads,
     single_query,
+    batch_query,
     aggregate,
     compressed,
     format,
     print,
     timestamp,
-    delete,
+    existing,
+    method,
     query_files,
 ):
     """Query indices with FASTA/FASTQ sequences.
@@ -147,15 +164,16 @@ def query(
       kmhelpers query -r ./registry -n idx1 -o results ./queries_dir/
     """
 
+    if compressed and method != "sub":
+        logger.warning("--compressed requires sub method, ignoring --method")
+        method = "sub"
+
     # Verify registry and indices
     registry = KmindexRegistry(registry_path)
-    available_indices = registry.list_indices()
 
-    if not index_ids:
-        index_ids = tuple(available_indices)
-    else:
+    if index_ids:
         for idx_id in index_ids:
-            if idx_id not in available_indices:
+            if idx_id not in registry:
                 raise click.BadParameter(f"Index {idx_id} not found in registry")
 
     # Resolve query files, handling '-' as stdin
@@ -176,48 +194,80 @@ def query(
             if os.path.isdir(qfile):
                 for root, _, files in os.walk(qfile):
                     for fname in files:
-                        resolved_files.append(os.path.join(root, fname))
+                        if any(fname.endswith(ext) for ext in DATA_EXT):
+                            resolved_files.append(os.path.join(root, fname))
             else:
                 resolved_files.append(qfile)
 
-    logger.debug(f"Registry: {registry_path}")
-    logger.debug(f"Indices: {', '.join(index_ids)}")
     logger.debug(f"Query files: {', '.join(resolved_files)}")
+    logger.debug(f"Registry: {registry_path}")
+    logger.debug(
+        f"Indices: {', '.join(index_ids if index_ids else registry.list_indices())}"
+    )
 
     os.makedirs(output_dir, exist_ok=True)
 
-    total_queries = len(resolved_files)
     start_time = time.time()
 
     try:
-        for query_idx, qfile in enumerate(resolved_files, 1):
-            try:
-                _run_query(
-                    ctx,
-                    registry_path,
-                    index_ids,
-                    output_dir,
-                    zvalue,
-                    threshold,
-                    threads,
-                    single_query,
-                    aggregate,
-                    compressed,
-                    format,
-                    print,
-                    timestamp,
-                    delete,
-                    qfile,
-                    total_queries,
-                    query_idx,
-                )
-            except Exception as e:
-                logger.error(f"Error querying {qfile}: {e}")
+        if batch_query:
+            batch_path = os.path.join(tempfile.gettempdir(), "batch.fa")
+            temp_files.append(batch_path)
+            with open(batch_path, "wb") as batch_tmp:
+                for qfile in resolved_files:
+                    with open(qfile, "rb") as f:
+                        batch_tmp.write(f.read())
+            logger.info(f"Batching {len(resolved_files)} file(s) into a single query...")
+            _run_query(
+                ctx,
+                registry_path,
+                index_ids,
+                output_dir,
+                zvalue,
+                threshold,
+                threads,
+                single_query,
+                aggregate,
+                compressed,
+                format,
+                print,
+                timestamp,
+                existing,
+                batch_path,
+                1,
+                1,
+                method,
+            )
+        else:
+            total_queries = len(resolved_files)
+            for query_idx, qfile in enumerate(resolved_files, 1):
+                try:
+                    _run_query(
+                        ctx,
+                        registry_path,
+                        index_ids,
+                        output_dir,
+                        zvalue,
+                        threshold,
+                        threads,
+                        single_query,
+                        aggregate,
+                        compressed,
+                        format,
+                        print,
+                        timestamp,
+                        existing,
+                        qfile,
+                        total_queries,
+                        query_idx,
+                        method,
+                    )
+                except Exception as e:
+                    logger.error(f"Error querying {qfile}: {e}")
 
         elapsed = time.time() - start_time
         logger.info(f"Completed in {elapsed:.2f}s")
         logger.info(f"Output directory: {output_dir}")
-        logger.info(f"Query files processed: {total_queries}")
 
     except Exception as e:
         raise click.ClickException(f"Query failed: {e}")
@@ -240,10 +290,11 @@ def _run_query(
     format,
     print,
     timestamp,
-    delete,
+    existing,
     qfile,
     total_queries,
     query_idx,
+    method,
 ):
     start_time = time.time()
 
@@ -254,14 +305,28 @@ def _run_query(
         suffix = time.strftime("%Y%m%d_%H%M%S")
         query_output = f"{query_output}_{suffix}"
 
-    if delete and os.path.exists(query_output):
-        yes = (ctx.obj or {}).get("yes", False)
-        if not yes and not click.confirm(
-            f"Delete existing output directory '{query_output}'?"
-        ):
-            raise click.Abort()
-        logger.debug(f"Deleting existing output directory: {query_output}")
-        shutil.rmtree(query_output)
+    if os.path.exists(query_output):
+        if existing == "skip":
+            logger.info(
+                f"[{query_idx}/{total_queries}] Skipping {qfile_name}: output directory already exists"
+            )
+            return
+        elif existing == "fail":
+            raise click.ClickException(
+                f"Output directory already exists: {query_output}"
+            )
+        elif existing == "delete":
+            yes = (ctx.obj or {}).get("yes", False)
+            if not yes and not click.confirm(
+                f"Delete existing output directory '{query_output}'?"
+            ):
+                raise click.Abort()
+            logger.debug(f"Deleting existing output directory: {query_output}")
+            shutil.rmtree(query_output)
+        elif existing == "new-name":
+            suffix = time.strftime("%Y%m%d_%H%M%S")
+            query_output = f"{query_output}_{suffix}"
+            logger.debug(f"Output directory renamed to: {query_output}")
 
     logger.info(f"[{query_idx}/{total_queries}] Querying: {qfile_name}...")
 
@@ -277,27 +342,35 @@ def _run_query(
         is_compressed=compressed,
         fast=not compressed,
         threshold=threshold,
+        method=method,
     )
 
     elapsed = time.time() - start_time
-
-    logger.debug(f"Time: {elapsed:.2f}s")
-
     result_dir = os.path.join(query_output, "result")
+
+    # logger prints in stderr
+    logger.info(
+        f"Time: {elapsed:.2f}s",
+    )
+    logger.info(f"Results: {result_dir}")
 
     if format != "json":
         for fname in os.listdir(result_dir):
             if fname.endswith(".json"):
-                json_path = os.path.join(result_dir, fname)
-                result = KmindexQueryResult(json_path)
-                stem = os.path.splitext(fname)[0]
-                out_file = os.path.join(result_dir, f"{stem}.{format}")
-                formatted_result = result.convert(format=format, threshold=threshold)
-                logger.debug(f"Converted: {out_file}")
-                if print:
-                    logger.info(formatted_result)
-                else:
-                    with open(out_file, "w") as f:
-                        f.write(formatted_result)
-    else:
-        logger.debug(f"Results: {result_dir}")
+                try:
+                    json_path = os.path.join(result_dir, fname)
+                    result = KmindexQueryResult(json_path)
+                    stem = os.path.splitext(fname)[0]
+                    out_file = os.path.join(result_dir, f"{stem}.{format}")
+                    formatted_result = result.convert(
+                        format=format, threshold=threshold
+                    )
+                    logger.debug(f"Converted: {out_file}")
+                    if print:
+                        # click.echo prints in stdout
+                        click.echo(formatted_result)
+                    else:
+                        with open(out_file, "w") as f:
+                            f.write(formatted_result)
+                except Exception as e:
+                    logger.warning(f"Failed to convert {fname}: {e}")
