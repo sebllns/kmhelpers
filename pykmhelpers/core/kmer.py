@@ -1,8 +1,8 @@
 import os
-import shutil
 import subprocess
 import tempfile
 from .sequence import Sequence
+from .wrapper import Wrapper
 
 
 class Kmer(Sequence):
@@ -20,12 +20,9 @@ class Kmer(Sequence):
         return self._k
 
 
-class KmerCounter:
-    def __init__(self, k: int = 31, threadCount: int = 8):
-        if not shutil.which("ntcard"):
-            raise FileNotFoundError(
-                "ntcard command not found. Please install ntcard and add it to PATH."
-            )
+class KmerCounter(Wrapper):
+    def __init__(self, k: int = 31, threadCount: int = 8, dry_run: bool = False):
+        super().__init__(main_cmd="ntcard", dry_run=dry_run)
         self._k = k
         self._threadCount = threadCount
 
@@ -93,21 +90,7 @@ class KmerCounter:
                 tmp_file,
             ] + files
 
-            if verbose:
-                print(" ".join(cmd))
-
-            result = subprocess.run(cmd, capture_output=True, text=True)
-
-            if verbose:
-                print(result.stderr)
-
-            if result.returncode != 0:
-                raise subprocess.CalledProcessError(
-                    result.returncode,
-                    result.args,
-                    output=result.stdout,
-                    stderr=result.stderr,
-                )
+            result = self._run_cmd(cmd, print_trace=verbose)
 
             # Parse first line from stdout: k=25    F1      96751
             lines = result.stderr.strip().split("\n")
@@ -185,7 +168,7 @@ class KmerCounter:
 
                 results[sample_name] = f1_value
 
-            except (FileNotFoundError, ValueError, subprocess.CalledProcessError) as e:
+            except (FileNotFoundError, ValueError, subprocess.SubprocessError) as e:
                 raise ValueError(
                     f"Error counting k-mers for sample '{sample_name}': {e}"
                 ) from e
