@@ -1,6 +1,7 @@
 import os
 import subprocess
 import tempfile
+
 from .sequence import Sequence
 from .wrapper import Wrapper
 
@@ -65,7 +66,7 @@ class KmerCounter(Wrapper):
         Raises:
             FileNotFoundError: If ntcard fails or files don't exist
             ValueError: If output parsing fails
-            subprocess.CalledProcessError: If ntcard execution fails
+            subprocess.SubprocessError: If ntcard execution fails
         """
         if not files:
             raise ValueError("At least one file is required")
