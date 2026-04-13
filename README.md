@@ -34,18 +34,18 @@ cd kmhelpers
 conda env create -f conda/environment.yml -p .env
 
 # Activate the environment
-# Run this each time you open a new terminal session before using kmhelpersctl
+# Run this each time you open a new terminal session before using kmhelpers
 conda activate ./.env
 ```
 
-> **Note:** Each time you open a new terminal, navigate to the `kmhelpers` directory and activate the environment before running any `kmhelpersctl` commands:
+> **Note:** Each time you open a new terminal, navigate to the `kmhelpers` directory and activate the environment before running any `kmhelpers` commands:
 > ```bash
 > cd /path/to/kmhelpers
 > conda activate ./.env
 > ```
 
 This will automatically:
-- Install `kmindex` and `ntcard` from bioconda
+- Install [`kmindex`](https://github.com/tlemane/kmindex) and [`ntcard`](https://github.com/BirolLab/ntCard) from bioconda
 - Install `kmhelpers` Python package
 
 **Prerequisites:** Conda (Miniconda or Anaconda) must be installed. If you don't have it, see [Installation Instructions](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
@@ -56,31 +56,10 @@ Once the environment has been activated:
 
 ```bash
 # Check the installed version
-kmhelpersctl --version
+kmhelpers --version
 
 # View available commands
-kmhelpersctl --help
-```
-
-### Getting Help
-
-For detailed information on any command, use `help`, `-h`, or `--help`:
-
-```bash
-# Show all available commands
-kmhelpersctl -h
-
-# Show detailed help for a command
-kmhelpersctl <command> help
-# Equivalent to
-kmhelpersctl <command> -h
-# Or
-kmhelpersctl <command> --help
-
-# Examples
-kmhelpersctl install -h
-kmhelpersctl install kmindex -h
-kmhelpersctl register -h
+kmhelpers --help
 ```
 
 ### Update
@@ -107,10 +86,15 @@ If your local branch is already tracking a remote branch, you can simply run:
 git pull
 ```
 
+Check the installed version:
+
+```bash
+kmhelpers --version
+```bash
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU General Public License - see the [LICENSE](LICENSE) file for details.
 
 Copyright (c) 2026 Sébastien BELLENOUS
 
