@@ -58,7 +58,6 @@ def _parse_spans(spans):
 @click.option(
     "--workdir",
     "-w",
-    envvar="KMHELPERS_WORKDIR",
     required=False,
     type=click.Path(file_okay=False, dir_okay=True),
     help="📁  Output directory path.",
@@ -66,7 +65,6 @@ def _parse_spans(spans):
 @click.option(
     "--basepath",
     "-b",
-    envvar="KMHELPERS_SAMPLE_ROOT",
     required=False,
     type=click.Path(file_okay=False, dir_okay=True),
     help="📁  Base path to resolve relative sample paths. By default, relative \
@@ -117,7 +115,6 @@ need to resolve them from a different location.",
 @click.option(
     "--threads",
     "-t",
-    envvar="KMHELPERS_THREADS",
     type=int,
     required=False,
     help="⚙   Number of threads (default: 1).",
@@ -137,13 +134,11 @@ need to resolve them from a different location.",
 @click.option(
     "--verbose",
     "-v",
-    envvar="KMHELPERS_VERBOSE",
     is_flag=True,
     help="🚩  Verbose output.",
 )
 @click.option(
     "--skip-compression",
-    envvar="KMHELPERS_SKIP_COMPRESSION",
     is_flag=True,
     help="🚩  Skip compression of intermediate files during index building. Can improve performance on fast drives where I/O is not a bottleneck.",
 )

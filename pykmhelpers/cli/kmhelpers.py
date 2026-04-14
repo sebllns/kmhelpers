@@ -9,6 +9,7 @@ import os
 import traceback
 
 import click
+import yaml
 
 from pykmhelpers import Bin, Main, __version__
 
@@ -147,6 +148,14 @@ class SectionedGroup(click.Group):
 )
 @click.version_option(version=__version__, prog_name="kmhelpers")
 @click.option(
+    "--config",
+    "-C",
+    envvar="KMHELPERS_CONFIG",
+    type=click.Path(),
+    default=None,
+    help="YAML config file for default values",
+)
+@click.option(
     "-v",
     "--verbose",
     count=True,
@@ -188,6 +197,7 @@ class SectionedGroup(click.Group):
 @click.pass_context
 def cli(
     ctx,
+    config,
     verbose,
     quiet,
     no_formatting,
@@ -197,6 +207,11 @@ def cli(
 ):
     """kmhelpers - A toolkit for managing, compressing, and querying k-mer indices."""
     ctx.ensure_object(dict)
+    if config and os.path.exists(config):
+        with open(config) as f:
+            defaults = yaml.safe_load(f)
+        ctx.default_map = {name: defaults for name in cli.commands}
+
     ctx.obj["yes"] = yes
     # Configure logging based on verbosity level
     log_levels = {

@@ -174,12 +174,26 @@ def compose(
     """Compose index definition file(s) from list(s) of samples.
 
     Examples:
+
+      \b
       kmhelpers compose -o ./db -k 31 samples.yaml
+
+      \b
       kmhelpers compose -o ./db --min_span 25 --max_span 38 --split samples.yaml
+
+      \b
       kmhelpers compose -o ./db --format json samples.yaml
+
+      \b
       kmhelpers compose -o ./db --format yaml --split samples.yaml
+
+      \b
       kmhelpers compose -o ./db -p 0.01 samples.yaml
+
+      \b
       kmhelpers compose -o ./db --partition-count 4 samples.yaml
+
+      \b
       kmhelpers compose -o ./db --recount samples.yaml
     """
 
