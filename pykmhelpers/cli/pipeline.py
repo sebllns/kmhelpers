@@ -38,8 +38,17 @@ def _iter_steps(steps):
 
 @click.command(name="pipeline")
 @click.argument("pipeline_file", type=click.Path(exists=True))
+@click.option(
+    "-x",
+    "extra",
+    type=(str, str),
+    multiple=True,
+    metavar="KEY VALUE",
+    help="⚙   Override a parameter for all steps (e.g. -x workdir /tmp -x threads 8). "
+    "Takes precedence over both the pipeline file and -C global config.",
+)
 @click.pass_context
-def pipeline(ctx, pipeline_file):
+def pipeline(ctx, pipeline_file, extra):
     """Run a sequence of commands defined in a YAML pipeline file.
 
     PIPELINE_FILE maps command names to their arguments. Steps execute in order.
@@ -72,6 +81,9 @@ def pipeline(ctx, pipeline_file):
     # Global config from -C, propagated by Click into ctx.default_map
     global_config = ctx.default_map or {}
 
+    # Parse -x KEY VALUE pairs; values are YAML scalars for correct typing
+    extra_kwargs = {k.replace("-", "_"): yaml.safe_load(v) for k, v in extra}
+
     root_cmd = ctx.find_root().command
 
     for cmd_name, cmd_args in _iter_steps(steps):
@@ -82,9 +94,8 @@ def pipeline(ctx, pipeline_file):
         # Normalize YAML keys: hyphens → underscores to match Click param names
         step_kwargs = {k.replace("-", "_"): v for k, v in (cmd_args or {}).items()}
 
-        # Global config is the base; step args override
-        # merges two dicts. ** unpacks each dict into key-value pairs, and the second one wins on conflicts
-        kwargs = {**global_config, **step_kwargs}
+        # Priority: global config < pipeline YAML < -x overrides
+        kwargs = {**global_config, **step_kwargs, **extra_kwargs}
 
         # Coerce list → tuple for nargs=-1 params (e.g. input_files)
         for param in cmd.params:
