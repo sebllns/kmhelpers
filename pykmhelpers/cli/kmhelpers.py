@@ -17,6 +17,7 @@ from pykmhelpers import Bin, Main, __version__
 from pykmhelpers.cli.about import about
 from pykmhelpers.cli.apply import apply
 from pykmhelpers.cli.build_subindex import build_subindex
+from pykmhelpers.cli.pipeline import pipeline
 from pykmhelpers.cli.compose import compose
 from pykmhelpers.cli.compress import kmindex_compress
 from pykmhelpers.cli.count_kmers import count_kmers
@@ -306,6 +307,8 @@ compose.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(compose)
 apply.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(apply)
+pipeline.section = "Main commands"  # type: ignore[assignment]
+cli.add_command(pipeline)
 query.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(query)
 kmindex_compress.section = "Main commands"  # type: ignore[assignment]

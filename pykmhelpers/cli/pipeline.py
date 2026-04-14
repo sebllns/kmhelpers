@@ -1,0 +1,96 @@
+"""Pipeline command - run a sequence of kmhelpers commands from a YAML file."""
+
+import logging
+
+import click
+import yaml
+
+logger = logging.getLogger(__name__)
+
+
+def _iter_steps(steps):
+    """Yield (cmd_name, args_dict) pairs from either format:
+
+    Dict format (no repeated commands):
+        apply:
+          workdir: /path
+
+    List format (allows repeating the same command):
+        - apply:
+            workdir: /path
+        - apply:
+            workdir: /other
+    """
+    if isinstance(steps, dict):
+        yield from steps.items()
+    elif isinstance(steps, list):
+        for item in steps:
+            if not isinstance(item, dict) or len(item) != 1:
+                raise click.ClickException(
+                    f"Each pipeline list entry must be a single-key mapping, got: {item!r}"
+                )
+            yield from item.items()
+    else:
+        raise click.ClickException(
+            "Pipeline file must be a YAML mapping or sequence of mappings."
+        )
+
+
+@click.command(name="pipeline")
+@click.argument("pipeline_file", type=click.Path(exists=True))
+@click.pass_context
+def pipeline(ctx, pipeline_file):
+    """Run a sequence of commands defined in a YAML pipeline file.
+
+    PIPELINE_FILE maps command names to their arguments. Steps execute in order.
+
+    \b
+    Dict format (simple, no repeated commands):
+        compose:
+          workdir: /path/to/workdir
+          input_files: [samples.yaml]
+        apply:
+          workdir: /path/to/workdir
+          threads: 8
+
+    \b
+    List format (allows repeating the same command):
+        - apply:
+            workdir: /path/a
+            input_files: [a.yaml]
+        - apply:
+            workdir: /path/b
+            input_files: [b.yaml]
+    """
+    with open(pipeline_file) as f:
+        steps = yaml.safe_load(f)
+
+    if not steps:
+        logger.warning("Pipeline file is empty, nothing to do.")
+        return
+
+    # Global config from -C, propagated by Click into ctx.default_map
+    global_config = ctx.default_map or {}
+
+    root_cmd = ctx.find_root().command
+
+    for cmd_name, cmd_args in _iter_steps(steps):
+        cmd = root_cmd.get_command(ctx, cmd_name)
+        if cmd is None:
+            raise click.ClickException(f"Unknown command in pipeline: '{cmd_name}'")
+
+        # Normalize YAML keys: hyphens → underscores to match Click param names
+        step_kwargs = {k.replace("-", "_"): v for k, v in (cmd_args or {}).items()}
+
+        # Global config is the base; step args override
+        # merges two dicts. ** unpacks each dict into key-value pairs, and the second one wins on conflicts
+        kwargs = {**global_config, **step_kwargs}
+
+        # Coerce list → tuple for nargs=-1 params (e.g. input_files)
+        for param in cmd.params:
+            if param.nargs == -1 and param.name in kwargs:
+                val = kwargs[param.name]
+                kwargs[param.name] = tuple(val) if isinstance(val, list) else (val,)
+
+        logger.info(f"Pipeline step: {cmd_name}")
+        ctx.invoke(cmd, **kwargs)
