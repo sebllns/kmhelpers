@@ -32,6 +32,35 @@ def force_verbose_mode():
                 handler.setLevel(logging.INFO)
 
 
+def parse_range(value: str):
+    """Parse interval arguments supporting multiple formats:
+    - Single values: '28'
+    - Comma-separated: '27,28,29'
+    - Range notation: '[27-30]' or '27-30'
+    """
+    result = []
+    # Handle range notation [27-30] or 27-30
+    item = value.strip(" []-")
+    if "-" in item:
+        # Range notation: 27-30
+        try:
+            start, end = item.split("-")
+            result.extend(i for i in range(int(start.strip()), int(end.strip()) + 1))
+        except ValueError:
+            result.append(item)
+    else:
+        # Comma-separated or single value
+        result.extend(int(s.strip()) for s in item.split(","))
+    return result
+
+
+def parse_multiple_ranges(values: tuple[str]):
+    result = []
+    for item in values:
+        result.extend(parse_range(item))
+    return result
+
+
 def estimate_build_size(
     fof_path: str, bloom_size: int | None = None, nb_cell: int | None = None
 ) -> dict:

@@ -356,10 +356,10 @@ def compose(
 
         index_summary_file = os.path.join(output_dir, f"{name}_summary.csv")
         with open(index_summary_file, "w") as f:
-            f.write("span,sample_count,stored_size_GB,stored_size_str\n")
+            f.write("span,sample_count,stored_size_GB\n")
             for span_id, span_obj in sorted(db_instance.span_table.items()):
                 size = span_obj.get_total_stored_size()
-                summary_line = f"{span_id},{span_obj.get_sample_count()},{size.byte_count/(1000**3)},{str(size)}"
+                summary_line = f"{span_id},{span_obj.get_sample_count()},{size.byte_count/(1000**3)}"
                 f.write(summary_line + "\n")
         logger.info(f"Exporting database in {format} format to {output_dir}...")
 
@@ -430,8 +430,8 @@ def export_db(
         span_registry[span_id] = {}
         span_registry[span_id]["infos"] = {
             "total_sample_count": span_data.get_sample_count(),
-            "total_size_bytes": span_size.byte_count,
-            "total_size_str": str(span_size),
+            # "total_size_bytes": span_size.byte_count,
+            # "total_size_str": str(span_size),
         }
         span_registry[span_id]["indices"] = {}
 
