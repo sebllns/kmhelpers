@@ -34,15 +34,10 @@ class BloomFilterSpecs:
         return (self.cols + BYTE_SIZE - 1) // BYTE_SIZE
 
     def column_byte_count(self) -> int:
-        return (
-            int(
-                (
-                    (self.rows / self.parts + ENCODED_BITLENGTH - 1)
-                    // ENCODED_BITLENGTH
-                )
-                * ENCODED_BITLENGTH
-                * self.parts
-            )
+        return int(
+            ((self.rows / self.parts + ENCODED_BITLENGTH - 1) // ENCODED_BITLENGTH)
+            * ENCODED_BITLENGTH
+            * self.parts
         )
 
     def total_byte_count(self):
@@ -64,13 +59,18 @@ class SpanManager:
         self._p = p
         self._f = -math.log(self._p) / (math.log(2) ** 2)
 
-    def dispatch(self, kmer_count):
+    def dispatch(self, kmer_count, min_span=0, max_span=0):
         assert (
             kmer_count > 0
         ), "Constraint must be respected: kmer_count > 0 (got kmer_count = {kmer_count})"
         s = int(math.log2(kmer_count))
         assert s > 0, f"Constraint must be respected: s > 0 (got s = {s})"
-        return s
+        orig_span = s
+        if min_span > 0:
+            s = max(s, min_span)
+        if max_span > 0:
+            s = min(s, max_span)
+        return s, orig_span
 
     def get_bf_size(self, span):
         # Calculate real Bloom filter size

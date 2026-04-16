@@ -417,10 +417,11 @@ class IndexOps:
             i.bf_size
         ), f"IndexDefinition {i.name} is missing required 'bf_size' field"
 
-        parent_index = i.get_parent()
-
-        if self.config.kmindex_build_from:
-            parent_index = self.config.kmindex_build_from
+        parent_index = (
+            self.config.kmindex_build_from
+            if self.config.kmindex_build_from
+            else i.get_parent()
+        )
 
         if parent_index and not self.config.plan:
             assert builder.has_subindex(

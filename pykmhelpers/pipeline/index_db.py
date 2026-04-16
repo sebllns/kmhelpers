@@ -44,6 +44,7 @@ class DbFields(str, Enum):
     # Sample fields
     FILES = "files"
     KMER_COUNT = "kmer_count"
+    ORIGINAL_ID = "original_id"
 
     def get_default(self):
         """Get default value for this field, or None if no default is defined."""
@@ -123,6 +124,9 @@ class Item:
         if not self.links:
             self.links = {}
         self.links[name] = value
+
+    def has_link(self, name: str) -> bool:
+        return self.links is not None and name in self.links
 
     def get_link(self, name: str) -> Optional[str]:
         if self.links:
@@ -377,6 +381,10 @@ class IndexDefinitionTools:
                     self.get_field_name(DbFields.KMER_COUNT): sample.kmer_count,
                     self.get_field_name(DbFields.FILES): sample.files,
                 }
+                if sample.has_link(DbFields.ORIGINAL_ID):
+                    samples_data[sample_id][DbFields.ORIGINAL_ID] = sample.get_link(
+                        DbFields.ORIGINAL_ID
+                    )
 
             stored_size = index.get_stored_size()
             partition_stored_size = index.get_stored_size_per_partition()

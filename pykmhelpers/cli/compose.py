@@ -259,9 +259,11 @@ def compose(
         os.makedirs(output_dir, exist_ok=True)
         all_samples: list[db.Sample] = []
         split_count = {}
+        original_distribution = {}
         span_size = {}
         db_instance = db.IndexDB(name=name)
         db_tools = db.IndexDefinitionTools()
+        sm = SpanManager(p=false_positive_rate)
 
         for input_file in input_files:
             samples = read_samples(input_file, kmer_size)
@@ -273,17 +275,25 @@ def compose(
         for sample in all_samples:
             try:
                 assert sample.files and sample.files[0], "Invalid path: empty or null"
-                span, bf_size = process_sample(
+                process_sample(
                     sample=sample,
                     db_tools=db_tools,
                     kmer_size=kmer_size,
-                    min_span=min_span,
-                    max_span=max_span,
                     ntcard_threads=ntcard_threads,
                     ntcard_value=ntcard_value,
-                    false_positive_rate=false_positive_rate,
                     recount=recount,
                 )
+
+                span, orig_span = sm.dispatch(sample.kmer_count, min_span, max_span)
+
+                if span != orig_span:
+                    logger.debug(f"    Span adjusted: {orig_span} → {span}")
+
+                original_distribution[orig_span] = (
+                    original_distribution.get(orig_span, 0) + 1
+                )
+
+                bf_size = sm.get_bf_size(span)
 
                 if span not in split_count:
                     split_count[span] = 0
@@ -353,6 +363,12 @@ def compose(
             logger.info(
                 f"  {index_name} {index.sample_count} samples {str(index.get_stored_size())}"
             )
+
+        original_distribution_file = os.path.join(output_dir, f"{name}_orig_dist.csv")
+        with open(original_distribution_file, "w") as f:
+            f.write("span,sample_count\n")
+            for span_id, sample_count in sorted(original_distribution.items()):
+                f.write(f"{span_id},{sample_count}\n")
 
         index_summary_file = os.path.join(output_dir, f"{name}_summary.csv")
         with open(index_summary_file, "w") as f:
@@ -607,11 +623,8 @@ def process_sample(
     sample: db.Sample,
     db_tools: db.IndexDefinitionTools,
     kmer_size,
-    min_span,
-    max_span,
     ntcard_threads,
     ntcard_value,
-    false_positive_rate,
     recount=False,
 ):
     logger.debug(f"Processing sample {sample.name or sample.files[0]}")
@@ -633,12 +646,13 @@ def process_sample(
             if sample.name
             else ""
         )
+        if sample.name:
+            sample.create_link(db.DbFields.ORIGINAL_ID, sample.name)
         sample.name = sample_name
 
     assert sample.name, "Sample ID empty or null"
 
     kc = KmerCounter(k=kmer_size, threadCount=ntcard_threads)
-    sm = SpanManager(p=false_positive_rate)
 
     if sample.kmer_count == 0 or recount:
         action = "Recounting" if recount else "Counting"
@@ -646,24 +660,3 @@ def process_sample(
         sample.kmer_count = kc.count_files(
             files=sample.files, target_value=ntcard_value
         )
-        logger.debug(f"    k-mer count: {sample.kmer_count}")
-    else:
-        logger.debug(
-            f"  Using cached k-mer count for sample {sample.name or sample.files[0]}: {sample.kmer_count}"
-        )
-
-    span = sm.dispatch(sample.kmer_count)
-
-    orig_span = span
-    span = max(span, min_span)
-    if max_span > 0:
-        span = min(span, max_span)
-
-    if span != orig_span:
-        logger.debug(f"    Span adjusted: {orig_span} → {span}")
-
-    bf_size = sm.get_bf_size(span)
-
-    logger.debug(f"    Final sample ID: {sample.name}")
-
-    return span, bf_size
