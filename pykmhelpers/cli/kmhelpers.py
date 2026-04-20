@@ -17,7 +17,6 @@ from pykmhelpers import Bin, Main, __version__
 from pykmhelpers.cli.about import about
 from pykmhelpers.cli.apply import apply
 from pykmhelpers.cli.build_subindex import build_subindex
-from pykmhelpers.cli.pipeline import pipeline
 from pykmhelpers.cli.compose import compose
 from pykmhelpers.cli.compress import kmindex_compress
 from pykmhelpers.cli.count_kmers import count_kmers
@@ -26,10 +25,12 @@ from pykmhelpers.cli.count_kmers import count_kmers
 from pykmhelpers.cli.exp_compression import exp_compress
 from pykmhelpers.cli.experimental import experimental
 from pykmhelpers.cli.fof import fof
+from pykmhelpers.cli.init import init_pipeline
 from pykmhelpers.cli.kmindex import kmindex
 from pykmhelpers.cli.list import list_samples
 from pykmhelpers.cli.merge_def_files import merge_def_files
 from pykmhelpers.cli.merge_span import merge_span
+from pykmhelpers.cli.pipeline import pipeline
 from pykmhelpers.cli.query import query
 from pykmhelpers.cli.registry import registry
 from pykmhelpers.cli.test import test
@@ -303,6 +304,8 @@ def cli(
 # Register main commands
 list_samples.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(list_samples)
+init_pipeline.section = "Main commands"  # type: ignore[assignment]
+cli.add_command(init_pipeline)
 compose.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(compose)
 apply.section = "Main commands"  # type: ignore[assignment]

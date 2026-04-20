@@ -257,4 +257,4 @@ class ByteCounter:
             format_suffix = "B"
 
         unit_str = unit_names.get(self.unit, "")
-        return f"{self.value:.4g}{unit_str}{format_suffix}"
+        return f"{self.value:.3g}{unit_str}{format_suffix}"
