@@ -81,9 +81,9 @@ def profile(input, output_dir, false_positive_rate):
             raise click.ClickException(
                 f"Unsupported extension: must be '.yaml' or '.yml'."
             )
-        logger.info("SUCCESS")
+        logger.info("SUCCESS ('profile')")
     except Exception as e:
-        Log.handle_exception(logger, e, "Command 'profile' failed")
+        Log.handle_exception(logger, e, "FAILED ('profile')")
 
 
 def process_data(input, output_dir, false_positive_rate):
@@ -124,6 +124,10 @@ def process_data(input, output_dir, false_positive_rate):
         f.write("span,bf_size,sample_count\n")
         for span_id, sample_count in sorted(spans.items()):
             f.write(f"{span_id},{sm.get_bf_size(span_id)},{sample_count}\n")
+
+    span_list = os.path.join(output_dir, f"span_list")
+    with open(span_list, "w") as f:
+        f.write(" ".join(str(s) for s in sorted(spans.keys())))
 
     sa = SpanAnalyzer(original_distribution_file)
     sa.plot()
