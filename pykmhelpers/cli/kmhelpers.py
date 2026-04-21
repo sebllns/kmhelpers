@@ -25,17 +25,20 @@ from pykmhelpers.cli.count_kmers import count_kmers
 from pykmhelpers.cli.exp_compression import exp_compress
 from pykmhelpers.cli.experimental import experimental
 from pykmhelpers.cli.fof import fof
-from pykmhelpers.cli.profile import profile
 from pykmhelpers.cli.kmindex import kmindex
 from pykmhelpers.cli.list import list_samples
 from pykmhelpers.cli.merge_def_files import merge_def_files
 from pykmhelpers.cli.merge_span import merge_span
 from pykmhelpers.cli.pipeline import pipeline
+from pykmhelpers.cli.profile import profile
 from pykmhelpers.cli.query import query
 from pykmhelpers.cli.registry import registry
 from pykmhelpers.cli.test import test
 from pykmhelpers.core.log import Log
 from pykmhelpers.core.utils import Toolbox
+
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
+logging.getLogger("PIL").setLevel(logging.WARNING)
 
 
 class ColoredFormatter(logging.Formatter):

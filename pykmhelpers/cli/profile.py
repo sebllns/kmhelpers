@@ -68,15 +68,22 @@ def profile(input, output_dir, false_positive_rate):
         sample_name:
           kmer_count: 1234567
     """
-    input = Toolbox.get_canonical_path(input)
 
-    if not os.path.exists(input):
-        raise click.ClickException(f"File not found: {input}")
+    try:
+        input = Toolbox.get_canonical_path(input)
 
-    if input.endswith(".yaml") or input.endswith(".yml"):
-        process_data(input, output_dir, false_positive_rate)
-    else:
-        raise click.ClickException(f"Unsupported extension: must be '.yaml' or '.yml'.")
+        if not os.path.exists(input):
+            raise click.ClickException(f"File not found: {input}")
+
+        if input.endswith(".yaml") or input.endswith(".yml"):
+            process_data(input, output_dir, false_positive_rate)
+        else:
+            raise click.ClickException(
+                f"Unsupported extension: must be '.yaml' or '.yml'."
+            )
+        logger.info("SUCCESS")
+    except Exception as e:
+        Log.handle_exception(logger, e, "Command 'profile' failed")
 
 
 def process_data(input, output_dir, false_positive_rate):
@@ -98,12 +105,18 @@ def process_data(input, output_dir, false_positive_rate):
     spans = {}
 
     for name, sample in samples.items():
-        kmer_count = sample.get("kmer_count")
-        if kmer_count:
-            s, _ = sm.dispatch(kmer_count)
-            spans[s] = spans.get(s, 0) + 1
-        else:
-            logger.warning(f"{name}: no field 'kmer_count'... skip")
+        try:
+            logger.debug(f"Process {name}...")
+            kmer_count = sample.get("kmer_count", 0)
+            if kmer_count:
+                s, _ = sm.dispatch(kmer_count)
+                spans[s] = spans.get(s, 0) + 1
+            else:
+                logger.warning(f"{name}: no field 'kmer_count'... skip")
+        except Exception as e:
+            Log.handle_exception(
+                logger, e, f"Could not process sample '{name}'", level=logging.WARNING
+            )
 
     os.makedirs(output_dir, exist_ok=True)
     original_distribution_file = os.path.join(output_dir, f"span_distribution.csv")
