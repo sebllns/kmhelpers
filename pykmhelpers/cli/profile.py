@@ -1,4 +1,4 @@
-"""Recursively list samples from a directory and output a YAML file."""
+"""Analyse a sample YAML file and produce a Bloom-filter span distribution."""
 
 import logging
 import os
@@ -20,32 +20,54 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-@click.command(name="init")
+@click.command(name="profile")
 @click.option(
     "--input",
     "-i",
     "input",
+    metavar="INPUT_FILE",
     required=True,
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
-    help="Input list of sample files",
+    help="📄  Sample YAML file (produced by `list`) containing k-mer counts.",
 )
 @click.option(
     "--output",
     "-o",
     "output_dir",
+    metavar="OUTPUT_DIR",
     required=True,
     type=click.Path(file_okay=False, dir_okay=True),
-    help="Output directory path",
+    help="📁  Output directory for the span distribution CSV and analysis plot.",
 )
 @click.option(
     "--false-positive-rate",
     "--fp",
     type=float,
     required=False,
-    help="False positive rate for Bloom filter (default: 0.25).\n\n==>IMPORTANT<== The findere algorithm optimizes queries by using (k+z)-mers to reduce the false positive rate at query time. This allows Bloom filters to be built with a higher false positive rate while still providing accurate results, which reduces disk footprint. Usually building your index with {k=25, p=0.25} and querying with z=6 provide a good balance.\n\n ",
+    help="🎯  Bloom filter false-positive rate (default: 0.25). "
+    "A higher rate reduces disk footprint; the findere algorithm compensates at "
+    "query time by using (k+z)-mers. Recommended: build with p=0.25, query with z=6.",
 )
-def init_pipeline(input, output_dir, false_positive_rate):
-    """"""
+def profile(input, output_dir, false_positive_rate):
+    """Analyse a sample YAML file and output a Bloom-filter span profile.
+
+    Reads the k-mer counts from INPUT_FILE (a YAML file produced by `list`), assigns each sample to a Bloom-filter span using the given
+    false-positive rate, and writes a CSV summary together with a distribution
+    plot to OUTPUT_DIR.
+
+    \b
+    Output files (written to OUTPUT_DIR):
+      span_distribution.csv  — span id, Bloom filter size, and sample count
+      span_distribution_analysis.png    — Span combination analysis plots
+
+    \b
+    Expected INPUT format:
+      k: 25
+      false_positive_rate: 0.25   # optional, overridden by --false-positive-rate
+      samples:
+        sample_name:
+          kmer_count: 1234567
+    """
     input = Toolbox.get_canonical_path(input)
 
     if not os.path.exists(input):

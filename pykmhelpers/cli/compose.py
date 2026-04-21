@@ -29,124 +29,119 @@ logger = logging.getLogger(__name__)
     "-o",
     required=True,
     type=click.Path(file_okay=False, dir_okay=True),
-    help="Output directory for compressed index",
+    help="📁  Output directory for compressed index",
 )
 @click.option(
     "--prefix",
     default="span",
-    help="Prefix for index names",
+    help="🏷️   Prefix for index names",
 )
 @click.option(
     "--name",
     "-n",
     default="index",
-    help="Name of created index database",
+    help="🏷️   Name of created index database",
 )
 @click.option(
     "--kmer-size",
     "-k",
     type=int,
     default=25,
-    help="K-mer size (default: 25)",
+    help="🧬  K-mer size (default: 25)",
 )
 @click.option(
     "--unassembled",
     is_flag=True,
-    help="Treat input data as raw reads instead of assembled genomes",
-)
-@click.option(
-    "--min-span",
-    "-s",
-    type=int,
-    default=25,
-    help="Minimum span, 0 for disabling min limit (default: 25)",
-)
-@click.option(
-    "--max-span",
-    "-S",
-    type=int,
-    default=0,
-    help="Maximum span, 0 for disabling max limit (default: 0)",
-)
-@click.option(
-    "--partition-count",
-    "-p",
-    type=int,
-    default=0,
-    help="Desired number of partitions per index, 0 for automatic count (default: 0)",
-)
-@click.option(
-    "--bf-max-size",
-    "-b",
-    help="Maximum Bloom Filter size (e.g., '10GB', '5000MB') before splitting samples across indices (default = no limit)",
-)
-@click.option(
-    "--partition-min-size",
-    "-m",
-    help="Minimum partition file size (e.g., '500MB', '1GB'). If not met, partition count will decrease to maintain this size limit per partition (default = no limit)",
-)
-@click.option(
-    "--no-merge",
-    is_flag=True,
-    default=False,
-    help="Treat each part of split indices as independent indices (mostly used for partition count calculation)",
-)
-@click.option(
-    "--exact-partition-count",
-    is_flag=True,
-    default=False,
-    help="Keep exact partition count (default rounds to nearest power of 2)",
-)
-@click.option(
-    "--partition-count-limit",
-    type=int,
-    default=256,
-    help="Partition count limit for auto-partitioning (default: 256)",
-)
-@click.option(
-    "--ntcard-threads",
-    "--ntt",
-    type=int,
-    default=8,
-    help="Number of threads to be used by ntcard while counting k-mers (default: 8)",
-)
-@click.option(
-    "--ntcard-value",
-    "--ntv",
-    default="F0",
-    help="Value ID to extract from ntcard output (default: 'F0')",
+    help="🧬  Treat input data as raw reads instead of assembled genomes",
 )
 @click.option(
     "--false-positive-rate",
     "--fp",
     type=float,
     default=0.25,
-    help="False positive rate for Bloom filter (default: 0.25).\n\n==>IMPORTANT<== The findere algorithm optimizes queries by using (k+z)-mers to reduce the false positive rate at query time. This allows Bloom filters to be built with a higher false positive rate while still providing accurate results, which reduces disk footprint. Usually building your index with {k=25, p=0.25} and querying with z=6 provide a good balance.\n\n ",
-)
-@click.option(
-    "--no-split",
-    is_flag=True,
-    default=False,
-    help="Export all index definition to a single file",
+    help="🎯  Bloom filter false-positive rate (default: 0.25). "
+    "A higher rate reduces disk footprint; the findere algorithm compensates at "
+    "query time by using (k+z)-mers. Recommended: build with p=0.25, query with z=6.",
 )
 @click.option(
     "--recount",
     is_flag=True,
     default=False,
-    help="Force recount k-mers for all samples (ignore cached kmer_count)",
+    help="🔄  Force recount k-mers for all samples (ignore cached kmer_count)",
+)
+@click.option(
+    "--span-list",
+    "-s",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+    required=False,
+    help="📋  Allowlist of permitted span IDs (space-separated). Samples assigned to a span not in the list are promoted to the next allowed span.",
+)
+@click.option(
+    "--partition-count",
+    "-p",
+    type=int,
+    default=0,
+    help="💾   Desired number of partitions per index, 0 for automatic count (default: 0)",
+)
+@click.option(
+    "--bf-max-size",
+    "-b",
+    help="💾  Maximum Bloom Filter size (e.g., '10GB', '5000MB') before splitting samples across indices (default = no limit)",
+)
+@click.option(
+    "--partition-min-size",
+    "-m",
+    help="💾  Minimum partition file size (e.g., '500MB', '1GB'). If not met, partition count will decrease to maintain this size limit per partition (default = no limit)",
+)
+@click.option(
+    "--no-merge",
+    is_flag=True,
+    default=False,
+    help="⚙️   Treat each part of split indices as independent indices (mostly used for partition count calculation)",
+)
+@click.option(
+    "--exact-partition-count",
+    is_flag=True,
+    default=False,
+    help="⚙️   Keep exact partition count (default rounds to nearest power of 2)",
+)
+@click.option(
+    "--partition-count-limit",
+    type=int,
+    default=256,
+    help="⚙️   Partition count limit for auto-partitioning (default: 256)",
+)
+@click.option(
+    "--ntcard-threads",
+    "--ntt",
+    type=int,
+    default=8,
+    help="⚙️  Number of threads used by ntcard for k-mer counting (default: 8)",
+)
+@click.option(
+    "--ntcard-value",
+    "--ntv",
+    default="F0",
+    help="⚙️   Value ID to extract from ntcard output (default: 'F0')",
+)
+@click.option(
+    "--no-split",
+    is_flag=True,
+    default=False,
+    help="⚙️   Export all index definitions to a single file",
 )
 @click.option(
     "--format",
     "-f",
     type=click.Choice(["yaml", "json"], case_sensitive=False),
     default="yaml",
-    help="Output format of created database (default: 'yaml')",
+    help="⚙️  Output format of created database (default: 'yaml')",
 )
 @click.option(
     "-v",
     "--verbose",
     is_flag=True,
-    help="Increase log level to INFO (unless already higher)",
+    help="🔊  Increase log level to INFO (unless already higher)",
 )
 def compose(
     input_files,
@@ -155,8 +150,7 @@ def compose(
     name,
     kmer_size,
     unassembled,
-    min_span,
-    max_span,
+    span_list,
     partition_count,
     bf_max_size,
     partition_min_size,
@@ -211,18 +205,6 @@ def compose(
             raise click.BadParameter(
                 f"Constraint must be respected: k < 64 (got k = {kmer_size})"
             )
-        if min_span < 0:
-            raise click.BadParameter(
-                f"Constraint must be respected: min_span >= 0 (got min_span = {min_span})"
-            )
-        if max_span < 0:
-            raise click.BadParameter(
-                f"Constraint must be respected: max_span >= 0 (got max_span = {max_span})"
-            )
-        if max_span > 0 and max_span < min_span:
-            raise click.BadParameter(
-                f"Constraint must be respected: max_span >= min_span (got max_span = {max_span}, min_span = {min_span})"
-            )
         if false_positive_rate <= 0:
             raise click.BadParameter(
                 f"Constraint must be respected: false_positive_rate > 0 (got false_positive_rate = {false_positive_rate})"
@@ -254,6 +236,10 @@ def compose(
                 f"Invalid partition_min_size format: {partition_min_size} (use format like '1GB', '500MB')"
             )
 
+        allowed_spans = None
+        if span_list:
+            allowed_spans = parse_span_list(span_list)
+
         assembled = not unassembled
 
         os.makedirs(output_dir, exist_ok=True)
@@ -275,7 +261,7 @@ def compose(
         for sample in all_samples:
             try:
                 assert sample.files and sample.files[0], "Invalid path: empty or null"
-                process_sample(
+                prepare_sample(
                     sample=sample,
                     db_tools=db_tools,
                     kmer_size=kmer_size,
@@ -284,7 +270,16 @@ def compose(
                     recount=recount,
                 )
 
-                span, orig_span = sm.dispatch(sample.kmer_count, min_span, max_span)
+                span, orig_span = sm.dispatch(sample.kmer_count, min_span=0, max_span=0)
+
+                if allowed_spans:
+                    promoted = next((s for s in allowed_spans if s >= span), None)
+                    if promoted is None:
+                        raise click.ClickException(
+                            f"No allowed span >= {span} for sample '{sample.name}' "
+                            f"(kmer_count={sample.kmer_count}). Extend the span list."
+                        )
+                    span = promoted
 
                 if span != orig_span:
                     logger.debug(f"    Span adjusted: {orig_span} → {span}")
@@ -486,6 +481,19 @@ def export_db(
     logger.info(f"Estimated total index size: {ByteCounter.auto(total_size)}")
 
 
+def parse_span_list(path) -> list[int]:
+    """Read a space-separated list of span IDs from a file."""
+    with open(path) as f:
+        tokens = f.read().split()
+    try:
+        spans = sorted(int(t) for t in tokens)
+    except ValueError as e:
+        raise click.BadParameter(f"Invalid span ID in {path}: {e}")
+    if not spans:
+        raise click.BadParameter(f"Span list is empty: {path}")
+    return spans
+
+
 def read_samples(filename, cli_kmer_size=None):
     """Parse sample file in YAML, JSON, or plain text format.
 
@@ -619,7 +627,7 @@ def read_samples(filename, cli_kmer_size=None):
     return samples
 
 
-def process_sample(
+def prepare_sample(
     sample: db.Sample,
     db_tools: db.IndexDefinitionTools,
     kmer_size,
