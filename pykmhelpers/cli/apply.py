@@ -148,11 +148,6 @@ need to resolve them from a different location.",
     help="🚩  Output a bash script with build commands without executing them.",
 )
 @click.option(
-    "--plan",
-    is_flag=True,
-    help="🚩  Like dry-run, but with paths checking (e.g. samples with missing files won't be exported in FOF file) \n NOTE: this option will become a command itself in a future release.",
-)
-@click.option(
     "--show-progress",
     is_flag=True,
     help="🚩  Show a progress bar with elapsed time and estimated remaining time during index building.",
@@ -187,7 +182,6 @@ def apply(
     verbose,
     skip_compression,
     dry_run,
-    plan,
     show_progress,
     fail_on_error,
     notify,
@@ -356,9 +350,6 @@ def apply(
         if not dry_run:
             dry_run = config_map.get("dry_run", False)
 
-        if not plan:
-            plan = config_map.get("plan", False)
-
         if not partition_count:
             partition_count = config_map.get("partition_count", None)
 
@@ -412,10 +403,7 @@ def apply(
             kmindex_build_from=reuse_from,
             filter_names=selected_ids,
             filter_spans=selected_spans,
-            plan=plan,
-            dry_run=dry_run,
             on_existing=existing,
-            show_progress=show_progress,
             fail_on_error=fail_on_error,
             partition_count=partition_count,
         )
@@ -423,11 +411,23 @@ def apply(
 
     log_dir = iops.log_dir
 
+    if show_progress and dry_run:
+        logger.warning(f"--show-progress ignored in --dry-run mode")
+        show_progress = False
+
+    apply_mode = (
+        ops.ApplyMode.DRY_RUN
+        if dry_run
+        else (
+            ops.ApplyMode.APPLY_SHOW_PROGRESS if show_progress else ops.ApplyMode.APPLY
+        )
+    )
+
     i = 0
     for input_file in input_files:
         try:
             logger.info(f"Apply {input_file}...")
-            result = iops.apply(input_file)
+            result = iops.apply(input_file, apply_mode)
             _notify_state["status"] = result.status.value
             if result.details:
                 details_path = os.path.join(
