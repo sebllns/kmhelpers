@@ -27,8 +27,6 @@ from pykmhelpers.cli.experimental import experimental
 from pykmhelpers.cli.fof import fof
 from pykmhelpers.cli.kmindex import kmindex
 from pykmhelpers.cli.list import list_samples
-from pykmhelpers.cli.merge_def_files import merge_def_files
-from pykmhelpers.cli.merge_span import merge_span
 from pykmhelpers.cli.pipeline import pipeline
 from pykmhelpers.cli.profile import profile
 from pykmhelpers.cli.query import query
