@@ -279,8 +279,6 @@ def plan(
             kmindex_build_from=reuse_from,
             filter_names=selected_ids,
             filter_spans=selected_spans,
-            plan=True,
-            dry_run=True,
             on_existing=existing,
             fail_on_error=fail_on_error,
             partition_count=partition_count,
@@ -293,7 +291,7 @@ def plan(
     for input_file in input_files:
         try:
             logger.info(f"Plan {input_file}...")
-            result = iops.plan(input_file)
+            result = iops.apply(input_file, ops.ApplyMode.PLAN)
             if result.details:
                 details_path = os.path.join(
                     iops.asset_dir, f"kmhelpers_plan_{iops.timestamp}_{i}.yaml"

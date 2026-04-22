@@ -21,6 +21,13 @@ from pykmhelpers.pipeline.index_db import (
 logger = logging.getLogger(__name__)
 
 
+class ApplyMode(int, Enum):
+    DRY_RUN = 0
+    PLAN = 1
+    APPLY = 2
+    APPLY_SHOW_PROGRESS = 3
+
+
 class ApplyStatus(str, Enum):
     """Status of an apply operation."""
 
@@ -61,6 +68,7 @@ class ApplyResult:
 
     status: ApplyStatus = ApplyStatus.NONE
     input_type: ApplyInputType = ApplyInputType.NONE
+    mode: ApplyMode = ApplyMode.APPLY
     details: dict = field(default_factory=dict)
 
 
@@ -111,10 +119,7 @@ class IndexOpsConfig:
     kmindex_build_from: Optional[str] = None
     filter_spans: Optional[list[int]] = None
     filter_names: Optional[list[str]] = None
-    plan: bool = False
-    dry_run: bool = False
     on_existing: str = "fail"
-    show_progress: bool = False
     fail_on_error: bool = False
     partition_count: Optional[int] = None
 
@@ -160,11 +165,8 @@ class IndexOps:
         self._config.registry_dir = os.path.realpath(self.config.registry_dir)
         self._timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        self.config
-        if self._config.dry_run:
-            self._config.plan = True
-        if self._config.dry_run or self._config.plan:
-            self._config.show_progress = False
+        self._mode = ApplyMode.APPLY
+
         self._dbs = dict[str, list[IndexDB]]()
         self._building = set[str]()
         self._script_lines = [
@@ -233,20 +235,7 @@ class IndexOps:
             f.write("\n".join(self._script_lines) + "\n")
         logger.info(f"Script written to {script_path}")
 
-    def compose(self):
-        """Compose an index definition from the current configuration. (Not yet implemented.)"""
-        pass
-
-    def plan(self, def_file: str, dry_run: bool = False) -> ApplyResult:
-        """Preview the operations that would be performed for a definition file. (Not yet implemented.)
-
-        Args:
-            def_file: Path to the index definition or span registry file to
-                inspect.
-        """
-        pass
-
-    def apply(self, path: str, dry_run: bool = False) -> ApplyResult:
+    def apply(self, path: str, mode: ApplyMode) -> ApplyResult:
         """Apply an index definition or span registry file to the kmindex registry.
 
         Reads ``path``, detects whether it is an index definition or a span
@@ -264,12 +253,15 @@ class IndexOps:
             succeed (only when ``fail_on_error=False``), or ``FAILED`` when a
             fatal error occurs before any index is built.
         """
+
         path = os.path.realpath(path)
 
         # Load desired state
         result = ApplyResult()
         idt = IndexDefinitionTools()
 
+        self._mode = mode
+        result.mode = mode
         result.status = ApplyStatus.NONE
         result.input_type = ApplyInputType.UNKNOWN
         result.details = dict()
@@ -423,7 +415,7 @@ class IndexOps:
             else i.get_parent()
         )
 
-        if parent_index and not self.config.plan:
+        if parent_index and self._mode >= ApplyMode.APPLY:
             assert builder.has_subindex(
                 parent_index
             ), f"Could not find index '{parent_index}' required to build index '{i.name}'"
@@ -438,7 +430,7 @@ class IndexOps:
                         if self.config.sample_rootpath
                         else s.files
                     )
-                    if not self.config.dry_run:
+                    if self._mode > ApplyMode.DRY_RUN:
                         for f in sample_files:
                             assert os.path.isfile(f), f"Sample file not found: {f}"
                     fof.add_sample(sample_files, s.name)
@@ -451,8 +443,8 @@ class IndexOps:
             stop_event = None
             wait_handler = None
             progress_handler = None
-            if self.config.show_progress:
 
+            if self._mode == ApplyMode.APPLY_SHOW_PROGRESS:
                 start = datetime.now()
                 stop_event = threading.Event()
 
@@ -508,7 +500,7 @@ class IndexOps:
                     build_from=parent_index,
                     compress_intermediate=not self.config.kmindex_skip_compression,
                     minim_size=self.config.minimizer_length,
-                    dry_run=self.config.plan,
+                    dry_run=self._mode < ApplyMode.APPLY,
                     kmer_size=i.kmer_size,
                     on_existing=self.config.on_existing,
                     progress=progress_handler,
@@ -527,7 +519,7 @@ class IndexOps:
         else:
             logger.warning(f"Skipping index '{i.name}' as no sample was added to it")
 
-        if not self.config.plan:
+        if self._mode >= ApplyMode.APPLY:
             builder.index.load_json()
             assert builder.has_subindex(i.name), f"Could not find index '{i.name}'"
 
@@ -732,7 +724,7 @@ class IndexOps:
         """
         builder.index.load_json()
         missing = None
-        if not self.config.plan:
+        if self._mode >= ApplyMode.APPLY:
             missing = [name for name in parts if not builder.index.has_index(name)]
         if missing:
             logger.warning(
@@ -746,7 +738,7 @@ class IndexOps:
                 to_index,
                 parts,
                 delete_old=False,
-                dry_run=self.config.plan,
+                dry_run=self._mode < ApplyMode.APPLY,
             )
 
             if result and "command" in merge_result:
