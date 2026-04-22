@@ -237,7 +237,7 @@ class IndexOps:
         """Compose an index definition from the current configuration. (Not yet implemented.)"""
         pass
 
-    def plan(self, def_file: str):
+    def plan(self, def_file: str, dry_run: bool = False) -> ApplyResult:
         """Preview the operations that would be performed for a definition file. (Not yet implemented.)
 
         Args:
@@ -246,7 +246,7 @@ class IndexOps:
         """
         pass
 
-    def apply(self, path: str) -> ApplyResult:
+    def apply(self, path: str, dry_run: bool = False) -> ApplyResult:
         """Apply an index definition or span registry file to the kmindex registry.
 
         Reads ``path``, detects whether it is an index definition or a span
