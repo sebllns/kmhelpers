@@ -119,7 +119,6 @@ def plan(
     partition_count,
     existing,
     verbose,
-    skip_compression,
     fail_on_error,
 ):
     """Apply changes and build indices from definition files.
@@ -225,9 +224,6 @@ def plan(
         if not reuse_from:
             reuse_from = config_map.get("reuse_from", "")
 
-        if not skip_compression:
-            skip_compression = config_map.get("skip_compression", False)
-
         if not partition_count:
             partition_count = config_map.get("partition_count", None)
 
@@ -275,7 +271,7 @@ def plan(
             index_data_folder=output_dir,
             registry_dir=os.path.join(workdir, registry),
             sample_rootpath=basepath,
-            kmindex_skip_compression=skip_compression,
+            kmindex_skip_compression=False,
             kmindex_build_from=reuse_from,
             filter_names=selected_ids,
             filter_spans=selected_spans,

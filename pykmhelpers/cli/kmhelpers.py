@@ -12,22 +12,19 @@ import click
 import yaml
 
 from pykmhelpers import Bin, Main, __version__
-
-# Import all groups and commands
 from pykmhelpers.cli.about import about
 from pykmhelpers.cli.apply import apply
 from pykmhelpers.cli.build_subindex import build_subindex
 from pykmhelpers.cli.compose import compose
 from pykmhelpers.cli.compress import kmindex_compress
 from pykmhelpers.cli.count_kmers import count_kmers
-
-# Import experimental commands
 from pykmhelpers.cli.exp_compression import exp_compress
 from pykmhelpers.cli.experimental import experimental
 from pykmhelpers.cli.fof import fof
 from pykmhelpers.cli.kmindex import kmindex
 from pykmhelpers.cli.list import list_samples
 from pykmhelpers.cli.pipeline import pipeline
+from pykmhelpers.cli.plan import plan
 from pykmhelpers.cli.profile import profile
 from pykmhelpers.cli.query import query
 from pykmhelpers.cli.registry import registry
@@ -309,6 +306,8 @@ profile.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(profile)
 compose.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(compose)
+plan.section = "Main commands"  # type: ignore[assignment]
+cli.add_command(plan)
 apply.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(apply)
 pipeline.section = "Main commands"  # type: ignore[assignment]

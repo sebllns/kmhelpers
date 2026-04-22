@@ -36,10 +36,6 @@ class DbFields(str, Enum):
     INFOS = "infos"
     PARAMETERS = "parameters"
     INFO_SAMPLE_COUNT = "sample_count"
-    INFO_TOTAL_STORED_SIZE_BYTES = "total_stored_size_bytes"
-    INFO_TOTAL_STORED_SIZE_STR = "total_stored_size_str"
-    INFO_PARTITION_STORED_SIZE_BYTES = "partition_stored_size_bytes"
-    INFO_PARTITION_STORED_SIZE_STR = "partition_stored_size_str"
 
     # Sample fields
     FILES = "files"

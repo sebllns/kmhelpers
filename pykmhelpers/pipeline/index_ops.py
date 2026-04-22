@@ -266,6 +266,8 @@ class IndexOps:
         result.input_type = ApplyInputType.UNKNOWN
         result.details = dict()
         result.details["input_file"] = path
+        result.details["index"] = {}
+        result.details["span"] = {}
         idt = IndexDefinitionTools()
         data = None
 
@@ -344,10 +346,10 @@ class IndexOps:
 
                 logger.info(f"Processing index definition '{i.name}'...")
 
-                assert i.name, "IndexDefinition is missing required 'name' field"
+                assert i.name, "   IndexDefinition is missing required 'name' field"
                 if builder.index.has_index(i.name):
                     logger.info(f"{i.name} found in registry: skip")
-                    result.details[i.name] = f"[{ApplyStatus.NONE.value}]"
+                    result.details["index"][i.name] = f"[{ApplyStatus.NONE.value}]"
                     continue
 
                 parent_index = i.get_parent()
@@ -356,13 +358,24 @@ class IndexOps:
                     parent_index = self.config.kmindex_build_from
 
                 try:
+                    index_size = i.get_stored_size()
+
+                    if i.span not in result.details["span"]:
+                        result.details["span"][i.span] = {"sample_count": 0, "size": 0}
+
+                    # result.details["span"][i.span] = (
+                    #     span_sizes.get(i.span, 0) + index_size.byte_count
+                    # )
+                    logger.info(f"   Estimated build size: {index_size}")
                     self._build(path, result, idt, builder, i, parent_index)
 
                 except Exception as e:
-                    Log.handle_exception(logger, e, f"Failed to build index '{i.name}'")
-                    result.details[i.name] = (
-                        f"[{ApplyStatus.FAILED.value}] {Log.format_exception(e)}"
+                    Log.handle_exception(
+                        logger, e, f"   Failed to build index '{i.name}'"
                     )
+                    result.details["index"][
+                        i.name
+                    ] = f"[{ApplyStatus.FAILED.value}] {Log.format_exception(e)}"
                     result.status = ApplyStatus.PARTIAL
                     if self.config.fail_on_error:
                         result.status = ApplyStatus.FAILED
@@ -680,27 +693,22 @@ class IndexOps:
             builder.index.load_json()
             logger.debug(f"Building required parent index '{parent_index}'")
             build_result = self._build_single(builder, parent_def)
-            if build_result:
-                if build_result["return_code"] == 0:
-                    result.details[i.name] = f"[{ApplyStatus.SUCCESS.value}]"
-                else:
-                    result.details[i.name] = (
-                        f"[{ApplyStatus.FAILED.value}] error_code={build_result["return_code"]}"
-                    )
-        else:
-            result.details[i.name] = f"[{ApplyStatus.NONE.value}]"
+            self._parse_build_result(result, i, build_result)
 
         builder.index.load_json()
         build_result = self._build_single(builder, i)
+        self._parse_build_result(result, i, build_result)
+
+    def _parse_build_result(self, result, i, build_result):
         if build_result:
-            if build_result["return_code"] == 0:
-                result.details[i.name] = f"[{ApplyStatus.SUCCESS.value}]"
+            if self._mode < ApplyMode.APPLY or build_result.get("return_code", -1) == 0:
+                result.details["index"][i.name] = f"[{ApplyStatus.SUCCESS.value}]"
             else:
-                result.details[i.name] = (
-                    f"[{ApplyStatus.FAILED.value}] error_code={build_result["return_code"]}"
-                )
+                result.details["index"][
+                    i.name
+                ] = f"[{ApplyStatus.FAILED.value}] error_code={build_result["return_code"]}"
         else:
-            result.details[i.name] = f"[{ApplyStatus.NONE.value}]"
+            result.details["index"][i.name] = f"[{ApplyStatus.NONE.value}]"
 
     def _merge(self, result, builder, to_index, parts):
         """Merge a list of sub-indexes into a combined index and clean up the parts.
@@ -739,6 +747,7 @@ class IndexOps:
                 parts,
                 delete_old=False,
                 dry_run=self._mode < ApplyMode.APPLY,
+                threads=self._config.kmindex_threads,
             )
 
             if result and "command" in merge_result:
@@ -767,7 +776,7 @@ class IndexOps:
             builder: The ``IndexBuilder`` whose registry entry should be removed.
             segment: Name of the sub-index segment to delete.
         """
-        logging.info(f"Delete {segment}...")
+        logger.info(f"Delete {segment}...")
         try:
             builder.index.remove_index(
                 segment, delete_files=False, skip_unregistered=True
@@ -778,34 +787,46 @@ class IndexOps:
 
         index_path = os.path.join(self.config.index_data_folder, segment)
 
-        try:
-            # Get index before removal (needed to delete files)
-            shutil.rmtree(
-                os.path.realpath(index_path),
-                ignore_errors=True,
-            )
-        except Exception as e:
-            Log.handle_exception(
-                logger,
-                e,
-                f"Failed to delete some files",
-                logging.WARNING,
-            )
+        if self._mode >= ApplyMode.APPLY:
+            try:
+                # Get index before removal (needed to delete files)
+                shutil.rmtree(
+                    os.path.realpath(index_path),
+                    ignore_errors=True,
+                )
+            except Exception as e:
+                Log.handle_exception(
+                    logger,
+                    e,
+                    f"Failed to delete some files",
+                    logging.WARNING,
+                )
 
-        try:
-            if os.path.islink(index_path):
-                os.unlink(index_path)
-        except Exception as e:
-            Log.handle_exception(
-                logger,
-                e,
-                f"Error deleting link {index_path}",
-                logging.WARNING,
-            )
+            try:
+                if os.path.islink(index_path):
+                    os.unlink(index_path)
+            except Exception as e:
+                Log.handle_exception(
+                    logger,
+                    e,
+                    f"Error deleting link {index_path}",
+                    logging.WARNING,
+                )
 
-        if os.path.exists(index_path):
-            logging.warning(
-                f"Could not remove dir {index_path}, please remove it manually."
+            if os.path.exists(index_path):
+                logging.warning(
+                    f"Could not remove dir {index_path}, please remove it manually."
+                )
+        else:
+            self._script_lines.append(
+                f"rm -rf $(realpath {index_path})".replace(
+                    self.config.workdir, "${WORKDIR}"
+                )
+            )
+            self._script_lines.append(
+                f"[ -L {index_path} ] && unlink {index_path}".replace(
+                    self.config.workdir, "${WORKDIR}"
+                )
             )
 
     # ---
