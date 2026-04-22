@@ -23,7 +23,7 @@ A Python toolkit for managing, compressing, and querying [kmindex](https://githu
 
 ```bash
 git clone https://gitlab.inria.fr/omicfinder/kmhelpers
-git checkout dev/v0.6.2
+git checkout dev/v0.6.3
 cd kmhelpers
 ```
 
@@ -76,7 +76,7 @@ To pull from a specific branch (e.g., a development or release branch):
 git pull origin <branch-name>
 
 # Examples
-git pull origin dev/v0.6.2
+git pull origin dev/v0.6.3
 git pull origin feature/my-feature
 ```
 
@@ -108,7 +108,7 @@ For questions, bug reports, or contributions, please contact:
 
 ---
 
-**Version**: 0.6.2
+**Version**: 0.6.3
 **Status**: Development
 
 ## Changelog
