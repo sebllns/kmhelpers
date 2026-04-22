@@ -382,9 +382,9 @@ class IndexDefinitionTools:
                     self.get_field_name(DbFields.FILES): sample.files,
                 }
                 if sample.has_link(DbFields.ORIGINAL_ID):
-                    samples_data[sample_id][DbFields.ORIGINAL_ID] = sample.get_link(
-                        DbFields.ORIGINAL_ID
-                    )
+                    samples_data[sample_id][
+                        self.get_field_name(DbFields.ORIGINAL_ID)
+                    ] = sample.get_link(DbFields.ORIGINAL_ID)
 
             stored_size = index.get_stored_size()
             partition_stored_size = index.get_stored_size_per_partition()
