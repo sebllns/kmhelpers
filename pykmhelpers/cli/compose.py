@@ -197,9 +197,9 @@ def compose(
             raise click.BadParameter(
                 f"Constraint must be respected: k < 64 (got k = {kmer_size})"
             )
-        if min_span >= 30:
+        if min_span < 0:
             raise click.BadParameter(
-                f"Constraint must be respected: min_span < 30 (got min_span = {min_span})"
+                f"Constraint must be respected: min_span >= 0 (got min_span = {min_span})"
             )
         if max_span < 0:
             raise click.BadParameter(
@@ -297,7 +297,16 @@ def compose(
                         samples={},
                     )
                     if split_count[span] > 0 and not no_merge:
-                        i.set_parent(db_tools.get_index_name(name, prefix, span, 0))
+                        parent_name = db_tools.get_index_name(name, prefix, span, 0)
+                        i.set_parent(parent_name)
+                        assert (
+                            parent_name in db_instance.index_table
+                        ), f"Parent index not found: {parent_name}"
+                        db_instance.index_table[parent_name].merge_name = (
+                            db_tools.get_merge_name(name, prefix, span)
+                        )
+
+                    i.merge_name = db_tools.get_merge_name(name, prefix, span)
                     db_instance.add_index(i)
                 else:
                     logger.debug(f"Adding to existing index: {index_name}")
@@ -318,7 +327,9 @@ def compose(
                     split_count[span] += 1
 
             except Exception as e:
-                logger.exception(f"Could not process sample: {e}")
+                logger.exception(
+                    f"Could not process sample '{sample.name}'({sample.id}): {e} ({type(e).__name__})"
+                )
 
         logger.info(
             f"Composed {len(all_samples)} samples into {len(db_instance.index_table)} indices"
@@ -329,12 +340,12 @@ def compose(
                 f"  {index_name} {index.sample_count} samples {str(index.get_stored_size())}"
             )
 
-        index_summary_file = os.path.join(output_dir, f"{name}_summary.txt")
+        index_summary_file = os.path.join(output_dir, f"{name}_summary.csv")
         with open(index_summary_file, "w") as f:
-            f.write("span sample_count stored_size_GB stored_size_str\n")
+            f.write("span,sample_count,stored_size_GB,stored_size_str\n")
             for span_id, span_obj in sorted(db_instance.span_table.items()):
                 size = span_obj.get_total_stored_size()
-                summary_line = f"{span_id} {span_obj.get_sample_count()} {size.byte_count/(1000**3)} {str(size)}"
+                summary_line = f"{span_id},{span_obj.get_sample_count()},{size.byte_count/(1000**3)},{str(size)}"
                 f.write(summary_line + "\n")
         logger.info(f"Exporting database in {format} format to {output_dir}...")
 
@@ -355,7 +366,7 @@ def compose(
             if not exact_partition_count and i.partition_count > 1:
                 i.partition_count = 1 << (i.partition_count - 1).bit_length()
 
-            i.partition_count = min(max(1, i.partition_count), partition_count_limit)
+            i.partition_count = min(max(4, i.partition_count), partition_count_limit)
             logger.debug(f"  {i.name}: partitioning into {i.partition_count} files")
 
         export_db(
@@ -367,12 +378,7 @@ def compose(
             db_name=name,
         )
 
-        if not no_split:
-            logger.info(
-                f"Exported {len(db_instance.index_table)} index files (split mode)"
-            )
-        else:
-            logger.info(f"Exported database to {output_dir}")
+        logger.info(f"Exported database to {output_dir}")
         logger.info(f"Created index definition for {len(all_samples)} samples")
 
     except Exception as e:
@@ -401,28 +407,53 @@ def export_db(
     if format not in ("yaml", "json"):
         raise ValueError(f"Unsupported format: {format}. Must be 'yaml' or 'json'")
 
-    # Export to file(s)
-    if split:
-        # Export each index to its own file
-        span_registry = {}
-        for index_id, index_data in indices_data.index_table.items():
-            filepath = os.path.join(output_dir, f"{index_id}.{format}")
-            db_tools.save_db(
-                db.IndexDB(name=index_id, index_table={index_id: index_data}), filepath
-            )
-            if not index_data.span in span_registry:
-                span_registry[index_data.span] = []
-            span_registry[index_data.span].append(f"{index_id}.{format}")
+    total_size = 0
 
-        span_registry_file = os.path.join(
-            output_dir, f"{db_name}_span_registry.{format}"
-        )
-        print(span_registry_file)
-        db_tools.serialize(span_registry_file, span_registry, sort_keys=True)
-    else:
+    # Export to file(s)
+    span_registry = {}
+    for span_id, span_data in indices_data.span_table.items():
+        span_size = span_data.get_total_stored_size()
+        span_registry[span_id] = {}
+        span_registry[span_id]["infos"] = {
+            "total_sample_count": span_data.get_sample_count(),
+            "total_size_bytes": span_size.byte_count,
+            "total_size_str": str(span_size),
+        }
+        span_registry[span_id]["indices"] = {}
+
+        for index_id, index_data in span_data.index_table.items():
+            if index_data.merge_name:
+                if not index_data.merge_name in span_registry[span_id]["indices"]:
+                    span_registry[span_id]["indices"][index_data.merge_name] = []
+                span_registry[span_id]["indices"][index_data.merge_name].append(
+                    index_data.name
+                )
+            else:
+                span_registry[span_id]["indices"][index_id] = None
+
+            if split:
+                # Export each index to its own file
+                db_tools.save_db(
+                    db.IndexDB(name=index_id, index_table={index_id: index_data}),
+                    os.path.join(output_dir, f"{index_id}.{format}"),
+                )
+
+        total_size += span_size.byte_count
+
+    span_registry_file = os.path.join(output_dir, f"{db_name}.{format}")
+
+    if not split:
         # Export all indices to a single file
         filepath = os.path.join(output_dir, f"{db_name}.{format}")
         db_tools.save_db(indices_data, filepath)
+
+    db_tools.serialize(
+        span_registry_file,
+        {"type": db.SerializedDataType.SPAN_DEFINITION.value, "data": span_registry},
+        sort_keys=True,
+    )
+
+    logger.info(f"Estimated total index size: {ByteCounter.auto(total_size)}")
 
 
 def read_samples(filename, cli_kmer_size=None):

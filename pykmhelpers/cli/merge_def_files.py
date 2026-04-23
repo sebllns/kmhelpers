@@ -5,10 +5,12 @@ import logging
 import click
 import yaml
 
+from .experimental import experimental
+
 logger = logging.getLogger(__name__)
 
 
-@click.command(name="merge-def-files")
+@experimental.command(name="merge-def-files")
 @click.argument("file_1", type=click.Path(exists=True, file_okay=True, dir_okay=False))
 @click.argument("file_2", type=click.Path(exists=True, file_okay=True, dir_okay=False))
 @click.argument("output", type=click.Path(file_okay=True, dir_okay=False))

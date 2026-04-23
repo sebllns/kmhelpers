@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pykmhelpers"
-version = "0.6.1"
+version = "0.6.2"
 description = "A Python toolkit for managing, compressing, and querying indexes with kmindex"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
+license = { text = "GPL-3.0-only" }
 authors = [
-    {name = "Sébastien BELLENOUS", email = "kmhelpers@groupes.renater.fr"},
+    { name = "Sébastien BELLENOUS", email = "kmhelpers@groupes.renater.fr" },
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -23,11 +23,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
 ]
 
-dependencies = [
-    "psutil>=5.8.0",
-    "pyyaml>=5.4",
-    "click>=8.3.1",
-]
+dependencies = ["psutil>=5.8.0", "pyyaml>=5.4", "click>=8.3.1"]
 
 [project.optional-dependencies]
 dev = [
@@ -76,10 +72,7 @@ addopts = "--cov=pykmhelpers --cov-report=html --cov-report=term-missing"
 
 [tool.coverage.run]
 source = ["pykmhelpers"]
-omit = [
-    "*/tests/*",
-    "*/test_*.py",
-]
+omit = ["*/tests/*", "*/test_*.py"]
 
 [tool.coverage.report]
 exclude_lines = [

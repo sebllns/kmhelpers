@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from dataclasses import dataclass, field
 from enum import Enum
@@ -8,6 +9,11 @@ import yaml
 
 from ..core.bloom_filter import BloomFilterSpecs
 from ..core.byte import ByteCounter, SizeFormat
+
+
+class SerializedDataType(str, Enum):
+    INDEX_DEFINITION = "index"
+    SPAN_DEFINITION = "span"
 
 
 class DbFields(str, Enum):
@@ -73,7 +79,7 @@ class Item:
             cls._id_counter = 0
             cls._auto_increment_enabled = True
         if unique_name:
-            cls._used_names = set()
+            cls._instances: dict[str, "Item"] = {}
             cls._unique_name_enabled = True
 
     def __post_init__(self):
@@ -84,11 +90,34 @@ class Item:
 
         # Global uniqueness check
         if hasattr(type(self), "_unique_name_enabled") and self.name:
-            if self.name in type(self)._used_names:
+            if self.name in type(self)._instances:
                 raise ValueError(
                     f"Name '{self.name}' already exists in {type(self).__name__}"
                 )
-            type(self)._used_names.add(self.name)
+            type(self)._instances[self.name] = self
+
+    def __del__(self):
+        if hasattr(type(self), "_unique_name_enabled") and self.name:
+            if type(self)._instances and self.name in type(self)._instances:
+                del type(self)._instances[self.name]
+
+    @classmethod
+    def get_instance(cls, name: str) -> Optional["Item"]:
+        if hasattr(cls, "_unique_name_enabled"):
+            return cls._instances.get(name)
+        return None
+
+    @classmethod
+    def remove_instance(cls, name: str) -> Optional["Item"]:
+        if hasattr(cls, "_unique_name_enabled"):
+            return cls._instances.pop(name)
+        return None
+
+    @classmethod
+    def get_all(cls) -> Optional[list["Item"]]:
+        if hasattr(cls, "_unique_name_enabled"):
+            return list(cls._instances.values())
+        return None
 
     def create_link(self, name: str, value: str):
         if not self.links:
@@ -136,6 +165,7 @@ class IndexDefinition(Item, auto_increment=True):
     abundance_min: int = DbFields.ABUNDANCE_MIN.get_default() or 2
     assembled: bool = DbFields.ASSEMBLED.get_default() or False
     samples: dict[str, Sample] = field(default_factory=dict)
+    merge_name: Optional[str] = None
 
     @property
     def sample_count(self):
@@ -177,6 +207,7 @@ class IndexDefinition(Item, auto_increment=True):
 class IndexDB(Item, auto_increment=True, unique_name=True):
     index_table: dict[str, "IndexDefinition"] = field(default_factory=dict)
     span_table: dict[int, "Span"] = field(default_factory=dict)
+    # merge_table: dict[str, dict] = field(default_factory=dict)
 
     def add_index(self, index: IndexDefinition):
         assert index.name, "Index name empty or null"
@@ -188,6 +219,15 @@ class IndexDB(Item, auto_increment=True, unique_name=True):
                 name=str(index.span),
             )
         self.span_table[index.span].index_table[index.name] = index
+        # parent_index = index.get_parent()
+        # if parent_index:
+        #     if not self.merge_table:
+        #         self.merge_table = {}
+        #     merged_name = parent_index[:-2]
+        #     if not merged_name in self.merge_table:
+        #         self.merge_table[merged_name] = {}
+        #         self.merge_table[merged_name]["parts"] = [parent_index]
+        #     self.merge_table[merged_name]["parts"].append(index.name)
 
     def create_index(
         self,
@@ -234,20 +274,24 @@ class IndexDefinitionTools:
         else:
             return value
 
+    def get_merge_name(self, db_name: str, prefix: str, span: int) -> str:
+        return f"{db_name}_{prefix}_{span}"
+
     def get_index_name(self, db_name: str, prefix: str, span: int, segment: int) -> str:
-        return f"{db_name}_{prefix}_{span}_{segment}"
+        return f"{db_name}_{prefix}_{span}_p{segment}"
 
-    def load_db(self, filename: str) -> IndexDB:
+    def _load_db_file(self, filename: str) -> IndexDB:
         """Load index database from JSON or YAML file."""
-        with open(filename, "r") as f:
-            if filename.endswith(".json"):
-                data = json.load(f)
-            elif filename.endswith((".yaml", ".yml")):
-                data = yaml.safe_load(f)
-            else:
-                raise ValueError(f"Unsupported file format: {filename}")
+        data = self.deserialize(filename)
+        assert data, f"Could not deserialize definition data from {filename}"
+        assert "type" in data, "Definition file is missing required field 'type'"
+        assert "data" in data, "Definition file is missing required field 'data'"
+        assert (
+            data["type"] == SerializedDataType.INDEX_DEFINITION
+        ), f"Bad input type: {data["type"]}"
 
-        index_db = IndexDB()
+        data = data["data"]
+        index_db = IndexDB(name=os.path.splitext(os.path.basename(filename))[0])
         for index_id, index_data in data.items():
             samples = {}
             for sample_id, sample_data in index_data.get(
@@ -290,6 +334,18 @@ class IndexDefinitionTools:
 
         return index_db
 
+    def _load_db_dir(self, path: str) -> list[IndexDB]:
+        assert os.path.isdir(path), f"Not a directory: {path}"
+        res = []
+        for e in os.scandir(path):
+            if e.is_file and e.path.endswith((".yaml", ".yml", ".json")):
+                try:
+                    res.append(self._load_db_file(e.path))
+                except Exception as e:
+                    print(e)
+                    pass
+        return res
+
     def serialize(self, filename, data, sort_keys=False):
         with open(filename, "w") as f:
             if filename.endswith(".json"):
@@ -298,6 +354,17 @@ class IndexDefinitionTools:
                 yaml.dump(data, f, default_flow_style=False, sort_keys=sort_keys)
             else:
                 raise ValueError(f"Unsupported file format: {filename}")
+
+    def deserialize(self, filename: str) -> Any:
+        data = None
+        with open(filename, "r") as f:
+            if filename.endswith(".json"):
+                data = json.load(f)
+            elif filename.endswith((".yaml", ".yml")):
+                data = yaml.safe_load(f)
+            else:
+                raise ValueError(f"Unsupported file format: {filename}")
+        return data
 
     def save_db(self, index_db: IndexDB, filename: str) -> None:
         """Save index database to JSON or YAML file."""
@@ -356,7 +423,16 @@ class IndexDefinitionTools:
                 self.get_field_name(DbFields.SAMPLES): samples_data,
             }
 
-        self.serialize(filename, data)
+        self.serialize(
+            filename, {"type": SerializedDataType.INDEX_DEFINITION.value, "data": data}
+        )
+
+    def load_db(self, path: str) -> list[IndexDB]:
+        if os.path.isfile(path) and path.endswith((".yaml", ".yml", ".json")):
+            return [self._load_db_file(path)]
+        elif os.path.isdir(path):
+            return self._load_db_dir(path)
+        raise NotImplementedError(f"Can not load DB from {path}: unsupported format.")
 
     def clean_sample_id(self, sample_id) -> str:
         """

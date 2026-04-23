@@ -94,8 +94,8 @@ from pykmhelpers.operations.compressor import PermutationFlag
     help="Enable compression metrics collection",
 )
 @click.option(
-    "--force",
-    "-f",
+    "--yes",
+    "-y",
     is_flag=True,
     help="Overwrite existing output directory",
 )
@@ -119,7 +119,7 @@ def exp_compress(
     with_size_comparison,
     compare_unordered,
     enable_metrics,
-    force,
+    yes,
     verbose,
 ):
     """Compress k-mer index partitions.
@@ -139,9 +139,9 @@ def exp_compress(
     """
 
     # Check if output dir exists
-    if os.path.exists(output_dir) and not force:
+    if os.path.exists(output_dir) and not yes:
         raise click.ClickException(
-            f"Output directory exists. Use --force to overwrite."
+            f"Output directory exists. Use --yes to overwrite."
         )
 
     click.echo("Initializing compression...")

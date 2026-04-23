@@ -1,13 +1,25 @@
 """Shared utilities for CLI commands."""
 
+import json
 import logging
-import os
+from typing import Any
 
-import click
 import yaml
 
 from pykmhelpers.core.byte import ByteCounter, SizeFormat
 from pykmhelpers.pipeline.fof import FofManager
+
+
+def deserialize(filename: str) -> Any:
+    data = None
+    with open(filename, "r") as f:
+        if filename.endswith(".json"):
+            data = json.load(f)
+        elif filename.endswith((".yaml", ".yml")):
+            data = yaml.safe_load(f)
+        else:
+            raise NotImplementedError(f"Unsupported file format")
+    return data
 
 
 def force_verbose_mode():
@@ -66,27 +78,3 @@ def estimate_build_size(
         "index_size_min_bytes": index_size_bytes,
         "index_size_min_str": str(index_size_obj),
     }
-
-
-def get_project_config(project_path):
-    """Load project configuration from .kmhelpers.yaml"""
-    config_path = os.path.join(project_path, ".kmhelpers.yaml")
-    if not os.path.exists(config_path):
-        raise click.ClickException(
-            f"Project not initialized. Run 'kmhelpers project create {project_path}' first"
-        )
-    try:
-        with open(config_path, "r") as f:
-            return yaml.safe_load(f)
-    except Exception as e:
-        raise click.ClickException(f"Failed to load project config: {e}")
-
-
-def save_project_config(project_path, config):
-    """Save project configuration to .kmhelpers.yaml"""
-    config_path = os.path.join(project_path, ".kmhelpers.yaml")
-    try:
-        with open(config_path, "w") as f:
-            yaml.dump(config, f, default_flow_style=False, sort_keys=False)
-    except Exception as e:
-        raise click.ClickException(f"Failed to save project config: {e}")

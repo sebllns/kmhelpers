@@ -3,7 +3,10 @@
       "source.organizeImports": "explicit"
     },
     "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
     "[python]": {
       "editor.defaultFormatter": "ms-python.black-formatter"
-    }
+    },
+    "python.defaultInterpreterPath": "${workspaceFolder}/.env/bin/python",
+    "python.terminal.activateEnvironment": true
   }
