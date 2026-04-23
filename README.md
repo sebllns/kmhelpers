@@ -102,7 +102,7 @@ Copyright (c) 2026 Sébastien Bellenous, Genscale, INRIA
 
 For questions, bug reports, or contributions, please contact:
 
-- **Author**: Sébastien BELLENOUS
+- **Author**: [Sébastien BELLENOUS](https://github.com/sebllns)
 - **Email**: kmhelpers@groupes.renater.fr
 - **Repository**: [GitLab](https://gitlab.inria.fr/omicfinder/kmhelpers)
 - **Supervisor**: [Pierre Peterlongo](https://github.com/pierrepeterlongo)
