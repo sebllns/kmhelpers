@@ -2,7 +2,7 @@
 
 ---
 
-<img src="kmhelpers-logo-v1.png" alt="Kmhelpers Logo" width="64" height="64">
+<img src="assets/kmhelpers-logo-v1.png" alt="Kmhelpers Logo" width="64" height="64">
 
 A Python toolkit for managing, compressing, and querying [kmindex](https://github.com/tlemane/kmindex) indices efficiently.
 
