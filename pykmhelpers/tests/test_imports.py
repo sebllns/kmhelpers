@@ -23,7 +23,7 @@ class TestDirectImports(unittest.TestCase):
 
     def test_core_wrapper_imports(self):
         """Test importing from pykmhelpers.core.wrapper"""
-        from pykmhelpers.core.wrapper import KmindexWrapper
+        from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
         self.assertIsNotNone(KmindexWrapper)
 
     def test_core_bloom_filter_imports(self):
@@ -55,13 +55,8 @@ class TestDirectImports(unittest.TestCase):
 
     def test_operations_sequence_imports(self):
         """Test importing from pykmhelpers.operations.sequence"""
-        from pykmhelpers.operations.sequence import Sequence
+        from pykmhelpers.core.sequence import Sequence
         self.assertIsNotNone(Sequence)
-
-    def test_operations_kmer_imports(self):
-        """Test importing from pykmhelpers.operations.kmer"""
-        from pykmhelpers.operations.kmer import KmerOperation
-        self.assertIsNotNone(KmerOperation)
 
     def test_operations_fasta_imports(self):
         """Test importing from pykmhelpers.operations.fasta"""
@@ -109,8 +104,6 @@ class TestOperationsPackageImports(unittest.TestCase):
             Fasta, FASTAReader,
             FofManager,
             KmindexQuery, KmindexQueryResult,
-            Sequence,
-            KmerOperation,
             ByteCounter, SizeFormat, SizeUnit
         )
         self.assertIsNotNone(IndexBuilder)
@@ -121,8 +114,6 @@ class TestOperationsPackageImports(unittest.TestCase):
         self.assertIsNotNone(FofManager)
         self.assertIsNotNone(KmindexQuery)
         self.assertIsNotNone(KmindexQueryResult)
-        self.assertIsNotNone(Sequence)
-        self.assertIsNotNone(KmerOperation)
         self.assertIsNotNone(ByteCounter)
         self.assertIsNotNone(SizeFormat)
         self.assertIsNotNone(SizeUnit)
@@ -145,7 +136,6 @@ class TestTopLevelImports(unittest.TestCase):
             FofManager,
             KmindexQuery, KmindexQueryResult,
             Sequence,
-            KmerOperation,
             ByteCounter, SizeFormat, SizeUnit
         )
         # Verify all are accessible
@@ -167,7 +157,6 @@ class TestTopLevelImports(unittest.TestCase):
         self.assertIsNotNone(KmindexQuery)
         self.assertIsNotNone(KmindexQueryResult)
         self.assertIsNotNone(Sequence)
-        self.assertIsNotNone(KmerOperation)
         self.assertIsNotNone(ByteCounter)
         self.assertIsNotNone(SizeFormat)
         self.assertIsNotNone(SizeUnit)

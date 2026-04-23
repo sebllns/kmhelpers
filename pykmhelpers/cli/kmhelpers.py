@@ -3,13 +3,19 @@
 Unified CLI for kmhelpers - a toolkit for managing, compressing, and querying k-mer indices.
 """
 
+import datetime
 import logging
 import os
+import traceback
 
 import click
 
 from pykmhelpers import Bin, Main, __version__
-from pykmhelpers.cli.build import build
+
+# Import all groups and commands
+from pykmhelpers.cli.about import about
+from pykmhelpers.cli.apply import apply
+from pykmhelpers.cli.build_subindex import build_subindex
 from pykmhelpers.cli.compose import compose
 from pykmhelpers.cli.compress import kmindex_compress
 from pykmhelpers.cli.count_kmers import count_kmers
@@ -17,15 +23,16 @@ from pykmhelpers.cli.count_kmers import count_kmers
 # Import experimental commands
 from pykmhelpers.cli.exp_compression import exp_compress
 from pykmhelpers.cli.experimental import experimental
-
-# Import all groups and commands
 from pykmhelpers.cli.fof import fof
 from pykmhelpers.cli.kmindex import kmindex
+from pykmhelpers.cli.list import list_samples
 from pykmhelpers.cli.merge_def_files import merge_def_files
 from pykmhelpers.cli.merge_span import merge_span
 from pykmhelpers.cli.query import query
 from pykmhelpers.cli.registry import registry
 from pykmhelpers.cli.test import test
+from pykmhelpers.core.log import Log
+from pykmhelpers.core.utils import Toolbox
 
 
 class ColoredFormatter(logging.Formatter):
@@ -106,7 +113,7 @@ class SectionedGroup(click.Group):
         """Invoke the group with global exception handling."""
         try:
             return super().invoke(ctx)
-        except (click.ClickException, SystemExit):
+        except (click.ClickException, click.exceptions.Exit, SystemExit):
             # Let Click exceptions and sys.exit pass through
             raise
         except Exception as e:
@@ -114,59 +121,104 @@ class SectionedGroup(click.Group):
             logger = logging.getLogger(__name__)
             logger.critical(f"Unhandled exception: {type(e).__name__}", exc_info=True)
             click.echo(f"\nFATAL: {type(e).__name__}: {str(e)}", err=True)
+
+            # Write crash dump with timestamp
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            dump_path = f"kmhelpers_{timestamp}.dump"
+            try:
+                with open(dump_path, "w") as f:
+                    f.write(
+                        f"kmhelpers crash dump - {datetime.datetime.now().isoformat()}\n"
+                    )
+                    f.write("=" * 60 + "\n\n")
+                    f.write(f"Exception: {type(e).__name__}: {e}\n\n")
+                    f.write("Traceback:\n")
+                    traceback.print_exc(file=f)
+                click.echo(f"Crash dump written to: {dump_path}", err=True)
+            except Exception:
+                pass
+
             ctx.exit(1)
 
 
 @click.command(
-    cls=SectionedGroup, context_settings={"help_option_names": ["-h", "--help"]}
+    cls=SectionedGroup,
+    context_settings={"help_option_names": ["-h", "--help"]},
 )
 @click.version_option(version=__version__, prog_name="kmhelpers")
 @click.option(
     "-v",
     "--verbose",
     count=True,
-    help="Increase verbosity: -v for WARNING, -vv for INFO, -vvv for DEBUG",
+    help="Increase verbosity: -v for INFO, -vv for DEBUG",  # TODO , -vvv for TRACE
+)
+@click.option(
+    "-q",
+    "--quiet",
+    count=True,
+    help="Decrease verbosity: -q for ERROR, -qq for CRITICAL,",
+)
+@click.option(
+    "--no-formatting",
+    envvar="KMHELPERS_WITHOUT_FORMATTING",
+    is_flag=True,
+    help="Disable log formatter",
 )
 @click.option(
     "--log-file",
+    envvar="KMHELPERS_LOG_FILE",
     type=click.Path(),
     default=None,
     help="Path to log file (logs will be written in addition to console output)",
 )
 @click.option(
-    "--init-path",
-    is_flag=True,
-    default=False,
-    help="Initialize environment paths and check for required binaries",
-)
-@click.option(
-    "--bin-path",
-    type=click.Path(file_okay=False, dir_okay=True),
-    default="./bin",
-    help="Default path for binary executables (default: ./bin)",
-)
-@click.option(
-    "--check-all",
-    is_flag=True,
-    default=True,
-    help="Check that all required binaries are available in PATH",
-)
-@click.option(
     "--chdir",
+    envvar="KMHELPERS_RUN_DIR",
     type=click.Path(file_okay=False, dir_okay=True),
-    default="",
+    required=False,
     help="Change to directory before initialization",
 )
-def cli(verbose, log_file, init_path, bin_path, check_all, chdir):
+@click.option(
+    "--yes",
+    "-y",
+    envvar="KMHELPERS_SKIP_CONFIRMATION",
+    is_flag=True,
+    help="Automatically answer yes to all confirmation prompts.",
+)
+@click.pass_context
+def cli(
+    ctx,
+    verbose,
+    quiet,
+    no_formatting,
+    log_file,
+    chdir,
+    yes,
+):
     """kmhelpers - A toolkit for managing, compressing, and querying k-mer indices."""
+    ctx.ensure_object(dict)
+    ctx.obj["yes"] = yes
     # Configure logging based on verbosity level
     log_levels = {
-        0: logging.ERROR,  # default
-        1: logging.WARNING,  # -v
-        2: logging.INFO,  # -vv
-        3: logging.DEBUG,  # -vvv
+        0: logging.CRITICAL,  # -qq
+        1: logging.ERROR,  # -q
+        2: logging.WARNING,  # default
+        3: logging.INFO,  # -v
+        4: logging.DEBUG,  # -vv
+        # 5: logging_TRACE # -vvv
     }
-    log_level = log_levels.get(min(verbose, 3), logging.ERROR)
+
+    # TODO
+    # Change to
+    # logging_TRACE = logging.DEBUG - 1
+    # logging.addLevelName(logging_TRACE, "TRACE")
+    #    logging.log()
+    # Use Log. as interface
+
+    default_level = os.getenv("KMHELPERS_LOG_LEVEL", 2)
+    log_level = log_levels.get(
+        max(min(default_level + verbose - quiet, 4), 0), logging.ERROR
+    )
 
     # Configure root logger with different format for debug level
     log_format = (
@@ -182,11 +234,18 @@ def cli(verbose, log_file, init_path, bin_path, check_all, chdir):
     # Create console handler with colored formatter
     console_handler = logging.StreamHandler()
     console_handler.setLevel(log_level)
-    formatter = ColoredFormatter(
-        log_format,
-        datefmt="%Y-%m-%d %H:%M:%S",
-        debug_mode=(log_level == logging.DEBUG),
-    )
+
+    if not no_formatting:
+        formatter = ColoredFormatter(
+            log_format,
+            datefmt="%Y-%m-%d %H:%M:%S",
+            debug_mode=(log_level == logging.DEBUG),
+        )
+    else:
+        formatter = logging.Formatter(
+            "%(levelname)-8s | %(message)s",
+        )
+
     console_handler.setFormatter(formatter)
 
     # Remove any existing handlers and add the new one
@@ -199,34 +258,39 @@ def cli(verbose, log_file, init_path, bin_path, check_all, chdir):
             file_handler = logging.FileHandler(log_file, mode="w")
             file_handler.setLevel(log_level)
             # Use plain formatter for file (no colors)
-            file_formatter = logging.Formatter(
-                log_format,
-                datefmt="%Y-%m-%d %H:%M:%S",
-            )
+            if not no_formatting:
+                file_formatter = logging.Formatter(
+                    log_format,
+                    datefmt="%Y-%m-%d %H:%M:%S",
+                )
+            else:
+                file_formatter = logging.Formatter(
+                    "%(levelname)-8s | %(message)s",
+                )
             file_handler.setFormatter(file_formatter)
             root_logger.addHandler(file_handler)
             logger = logging.getLogger(__name__)
             logger.debug(f"Logging to file: {log_file}")
+            Log.log_file = Toolbox.get_canonical_path(log_file)
         except Exception as e:
             click.echo(f"Warning: Could not open log file '{log_file}': {e}", err=True)
 
-    if init_path:
-        Main.init(default_bin_path=bin_path, check_all=check_all, chdir=chdir)
-    elif chdir:
-        logging.info(f"cd {chdir}")
+    if chdir:
+        click.echo(f"cd {chdir}", err=True)
         os.chdir(chdir)
     try:
         Bin.check_kmindex()
     except RuntimeError as e:
-        click.echo("Could not fin kmindex command in path.", err=True)
-        click.echo(e, err=True)
+        click.echo("Could not find kmindex command in path.", err=True)
 
 
 # Register main commands
+list_samples.section = "Main commands"  # type: ignore[assignment]
+cli.add_command(list_samples)
 compose.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(compose)
-build.section = "Main commands"  # type: ignore[assignment]
-cli.add_command(build)
+apply.section = "Main commands"  # type: ignore[assignment]
+cli.add_command(apply)
 query.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(query)
 kmindex_compress.section = "Main commands"  # type: ignore[assignment]
@@ -237,10 +301,9 @@ count_kmers.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(count_kmers)
 fof.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(fof)
-merge_span.section = "Utilities"  # type: ignore[assignment]
-cli.add_command(merge_span)
-merge_def_files.section = "Utilities"  # type: ignore[assignment]
-cli.add_command(merge_def_files)
+# ! DEPRECATED
+# build_subindex.section = "Utilities"  # type: ignore[assignment]
+# cli.add_command(build_subindex)
 registry.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(registry)
 kmindex.section = "Utilities"  # type: ignore[assignment]
@@ -251,7 +314,8 @@ experimental.section = "Other"  # type: ignore[assignment]
 cli.add_command(experimental)
 test.section = "Other"  # type: ignore[assignment]
 cli.add_command(test)
-
+about.section = "Other"  # type: ignore[assignment]
+cli.add_command(about)
 
 if __name__ == "__main__":
     cli()

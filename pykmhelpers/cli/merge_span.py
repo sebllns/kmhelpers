@@ -6,6 +6,8 @@ import os
 import click
 import yaml
 
+from .experimental import experimental
+
 logger = logging.getLogger(__name__)
 
 
@@ -18,7 +20,7 @@ def format_bytes(num_bytes):
     return f"{num_bytes:.2f}PB"
 
 
-@click.command(name="merge-span")
+@experimental.command(name="merge-span")
 @click.argument("source_span")
 @click.argument("target_span")
 @click.option(
@@ -34,12 +36,12 @@ def format_bytes(num_bytes):
     help="Database name (e.g., tol_assembly)",
 )
 @click.option(
-    "--force",
-    "-f",
+    "--yes",
+    "-y",
     is_flag=True,
     help="Skip confirmation prompt",
 )
-def merge_span(source_span, target_span, index_dir, db_name, force):
+def merge_span(source_span, target_span, index_dir, db_name, yes):
     """Merge files from source span group into target span group.
 
     This command merges SOURCE_SPAN group to TARGET_SPAN group:
@@ -86,8 +88,8 @@ def merge_span(source_span, target_span, index_dir, db_name, force):
     for f in source_files:
         click.echo(f"  - {f}")
 
-    # Confirm if not forced
-    if not force:
+    # Confirm if not yes
+    if not yes:
         click.echo(
             f"\nThis will merge all files from group {source_group} to group {target_group}"
         )

@@ -1,13 +1,15 @@
-from dataclasses import dataclass
-import os
-import sys
-from pathlib import Path
-from ..core.index import KmtricksIndex, IndexCompressionState
-from ..core.utils import Toolbox, Kmindex, BlockCompressorZSTD
-from enum import Enum
+import dataclasses
+import enum
 import filecmp
+import os
+import pathlib
+import sys
 
-class PermutationFlag(Enum):
+import pykmhelpers.core.index
+import pykmhelpers.core.utils
+
+
+class PermutationFlag(enum.Enum):
     """
     Flag to control column permutation during compression.
 
@@ -20,7 +22,7 @@ class PermutationFlag(Enum):
     PERMUTATION_DISABLED = 1
 
 
-@dataclass
+@dataclasses.dataclass
 class CompressionParams:
     """
     Configuration parameters for matrix compression.
@@ -72,7 +74,7 @@ class Compressor:
         self.enable_metrics = enable_metrics
 
     def _write_csv_header(
-        self, size_path: Path, include_unordered: bool
+        self, size_path: pathlib.Path, include_unordered: bool
     ) -> None:
         """
         Write CSV header to size comparison file if it doesn't exist.
@@ -88,13 +90,11 @@ class Compressor:
                         "partition,original_byte_length,ordered_byte_length,unordered_byte_length\n"
                     )
                 else:
-                    f.write(
-                        "partition,original_byte_length,ordered_byte_length\n"
-                    )
+                    f.write("partition,original_byte_length,ordered_byte_length\n")
 
     def _write_size_comparison(
         self,
-        size_path: Path,
+        size_path: pathlib.Path,
         partition: int,
         original_size: int,
         ordered_size: int,
@@ -121,10 +121,10 @@ class Compressor:
     def _compress_and_measure_unordered(
         self,
         params: CompressionParams,
-        idx: KmtricksIndex,
+        idx: pykmhelpers.core.index.KmtricksIndex,
         partition: int,
-        permutation_path: Path,
-        config_path: Path,
+        permutation_path: pathlib.Path,
+        config_path: pathlib.Path,
         json_path: str,
         unordered_path: str,
     ) -> int:
@@ -156,7 +156,7 @@ class Compressor:
             PermutationFlag.PERMUTATION_DISABLED,
         )
         assert os.path.isfile(unordered_path), f"File not found: {unordered_path}"
-        unordered_size = Toolbox.get_size(unordered_path)
+        unordered_size = pykmhelpers.core.utils.Toolbox.get_size(unordered_path)
         os.remove(unordered_path)
         return unordered_size
 
@@ -233,8 +233,8 @@ class Compressor:
             print(f"Compress {input_matrix_path}...")
 
             # TODO
-           # tmp_file = output_compressed_path + ".tmp"
-            BlockCompressorZSTD.compress(
+            # tmp_file = output_compressed_path + ".tmp"
+            pykmhelpers.core.utils.BlockCompressorZSTD.compress(
                 input_matrix_path,
                 matrix_columns_count,
                 permutation_path,
@@ -247,29 +247,38 @@ class Compressor:
                 params.threshold,
                 disable_permutation,
             )
-    
-            assert os.path.isfile(output_compressed_path), f"{output_compressed_path} not found"
-            assert os.path.isfile(output_compressed_path + ".ef"), f"{output_compressed_path}.ef not found"
+
+            assert os.path.isfile(
+                output_compressed_path
+            ), f"{output_compressed_path} not found"
+            assert os.path.isfile(
+                output_compressed_path + ".ef"
+            ), f"{output_compressed_path}.ef not found"
 
             if params.enable_check:
                 tmp_file = f"{output_compressed_path}_tmp"
-                BlockCompressorZSTD.decompress(output_compressed_path, matrix_columns_count, tmp_file, config_path)
+                pykmhelpers.core.utils.BlockCompressorZSTD.decompress(
+                    output_compressed_path, matrix_columns_count, tmp_file, config_path
+                )
                 assert os.path.isfile(tmp_file), f"{tmp_file} not found"
-                BlockCompressorZSTD.reverse_permutation(tmp_file, matrix_columns_count, permutation_path)
-                assert filecmp.cmp(input_matrix_path, tmp_file, shallow=False), "Could not reverse permutation"
+                pykmhelpers.core.utils.BlockCompressorZSTD.reverse_permutation(
+                    tmp_file, matrix_columns_count, permutation_path
+                )
+                assert filecmp.cmp(
+                    input_matrix_path, tmp_file, shallow=False
+                ), "Could not reverse permutation"
                 os.remove(tmp_file)
-
 
     def compress_partition(
         self,
         params: CompressionParams,
-        idx: KmtricksIndex,
+        idx: pykmhelpers.core.index.KmtricksIndex,
         partition: int,
         output_dir: str,
-        permutation_path: Path,
-        config_path: Path,
-        metrics_path: Path,
-        size_path: Path,
+        permutation_path: pathlib.Path,
+        config_path: pathlib.Path,
+        metrics_path: pathlib.Path,
+        size_path: pathlib.Path,
         unordered_path: str,
         permutation_flag: PermutationFlag = PermutationFlag.PERMUTATION_ENABLED,
         compare_unordered: bool = False,
@@ -298,7 +307,7 @@ class Compressor:
         Raises:
             Exception: If compression fails.
         """
-        compressed_path = Kmindex.get_matrix_path(
+        compressed_path = pykmhelpers.core.utils.Kmindex.get_matrix_path(
             index_path=output_dir, partition=partition, is_compressed=True
         )
 
@@ -315,7 +324,6 @@ class Compressor:
                 else ""
             )
 
-
         self.compress_file(
             params,
             idx.get_matrix_path(partition, False),
@@ -330,7 +338,9 @@ class Compressor:
         # Handle size comparison
         if params.with_size_comparison:
             original_size = idx.get_matrix_byte_size(partition, False)
-            ordered_size = Kmindex.get_bytes_per_matrix(output_dir, partition, True)
+            ordered_size = pykmhelpers.core.utils.Kmindex.get_bytes_per_matrix(
+                output_dir, partition, True
+            )
             should_compare_unordered = (
                 compare_unordered
                 and permutation_flag != PermutationFlag.PERMUTATION_DISABLED
@@ -359,7 +369,10 @@ class Compressor:
                 )
 
     def compress_full_index(
-        self, params: CompressionParams, idx: KmtricksIndex, output_dir: str = ""
+        self,
+        params: CompressionParams,
+        idx: pykmhelpers.core.index.KmtricksIndex,
+        output_dir: str = "",
     ) -> None:
         """
         Compress all partitions of a kmtricks index.
@@ -378,9 +391,7 @@ class Compressor:
             This method delegates to compress_index_selection with all partitions
             included in the matrix list.
         """
-        print(
-            f"Compressing index {idx.index_id} with {idx.nb_partitions} partitions..."
-        )
+        print(f"Compressing index {idx.id} with {idx.nb_partitions} partitions...")
         self.compress_index_selection(
             params, idx, 1, list(range(idx.nb_partitions + 1)), output_dir
         )
@@ -388,7 +399,7 @@ class Compressor:
     def compress_index_selection(
         self,
         params: CompressionParams,
-        idx: KmtricksIndex,
+        idx: pykmhelpers.core.index.KmtricksIndex,
         ref_matrix: int,
         matrix_list: list[int] = [],
         output_dir: str = "",
@@ -444,15 +455,15 @@ class Compressor:
         if not output_dir:
             output_dir = idx.dir_path
 
-        output_dir = Toolbox.get_canonical_path(output_dir)
+        output_dir = pykmhelpers.core.utils.Toolbox.get_canonical_path(output_dir)
 
-        metrics_path = Path(output_dir, "metrics")
-        matrices_path = Path(output_dir, "matrices")
-        permutation_path = Path(output_dir, "permutation.bin")
-        config_path = Path(output_dir, "config.cfg")
+        metrics_path = pathlib.Path(output_dir, "metrics")
+        matrices_path = pathlib.Path(output_dir, "matrices")
+        permutation_path = pathlib.Path(output_dir, "permutation.bin")
+        config_path = pathlib.Path(output_dir, "config.cfg")
         size_path = metrics_path / "sizes.csv"
 
-        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
         matrices_path.mkdir(parents=True, exist_ok=True)
 
         if self.enable_metrics:
@@ -511,4 +522,4 @@ class Compressor:
                 print(error, file=sys.stderr)
 
         if output_dir == idx.dir_path:
-            idx.compress_state = IndexCompressionState.BOTH
+            idx.compress_state = pykmhelpers.core.index.IndexCompressionState.BOTH

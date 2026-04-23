@@ -1,15 +1,27 @@
 """K-mer index registry management commands."""
 
-import os
 import json
+import os
+import shutil
+
 import click
-from pykmhelpers import KmindexRegistry, KmtricksIndex
+
+from pykmhelpers import Kmindex, KmindexRegistry, KmtricksIndex
 
 
 @click.group()
-def registry():
+@click.option(
+    "--registry-path",
+    "-r",
+    default=".",
+    type=click.Path(file_okay=False, dir_okay=True, exists=True, readable=True),
+    help="Path to kmindex registry",
+)
+@click.pass_context
+def registry(ctx, registry_path):
     """Manage k-mer index registries."""
-    pass
+    ctx.ensure_object(dict)
+    ctx.obj["registry_path"] = registry_path
 
 
 @registry.command(name="add")
@@ -21,24 +33,20 @@ def registry():
     help="Input directory containing kmtricks indices",
 )
 @click.option(
-    "--registry-path",
-    "-r",
-    required=True,
-    type=click.Path(file_okay=False, dir_okay=True),
-    help="Path to kmindex registry (created if doesn't exist)",
-)
-@click.option(
     "--index-ids",
     "-n",
     multiple=True,
+    required=False,
     help="Specific index IDs to register (register all if not specified)",
 )
-def registry_add(input_dir, registry_path, index_ids):
+@click.pass_obj
+def registry_add(obj, input_dir, index_ids):
     """Register kmtricks indices in a registry."""
+    registry_path = obj["registry_path"]
 
     click.echo("Initializing kmhelpers...")
 
-    registry = KmindexRegistry(registry_path)
+    registry = KmindexRegistry(registry_path, auto_create=False)
 
     # Get list of indices to register
     if index_ids:
@@ -54,12 +62,18 @@ def registry_add(input_dir, registry_path, index_ids):
     skipped = 0
 
     for index_id in indices_to_process:
-        entry_path = os.path.join(input_dir, index_id)
-        if not os.path.isdir(entry_path):
-            click.echo(f"Warning: {index_id} is not a directory, skipping", err=True)
-            continue
-
         try:
+            entry_path = os.path.join(input_dir, index_id)
+            if not os.path.isdir(entry_path):
+                click.echo(
+                    f"Warning: {index_id} is not a directory, skipping", err=True
+                )
+                skipped += 1
+                continue
+            if registry.has_index(index_id):
+                click.echo(f"⊙ Already registered: {index_id}")
+                skipped += 1
+                continue
             index = KmtricksIndex(input_dir, index_id)
             index.load_kmtricks_index()
             if index.check_structure():
@@ -67,26 +81,23 @@ def registry_add(input_dir, registry_path, index_ids):
                     click.echo(f"✓ Registered: {index_id}")
                     registered += 1
                 else:
-                    click.echo(f"⊙ Already registered: {index_id}")
+                    click.echo(f"✗ Could not register: {index_id}")
                     skipped += 1
+                    continue
         except Exception as e:
             click.echo(f"✗ Error processing {index_id}: {e}", err=True)
+            skipped += 1
 
     click.echo(f"\nSummary: {registered} registered, {skipped} skipped")
 
 
 @registry.command(name="list")
-@click.option(
-    "--registry-path",
-    "-r",
-    required=True,
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    help="Path to kmindex registry",
-)
-def registry_list(registry_path):
+@click.pass_obj
+def registry_list(obj):
     """List all indices in a registry."""
+    registry_path = obj["registry_path"]
 
-    registry = KmindexRegistry(registry_path)
+    registry = KmindexRegistry(registry_path, auto_create=False)
 
     indices = registry.list_indices()
     if not indices:
@@ -96,20 +107,16 @@ def registry_list(registry_path):
     click.echo(f"Registry: {registry_path}")
     click.echo(f"Available indices ({len(indices)} total):")
     for idx_name in indices:
-        idx = registry.get_index(idx_name)
-        click.echo(
-            f"  • {idx_name} ({idx.nb_samples} samples, {idx.nb_partitions} partitions, k={idx.kmer_size})"
-        )
+        try:
+            idx = registry.get_index(idx_name)
+            click.echo(
+                f"  • {idx_name} ({idx.nb_samples} samples, {idx.nb_partitions} partitions, k={idx.kmer_size})"
+            )
+        except Exception as e:
+            click.echo(f"  ✗ {idx_name}: {e}", err=True)
 
 
 @registry.command(name="info")
-@click.option(
-    "--registry-path",
-    "-r",
-    required=True,
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    help="Path to kmindex registry",
-)
 @click.option(
     "--index-id",
     "-n",
@@ -122,11 +129,13 @@ def registry_list(registry_path):
     is_flag=True,
     help="Output as JSON",
 )
-def registry_info(registry_path, index_id, output_json):
+@click.pass_obj
+def registry_info(obj, index_id, output_json):
     """Show detailed information about an index."""
+    registry_path = obj["registry_path"]
 
     try:
-        registry = KmindexRegistry(registry_path)
+        registry = KmindexRegistry(registry_path, auto_create=False)
 
         if not registry.has_index(index_id):
             raise click.ClickException(f"Index '{index_id}' not found in registry")
@@ -136,7 +145,7 @@ def registry_info(registry_path, index_id, output_json):
         if output_json:
             # Output as JSON
             data = {
-                "index_id": index.index_id,
+                "index_id": index.id,
                 "nb_samples": index.nb_samples,
                 "nb_partitions": index.nb_partitions,
                 "kmer_size": index.kmer_size,
@@ -167,23 +176,18 @@ def registry_info(registry_path, index_id, output_json):
 
 @registry.command(name="check")
 @click.option(
-    "--registry-path",
-    "-r",
-    required=True,
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    help="Path to kmindex registry",
-)
-@click.option(
     "--verbose",
     "-v",
     is_flag=True,
     help="Show detailed validation output",
 )
-def registry_check(registry_path, verbose):
+@click.pass_obj
+def registry_check(obj, verbose):
     """Validate registry consistency and check all index structures."""
+    registry_path = obj["registry_path"]
 
     try:
-        registry = KmindexRegistry(registry_path)
+        registry = KmindexRegistry(registry_path, auto_create=False)
         indices = registry.list_indices()
 
         if not indices:
@@ -229,31 +233,77 @@ def registry_check(registry_path, verbose):
 
 @registry.command(name="remove")
 @click.option(
-    "--registry-path",
-    "-r",
-    required=True,
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    help="Path to kmindex registry",
-)
-@click.option(
-    "--index-id",
+    "--index-ids",
     "-n",
+    multiple=True,
     required=True,
-    help="Index ID to remove",
+    help="Specific index IDs to remove",
 )
 @click.option(
+    "-d",
     "--delete-files",
     is_flag=True,
     help="Also delete index files from disk (destructive!)",
 )
 @click.option(
-    "--force",
-    "-f",
+    "--yes",
+    "-y",
     is_flag=True,
     help="Skip confirmation prompt",
 )
-def registry_remove(registry_path, index_id, delete_files, force):
+@click.pass_obj
+def registry_remove(obj, index_ids, delete_files, yes):
     """Remove index from registry (optionally delete files)."""
+    registry_path = obj["registry_path"]
+
+    try:
+        registry = KmindexRegistry(registry_path, auto_create=False)
+
+        for index_id in index_ids:
+            try:
+                if not registry.has_index(index_id):
+                    raise click.ClickException(
+                        f"Index '{index_id}' not found in registry"
+                    )
+
+                # Confirm if not yes
+                if not yes:
+                    msg = f"Remove '{index_id}' from registry"
+                    if delete_files:
+                        msg += " and delete index files"
+                    msg += "?"
+
+                    if not click.confirm(msg):
+                        click.echo("Operation cancelled")
+                        continue
+                registry.remove_index(index_id, delete_files=True)
+                click.echo(f"✓ Removed '{index_id}' from registry")
+
+            except Exception as e:
+                raise click.ClickException(f"Failed to remove index: {e}")
+    except Exception as e:
+        raise click.ClickException(f"Remove command failed: {e}")
+
+
+@registry.command(name="rename")
+@click.option(
+    "--from",
+    "-f",
+    "index_id",
+    required=True,
+    help="Index ID to rename",
+)
+@click.option(
+    "--to",
+    "-t",
+    "new_index_id",
+    required=True,
+    help="New index ID",
+)
+@click.pass_obj
+def registry_rename(obj, index_id, new_index_id):
+    """Rename an index"""
+    registry_path = obj["registry_path"]
 
     try:
         registry = KmindexRegistry(registry_path)
@@ -261,31 +311,41 @@ def registry_remove(registry_path, index_id, delete_files, force):
         if not registry.has_index(index_id):
             raise click.ClickException(f"Index '{index_id}' not found in registry")
 
-        # Confirm if not forced
-        if not force:
-            msg = f"Remove '{index_id}' from registry"
-            if delete_files:
-                msg += " and delete index files"
-            msg += "?"
-
-            if not click.confirm(msg):
-                click.echo("Operation cancelled")
-                return
-
         # Get index before removal (needed to delete files)
         index = registry.get_index(index_id)
 
-        # Remove from registry
-        registry.remove_index(index_id)
-        click.echo(f"✓ Removed '{index_id}' from registry")
+        if not registry.rename_index(index_id, new_index_id):
+            raise click.ClickException(
+                f"Could not rename index from '{new_index_id}' to '{index_id}'."
+            )
 
-        # Delete files if requested
-        if delete_files:
-            try:
-                index.destroy_entire_index()
-                click.echo(f"✓ Deleted index files from disk")
-            except Exception as e:
-                click.echo(f"⚠ Failed to delete some files: {e}", err=True)
+        click.echo(f"✓ Renamed '{index_id}' to {new_index_id}")
 
     except Exception as e:
         raise click.ClickException(f"Failed to remove index: {e}")
+
+
+@registry.command(name="relink")
+@click.pass_obj
+@click.option(
+    "--input-dir",
+    "-i",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    help="Input directory containing kmtricks indices",
+)
+@click.option(
+    "--index-id",
+    "-n",
+    required=False,
+    help="Index ID to relink. (If not specified, will relink all registered indices).",
+)
+def registry_relink(obj, input_dir, index_id):
+    """Recreate links in an index registry. Useful if links are broken or indices moved."""
+    try:
+        registry_path = obj["registry_path"]
+        click.echo("Relinking...")
+        registry = KmindexRegistry(registry_path)
+        registry.relink(index_id, input_dir)
+    except Exception as e:
+        click.ClickException(f"Relink failed: {e}")

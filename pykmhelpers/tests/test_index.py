@@ -13,11 +13,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pykmhelpers.core.index import (
-    IndexCompressionState,
-    KmindexRegistry,
-    KmtricksIndex,
-)
+from pykmhelpers.core.index import IndexCompressionState, KmindexRegistry, KmtricksIndex
 from pykmhelpers.core.utils import Kmindex
 
 
@@ -29,7 +25,9 @@ class TestKmtricksIndexBase(unittest.TestCase):
         """Set up test fixtures that are used across all tests."""
         # Locate the test data archive
         cls.project_root = Path(__file__).parent.parent.parent
-        cls.test_data_tar = cls.project_root / "examples" / "data" / "SYNTHETIC_ROD_10.tar"
+        cls.test_data_tar = (
+            cls.project_root / "examples" / "data" / "SYNTHETIC_ROD_10.tar"
+        )
         cls.test_data_dir = cls.project_root / "examples" / "data" / "SYNTHETIC_ROD_10"
 
         # Verify test data exists
@@ -83,7 +81,7 @@ class TestKmtricksIndexInitialization(TestKmtricksIndexBase):
     def test_init_with_valid_index(self):
         """Test initialization with a valid index directory."""
         index = KmtricksIndex(str(self.temp_path), self.test_index_id)
-        self.assertEqual(index.index_id, self.test_index_id)
+        self.assertEqual(index.id, self.test_index_id)
         self.assertEqual(index.parent_dir, str(self.temp_path))
         self.assertEqual(index.compress_state, IndexCompressionState.UNKNOWN)
 
@@ -106,12 +104,6 @@ class TestKmtricksIndexInitialization(TestKmtricksIndexBase):
         index = KmtricksIndex(str(self.temp_path), self.test_index_id)
         expected_path = os.path.join(str(self.temp_path), self.test_index_id)
         self.assertEqual(index.dir_path, expected_path)
-
-    def test_json_path_property(self):
-        """Test json_path property returns correct path."""
-        index = KmtricksIndex(str(self.temp_path), self.test_index_id)
-        expected_path = os.path.join(str(self.temp_path), "index.json")
-        self.assertEqual(index.json_path, expected_path)
 
     def test_fof_path_property(self):
         """Test fof_path property returns correct path."""
@@ -493,7 +485,7 @@ class TestKmindexRegistry(TestKmtricksIndexBase):
 
         retrieved_index = registry.get_index(self.test_index_id)
         self.assertIsInstance(retrieved_index, KmtricksIndex)
-        self.assertEqual(retrieved_index.index_id, self.test_index_id)
+        self.assertEqual(retrieved_index.id, self.test_index_id)
 
     def test_get_index_nonexistent(self):
         """Test getting a non-existent index raises KeyError."""
@@ -581,7 +573,7 @@ class TestKmindexRegistry(TestKmtricksIndexBase):
         retrieved = registry[self.test_index_id]
         self.assertIsInstance(retrieved, KmtricksIndex)
         if retrieved is not None:
-            self.assertEqual(retrieved.index_id, self.test_index_id)
+            self.assertEqual(retrieved.id, self.test_index_id)
 
     def test_getitem_nonexistent(self):
         """Test __getitem__ with non-existent index returns None."""
