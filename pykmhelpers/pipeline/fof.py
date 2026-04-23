@@ -6,12 +6,12 @@ kmindex file-of-files format, including reading, writing, validation, and
 sample management.
 """
 
-import re
 import os
-from typing import List, Dict, Tuple, Optional, Union, Sequence
+import re
 from pathlib import Path
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
-from ..core.utils import Toolbox, Kmindex
+from ..core.utils import Kmindex, Toolbox
 
 
 class FofManager:
@@ -333,7 +333,7 @@ class FofManager:
             return True
         return False
 
-    def get_sample_path(self, sample_id: str) -> Optional[str]:
+    def get_sample_path_str(self, sample_id: str) -> Optional[str]:
         """
         Get the file path for a sample.
 
@@ -344,6 +344,22 @@ class FofManager:
             File path if sample exists, None otherwise.
         """
         return self.samples.get(sample_id)
+
+    def split_path(self, path_list: str) -> list[str]:
+        return path_list.split(";")
+
+    def get_sample_paths(self, sample_id: str) -> Optional[list[str]]:
+        """
+        Get the file path for a sample.
+
+        Args:
+            sample_id: Sample identifier.
+
+        Returns:
+            File path if sample exists, None otherwise.
+        """
+        if sample_id in self.samples:
+            return self.split_path(self.samples[sample_id])
 
     def has_sample(self, sample_id: str) -> bool:
         """
@@ -437,9 +453,10 @@ class FofManager:
     def validate_sample_files(self) -> bool:
         ok = self.get_sample_count() > 0
         for k, v in self.samples.items():
-            if not os.path.isfile(v):
-                print(f"Sample: {k}\nFile not found: {v}")
-                ok = False
+            for p in self.split_path(v):
+                if not os.path.isfile(p):
+                    print(f"Sample: {k}\nFile not found: {p}")
+                    ok = False
         return ok
 
     def validate_fof_format(self, fof_path: Union[str, Path]) -> bool:

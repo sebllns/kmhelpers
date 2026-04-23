@@ -1,34 +1,63 @@
+import datetime
 import logging
 import os
-from typing import Optional
+import shutil
+import threading
+import typing
 
 import yaml
 
-from ..core import (
-    BloomFilterSpecs,
-    KmindexRegistry,
-    KmindexWrapper,
-    KmtricksIndex,
-    Toolbox,
-)
-from ..core.byte import ByteCounter, SizeFormat
-from ..core.fasta import Fasta, FASTAReader
-from ..pipeline.fof import FofManager
-from ..pipeline.query import KmindexQuery, KmindexQueryResult
+import pykmhelpers.core.byte
+import pykmhelpers.core.fasta
+import pykmhelpers.pipeline.fof
+import pykmhelpers.pipeline.query
 
 logger = logging.getLogger(__name__)
 
 
 class IndexBuilder:
-    def __init__(self, output_index_path: str, k=25) -> None:
+    class Progress:
+        def __init__(self, on_change, delay: int = 30):
+            self._delay: int = delay
+            self._progress: float = 0
+            self._on_change = on_change
+
+        @property
+        def delay(self) -> int:
+            return self._delay
+
+        @property
+        def progress(self) -> float:
+            return self._progress
+
+        @progress.setter
+        def progress(self, value: float):
+            p = self._progress
+            self._progress = value
+            if p != value:
+                self._on_change(value)
+
+    def __init__(
+        self,
+        workdir: str,
+        registry_name="registry",
+        data_folder=".subindexes",
+        log_folder="logs",
+        assets_folder="assets",
+        script_out: typing.Optional[typing.IO[str]] = None,
+    ) -> None:
         """Initialize the IndexBuilder."""
-        self._path = Toolbox.get_canonical_path(output_index_path)
+        self._path = pykmhelpers.core.Toolbox.get_canonical_path(workdir)
         os.makedirs(self.path, exist_ok=True)
-        self._registry = KmindexRegistry(os.path.join(self.path, "registry"))
-        self._k = k
+        self._registry_name = registry_name
+        self._data_folder = data_folder
+        self._log_folder = log_folder
+        self._registry = pykmhelpers.core.KmindexRegistry(self.registry_path)
+        self._assets_folder = assets_folder
+        self._script_out = script_out
 
     @property
-    def index(self) -> KmindexRegistry:
+    def index(self) -> pykmhelpers.core.KmindexRegistry:
         return self._registry
 
     @property
@@ -36,8 +65,24 @@ class IndexBuilder:
         return self._path
 
     @property
-    def k(self) -> int:
-        return self._k
+    def registry_name(self) -> str:
+        return self._registry_name
+
+    @property
+    def registry_path(self) -> str:
+        return os.path.join(self.path, self.registry_name)
+
+    @property
+    def data_folder(self) -> str:
+        return os.path.join(self.path, self._data_folder)
+
+    @property
+    def log_folder(self) -> str:
+        return os.path.join(self.path, self._log_folder)
+
+    @property
+    def assets_folder(self) -> str:
+        return os.path.join(self.path, self._assets_folder)
 
     def load_metadata(self, file: str):
         """
@@ -55,7 +100,9 @@ class IndexBuilder:
     def has_subindex(self, name: str):
         return self.index.has_index(name)
 
-    def add_sample_to_fof(self, sample, fof: FofManager) -> None:
+    def add_sample_to_fof(
+        self, sample, fof: pykmhelpers.pipeline.fof.FofManager
+    ) -> None:
         try:
             sample_id = sample["sample_id"]
             sample_path = sample["file_path"]
@@ -67,7 +114,7 @@ class IndexBuilder:
         except Exception as e:
             logger.warning(f"Could not add sample in FOF: {e}")
 
-    def create_fof(self, samples) -> FofManager:
+    def create_fof(self, samples) -> pykmhelpers.pipeline.fof.FofManager:
         """
         Docstring for create_fof
 
@@ -76,50 +123,59 @@ class IndexBuilder:
         :return: Description
         :rtype: FofManager
         """
-        fof = FofManager()
+        fof = pykmhelpers.pipeline.fof.FofManager()
         for s in samples:
             self.add_sample_to_fof(s, fof)
         return fof
 
     def get_bf_specs(
         self, n_samples: int, bloom_size: int, n_partitions: int
-    ) -> BloomFilterSpecs:
-        return BloomFilterSpecs(
+    ) -> pykmhelpers.core.BloomFilterSpecs:
+        return pykmhelpers.core.BloomFilterSpecs(
             n_cols=n_samples, n_rows=bloom_size, n_partitions=n_partitions
         )
 
     def get_storage_size(
-        self, bf_specs: BloomFilterSpecs, n_partitions: int
-    ) -> ByteCounter:
-        return ByteCounter.auto(bf_specs.total_storage_size(), SizeFormat.BYTE)
+        self,
+        bf_specs: pykmhelpers.core.BloomFilterSpecs,
+    ) -> pykmhelpers.core.byte.ByteCounter:
+        return pykmhelpers.core.byte.ByteCounter.auto(
+            bf_specs.total_storage_size(), pykmhelpers.core.byte.SizeFormat.BYTE
+        )
 
     def create_subindex(
         self,
         name: str,
-        samples: FofManager,
+        samples: pykmhelpers.pipeline.fof.FofManager,
         bloom_size: int,
+        kmer_size: int = 25,
         abundance_min: int = 2,
         n_partitions: int = 256,
         n_threads: int = 0,
         n_max_threads: int = 0,
-        build_from: Optional[str] = None,
+        build_from: typing.Optional[str] = None,
         auto_check: bool = True,
         minim_size: int = 10,
         compress_intermediate: bool = True,
-    ) -> KmtricksIndex:
+        dry_run: bool = False,
+        on_existing: str = "fail",
+        progress: typing.Optional[Progress] = None,
+    ) -> dict:
 
         assert (
             samples and samples.get_sample_count()
         ), "Samples dictionary cannot be empty"
-        assert samples.validate_sample_files(), "Some sample files are missing"
         assert bloom_size, "Bloom size must be specified and greater than 0"
         assert name, "Index name cannot be empty"
         assert not self.index.has_index(
             name
         ), f"Index '{name}' already exists in registry"
 
-        wrapper = KmindexWrapper()
-        fof_path = os.path.join(self.path, f"{name}.fof")
+        if not dry_run:
+            assert samples.validate_sample_files(), "Some sample files are missing"
+
+        wrapper = pykmhelpers.core.KmindexWrapper(dry_run=dry_run)
+        fof_path = os.path.join(self.assets_folder, f"{name}.fof")
         samples.save(fof_path=fof_path)
 
         if n_threads == 0:
@@ -130,93 +186,177 @@ class IndexBuilder:
 
         n_partitions = max(n_partitions, 0)
 
+        bf_specs = self.get_bf_specs(
+            n_samples=samples.get_sample_count(),
+            bloom_size=bloom_size,
+            n_partitions=max(256, n_partitions),
+        )
+
         self.index.load_json()
 
         if build_from:
-            if self.index.has_index(build_from):
+            if self.index.has_index(build_from) or dry_run:
                 logger.info(f"Reusing parameters from index: {build_from}")
             elif name != build_from:
                 logger.warning(
                     f"Index '{build_from}' not found, building '{name}' from scratch"
                 )
+                build_from = None
 
-        wrapper.build(
+        output_basedir = os.path.join(self.path, self.data_folder)
+        output_indexdir = os.path.join(output_basedir, name)
+
+        if not dry_run and os.path.exists(output_indexdir):
+            if on_existing == "fail":
+                raise FileExistsError(f"Directory already exists: {output_indexdir}")
+            elif on_existing == "rename":
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                logger.info(
+                    f"Rename {output_indexdir} to {os.path.basename(output_indexdir)}_{timestamp}"
+                )
+                shutil.move(output_indexdir, f"{output_indexdir}_{timestamp}")
+            elif on_existing == "replace":
+                logger.info(f"Delete {output_indexdir}")
+                shutil.rmtree(
+                    output_indexdir,
+                )
+            elif on_existing in (
+                "register",
+                "register_or_replace",
+                "register_or_rename",
+            ):
+                try:
+                    r = self.index.add_index(
+                        pykmhelpers.core.KmtricksIndex(output_basedir, name)
+                    )
+                except:
+                    r = False
+                if r == False:
+                    if on_existing == "register_or_replace":
+                        logger.info(f"Delete {output_indexdir}")
+                        shutil.rmtree(output_indexdir)
+                    elif on_existing == "register_or_rename":
+                        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                        logger.info(
+                            f"Rename {output_indexdir} to {os.path.basename(output_indexdir)}_{timestamp}"
+                        )
+                        shutil.move(output_indexdir, f"{output_indexdir}_{timestamp}")
+                else:
+                    return {"return_code": 0, "register": True}
+            else:
+                raise ValueError(
+                    f"Unknown value for parameter 'on_existing': {on_existing}"
+                )
+
+        progress_handler = None
+        stop_event = None
+
+        if not dry_run and progress and progress.delay > 0:
+            stop_event = threading.Event()
+
+            def _progress_worker():
+                while not stop_event.wait(timeout=progress.delay):
+                    total_size = 0
+                    for p in range(n_partitions):
+                        m_path = wrapper.get_matrix_path(output_indexdir, p, False)
+                        if os.path.isfile(m_path):
+                            try:
+                                total_size += os.stat(m_path).st_size
+                            except Exception as e:
+                                logger.debug(e)
+                    progress.progress = (1.0 * total_size) / bf_specs.total_byte_count()
+
+            progress_handler = threading.Thread(target=_progress_worker, daemon=True)
+            progress_handler.start()
+
+        result = wrapper.build(
             input_fof_file=fof_path,
             output_registry_path=self.index.root_path,
-            output_index_dir=os.path.join(self.path, ".subindexes"),
-            k=self.k,
+            output_index_dir=output_basedir,
+            k=kmer_size,
             hard_min=abundance_min,
             threads=n_threads,
             nb_partitions=n_partitions,
             register_as=name,
             bloom_size=bloom_size,
-            output_log_dir=os.path.join(self.path, "logs", name),
-            output_param_file=os.path.join(self.path, f"{name}.yaml"),
-            from_index=(
-                build_from if build_from and self.index.has_index(build_from) else None
-            ),
+            output_log_dir=os.path.join(self.log_folder, name),
+            output_param_file=os.path.join(self.assets_folder, f"{name}.yaml"),
+            from_index=build_from,
             compress_intermediate=compress_intermediate,
             minim_size=minim_size,
         )
 
+        if stop_event:
+            stop_event.set()
+
+        if progress_handler:
+            progress_handler.join()
+
+        if not dry_run:
+            self.index.load_json()
+            if not self.index.has_index(name):
+                logger.warning(f"Index '{name}' was not successfully created")
+            else:
+                idx = self.index.get_index(name)
+
+                if auto_check:
+                    if n_partitions > 0:
+                        if idx.nb_partitions != n_partitions:
+                            logger.warning(
+                                f"Partition count mismatch: expected {n_partitions}, got {idx.nb_partitions}"
+                            )
+
+                    if idx.kmer_size != kmer_size:
+                        logger.warning(
+                            f"K-mer size mismatch: expected {kmer_size}, got {idx.kmer_size}"
+                        )
+
+                    self.check_index_structure(name)
+
+        return result
+
+    def merge(
+        self,
+        new_name: str,
+        to_merge: list[str],
+        rename: typing.Optional[str] = None,
+        delete_old: bool = True,
+        threads: int = 14,
+        dry_run: bool = False,
+    ):
+        """Merge sub-indexes into a single index via KmindexWrapper.merge."""
         self.index.load_json()
-        assert self.index.has_index(
-            name
-        ), f"Index '{name}' was not successfully created"
-        idx = self.index.get_index(name)
 
-        if auto_check:
-            if n_partitions > 0:
-                assert (
-                    idx.nb_partitions == n_partitions
-                ), f"Partition count mismatch: expected {n_partitions}, got {idx.nb_partitions}"
+        if not dry_run:
+            missing = [name for name in to_merge if not self.index.has_index(name)]
+            if missing:
+                raise ValueError(f"Sub-indexes not found in registry: {missing}")
 
-            # assert (
-            #     idx.bloom_size == bloom_size
-            # ), f"Bloom size mismatch: expected {bloom_size}, got {idx.bloom_size}"
-            assert (
-                idx.kmer_size == self.k
-            ), f"K-mer size mismatch: expected {self.k}, got {idx.kmer_size}"
-            self.check_index_structure(name)
+        wrapper = pykmhelpers.core.KmindexWrapper(dry_run=dry_run)
+        result = wrapper.merge(
+            input_registry=self.index.root_path,
+            new_name=new_name,
+            new_path=os.path.join(self.data_folder, new_name),
+            to_merge=to_merge,
+            rename=rename,
+            delete_old=delete_old,
+            threads=threads,
+        )
 
-        return idx
+        if not dry_run:
+            self.index.load_json()
+            assert self.index.has_index(
+                new_name
+            ), f"Merged index '{new_name}' not found after merge"
+
+        return result
 
     def check_index_structure(
         self,
         name: str,
     ):
         idx = self.index.get_index(name)
-        idx.check_structure()
-
-    def create_test_dataset(
-        self, idx: KmtricksIndex, output_dir: str, n_samples: int = 5, max_length=2000
-    ):
-        """
-        Create test dataset by extracting sequences from the index.
-
-        :param idx: The kmtricks index to extract sequences from
-        :type idx: KmtricksIndex
-        :param output_dir: Output directory for test FASTA files
-        :type output_dir: str
-        :param n_samples: Number of samples to extract
-        :type n_samples: int
-        """
-        os.makedirs(output_dir, exist_ok=True)
-        fof = FofManager(idx.fof_path)
-        i = 0
-        for s in idx:
-            if i >= n_samples:
-                break
-            path = fof.get_sample_path(s)
-            if path and os.path.isfile(path):
-                i += 1
-                try:
-                    reader = FASTAReader(path)
-                    output_file = os.path.join(output_dir, f"{s}.fasta")
-                    with open(output_file, "w") as f:
-                        f.write(reader.fetch_first_n(max_length).to_fasta())
-                except Exception as e:
-                    logger.warning(f"Failed to extract sequences from {path}: {str(e)}")
+        return idx.check_structure()
 
     def create_random_test_dataset(
         self, output_dir: str, n_samples: int = 5, average_size=1000, min_size=100
@@ -230,7 +370,7 @@ class IndexBuilder:
         :type n_samples: int
         """
         os.makedirs(output_dir, exist_ok=True)
-        fasta = Fasta()
+        fasta = pykmhelpers.core.fasta.Fasta()
         fasta.fill_random(
             num_sequences=n_samples, average_size=average_size, min_size=min_size
         )
@@ -266,7 +406,9 @@ class IndexBuilder:
                         os.makedirs(result_dir, exist_ok=True)
                         try:
                             logger.info(f"Query {input_path} into {output_dir}")
-                            query = KmindexQuery(path=input_path)
+                            query = pykmhelpers.pipeline.query.KmindexQuery(
+                                path=input_path
+                            )
                             query.execute(
                                 registry_path=self.index.root_path,
                                 output_dir=output_dir,
@@ -284,7 +426,7 @@ class IndexBuilder:
         :param samples: List of sample names to check
         :type samples: list[str]
         """
-        r = KmindexQueryResult(results)
+        r = pykmhelpers.pipeline.query.KmindexQueryResult(results)
         ok = True
         for s in samples:
             v = r.max_score(s)
@@ -302,4 +444,6 @@ class IndexBuilder:
         :param ground_truth: Path to ground truth results directory
         :type ground_truth: str
         """
-        return KmindexQueryResult(results) == KmindexQueryResult(ground_truth)
+        return pykmhelpers.pipeline.query.KmindexQueryResult(
+            results
+        ) == pykmhelpers.pipeline.query.KmindexQueryResult(ground_truth)

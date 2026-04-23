@@ -3,12 +3,13 @@ import json
 import os
 import queue
 import re
+import shutil
 import subprocess
 import threading
-import psutil
 import time
 from typing import Any, Dict, List, Optional, Tuple, Union
-import shutil
+
+import psutil
 
 
 class Main:
@@ -418,7 +419,7 @@ class Toolbox:
 
             with monitor_lock:
                 output = {
-                    "command": ' '.join(cmd),
+                    "command": " ".join(cmd),
                     "start_time": start_time,
                     "execution_time_ms": round(execution_time, 4),
                     "max_cpu_percent": round(max_cpu, 4),

@@ -8,11 +8,24 @@ data structures and their associated properties from index.json files.
 
 import json
 import os
-import warnings
-from pathlib import Path
-from typing import Dict, List, Any
+import shutil
 from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List
+
 from pykmhelpers.core.utils import Kmindex, Toolbox
+
+
+class NotAnIndexError(Exception):
+    """Exception raised when an existing index is required and is not found in the current context.
+
+    Attributes:
+        message -- explanation of the error
+    """
+
+    def __init__(self, index_id):
+        self.message = f"Index not found: {index_id}"
+        super().__init__(self.message)
 
 
 class IndexCompressionState(Enum):
@@ -97,15 +110,6 @@ class KmtricksIndex:
 
     @property
     def id(self) -> str:
-        return self._index_id
-
-    @property
-    def index_id(self) -> str:
-        warnings.warn(
-            "'index_id' property is deprecated, use 'id' instead",
-            DeprecationWarning,
-            stacklevel=2
-        )
         return self._index_id
 
     @property
@@ -519,6 +523,48 @@ class KmtricksIndex:
             print(f"Error moving index: {e}")
             return False
 
+    def rename(self, new_id) -> bool:
+        """
+        Rename this index to a new ID.
+
+        Args:
+            new_id: New index ID
+
+        Returns:
+            True if rename was successful, False otherwise
+        """
+        try:
+            # Validate new_id
+            if not new_id or not isinstance(new_id, str):
+                print(f"Error: Invalid new index ID: {new_id}")
+                return False
+
+            if new_id == self._index_id:
+                print(f"Error: New ID is the same as current ID: {new_id}")
+                return False
+
+            # Get current and new paths
+            old_path = self.dir_path
+            new_path = Kmindex.get_index_path(self._parent_dir, new_id)
+
+            # Check if new path already exists
+            if os.path.exists(new_path):
+                print(f"Error: Index with ID '{new_id}' already exists at {new_path}")
+                return False
+
+            # Rename the directory
+            os.rename(old_path, new_path)
+
+            # Update the index ID
+            self._index_id = new_id
+
+            print(f"Successfully renamed index to '{new_id}'")
+            return True
+
+        except Exception as e:
+            print(f"Error renaming index: {e}")
+            return False
+
     def __str__(self) -> str:
         """String representation of the index."""
         return f"Index(id='{self._index_id}', _parent_dir='{self._parent_dir}', nb_samples={self.nb_samples}, bloom_size={self.bloom_size}, nb_partitions={self.nb_partitions})"
@@ -541,7 +587,7 @@ class KmindexRegistry:
     multiple indices from a single index.json file.
     """
 
-    def __init__(self, root_path: str):
+    def __init__(self, root_path: str, auto_create: bool = True):
         """
         Initialize an IndexRegistry.
 
@@ -554,7 +600,10 @@ class KmindexRegistry:
         self._root_path = Toolbox.get_canonical_path(root_path)
 
         if not self.json_exists:
-            Kmindex.create_empty_index_json(self._root_path)
+            if auto_create:
+                Kmindex.create_empty_index_json(self._root_path)
+            else:
+                raise NotAnIndexError(root_path)
 
         self._standby = False
         self.load_json()
@@ -578,6 +627,11 @@ class KmindexRegistry:
         if not self._standby:
             with open(self.json_path, "r") as f:
                 self._json_data = json.load(f)
+
+    def _backup_json(self) -> None:
+        """Create a backup of the index.json file with .bak extension."""
+        backup_path = f"{self.json_path}.bak"
+        shutil.copy2(self.json_path, backup_path)
 
     def list_indices(self) -> List[str]:
         """
@@ -669,7 +723,9 @@ class KmindexRegistry:
         self.load_json()
         return True
 
-    def remove_index(self, _index_id: str) -> bool:
+    def remove_index(
+        self, index_id: str, delete_files: bool = False, skip_unregistered: bool = True
+    ) -> bool:
         """
         Remove an index from the registry.
 
@@ -679,14 +735,34 @@ class KmindexRegistry:
         Returns:
             True if index was removed, False if it doesn't exist
         """
-        if not self.has_index(_index_id):
+        if not self.has_index(index_id) and skip_unregistered:
             return False
 
-        i = self.get_index(_index_id)
-        os.unlink(i.dir_path)
+        index_path = self.get_index_path(index_id)
+
+        # Delete files if requested
+        if delete_files:
+            try:
+                # Get index before removal (needed to delete files)
+                shutil.rmtree(
+                    os.path.realpath(index_path),
+                    ignore_errors=True,
+                )
+                print(f"✓ Deleted index files from disk")
+            except Exception as e:
+                print(f"⚠ Failed to delete some files: {e}")
+
+        try:
+            if os.path.islink(index_path):
+                os.unlink(index_path)
+        except Exception as e:
+            print(f"Error deleting link {index_path}: {e}")
 
         # Remove the index from the JSON data
-        del self._json_data["index"][_index_id]
+        del self._json_data["index"][index_id]
+
+        # Create backup before writing
+        self._backup_json()
 
         # Write the updated JSON back to file
         with open(self.json_path, "w") as f:
@@ -701,6 +777,66 @@ class KmindexRegistry:
         assert self.add_index(index), f"Could not add index {index}"
         self._standby = False
         self.load_json()
+
+    def relink(self, index_id: str | None, path: str):
+        path = Toolbox.get_canonical_path(path)
+
+        if not os.path.isdir(path):
+            raise NotADirectoryError(path)
+
+        if index_id:
+            if not self.has_index(index_id):
+                raise NotAnIndexError(index_id)
+            ids = [index_id]
+        else:
+            ids = self.list_indices()
+
+        for i in ids:
+            index_link = self.get_index_path(i)
+            index_path = os.path.join(path, i)
+            print(f"Relink {i}...")
+            try:
+                if os.path.isdir(index_path):
+                    KmtricksIndex(path, i)
+                    if os.path.islink(index_link):
+                        os.unlink(index_link)
+                    os.symlink(index_path, index_link, target_is_directory=True)
+            except Exception as e:
+                print(f"Error linking {i}: {e}")
+
+    def rename_index(self, old_index_id: str, new_index_id: str) -> bool:
+        """
+        Rename an index in the registry.
+
+        Args:
+            old_index_id: The current index ID
+            new_index_id: The new index ID
+
+        Returns:
+            True if index was renamed, False if operation failed
+        """
+        # Check if old index exists
+        if not self.has_index(old_index_id):
+            return False
+
+        # Check if new index ID already exists
+        if self.has_index(new_index_id):
+            return False
+
+        # Create backup before writing
+        self._backup_json()
+
+        idx = self.get_index(old_index_id)
+
+        self.remove_index(old_index_id, delete_files=False)
+        idx.rename(new_index_id)
+        self.add_index(idx)
+
+        # Write the updated JSON back to file
+        with open(self.json_path, "w") as f:
+            json.dump(self._json_data, f, indent=4)
+
+        return True
 
     def import_directory(self, path):
         print(f"Import indexes from {path}:")
@@ -778,7 +914,7 @@ class KmindexRegistry:
             )
 
         # Import here to avoid circular imports
-        from pykmhelpers.core.wrapper import KmindexWrapper
+        from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
 
         # Use KmindexWrapper to compress the index
         wrapper = KmindexWrapper()
@@ -793,7 +929,6 @@ class KmindexRegistry:
             reorder=reorder,
             delete_uncompressed=delete_uncompressed,
             check_results=check_results,
-            verbose=verbose,
         )
 
         return result
@@ -819,3 +954,6 @@ class KmindexRegistry:
 
     def __setitem__(self, index: KmtricksIndex) -> None:
         self.set_index(index)
+
+    def __contains__(self, index_id: str) -> bool:
+        return self.has_index(index_id)

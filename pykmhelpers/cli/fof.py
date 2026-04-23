@@ -1,10 +1,12 @@
 """FOF (File-of-Files) management commands."""
 
-import os
 import json
+import os
+
 import click
-from pykmhelpers.pipeline.fof import FofManager
+
 from pykmhelpers.operations.fof_validation import FofValidator
+from pykmhelpers.pipeline.fof import FofManager
 
 
 @click.group()
@@ -37,7 +39,7 @@ def fof():
 )
 @click.option(
     "--extensions",
-    "-e",
+    "-x",
     multiple=True,
     default=[".fasta", ".fastq", ".fa", ".fq", ".fasta.gz", ".fastq.gz"],
     help="File extensions to include (default: common bioinformatics formats)",
@@ -109,11 +111,14 @@ def fof_validate(fof_file, verbose):
         missing_files = []
 
         for sample_id in manager.get_all_sample_ids():
-            file_path = manager.get_sample_path(sample_id)
-            if file_path is None or not os.path.isfile(file_path):
-                missing_files.append((sample_id, file_path or "N/A"))
-                if verbose:
-                    click.echo(f"  Missing: {sample_id} -> {file_path}", err=True)
+            p = manager.get_sample_paths(sample_id)
+            if not p:
+                raise click.ClickException(f"No path for {sample_id}")
+            for file_path in p:
+                if not os.path.isfile(file_path):
+                    missing_files.append((sample_id, file_path or "N/A"))
+                    if verbose:
+                        click.echo(f"  Missing: {sample_id} -> {file_path}", err=True)
 
         if missing_files:
             raise click.ClickException(
@@ -159,7 +164,7 @@ def fof_list(fof_file, show_paths, output_json):
                 "fof_file": fof_file,
                 "sample_count": len(sample_ids),
                 "samples": [
-                    {"id": sid, "path": manager.get_sample_path(sid)}
+                    {"id": sid, "path": manager.get_sample_paths(sid)}
                     for sid in sample_ids
                 ],
             }
@@ -170,7 +175,7 @@ def fof_list(fof_file, show_paths, output_json):
             click.echo(f"Samples: {len(sample_ids)}\n")
 
             for sample_id in sample_ids:
-                file_path = manager.get_sample_path(sample_id)
+                file_path = manager.get_sample_paths(sample_id)
                 if show_paths:
                     click.echo(f"  {sample_id:<30} {file_path}")
                 else:
