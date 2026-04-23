@@ -93,7 +93,7 @@ Check the installed version:
 
 ```bash
 kmhelpers --version
-```bash
+```
 
 ## License
 
