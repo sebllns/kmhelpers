@@ -63,6 +63,7 @@ All notable changes to this project will be documented in this file.
 
 - Fixed bugs in the `apply` and `query` pipelines
 - Various edge cases in registry operations
+- Crash dump output on unhandled exceptions for easier debugging
 
 ## [0.6.1] - 2026-03-03
 
