@@ -2,7 +2,7 @@
 
 ---
 
-<img src="kmhelpers-logo-v1.png" alt="Kmhelpers Logo" width="64" height="64">
+<img src="assets/kmhelpers-logo-v1.png" alt="Kmhelpers Logo" width="64" height="64">
 
 A Python toolkit for managing, compressing, and querying [kmindex](https://github.com/tlemane/kmindex) indices efficiently.
 
@@ -29,26 +29,30 @@ cd kmhelpers
 
 ### Quick Install with Conda 
 
+This will automatically:
+- Install [`kmindex`](https://github.com/tlemane/kmindex) and [`ntcard`](https://github.com/BirolLab/ntCard) from bioconda
+- Install `kmhelpers` Python package
+
+**Prerequisites:** Conda (Miniconda or Anaconda) must be installed. If you don't have it, see [Installation Instructions](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
+
 ```bash
 # Create environment with kmindex pre-installed
-conda env create -f conda/environment.yml -p .env
+conda env create -f conda/environment.yml -p ./.env
 
 # Activate the environment
 # Run this each time you open a new terminal session before using kmhelpers
 conda activate ./.env
 ```
 
-> **Note:** Each time you open a new terminal, navigate to the `kmhelpers` directory and activate the environment before running any `kmhelpers` commands:
+> **Note:** Once per terminal session, activate the environment before using `kmhelpers`:
 > ```bash
-> cd /path/to/kmhelpers
-> conda activate ./.env
+> conda activate /path/to/kmhelpers/.env
 > ```
-
-This will automatically:
-- Install [`kmindex`](https://github.com/tlemane/kmindex) and [`ntcard`](https://github.com/BirolLab/ntCard) from bioconda
-- Install `kmhelpers` Python package
-
-**Prerequisites:** Conda (Miniconda or Anaconda) must be installed. If you don't have it, see [Installation Instructions](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
+> `.env` can be replaced by any path, for example a shared or permanent location like `~/.kmhelpers`:
+> ```bash
+> conda env create -f conda/environment.yml -p ~/.kmhelpers
+> conda activate ~/.kmhelpers
+> ```
 
 ### Verify Installation
 
@@ -96,15 +100,16 @@ kmhelpers --version
 
 This project is licensed under the GNU General Public License - see the [LICENSE](LICENSE) file for details.
 
-Copyright (c) 2026 Sébastien BELLENOUS
+Copyright (c) 2026 Sébastien Bellenous, Genscale, INRIA
 
 ## Contact
 
 For questions, bug reports, or contributions, please contact:
 
-- **Author**: Sébastien BELLENOUS
+- **Author**: [Sébastien BELLENOUS](https://github.com/sebllns)
 - **Email**: kmhelpers@groupes.renater.fr
 - **Repository**: [GitLab](https://gitlab.inria.fr/omicfinder/kmhelpers)
+- **Supervisor**: [Pierre Peterlongo](https://github.com/pierrepeterlongo)
 
 ---
 

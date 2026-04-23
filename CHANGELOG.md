@@ -2,6 +2,69 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.2] - 2026-04-23
+
+### Added
+
+- **`apply` Command**: New primary command for building k-mer indices from definition files
+  - Accepts one or more index definition files (`.json`/`.yaml`) as input
+  - Config file support via `-c`/`--config` 
+  - Span selection (`--span`) to build only specific k-mer spans (single, comma-separated, or range)
+  - Index name filtering (`--name`/`-n`) to build a subset of declared indices
+  - `--from` option to reuse build parameters from a parent index
+  - Dry-run mode (`--dry-run`) that outputs a ready-to-execute bash script
+  - Plan mode (`--plan`) like dry-run but with upfront path validation
+  - Progress bar (`--show-progress`) with elapsed time and estimated remaining time
+  - Email notification on exit (`--notify EMAIL`) via sendmail (success, failure, or timeout)
+  - `--fail-on-error` flag to abort on first failure instead of continuing
+  - `--skip-compression` to bypass intermediate file compression when I/O is not a bottleneck
+  - `--existing` policy for handling pre-existing unregistered index folders (fail, register, rename, replace…)
+  - SIGTERM handling for graceful interruption
+
+- **`list` Command**: Recursively scan a directory and produce a YAML sample manifest
+  - Grouped mode (samples grouped by leaf folder) and flat mode (one file = one sample)
+  - Integrated k-mer counting via `KmerCounter` (ntcard)
+  - File checksum tracking for cache invalidation
+  - Persistent cache (`core/cache.py`) to skip re-counting unchanged files across runs
+
+- **Registry `relink` Subcommand**: Update stored paths for registered indices after moving files
+  - Relink a single index by ID, or relink all registered indices at once
+
+- **`test extract-dataset` Subcommand**: Extract random sequences from an existing registry to build a test dataset
+
+- **`about` Command**: Display version information and ASCII art banner
+
+- **Mail Notifier** (`pipeline/mail_notifier.py`): Wrapper around `sendmail` supporting subject, body, and file attachments
+
+- **Cache** (`core/cache.py`): Append-only, file-backed key-value store used to persist k-mer counts between runs
+
+### Changed
+
+- **Build Command Renamed**: `build` is now `build-subindex` for clarity
+- **`kmhelpersctl.sh` Removed**: The companion bash helper script has been retired; all functionality is available through the `kmhelpers` CLI
+- **Query Command**: Significant improvements
+  - Score threshold filtering (`--threshold`/`-T`, default 0.05)
+  - Batch query mode (`--batch-query`/`-b`): treat all sequences across files as a single query
+  - Multiple output formats: `json`, `yaml`, `md`, `html`, `csv` (`--format`/`-f`)
+  - Print results to console (`--print`/`-p`) in addition to writing to disk
+  - Timestamp suffix on output directory (`--timestamp`/`-P`) to avoid overwriting previous results
+  - Conflict resolution for existing result directories (`--existing`/`-e`): skip, fail, delete, or new-name
+  - Query method selection (`--method`/`-M`): `seq` (parallelises across sequences) or `sub` (across sub-indices)
+  - Read query sequences from stdin by passing `-` as a query file
+  - Recursively scan directories for query files
+- **Registry Commands**: Run against the current working directory by default (no need to pass `-r .`)
+- **Registry `remove` Subcommand**: Now accepts multiple index IDs in one invocation; added `--yes`/`-y` flag to skip the confirmation prompt
+- **`--force` Option**: Moved from subcommands to the root `kmhelpers` CLI
+- **Verbosity Levels**: Revised log level mapping for more consistent output
+- **Global Config Option**: New `-C` flag at the root CLI level to pass a config file to all subcommands
+- **KmerCounter**: Refactored to derive from the `Wrapper` base class for consistent process management
+
+### Fixed
+
+- Fixed bugs in the `apply` and `query` pipelines
+- Various edge cases in registry operations
+- Crash dump output on unhandled exceptions for easier debugging
+
 ## [0.6.1] - 2026-03-03
 
 ### Added

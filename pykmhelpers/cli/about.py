@@ -51,7 +51,6 @@ def about():
   • Compress indices with configurable parameters
   • Query indices efficiently for sequence analysis
   • Manage index metadata and definitions
-  • Support for both presence/absence and abundance indexing
 
 🛠️  Main Commands:
   • build          - Build k-mer indices
