@@ -22,8 +22,7 @@ A Python toolkit for managing, compressing, and querying [kmindex](https://githu
 ### Clone the repository and navigate to it
 
 ```bash
-git clone https://gitlab.inria.fr/omicfinder/kmhelpers
-git checkout dev/v0.6.2
+git clone https://gitlab.inria.fr/omicfinder/kmhelpers --branch v0.6.2
 cd kmhelpers
 ```
 
@@ -96,7 +95,7 @@ kmhelpers --version
 
 This project is licensed under the GNU General Public License - see the [LICENSE](LICENSE) file for details.
 
-Copyright (c) 2026 Sébastien BELLENOUS
+Copyright (c) 2026 Sébastien Bellenous, Genscale, INRIA
 
 ## Contact
 
@@ -105,6 +104,7 @@ For questions, bug reports, or contributions, please contact:
 - **Author**: Sébastien BELLENOUS
 - **Email**: kmhelpers@groupes.renater.fr
 - **Repository**: [GitLab](https://gitlab.inria.fr/omicfinder/kmhelpers)
+- **Supervisor**: [Pierre Peterlongo](https://github.com/pierrepeterlongo)
 
 ---
 
