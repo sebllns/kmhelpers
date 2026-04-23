@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--threshold",
-    "-T",
+    "-R",
     type=float,
     default=0.05,
     help="Score threshold for results filtering (default: 0.05)",
@@ -96,7 +96,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--timestamp",
-    "-P",
+    "-T",
     is_flag=True,
     help="Append a timestamp suffix to the output directory name to avoid overwriting previous results",
 )
@@ -108,11 +108,11 @@ logger = logging.getLogger(__name__)
     help="Action when result directory already exists: skip (default), fail, delete, new-name",
 )
 @click.option(
-    "--method",
-    "-M",
+    "--parallel",
+    "-P",
     type=click.Choice(["seq", "sub"]),
     default="seq",
-    help="Query method: seq (parallelizes across sequences, default) or sub (parallelizes across sub-indices). Forced to sub when --compressed is set.",
+    help="Parallelization strategy: seq (across sequences, default) or sub (across sub-indices). Forced to sub when --compressed is set.",
 )
 @click.argument(
     "query_files",
@@ -136,7 +136,7 @@ def query(
     print,
     timestamp,
     existing,
-    method,
+    parallel,
     query_files,
 ):
     """Query indices with FASTA/FASTQ sequences.
@@ -164,9 +164,11 @@ def query(
       kmhelpers query -r ./registry -n idx1 -o results ./queries_dir/
     """
 
-    if compressed and method != "sub":
-        logger.warning("--compressed requires sub method, ignoring --method")
-        method = "sub"
+    if compressed and parallel != "sub":
+        logger.warning(
+            "--compressed requires sub parallelization strategy, ignoring --parallel"
+        )
+        parallel = "sub"
 
     # Verify registry and indices
     registry = KmindexRegistry(registry_path)
@@ -217,7 +219,9 @@ def query(
                 for qfile in resolved_files:
                     with open(qfile, "rb") as f:
                         batch_tmp.write(f.read())
-            logger.info(f"Batching {len(resolved_files)} file(s) into a single query...")
+            logger.info(
+                f"Batching {len(resolved_files)} file(s) into a single query..."
+            )
             _run_query(
                 ctx,
                 registry_path,
@@ -236,7 +240,7 @@ def query(
                 batch_path,
                 1,
                 1,
-                method,
+                parallel,
             )
         else:
             total_queries = len(resolved_files)
@@ -260,7 +264,7 @@ def query(
                         qfile,
                         total_queries,
                         query_idx,
-                        method,
+                        parallel,
                     )
                 except Exception as e:
                     logger.error(f"Error querying {qfile}: {e}")
@@ -294,7 +298,7 @@ def _run_query(
     qfile,
     total_queries,
     query_idx,
-    method,
+    parallel,
 ):
     start_time = time.time()
 
@@ -342,7 +346,7 @@ def _run_query(
         is_compressed=compressed,
         fast=not compressed,
         threshold=threshold,
-        method=method,
+        method=parallel,
     )
 
     elapsed = time.time() - start_time
