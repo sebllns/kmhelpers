@@ -9,6 +9,7 @@ from typing import List, Optional, Union
 
 import yaml
 
+from pykmhelpers.core.system import maximize_nofile
 from pykmhelpers.core.utils import Toolbox
 from pykmhelpers.core.wrapper import Wrapper
 
@@ -243,6 +244,7 @@ class KmindexWrapper(Wrapper):
                 yaml.safe_dump(d, f)
 
         # Execute command
+        maximize_nofile()
         result = self._monitor_cmd(cmd, log_file=log_file, log_errors_only=True)
 
         assert result, "Failed to build index"
