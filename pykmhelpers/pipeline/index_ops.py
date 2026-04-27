@@ -158,7 +158,7 @@ class IndexOps:
         ``write_script()``.
     """
 
-    # PRIVATE METHODS
+    # MAGIC METHODS
     def __init__(self, config: IndexOpsConfig) -> None:
         self._config = config
         self._config.workdir = os.path.realpath(self.config.workdir)
@@ -187,8 +187,8 @@ class IndexOps:
         os.makedirs(self.kmindex_data_dir, exist_ok=True)
 
     # ---
-
     # PROPERTIES AND GETTERS
+
     @property
     def config(self) -> IndexOpsConfig:
         return self._config
@@ -218,7 +218,6 @@ class IndexOps:
         return self._timestamp
 
     # ---
-
     # PUBLIC METHODS
 
     def write_script(self):
@@ -352,6 +351,9 @@ class IndexOps:
 
         result.status = ApplyStatus.SUCCESS
         return result
+
+    # ---
+    # PRIVATE METHODS
 
     def _process_entry_details(self, result, i):
         index_size = i.get_stored_size()
