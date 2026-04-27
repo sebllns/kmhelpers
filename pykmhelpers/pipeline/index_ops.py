@@ -8,6 +8,7 @@ from enum import Enum
 from time import sleep
 from typing import Optional
 
+from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
 from pykmhelpers.core.log import Log
 from pykmhelpers.operations.builder import IndexBuilder
 from pykmhelpers.pipeline.fof import FofManager
@@ -257,42 +258,13 @@ class IndexOps:
         path = os.path.realpath(path)
 
         # Load desired state
-        result = ApplyResult()
-        idt = IndexDefinitionTools()
-
         self._mode = mode
-        result.mode = mode
-        result.status = ApplyStatus.NONE
-        result.input_type = ApplyInputType.UNKNOWN
-        result.details = dict()
-        result.details["input_file"] = path
-        result.details["index"] = {}
-        result.details["span"] = {}
+        result = ApplyResult()
         idt = IndexDefinitionTools()
         data = None
 
-        if os.path.isfile(path) and path.endswith((".yaml", ".yml", ".json")):
-            try:
-                data = dict(idt.deserialize(path))
-            except Exception as e:
-                Log.handle_exception(
-                    logger=logger, msg=f"Could not parse schema from {path}", e=e
-                )
-
-            if data:
-                try:
-                    result.input_type = (
-                        ApplyInputType.INDEX_DEFINITION
-                        if data.get("type") == SerializedDataType.INDEX_DEFINITION.value
-                        else (
-                            ApplyInputType.SPAN_REGISTRY
-                            if data.get("type")
-                            == SerializedDataType.SPAN_DEFINITION.value
-                            else ApplyInputType.UNKNOWN
-                        )
-                    )
-                except (ValueError, KeyError):
-                    logger.error(f"Invalid type value: {data.get('type')}")
+        self._init_result_details(path, mode, result)
+        data = self._deserialize_data(path, result, idt)
 
         if data is None or result.input_type is ApplyInputType.UNKNOWN:
             logger.error(f"Could not retrieve data type.")
@@ -332,16 +304,7 @@ class IndexOps:
         for db in dbs:
             for i in db.index_table.values():
 
-                if result.input_type is ApplyInputType.INDEX_DEFINITION and (
-                    (
-                        self.config.filter_names
-                        and i.name not in self.config.filter_names
-                    )
-                    or (
-                        self.config.filter_spans
-                        and i.span not in self.config.filter_spans
-                    )
-                ):
+                if self._no_build(result, i):
                     continue
 
                 logger.info(f"Processing index definition '{i.name}'...")
@@ -358,15 +321,7 @@ class IndexOps:
                     parent_index = self.config.kmindex_build_from
 
                 try:
-                    index_size = i.get_stored_size()
-
-                    if i.span not in result.details["span"]:
-                        result.details["span"][i.span] = {"sample_count": 0, "size": 0}
-
-                    # result.details["span"][i.span] = (
-                    #     span_sizes.get(i.span, 0) + index_size.byte_count
-                    # )
-                    logger.info(f"   Estimated build size: {index_size}")
+                    self._process_entry_details(result, i)
                     self._build(path, result, idt, builder, i, parent_index)
 
                 except Exception as e:
@@ -397,6 +352,65 @@ class IndexOps:
 
         result.status = ApplyStatus.SUCCESS
         return result
+
+    def _process_entry_details(self, result, i):
+        index_size = i.get_stored_size()
+
+        if i.span not in result.details["span"]:
+            result.details["span"][i.span] = {"sample_count": 0, "size": 0}
+
+            # result.details["span"][i.span] = (
+            #     span_sizes.get(i.span, 0) + index_size.byte_count
+            # )
+        logger.info(f"   Estimated build size: {index_size}")
+
+    def _no_build(self, result, i):
+        # if ApplyInputType.SPAN_REGISTRY, filter has been already applied by _load_span_registry
+        return result.input_type is ApplyInputType.INDEX_DEFINITION and (
+            (self.config.filter_names and i.name not in self.config.filter_names)
+            or (self.config.filter_spans and i.span not in self.config.filter_spans)
+        )
+
+    def _deserialize_data(self, path, result, idt):
+        data = None
+        if os.path.isfile(path) and path.endswith((".yaml", ".yml", ".json")):
+            try:
+                data = dict(idt.deserialize(path))
+            except Exception as e:
+                Log.handle_exception(
+                    logger=logger, msg=f"Could not parse schema from {path}", e=e
+                )
+                return None
+
+            if data:
+                try:
+                    result.input_type = (
+                        ApplyInputType.INDEX_DEFINITION
+                        if data.get("type") == SerializedDataType.INDEX_DEFINITION.value
+                        else (
+                            ApplyInputType.SPAN_REGISTRY
+                            if data.get("type")
+                            == SerializedDataType.SPAN_DEFINITION.value
+                            else ApplyInputType.UNKNOWN
+                        )
+                    )
+                except (ValueError, KeyError):
+                    logger.error(f"Invalid type value: {data.get('type')}")
+                    return None
+        return data
+
+    def _init_result_details(self, path, mode, result):
+        result.mode = mode
+        result.status = ApplyStatus.NONE
+        result.input_type = ApplyInputType.UNKNOWN
+        result.details = dict()
+        result.details["input_file"] = path
+        result.details["index"] = {}
+        result.details["span"] = {}
+        result.details["kmindex"] = {}
+        wrapper = KmindexWrapper(dry_run=False)
+        result.details["version"] = wrapper.kmindex_version()
+        result.details["path"] = wrapper.which
 
     def _build_single(self, builder: IndexBuilder, i: IndexDefinition):
         """Build a single sub-index, showing a progress spinner or bar if configured.
