@@ -96,15 +96,9 @@ class IndexOpsConfig:
             in this list.
         filter_names: If set, only process index definitions whose name is in
             this list.
-        plan: When ``True``, commands are logged and collected for script
-            output but not executed.  Defaults to ``False``.
-        dry_run: Implies ``plan=True``.  Skips file existence checks in
-            addition to not executing commands.  Defaults to ``False``.
         on_existing: Behaviour when a sub-index folder already exists on disk but is not registered.
             Passed directly to the builder (e.g. ``"fail"``, ``"register"``).
             Defaults to ``"fail"``.
-        show_progress: Display a progress bar with ETA during builds.
-            Disabled automatically in plan/dry-run mode.  Defaults to ``False``.
         fail_on_error: Abort the entire apply operation on the first build or
             merge error instead of continuing and returning ``PARTIAL``.
             Defaults to ``False``.
