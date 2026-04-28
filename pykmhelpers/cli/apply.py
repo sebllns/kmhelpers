@@ -415,7 +415,7 @@ def apply(
             _notify_state["status"] = result.status.value
             if result.details:
                 details_path = os.path.join(
-                    iops.asset_dir, f"kmhelpers_apply_{iops.timestamp}_{i}.yaml"
+                    log_dir, f"kmhelpers_apply_{iops.timestamp}_{i}.yaml"
                 )
                 with open(details_path, "w") as f:
                     yaml.dump(
@@ -429,5 +429,3 @@ def apply(
             Log.handle_exception(
                 logger, e, f"Could not apply {os.path.basename(input_file)}"
             )
-
-    iops.write_script()

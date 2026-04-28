@@ -634,7 +634,7 @@ class KmindexWrapper(Wrapper):
                 ],
                 log_errors_only=True,
             )
-            return v.stderr[9:]
+            return v.stderr[9:].strip()
         except Exception as e:
             logger.warning(f"Could not get kmindex version: {e}")
             return None

@@ -151,7 +151,7 @@ class SectionedGroup(click.Group):
     "--config",
     "-C",
     envvar="KMHELPERS_CONFIG",
-    type=click.Path(),
+    type=click.Path(file_okay=True, dir_okay=False, exists=True, readable=True),
     default=None,
     help="YAML config file for default values",
 )
@@ -177,7 +177,7 @@ class SectionedGroup(click.Group):
     "--log-file",
     "-L",
     envvar="KMHELPERS_LOG_FILE",
-    type=click.Path(),
+    type=click.Path(file_okay=True, dir_okay=False, exists=False, writable=True),
     default=None,
     help="Path to log file (logs will be written in addition to console output)",
 )

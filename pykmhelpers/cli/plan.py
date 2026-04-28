@@ -309,7 +309,7 @@ def plan(
             )
             if result.details:
                 details_path = os.path.join(
-                    iops.asset_dir, f"kmhelpers_plan_{iops.timestamp}_{i}.yaml"
+                    log_dir, f"kmhelpers_plan_{iops.timestamp}_{i}.yaml"
                 )
                 with open(details_path, "w") as f:
                     yaml.dump(
