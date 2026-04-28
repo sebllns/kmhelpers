@@ -240,7 +240,7 @@ def cli(
     log_format = (
         "%(asctime)s | %(levelname)-8s | %(name)s:%(funcName)s:%(lineno)d | %(message)s"
         if log_level == logging.DEBUG
-        else "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+        else "%(asctime)s | %(levelname)-8s | %(message)s"
     )
 
     # Set up root logger
