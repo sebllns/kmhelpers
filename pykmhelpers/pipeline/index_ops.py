@@ -414,6 +414,9 @@ class IndexOps:
         result.details["version"] = wrapper.kmindex_version()
         result.details["path"] = wrapper.which
 
+    def _indent_prefix(self):
+        return "  └── " if logger.isEnabledFor(logging.INFO) else ""
+
     def _build_single(self, builder: IndexBuilder, i: IndexDefinition):
         """Build a single sub-index, showing a progress spinner or bar if configured.
 
@@ -465,7 +468,7 @@ class IndexOps:
                     fof.add_sample(sample_files, s.name)
                 except Exception as e:
                     logger.warning(
-                        f"  └── Error adding sample '{s.name}' to index | {e}"
+                        f"{self._indent_prefix()}Error adding sample '{s.name}' to '{i.name}' | {e}"
                     )
 
         result = None
@@ -549,7 +552,7 @@ class IndexOps:
                     wait_handler.join()
         else:
             logger.warning(
-                f"  └── Skipping index '{i.name}' as no sample was added to it"
+                f"{self._indent_prefix()}Skipping index '{i.name}' as no sample was added to it"
             )
 
         if self._mode >= ApplyMode.APPLY:
