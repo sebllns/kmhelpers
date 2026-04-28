@@ -196,7 +196,7 @@ class IndexBuilder:
 
         if build_from:
             if self.index.has_index(build_from) or dry_run:
-                logger.info(f"Reusing parameters from index: {build_from}")
+                logger.debug(f"Reusing parameters from index: {build_from}")
             elif name != build_from:
                 logger.warning(
                     f"Index '{build_from}' not found, building '{name}' from scratch"
@@ -279,7 +279,7 @@ class IndexBuilder:
             nb_partitions=n_partitions,
             register_as=name,
             bloom_size=bloom_size,
-            output_log_dir=os.path.join(self.log_folder, name),
+            output_log_dir=None if dry_run else os.path.join(self.log_folder, name),
             output_param_file=os.path.join(self.assets_folder, f"{name}.yaml"),
             from_index=build_from,
             compress_intermediate=compress_intermediate,
