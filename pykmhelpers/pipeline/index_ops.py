@@ -8,6 +8,7 @@ from enum import Enum
 from time import sleep
 from typing import Optional
 
+from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
 from pykmhelpers.core.log import Log
 from pykmhelpers.operations.builder import IndexBuilder
@@ -222,9 +223,11 @@ class IndexOps:
         ``apply()`` has been called in plan or dry-run mode, since that is when
         commands are accumulated into ``_script_lines``.
         """
-        script_path = os.path.join(
-            self.asset_dir, f"kmhelpers_apply_{self.timestamp}.sh"
-        )
+        script_path = os.path.join(self.asset_dir, f"kmhelpers_apply.sh")
+        if os.path.exists(script_path):
+            backup_path = script_path + ".bak"
+            os.replace(script_path, backup_path)
+            logger.debug(f"Backed up existing script to {backup_path}")
         with open(script_path, "w") as f:
             f.write("\n".join(self._script_lines) + "\n")
         logger.info(f"Script written to {script_path}")
@@ -305,7 +308,7 @@ class IndexOps:
                 assert i.name, "  └── IndexDefinition is missing required 'name' field"
                 if builder.index.has_index(i.name):
                     logger.info(f"{i.name} found in registry: skip")
-                    result.details["index"][i.name] = f"[{ApplyStatus.NONE.value}]"
+                    result.details["run"][i.name] = f"[{ApplyStatus.NONE.value}]"
                     continue
 
                 parent_index = i.get_parent()
@@ -321,7 +324,7 @@ class IndexOps:
                     Log.handle_exception(
                         logger, e, f"   Failed to build index '{i.name}'"
                     )
-                    result.details["index"][
+                    result.details["run"][
                         i.name
                     ] = f"[{ApplyStatus.FAILED.value}] {Log.format_exception(e)}"
                     result.status = ApplyStatus.PARTIAL
@@ -354,13 +357,20 @@ class IndexOps:
         sample_count = i.sample_count
 
         if i.span not in result.details["span"]:
-            result.details["span"][i.span] = {"sample_count": 0, "size": 0}
+            result.details["span"][i.span] = {
+                "sample_count": 0,
+                "bytes": 0,
+                "size_str": "0B",
+            }
 
         result.details["span"][i.span]["sample_count"] = (
             result.details["span"][i.span].get("sample_count", 0) + sample_count
         )
-        result.details["span"][i.span]["size"] = (
-            result.details["span"][i.span].get("size", 0) + index_size.byte_count
+        result.details["span"][i.span]["bytes"] = (
+            result.details["span"][i.span].get("bytes", 0) + index_size.byte_count
+        )
+        result.details["span"][i.span]["size_str"] = str(
+            ByteCounter.auto(result.details["span"][i.span]["bytes"])
         )
 
         logger.info(f"  └── Sample count: {sample_count}")
@@ -407,12 +417,12 @@ class IndexOps:
         result.input_type = ApplyInputType.UNKNOWN
         result.details = dict()
         result.details["input_file"] = path
-        result.details["index"] = {}
-        result.details["span"] = {}
         result.details["kmindex"] = {}
+        result.details["span"] = {}
+        result.details["run"] = {}
         wrapper = KmindexWrapper(dry_run=False)
-        result.details["version"] = wrapper.kmindex_version()
-        result.details["path"] = wrapper.which
+        result.details["kmindex"]["version"] = wrapper.kmindex_version()
+        result.details["kmindex"]["path"] = wrapper.which
 
     def _indent_prefix(self):
         return "  └── " if logger.isEnabledFor(logging.INFO) else ""
@@ -725,13 +735,13 @@ class IndexOps:
     def _parse_build_result(self, result, i, build_result):
         if build_result:
             if self._mode < ApplyMode.APPLY or build_result.get("return_code", -1) == 0:
-                result.details["index"][i.name] = f"[{ApplyStatus.SUCCESS.value}]"
+                result.details["run"][i.name] = f"[{ApplyStatus.SUCCESS.value}]"
             else:
-                result.details["index"][
+                result.details["run"][
                     i.name
                 ] = f"[{ApplyStatus.FAILED.value}] error_code={build_result["return_code"]}"
         else:
-            result.details["index"][i.name] = f"[{ApplyStatus.NONE.value}]"
+            result.details["run"][i.name] = f"[{ApplyStatus.NONE.value}]"
 
     def _merge(self, result, builder, to_index, parts):
         """Merge a list of sub-indexes into a combined index and clean up the parts.
