@@ -168,8 +168,9 @@ class SectionedGroup(click.Group):
     help="Decrease verbosity: -q for ERROR, -qq for CRITICAL,",
 )
 @click.option(
-    "--no-formatting",
-    envvar="KMHELPERS_WITHOUT_FORMATTING",
+    "--no-log-formatting",
+    "no_formatting",
+    envvar="KMHELPERS_NO_LOG_FORMATTING",
     is_flag=True,
     help="Disable log formatter",
 )
