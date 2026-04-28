@@ -11,9 +11,8 @@ from pykmhelpers.core.kmer import KmerCounter
 from pykmhelpers.core.log import Log
 from pykmhelpers.core.utils import Toolbox
 
-from ..plots.span_analyzer import SpanAnalyzer
-
 logger = logging.getLogger(__name__)
+
 
 # ---------------------------------------------------------------------------
 # CLI command
@@ -129,5 +128,10 @@ def process_data(input, output_dir, false_positive_rate):
     with open(span_list, "w") as f:
         f.write(" ".join(str(s) for s in sorted(spans.keys())))
 
-    sa = SpanAnalyzer(original_distribution_file)
-    sa.plot()
+    try:
+        import pykmhelpers.plots.span_analyzer
+
+        sa = pykmhelpers.plots.span_analyzer.SpanAnalyzer(original_distribution_file)
+        sa.plot()
+    except Exception as e:
+        Log.handle_exception(logger, e, "Plot error", level=logging.ERROR)

@@ -175,6 +175,7 @@ class SectionedGroup(click.Group):
 )
 @click.option(
     "--log-file",
+    "-L",
     envvar="KMHELPERS_LOG_FILE",
     type=click.Path(),
     default=None,

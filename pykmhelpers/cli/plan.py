@@ -25,20 +25,18 @@ logger = logging.getLogger(__name__)
 @click.option(
     "--config",
     "-c",
-    envvar="KMHELPERS_CONFIG",
-    required=False,
     type=click.Path(file_okay=True, dir_okay=False, exists=True),
     help="📄  Input configuration file (command line arguments take precedence when both are provided).",
 )
 @click.option(
-    "--workdir",
+    "--work-dir",
     "-w",
     required=False,
     type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Output directory path.",
+    help="📁  Working directory path.",
 )
 @click.option(
-    "--basepath",
+    "--base-path",
     "-b",
     required=False,
     type=click.Path(file_okay=False, dir_okay=True),
@@ -54,7 +52,7 @@ need to resolve them from a different location.",
     help="📁  Custom base path to kmindex registry (created if doesn't exist).",
 )
 @click.option(
-    "--output-dir",
+    "--bloom-dir",
     "-o",
     required=False,
     type=click.Path(file_okay=False, dir_okay=True),
@@ -89,9 +87,29 @@ need to resolve them from a different location.",
     help="⚙   Override number of partitions.",
 )
 @click.option(
-    "--existing",
+    "--on-conflict",
+    "existing",
     required=False,
     help="⚙   Action when an existing unregistered index folder is found: fail, register, rename,  replace, register_or_replace, register_or_rename (default: fail).",
+)
+@click.option(
+    "--offline",
+    "-O",
+    is_flag=True,
+    help="🚩  Skip local path validation (useful when exporting scripts for another machine).",
+)
+# @click.option(
+#     "--export",
+#     "-E",
+#     is_flag=True,
+#     help="🚩  Export pipeline in a shell script.",
+# )
+@click.option(
+    "--fail-fast",
+    "-X",
+    "fail_on_error",
+    is_flag=True,
+    help="🚩  Abort the entire run if any index fails to build, instead of skipping it and continuing.",
 )
 @click.option(
     "--verbose",
@@ -99,27 +117,23 @@ need to resolve them from a different location.",
     is_flag=True,
     help="🚩  Verbose output.",
 )
-@click.option(
-    "--fail-on-error",
-    is_flag=True,
-    help="🚩  Abort the entire run if any index fails to build, instead of skipping it and continuing.",
-)
 @click.pass_context
 def plan(
     ctx,
     input_files,
     config,
-    workdir,
-    basepath,
+    work_dir,
+    base_path,
     registry,
-    output_dir,
+    bloom_dir,
     span,
     index_ids,
     reuse_from,
     partition_count,
     existing,
-    verbose,
+    offline,
     fail_on_error,
+    verbose,
 ):
     """Apply changes and build indices from definition files.
 
@@ -205,18 +219,18 @@ def plan(
         )
         selected_spans = shared.parse_multiple_ranges(span) if span else None
 
-        if not workdir:
-            workdir = config_map.get("workdir")
-        assert workdir, "Required parameter 'workdir' was not provided."
+        if not work_dir:
+            work_dir = config_map.get("work_dir", "kmhelpers_workdir")
+        assert work_dir, "Required parameter 'work_dir' was not provided."
 
         if not registry:
             registry = config_map.get("registry", "")
 
-        if not basepath:
-            basepath = config_map.get("basepath", ".")
+        if not base_path:
+            base_path = config_map.get("base_path", ".")
 
-        if not output_dir:
-            output_dir = config_map.get("output_dir")
+        if not bloom_dir:
+            bloom_dir = config_map.get("bloom_dir")
 
         if not existing:
             existing = config_map.get("existing", "fail")
@@ -234,28 +248,28 @@ def plan(
         Log.handle_exception(logger, e, f"Invalid argument.")
         raise click.ClickException(abort_msg)
 
-    workdir = os.path.realpath(workdir)
+    work_dir = os.path.realpath(work_dir)
 
     if not registry:
-        registry = workdir
+        registry = work_dir
     else:
         registry = os.path.realpath(registry)
 
-    if not output_dir:
-        output_dir = os.path.join(workdir, "kmindex_data")
+    if not bloom_dir:
+        bloom_dir = os.path.join(work_dir, "kmindex_data")
     else:
-        output_dir = os.path.realpath(output_dir)
+        bloom_dir = os.path.realpath(bloom_dir)
 
-    if not basepath:
-        basepath = os.getcwd()
+    if not base_path:
+        base_path = os.getcwd()
 
-    basepath = os.path.realpath(basepath)
+    base_path = os.path.realpath(base_path)
 
-    if not os.path.isdir(basepath):
+    if not os.path.isdir(base_path):
         if fail_on_error:
-            click.ClickException(f"Data root directory not found at {basepath}")
+            click.ClickException(f"Data root directory not found at {base_path}")
         else:
-            logger.warning(f"Data root directory not found at {basepath}")
+            logger.warning(f"Data root directory not found at {base_path}")
 
     if (
         existing in ("replace", "register_or_replace")
@@ -265,12 +279,14 @@ def plan(
         logger.warning("Build cancelled")
         return
 
+    logger.info(f"Working directory: {work_dir}")
+
     iops = ops.IndexOps(
         config=ops.IndexOpsConfig(
-            workdir=workdir,
-            index_data_folder=output_dir,
-            registry_dir=os.path.join(workdir, registry),
-            sample_rootpath=basepath,
+            workdir=work_dir,
+            index_data_folder=bloom_dir,
+            registry_dir=os.path.join(work_dir, registry),
+            sample_rootpath=base_path,
             kmindex_skip_compression=False,
             kmindex_build_from=reuse_from,
             filter_names=selected_ids,
@@ -287,7 +303,10 @@ def plan(
     for input_file in input_files:
         try:
             logger.info(f"Plan {input_file}...")
-            result = iops.apply(input_file, ops.ApplyMode.PLAN)
+            result = iops.apply(
+                input_file,
+                mode=(ops.ApplyMode.DRY_RUN if offline else ops.ApplyMode.PLAN),
+            )
             if result.details:
                 details_path = os.path.join(
                     iops.asset_dir, f"kmhelpers_plan_{iops.timestamp}_{i}.yaml"

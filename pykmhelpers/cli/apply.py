@@ -50,20 +50,19 @@ def _parse_spans(spans):
 @click.option(
     "--config",
     "-c",
-    envvar="KMHELPERS_CONFIG",
     required=False,
     type=click.Path(file_okay=True, dir_okay=False, exists=True),
     help="📄  Input configuration file (command line arguments take precedence when both are provided).",
 )
 @click.option(
-    "--workdir",
+    "--work-dir",
     "-w",
     required=False,
     type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Output directory path.",
+    help="📁  Working directory path.",
 )
 @click.option(
-    "--basepath",
+    "--base-path",
     "-b",
     required=False,
     type=click.Path(file_okay=False, dir_okay=True),
@@ -79,7 +78,7 @@ need to resolve them from a different location.",
     help="📁  Custom base path to kmindex registry (created if doesn't exist).",
 )
 @click.option(
-    "--output-dir",
+    "--bloom-dir",
     "-o",
     required=False,
     type=click.Path(file_okay=False, dir_okay=True),
@@ -143,11 +142,6 @@ need to resolve them from a different location.",
     help="🚩  Skip compression of intermediate files during index building. Can improve performance on fast drives where I/O is not a bottleneck.",
 )
 @click.option(
-    "--dry-run",
-    is_flag=True,
-    help="🚩  Output a bash script with build commands without executing them.",
-)
-@click.option(
     "--show-progress",
     is_flag=True,
     help="🚩  Show a progress bar with elapsed time and estimated remaining time during index building.",
@@ -168,10 +162,10 @@ def apply(
     ctx,
     input_files,
     config,
-    workdir,
-    basepath,
+    work_dir,
+    base_path,
     registry,
-    output_dir,
+    bloom_dir,
     span,
     index_ids,
     reuse_from,
@@ -181,7 +175,6 @@ def apply(
     existing,
     verbose,
     skip_compression,
-    dry_run,
     show_progress,
     fail_on_error,
     notify,
@@ -316,18 +309,18 @@ def apply(
         selected_ids = [id for entry in index_ids for id in entry.split(",") if id]
         selected_spans = _parse_spans(span)
 
-        if not workdir:
-            workdir = config_map.get("workdir")
-        assert workdir, "Required parameter 'workdir' was not provided."
+        if not work_dir:
+            work_dir = config_map.get("work_dir", "kmhelpers_workdir")
+        assert work_dir, "Required parameter 'work_dir' was not provided."
 
         if not registry:
             registry = config_map.get("registry", "")
 
-        if not basepath:
-            basepath = config_map.get("basepath", ".")
+        if not base_path:
+            base_path = config_map.get("base_path", ".")
 
-        if not output_dir:
-            output_dir = config_map.get("output_dir")
+        if not bloom_dir:
+            bloom_dir = config_map.get("bloom_dir")
 
         if not existing:
             existing = config_map.get("existing", "fail")
@@ -347,9 +340,6 @@ def apply(
         if not skip_compression:
             skip_compression = config_map.get("skip_compression", False)
 
-        if not dry_run:
-            dry_run = config_map.get("dry_run", False)
-
         if not partition_count:
             partition_count = config_map.get("partition_count", None)
 
@@ -360,28 +350,28 @@ def apply(
         Log.handle_exception(logger, e, f"Invalid argument.")
         raise click.ClickException(abort_msg)
 
-    workdir = os.path.realpath(workdir)
+    work_dir = os.path.realpath(work_dir)
 
     if not registry:
-        registry = workdir
+        registry = work_dir
     else:
         registry = os.path.realpath(registry)
 
-    if not output_dir:
-        output_dir = os.path.join(workdir, "kmindex_data")
+    if not bloom_dir:
+        bloom_dir = os.path.join(work_dir, "kmindex_data")
     else:
-        output_dir = os.path.realpath(output_dir)
+        bloom_dir = os.path.realpath(bloom_dir)
 
-    if not basepath:
-        basepath = os.getcwd()
+    if not base_path:
+        base_path = os.getcwd()
 
-    basepath = os.path.realpath(basepath)
+    base_path = os.path.realpath(base_path)
 
-    if not os.path.isdir(basepath):
+    if not os.path.isdir(base_path):
         if fail_on_error:
-            click.ClickException(f"Data root directory not found at {basepath}")
+            click.ClickException(f"Data root directory not found at {base_path}")
         else:
-            logger.warning(f"Data root directory not found at {basepath}")
+            logger.warning(f"Data root directory not found at {base_path}")
 
     if (
         existing in ("replace", "register_or_replace")
@@ -391,13 +381,15 @@ def apply(
         logger.warning("Build cancelled")
         return
 
+    logger.info(f"Working directory: {work_dir}")
+
     iops = ops.IndexOps(
         config=ops.IndexOpsConfig(
-            workdir=workdir,
-            index_data_folder=output_dir,
-            registry_dir=os.path.join(workdir, registry),
+            workdir=work_dir,
+            index_data_folder=bloom_dir,
+            registry_dir=os.path.join(work_dir, registry),
             minimizer_length=int(minim_size),
-            sample_rootpath=basepath,
+            sample_rootpath=base_path,
             kmindex_threads=threads,
             kmindex_skip_compression=skip_compression,
             kmindex_build_from=reuse_from,
@@ -411,16 +403,8 @@ def apply(
 
     log_dir = iops.log_dir
 
-    if show_progress and dry_run:
-        logger.warning(f"--show-progress ignored in --dry-run mode")
-        show_progress = False
-
     apply_mode = (
-        ops.ApplyMode.DRY_RUN
-        if dry_run
-        else (
-            ops.ApplyMode.APPLY_SHOW_PROGRESS if show_progress else ops.ApplyMode.APPLY
-        )
+        ops.ApplyMode.APPLY_SHOW_PROGRESS if show_progress else ops.ApplyMode.APPLY
     )
 
     i = 0

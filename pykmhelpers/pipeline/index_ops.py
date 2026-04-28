@@ -300,9 +300,9 @@ class IndexOps:
                 if self._no_build(result, i):
                     continue
 
-                logger.info(f"Processing index definition '{i.name}'...")
+                logger.info(f"► Processing index definition '{i.name}'...")
 
-                assert i.name, "   IndexDefinition is missing required 'name' field"
+                assert i.name, "  └── IndexDefinition is missing required 'name' field"
                 if builder.index.has_index(i.name):
                     logger.info(f"{i.name} found in registry: skip")
                     result.details["index"][i.name] = f"[{ApplyStatus.NONE.value}]"
@@ -351,14 +351,20 @@ class IndexOps:
 
     def _process_entry_details(self, result, i):
         index_size = i.get_stored_size()
+        sample_count = i.sample_count
 
         if i.span not in result.details["span"]:
             result.details["span"][i.span] = {"sample_count": 0, "size": 0}
 
-            # result.details["span"][i.span] = (
-            #     span_sizes.get(i.span, 0) + index_size.byte_count
-            # )
-        logger.info(f"   Estimated build size: {index_size}")
+        result.details["span"][i.span]["sample_count"] = (
+            result.details["span"][i.span].get("sample_count", 0) + sample_count
+        )
+        result.details["span"][i.span]["size"] = (
+            result.details["span"][i.span].get("size", 0) + index_size.byte_count
+        )
+
+        logger.info(f"  └── Sample count: {sample_count}")
+        logger.info(f"  └── Estimated build size: {index_size}")
 
     def _no_build(self, result, i):
         # if ApplyInputType.SPAN_REGISTRY, filter has been already applied by _load_span_registry
@@ -458,7 +464,9 @@ class IndexOps:
                             assert os.path.isfile(f), f"Sample file not found: {f}"
                     fof.add_sample(sample_files, s.name)
                 except Exception as e:
-                    logger.warning(f"Error adding sample '{s.name}' to index | {e}")
+                    logger.warning(
+                        f"  └── Error adding sample '{s.name}' to index | {e}"
+                    )
 
         result = None
         self._building.add(i.name)
@@ -503,8 +511,8 @@ class IndexOps:
                         wait_handler.join()
 
                 progress_handler = IndexBuilder.Progress(_on_progress, delay=60)
-            else:
-                logger.info(f"Building index '{i.name}'...")
+            elif self._mode >= ApplyMode.APPLY:
+                logger.info(f"  └── Building '{i.name}'...")
 
             try:
                 partition_count = (
@@ -540,7 +548,9 @@ class IndexOps:
                 if wait_handler:
                     wait_handler.join()
         else:
-            logger.warning(f"Skipping index '{i.name}' as no sample was added to it")
+            logger.warning(
+                f"  └── Skipping index '{i.name}' as no sample was added to it"
+            )
 
         if self._mode >= ApplyMode.APPLY:
             builder.index.load_json()
@@ -742,8 +752,10 @@ class IndexOps:
         """
         builder.index.load_json()
         missing = None
+
         if self._mode >= ApplyMode.APPLY:
             missing = [name for name in parts if not builder.index.has_index(name)]
+
         if missing:
             logger.warning(
                 f"Cannot merge '{to_index}' due to some sub-indexes missing: {missing}"
@@ -768,11 +780,12 @@ class IndexOps:
             else:
                 raise Exception("Malformed result")
 
-            builder.index.load_json()
-            assert builder.has_subindex(to_index), f"Sub-index {to_index} not found"
-            if builder.index.get_index(to_index).check_structure():
-                for segment in parts:
-                    self._delete_segment(builder, segment)
+            if self._mode >= ApplyMode.APPLY:
+                builder.index.load_json()
+                assert builder.has_subindex(to_index), f"Sub-index {to_index} not found"
+                if builder.index.get_index(to_index).check_structure():
+                    for segment in parts:
+                        self._delete_segment(builder, segment)
 
     def _delete_segment(self, builder, segment):
         """Remove a segment sub-index from the registry and delete its files.
