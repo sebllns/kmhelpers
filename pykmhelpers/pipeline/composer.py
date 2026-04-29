@@ -67,6 +67,7 @@ def compose_indices(
     all_samples: list[db.Sample] = []
     split_count = {}
     original_distribution = {}
+    bf_sizes = {}
     span_size = {}
     db_instance = db.IndexDB(name=name)
     db_tools = db.IndexDefinitionTools()
@@ -105,9 +106,12 @@ def compose_indices(
             if span != orig_span:
                 logger.debug(f"    Span adjusted: {orig_span} → {span}")
 
-            original_distribution[orig_span] = original_distribution.get(orig_span, 0) + 1
+            original_distribution[orig_span] = (
+                original_distribution.get(orig_span, 0) + 1
+            )
 
-            bf_size = sm.get_bf_size(span)
+            bf_sizes[orig_span] = sm.get_bf_size(orig_span)
+            bf_sizes[span] = sm.get_bf_size(span)
 
             if span not in split_count:
                 split_count[span] = 0
@@ -117,7 +121,7 @@ def compose_indices(
             index_name = db_tools.get_index_name(name, prefix, span, split_count[span])
             if index_name not in db_instance.index_table:
                 logger.debug(
-                    f"Creating new index: {index_name}, span={span}, bf_size={bf_size}"
+                    f"Creating new index: {index_name}, span={span}, bf_size={bf_sizes[span]}"
                 )
                 i = db.IndexDefinition(
                     name=index_name,
@@ -125,7 +129,7 @@ def compose_indices(
                     kmer_size=kmer_size,
                     index_type="kmindex",
                     span=span,
-                    bf_size=bf_size,
+                    bf_size=bf_sizes[span],
                     partition_count=partition_count,
                     assembled=assembled,
                     abundance_min=db_tools.get_abundance_min(assembled),
@@ -175,16 +179,18 @@ def compose_indices(
 
     original_distribution_file = os.path.join(output_dir, f"{name}_orig_dist.csv")
     with open(original_distribution_file, "w") as f:
-        f.write("span,sample_count\n")
+        f.write("span,bf_size,sample_count\n")
         for span_id, sample_count in sorted(original_distribution.items()):
-            f.write(f"{span_id},{sample_count}\n")
+            f.write(f"{span_id},{bf_sizes[span_id]},{sample_count}\n")
 
     index_summary_file = os.path.join(output_dir, f"{name}_summary.csv")
     with open(index_summary_file, "w") as f:
         f.write("span,sample_count,stored_size_GB\n")
         for span_id, span_obj in sorted(db_instance.span_table.items()):
             size = span_obj.get_total_stored_size()
-            f.write(f"{span_id},{span_obj.get_sample_count()},{size.byte_count/(1000**3)}\n")
+            f.write(
+                f"{span_id},{span_obj.get_sample_count()},{size.byte_count/(1000**3)}\n"
+            )
 
     logger.info(f"Exporting database in {format} format to {output_dir}...")
 
@@ -405,7 +411,8 @@ def prepare_sample(
 
     if sample_name != sample.name:
         logger.debug(
-            f"    New sample ID: {sample_name}" + (f" (ex: {sample.name})" if sample.name else "")
+            f"    New sample ID: {sample_name}"
+            + (f" (ex: {sample.name})" if sample.name else "")
         )
         if sample.name:
             sample.create_link(db.DbFields.ORIGINAL_ID, sample.name)
@@ -417,4 +424,6 @@ def prepare_sample(
     if sample.kmer_count == 0 or recount:
         action = "Recounting" if recount else "Counting"
         logger.info(f"  {action} k-mers for sample {sample.name}")
-        sample.kmer_count = kc.count_files(files=sample.files, target_value=ntcard_value)
+        sample.kmer_count = kc.count_files(
+            files=sample.files, target_value=ntcard_value
+        )
