@@ -1,4 +1,5 @@
 import csv
+import itertools
 import math
 import sys
 
@@ -76,6 +77,83 @@ class SpanAnalyzer:
         d_minus = self.bf[k] * self.lk[k]
         return (d_plus - d_minus) / 8e9
 
+    def compute_groups(self, n_groups):
+        """Find optimal boundaries to partition spans into n_groups storage-balanced groups.
+
+        Uses self.sizes (actual bloom filter storage per span) as the cost to balance.
+        Returns (boundaries, group_spans, costs) where:
+            boundaries  — tuple of span values used as upper limits between groups
+            group_spans — list of lists, each containing the spans in that group
+            costs       — list of total storage cost (bytes) per group
+        """
+        spans = self.spans
+
+        def split(boundaries):
+            limits = [-math.inf] + list(boundaries) + [math.inf]
+            groups = []
+            for i in range(len(limits) - 1):
+                lo, hi = limits[i], limits[i + 1]
+                groups.append([s for s in spans if lo < s <= hi])
+            return groups
+
+        best, best_score = None, float("inf")
+        for boundaries in itertools.combinations(spans[:-1], n_groups - 1):
+            groups = split(boundaries)
+            costs = [sum(self.sizes[s] for s in g) for g in groups]
+            total = sum(costs)
+            if total == 0:
+                continue
+            target = total / n_groups
+            score = max(abs(c - target) for c in costs)
+            if score < best_score:
+                best_score = score
+                best = boundaries
+
+        group_spans = split(best)
+        costs = [sum(self.sizes[s] for s in g) for g in group_spans]
+        return best, group_spans, costs
+
+    def _plot_groups(self, ax, boundaries, group_spans, costs):
+        COLORS = plt.cm.tab10.colors
+        spans = self.spans
+        x = list(range(len(spans)))
+
+        def group_idx(s):
+            for i, bnd in enumerate(boundaries):
+                if s <= bnd:
+                    return i
+            return len(boundaries)
+
+        colors = [COLORS[group_idx(s) % len(COLORS)] for s in spans]
+        nc_vals = [self.nc[s] for s in spans]
+
+        self._style_ax(ax)
+        ax.bar(x, nc_vals, color=colors, width=0.6, zorder=2)
+        ax.set_xticks(x)
+        ax.set_xticklabels(spans, rotation=45, ha="right", fontsize=8, color="#8a9bb5")
+        ax.set_title("Group partitioning", color="#c9cdd8")
+
+        for bnd in boundaries:
+            if bnd in spans:
+                xi = spans.index(bnd)
+                ax.axvline(x=xi + 0.5, color="white", linestyle="--", linewidth=1.0)
+
+        total_cost = sum(costs)
+        legend_handles = [
+            Patch(
+                facecolor=COLORS[i % len(COLORS)],
+                label=f"G{i+1}: {len(g)} spans  {costs[i]/2**30:.2f} GB ({100*costs[i]/total_cost:.1f}%)",
+            )
+            for i, g in enumerate(group_spans)
+        ]
+        ax.legend(
+            handles=legend_handles,
+            facecolor="#1a1d27",
+            edgecolor="#2a2d3a",
+            labelcolor="#c9cdd8",
+            fontsize=8,
+        )
+
     def _style_ax(self, ax):
         ax.set_facecolor("#0f1117")
         ax.tick_params(colors="#5a5f72")
@@ -83,7 +161,7 @@ class SpanAnalyzer:
             spine.set_edgecolor("#2a2d3a")
         ax.grid(True, color="#1e2130", linewidth=0.8, axis="y")
 
-    def plot(self):
+    def plot(self, n_groups=None):
         spans = self.spans
         adj_costs = [(k, m, self.delta_adjacent(k, m)) for k, m in self.adj_pairs]
         cum_points = [
@@ -91,8 +169,12 @@ class SpanAnalyzer:
         ]
         cum_points = [(s, d) for s, d in cum_points if d is not None]
 
-        fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+        if n_groups is not None and n_groups > 1:
+            boundaries, group_spans, group_costs = self.compute_groups(n_groups)
+
+        fig, axes = plt.subplots(2, 2, figsize=(18, 12))
         fig.patch.set_facecolor("#0f1117")
+        axes = axes.flatten()
 
         # plot 1: sample_count bars + waste% on twin axis
         ax = axes[0]
@@ -217,6 +299,12 @@ class SpanAnalyzer:
             fontsize=9,
         )
 
+        ax = axes[3]
+        if n_groups is not None and n_groups > 1:
+            self._plot_groups(ax, boundaries, group_spans, group_costs)
+        else:
+            ax.set_visible(False)
+
         fig.suptitle(
             f"Span analysis (total size ≈ {self.get_total_stored_size_str()})",
             color="#e0e4f0",
@@ -229,4 +317,5 @@ class SpanAnalyzer:
 
 if __name__ == "__main__":
     path = sys.argv[1] if len(sys.argv) > 1 else "spans.csv"
-    SpanAnalyzer(path).plot()
+    n_groups = int(sys.argv[2]) if len(sys.argv) > 2 else None
+    SpanAnalyzer(path).plot(n_groups=n_groups)
