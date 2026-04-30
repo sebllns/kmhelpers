@@ -5,6 +5,16 @@ BYTE_SIZE: int = 8
 ENCODED_BITLENGTH: int = 64
 
 
+def kmindex_matrix_bit_count(rows, cols):
+    return rows * cols
+
+
+def kmindex_matrix_storage_cost(rows, cols):
+    return ((cols + BYTE_SIZE - 1) // BYTE_SIZE) * (
+        ((rows + ENCODED_BITLENGTH - 1) // ENCODED_BITLENGTH) * ENCODED_BITLENGTH
+    )
+
+
 class BloomFilterSpecs:
     def __init__(self, n_rows: int, n_cols: int, n_partitions: int):
         self._n_parts = n_partitions
@@ -25,6 +35,10 @@ class BloomFilterSpecs:
     @property
     def cols(self) -> int:
         return self._n_cols
+
+    @property
+    def matrix_size(self) -> int:
+        return self.rows * self.cols
 
     @property
     def parts(self) -> int:
