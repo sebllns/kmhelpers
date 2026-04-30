@@ -97,21 +97,28 @@ class SpanAnalyzer:
             return groups
 
         best, best_score = None, float("inf")
+        best_groups, best_cost = None, None
+
+        target = 1.0 / n_groups
+
         for boundaries in itertools.combinations(spans[:-1], n_groups - 1):
             groups = split(boundaries)
-            costs = [sum(self.sizes[s] for s in g) for g in groups]
+            costs = [sum(self.sizes[s] * (2 ** (g[-1] - s)) for s in g) for g in groups]
+            print(self.sizes)
+            print(groups)
+            print(costs)
             total = sum(costs)
             if total == 0:
                 continue
-            target = total / n_groups
-            score = max(abs(c - target) for c in costs)
+            score = max(abs(float(c) / total - target) for c in costs)
+            print(score)
             if score < best_score:
                 best_score = score
                 best = boundaries
+                best_cost = costs
+                best_groups = groups
 
-        group_spans = split(best)
-        costs = [sum(self.sizes[s] for s in g) for g in group_spans]
-        return best, group_spans, costs
+        return best, best_groups, best_cost
 
     def _plot_groups(self, ax, boundaries, group_spans, costs):
         COLORS = [plt.colormaps["tab10"](i) for i in range(10)]
@@ -139,6 +146,13 @@ class SpanAnalyzer:
                 ax.axvline(x=xi + 0.5, color="white", linestyle="--", linewidth=1.0)
 
         total_cost = sum(costs)
+
+        print("=" * 100)
+        print(self.sizes)
+        print(boundaries)
+        print(group_spans)
+        print(costs)
+
         legend_handles = [
             Patch(
                 facecolor=COLORS[i % len(COLORS)],
@@ -189,7 +203,7 @@ class SpanAnalyzer:
         ax.set_xticklabels(spans, rotation=45, ha="right", fontsize=8, color="#8a9bb5")
         # ax.set_ylabel("sample_count", color="#4a9eff")
         # ax.set_title("Sample count & pack-of-8 waste per span", color="#c9cdd8")
-        ax.set_title("Sample distribution", color="#c9cdd8")
+        ax.set_title("Baseline: natural sample distribution", color="#c9cdd8")
 
         # ax2 = ax.twinx()
         # ax2.set_facecolor("#0f1117")
@@ -240,7 +254,9 @@ class SpanAnalyzer:
         ax.set_yscale("symlog", linthresh=0.1)
         ax.set_xlabel("Target span m", color="#8a9bb5")
         ax.set_ylabel("Delta (GB)", color="#8a9bb5")
-        ax.set_title("Cumulative fusion cost: all previous spans → m", color="#c9cdd8")
+        ax.set_title(
+            "Cumulative span grouping cost: all previous spans → m", color="#c9cdd8"
+        )
         ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
         ax.legend(
             handles=[
@@ -301,7 +317,11 @@ class SpanAnalyzer:
         )
 
         ax = axes[3]
-        if boundaries is not None and group_spans is not None and group_costs is not None:
+        if (
+            boundaries is not None
+            and group_spans is not None
+            and group_costs is not None
+        ):
             self._plot_groups(ax, boundaries, group_spans, group_costs)
         else:
             ax.set_visible(False)
