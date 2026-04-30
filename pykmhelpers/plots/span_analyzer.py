@@ -8,7 +8,7 @@ import matplotlib.ticker as ticker
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
-from pykmhelpers.core.bloom_filter import BloomFilterSpecs, SpanManager
+from pykmhelpers.core.bloom_filter import BloomFilterSpecs
 from pykmhelpers.core.byte import ByteCounter, SizeFormat
 
 
@@ -114,7 +114,7 @@ class SpanAnalyzer:
         return best, group_spans, costs
 
     def _plot_groups(self, ax, boundaries, group_spans, costs):
-        COLORS = plt.cm.tab10.colors
+        COLORS = [plt.colormaps["tab10"](i) for i in range(10)]
         spans = self.spans
         x = list(range(len(spans)))
 
@@ -169,6 +169,7 @@ class SpanAnalyzer:
         ]
         cum_points = [(s, d) for s, d in cum_points if d is not None]
 
+        boundaries, group_spans, group_costs = None, None, None
         if n_groups is not None and n_groups > 1:
             boundaries, group_spans, group_costs = self.compute_groups(n_groups)
 
@@ -181,7 +182,7 @@ class SpanAnalyzer:
         self._style_ax(ax)
         x = list(range(len(spans)))
         nc_vals = [self.nc[s] for s in spans]
-        wp_vals = [self.waste_pct(s) for s in spans]
+        # wp_vals = [self.waste_pct(s) for s in spans]
 
         ax.bar(x, nc_vals, color="#4a9eff", width=0.6, label="sample_count", zorder=2)
         ax.set_xticks(x)
@@ -300,7 +301,7 @@ class SpanAnalyzer:
         )
 
         ax = axes[3]
-        if n_groups is not None and n_groups > 1:
+        if boundaries is not None and group_spans is not None and group_costs is not None:
             self._plot_groups(ax, boundaries, group_spans, group_costs)
         else:
             ax.set_visible(False)
