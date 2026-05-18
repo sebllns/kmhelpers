@@ -290,15 +290,19 @@ def cli(
             logger.debug(f"Logging to file: {log_file}")
             Log.log_file = Toolbox.get_canonical_path(log_file)
         except Exception as e:
-            click.echo(f"Warning: Could not open log file '{log_file}': {e}", err=True)
+            root_logger.warning(f"Could not open log file '{log_file}': {e}")
 
     if chdir:
-        click.echo(f"cd {chdir}", err=True)
-        os.chdir(chdir)
+        try:
+            os.chdir(chdir)
+            root_logger.info(f"cd {chdir}")
+        except Exception as e:
+            root_logger.warning(f"Could not set working directory '{chdir}': {e}")
+
     try:
         Bin.check_kmindex()
     except RuntimeError as e:
-        click.echo("Could not find kmindex command in path.", err=True)
+        root_logger.warning("Could not find kmindex command in path.")
 
 
 # Register main commands
