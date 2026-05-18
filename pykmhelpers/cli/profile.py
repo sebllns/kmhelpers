@@ -1,6 +1,7 @@
 """Analyse a sample YAML file and produce a Bloom-filter span distribution."""
 
 import logging
+import math
 import os
 
 import click
@@ -39,6 +40,16 @@ logger = logging.getLogger(__name__)
     help="📁  Output directory for the span distribution CSV and analysis plot.",
 )
 @click.option(
+    "--group",
+    "-g",
+    "n_groups",
+    metavar="N_GROUPS",
+    default=0,
+    type=int,
+    help="⚙   Partition spans into N storage-balanced groups and overlay the result on the plot (default: 0). "
+    "Pass 0 to let the analyser choose the optimal number of groups automatically. ",
+)
+@click.option(
     "--false-positive-rate",
     "--fp",
     type=float,
@@ -47,7 +58,7 @@ logger = logging.getLogger(__name__)
     "A higher rate reduces disk footprint; the findere algorithm compensates at "
     "query time by using (k+z)-mers. Recommended: build with p=0.25, query with z=6.",
 )
-def profile(input, output_dir, false_positive_rate):
+def profile(input, output_dir, n_groups, false_positive_rate):
     """Analyse a sample YAML file and output a Bloom-filter span profile.
 
     Reads the k-mer counts from INPUT_FILE (a YAML file produced by `list`), assigns each sample to a Bloom-filter span using the given
@@ -75,7 +86,7 @@ def profile(input, output_dir, false_positive_rate):
             raise click.ClickException(f"File not found: {input}")
 
         if input.endswith(".yaml") or input.endswith(".yml"):
-            process_data(input, output_dir, false_positive_rate)
+            process_data(input, output_dir, false_positive_rate, n_groups)
         else:
             raise click.ClickException(
                 f"Unsupported extension: must be '.yaml' or '.yml'."
@@ -85,7 +96,7 @@ def profile(input, output_dir, false_positive_rate):
         Log.handle_exception(logger, e, "FAILED ('profile')")
 
 
-def process_data(input, output_dir, false_positive_rate):
+def process_data(input, output_dir, false_positive_rate, n_groups):
     with open(input, "r") as f:
         data = yaml.safe_load(f)
     if not data:
@@ -132,6 +143,12 @@ def process_data(input, output_dir, false_positive_rate):
         import pykmhelpers.plots.span_analyzer
 
         sa = pykmhelpers.plots.span_analyzer.SpanAnalyzer(original_distribution_file)
-        sa.plot()
+
+        if n_groups == 0:
+            n_groups = math.ceil(len(spans) / 3)
+        elif n_groups == 1:
+            n_groups = None
+
+        sa.plot(n_groups=n_groups)
     except Exception as e:
         Log.handle_exception(logger, e, "Plot error", level=logging.ERROR)
