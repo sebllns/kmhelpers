@@ -27,6 +27,7 @@ class SpanAnalyzer:
         self.sizes = {
             d[0]: BloomFilterSpecs(d[1], d[2], 256).total_storage_size() for d in data
         }
+        self.boundaries = []
 
     @staticmethod
     def _load_csv(path):
@@ -330,6 +331,7 @@ class SpanAnalyzer:
                 n_groups
             )
             self._plot_groups(ax, boundaries, group_spans, group_costs, sample_count)
+            self.boundaries = boundaries
         else:
             ax.set_visible(False)
 
