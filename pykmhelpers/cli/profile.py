@@ -135,9 +135,9 @@ def process_data(input, output_dir, false_positive_rate, n_groups):
         for span_id, sample_count in sorted(spans.items()):
             f.write(f"{span_id},{sm.get_bf_size(span_id)},{sample_count}\n")
 
-    span_list = os.path.join(output_dir, f"span_list")
-    with open(span_list, "w") as f:
-        f.write(" ".join(str(s) for s in sorted(spans.keys())))
+    span_list = sorted(spans.keys())
+    with open(os.path.join(output_dir, f"span_list"), "w") as f:
+        f.write(" ".join(str(s) for s in span_list))
 
     try:
         import pykmhelpers.plots.span_analyzer
@@ -150,5 +150,12 @@ def process_data(input, output_dir, false_positive_rate, n_groups):
             n_groups = None
 
         sa.plot(n_groups=n_groups)
+
+        if sa.boundaries:
+            with open(os.path.join(output_dir, f"span_boundaries"), "w") as f:
+                f.write(
+                    " ".join(str(s) for s in sorted(sa.boundaries) + [span_list[-1]])
+                )
+
     except Exception as e:
         Log.handle_exception(logger, e, "Plot error", level=logging.ERROR)
