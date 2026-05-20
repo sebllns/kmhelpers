@@ -8,6 +8,7 @@ import click
 import yaml
 
 from pykmhelpers.core.bloom_filter import SpanManager
+from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.kmer import KmerCounter
 from pykmhelpers.core.log import Log
 from pykmhelpers.core.utils import Toolbox
@@ -156,6 +157,14 @@ def process_data(input, output_dir, false_positive_rate, n_groups):
                 f.write(
                     " ".join(str(s) for s in sorted(sa.boundaries) + [span_list[-1]])
                 )
+
+        with open(os.path.join(output_dir, f"infos"), "w") as f:
+            f.write(f"false_positive_rate={false_positive_rate}\n")
+            f.write(f"sample_count={len(samples)}\n")
+            f.write(f"index_size_ungrouped={sa.get_total_stored_size_str()}\n")
+            f.write(
+                f"mean_bytes_per_sample_ungrouped={str(ByteCounter.auto(sa.get_total_stored_size()//len(samples)))}\n"
+            )
 
     except Exception as e:
         Log.handle_exception(logger, e, "Plot error", level=logging.ERROR)
