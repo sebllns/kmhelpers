@@ -58,7 +58,7 @@ from pykmhelpers.pipeline.composer import compose_indices, parse_span_list
     "--span-list",
     "-s",
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
-    required=False,
+    required=True,
     help="📋  Allowlist of permitted span IDs (space-separated). Samples assigned to a span not in the list are promoted to the next allowed span.",
 )
 @click.option(
