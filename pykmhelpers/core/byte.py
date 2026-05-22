@@ -67,6 +67,9 @@ class ByteCounter:
         converted_value = byte_value / (target_factor ** int(unit))
         return ByteCounter(converted_value, unit, format)
 
+    def to_str(self):
+        return self.__str__()
+
     @classmethod
     def auto(
         cls, byte_count: int, format: SizeFormat = SizeFormat.BYTE
