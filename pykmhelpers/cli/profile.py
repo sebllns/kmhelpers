@@ -136,9 +136,7 @@ def process_data(input, output_dir, false_positive_rate, n_groups):
         for span_id, sample_count in sorted(spans.items()):
             f.write(f"{span_id},{sm.get_bf_size(span_id)},{sample_count}\n")
 
-    span_list = sorted(spans.keys())
-    with open(os.path.join(output_dir, f"span_list"), "w") as f:
-        f.write(" ".join(str(s) for s in span_list))
+    baseline = sorted(spans.keys())
 
     try:
         import pykmhelpers.plots.span_analyzer
@@ -152,18 +150,31 @@ def process_data(input, output_dir, false_positive_rate, n_groups):
 
         sa.plot(n_groups=n_groups)
 
-        if sa.boundaries:
-            with open(os.path.join(output_dir, f"span_boundaries"), "w") as f:
-                f.write(
-                    " ".join(str(s) for s in sorted(sa.boundaries) + [span_list[-1]])
-                )
-
-        with open(os.path.join(output_dir, f"infos"), "w") as f:
-            f.write(f"false_positive_rate={false_positive_rate}\n")
-            f.write(f"sample_count={len(samples)}\n")
-            f.write(f"index_size_ungrouped={sa.get_total_stored_size_str()}\n")
-            f.write(
-                f"mean_bytes_per_sample_ungrouped={str(ByteCounter.auto(sa.get_total_stored_size()//len(samples)))}\n"
+        with open(os.path.join(output_dir, f"profile.yaml"), "w") as f:
+            yaml.dump(
+                {
+                    "false_positive_rate": false_positive_rate,
+                    "sample_count": len(samples),
+                    "profiles": {
+                        "baseline": {
+                            "span_list": " ".join(str(s) for s in baseline),
+                            "size": sa.get_total_stored_size_str(),
+                            "mean_bytes_per_sample": str(
+                                ByteCounter.auto(
+                                    sa.get_total_stored_size() // len(samples)
+                                )
+                            ),
+                        },
+                        "auto_groups": {
+                            "span_list": " ".join(
+                                str(s) for s in sorted(sa.boundaries or []) + [baseline[-1]]
+                            ),
+                        },
+                    },
+                },
+                f,
+                default_flow_style=False,
+                sort_keys=False,
             )
 
     except Exception as e:
