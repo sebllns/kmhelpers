@@ -27,7 +27,9 @@ class SpanAnalyzer:
         self.sizes = {
             d[0]: BloomFilterSpecs(d[1], d[2], 256).total_storage_size() for d in data
         }
-        self.boundaries = []
+        # self.boundaries = []
+        self.profiles = {}
+        self.add_profile("baseline", self.spans, self.nc)
 
     @staticmethod
     def _load_csv(path):
@@ -44,6 +46,54 @@ class SpanAnalyzer:
     @staticmethod
     def _pack8(n):
         return math.ceil(max(n, 0) / 8) * 8
+
+    def add_profile(self, name, span_list, sample_dist):
+        bloom_size = [self.bf[s] for s in span_list]
+        span_sizes = [
+            BloomFilterSpecs(s, n, 256).total_storage_size()
+            for s, n in zip(span_list, sample_dist)
+        ]
+
+        size = sum(span_sizes)
+        self.profiles[name] = (
+            {
+                "span_list": span_list,
+                "bloom_size": bloom_size,
+                "sample_dist": sample_dist,
+                "disk_usage": span_sizes,
+                "total_size": size,
+                "bytes_per_sample": size // self.get_total_sample_count(),
+            },
+        )
+
+    def get_profile(self, name):
+        return self.profiles.get(name)
+
+    def get_profile_str(self, name):
+        res = {}
+        if name in self.profiles:
+            res["span_list"] = " ".join(
+                str(s) for s in self.profiles[name]["span_list"]
+            )
+            res["sample_dist"] = " ".join(
+                str(s) for s in self.profiles[name]["sample_dist"]
+            )
+            res["bloom_size"] = " ".join(
+                str(s) for s in self.profiles[name]["bloom_size"]
+            )
+            res["span_sizes"] = " ".join(
+                ByteCounter.auto(s).to_str() for s in self.profiles[name]["span_sizes"]
+            )
+            res["total_size"] = ByteCounter.auto(
+                self.profiles[name]["total_size"]
+            ).to_str()
+            res["bytes_per_sample"] = ByteCounter.auto(
+                self.profiles[name]["bytes_per_sample"]
+            ).to_str()
+        return res
+
+    def get_total_sample_count(self):
+        return sum(self.nc.values())
 
     def get_total_stored_size(self):
         return sum(self.sizes.values())
@@ -78,7 +128,7 @@ class SpanAnalyzer:
         d_minus = self.bf[k] * self.lk[k]
         return (d_plus - d_minus) / 8e9
 
-    def compute_groups(self, n_groups):
+    def compute_groups(self, n_groups: int):
         """Find optimal boundaries to partition spans into n_groups storage-balanced groups.
 
         Uses self.sizes (actual bloom filter storage per span) as the cost to balance.
@@ -87,6 +137,10 @@ class SpanAnalyzer:
             group_spans — list of lists, each containing the spans in that group
             costs       — list of total storage cost (bytes) per group
         """
+        assert (
+            n_groups > 1
+        ), "Assertion from [SpanAnalyzer.compute_groups] failed: n_groups > 1"
+
         spans = self.spans
 
         def split(boundaries):
@@ -190,17 +244,47 @@ class SpanAnalyzer:
     def plot(self, n_groups=None):
         spans = self.spans
         adj_costs = [(k, m, self.delta_adjacent(k, m)) for k, m in self.adj_pairs]
-        cum_points = [
+        cumul_points = [
             (spans[j], self.delta_cumulative(j)) for j in range(1, len(spans))
         ]
-        cum_points = [(s, d) for s, d in cum_points if d is not None]
+        cumul_points = [(s, d) for s, d in cumul_points if d is not None]
 
         fig, axes = plt.subplots(2, 2, figsize=(18, 12))
         fig.patch.set_facecolor("#0f1117")
         axes = axes.flatten()
 
         # plot 1: sample_count bars + waste% on twin axis
-        ax = axes[0]
+        self.plot_baseline(spans, axes[0])
+
+        # plot 2: cumulative fusion cost as x-y line
+        self.plot_cumulative_merges(cumul_points, axes[1])
+
+        # plot 3: adjacent fusion cost bar
+        self.plot_adj_costs(adj_costs, axes[2])
+
+        ax = axes[3]
+
+        if n_groups is not None and n_groups > 1:
+            boundaries, group_spans, group_costs, sample_count = self.compute_groups(
+                n_groups
+            )
+            # self.add_profile(f"{n_groups}_groups, ")
+
+            self._plot_groups(ax, boundaries, group_spans, group_costs, sample_count)
+            self.boundaries = boundaries
+        else:
+            ax.set_visible(False)
+
+        fig.suptitle(
+            f"Span analysis (total size ≈ {self.get_total_stored_size_str()})",
+            color="#e0e4f0",
+            fontsize=13,
+        )
+        plt.tight_layout()
+        out = self.path.replace(".csv", "_analysis.png")
+        plt.savefig(out, dpi=150, bbox_inches="tight")
+
+    def plot_baseline(self, spans, ax):
         self._style_ax(ax)
         x = list(range(len(spans)))
         nc_vals = [self.nc[s] for s in spans]
@@ -243,8 +327,7 @@ class SpanAnalyzer:
             fontsize=9,
         )
 
-        # plot 2: cumulative fusion cost as x-y line
-        ax = axes[1]
+    def plot_cumulative_merges(self, cum_points, ax):
         self._style_ax(ax)
         ax.grid(True, color="#1e2130", linewidth=0.8)
 
@@ -277,8 +360,7 @@ class SpanAnalyzer:
             fontsize=9,
         )
 
-        # plot 3: adjacent fusion cost bar
-        ax = axes[2]
+    def plot_adj_costs(self, adj_costs, ax):
         self._style_ax(ax)
         ax_x = list(range(len(adj_costs)))
         ax_y = [c[2] for c in adj_costs]
@@ -323,26 +405,6 @@ class SpanAnalyzer:
             labelcolor="#c9cdd8",
             fontsize=9,
         )
-
-        ax = axes[3]
-
-        if n_groups is not None and n_groups > 1:
-            boundaries, group_spans, group_costs, sample_count = self.compute_groups(
-                n_groups
-            )
-            self._plot_groups(ax, boundaries, group_spans, group_costs, sample_count)
-            self.boundaries = boundaries
-        else:
-            ax.set_visible(False)
-
-        fig.suptitle(
-            f"Span analysis (total size ≈ {self.get_total_stored_size_str()})",
-            color="#e0e4f0",
-            fontsize=13,
-        )
-        plt.tight_layout()
-        out = self.path.replace(".csv", "_analysis.png")
-        plt.savefig(out, dpi=150, bbox_inches="tight")
 
 
 if __name__ == "__main__":
