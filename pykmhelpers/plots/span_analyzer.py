@@ -254,34 +254,32 @@ class SpanAnalyzer:
         ]
         cumul_points = [(s, d) for s, d in cumul_points if d is not None]
 
-        fig, axes = plt.subplots(2, 2, figsize=(18, 12))
+        # To restore 4-panel layout, replace the next 2 lines with:
+        #   fig, axes = plt.subplots(2, 2, figsize=(18, 12))
+        #   axes = axes.flatten()
+        #   ax = axes[3]
+        # Then re-enable: plot_baseline(spans, axes[0])
+        #                 plot_cumulative_merges(cumul_points, axes[1])
+        #                 plot_adj_costs(adj_costs, axes[2])
+        fig, ax = plt.subplots(1, 1, figsize=(12, 7))
         fig.patch.set_facecolor("#0f1117")
-        axes = axes.flatten()
-
-        # plot 1: sample_count bars + waste% on twin axis
-        self.plot_baseline(spans, axes[0])
-
-        # plot 2: cumulative fusion cost as x-y line
-        self.plot_cumulative_merges(cumul_points, axes[1])
-
-        # plot 3: adjacent fusion cost bar
-        self.plot_adj_costs(adj_costs, axes[2])
-
-        ax = axes[3]
 
         if n_groups is not None and n_groups > 1:
             boundaries, group_spans, group_costs, sample_count = self.compute_groups(
                 n_groups
             )
-            # self.add_profile(f"{n_groups}_groups, ")
+
+            self.add_profile(
+                f"{n_groups}_groups",
+                sorted(boundaries or []) + [spans[-1]],
+                sample_count,
+            )
 
             self._plot_groups(ax, boundaries, group_spans, group_costs, sample_count)
             self.boundaries = boundaries
-        else:
-            ax.set_visible(False)
 
         fig.suptitle(
-            f"Span analysis (total size ≈ {self.get_total_stored_size_str()})",
+            f"Span profiling (total size ≈ {self.get_total_stored_size_str()})",
             color="#e0e4f0",
             fontsize=13,
         )

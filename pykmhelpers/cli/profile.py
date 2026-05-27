@@ -156,22 +156,6 @@ def process_data(input, output_dir, false_positive_rate, n_groups):
                     "false_positive_rate": false_positive_rate,
                     "sample_count": len(samples),
                     "profiles": sa.serialize_profiles(),
-                    # "profiles": {
-                    #     "baseline": {
-                    #         "span_list": " ".join(str(s) for s in baseline),
-                    #         "size": sa.get_total_stored_size_str(),
-                    #         "mean_bytes_per_sample": str(
-                    #             ByteCounter.auto(
-                    #                 sa.get_total_stored_size() // len(samples)
-                    #             )
-                    #         ),
-                    #     },
-                    #     "auto_groups": {
-                    #         "span_list": " ".join(
-                    #             str(s) for s in sorted(sa.boundaries or []) + [baseline[-1]]
-                    #         ),
-                    #     },
-                    # },
                 },
                 f,
                 default_flow_style=False,
