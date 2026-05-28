@@ -92,7 +92,7 @@ def compose_indices(
                 recount=recount,
             )
 
-            span, orig_span = sm.dispatch(sample.kmer_count, min_span=0, max_span=0)
+            span = sm.dispatch(sample.kmer_count)
 
             if allowed_spans:
                 promoted = next((s for s in allowed_spans if s >= span), None)
@@ -103,14 +103,8 @@ def compose_indices(
                     )
                 span = promoted
 
-            if span != orig_span:
-                logger.debug(f"    Span adjusted: {orig_span} → {span}")
+            original_distribution[span] = original_distribution.get(span, 0) + 1
 
-            original_distribution[orig_span] = (
-                original_distribution.get(orig_span, 0) + 1
-            )
-
-            bf_sizes[orig_span] = sm.get_bf_size(orig_span)
             bf_sizes[span] = sm.get_bf_size(span)
 
             if span not in split_count:

@@ -114,14 +114,18 @@ def process_data(input, output_dir, false_positive_rate, n_groups):
 
     sm = SpanManager(false_positive_rate)
     spans = {}
+    biggest_sample = ("", 0)
 
     for name, sample in samples.items():
         try:
             logger.debug(f"Process {name}...")
             kmer_count = sample.get("kmer_count", 0)
             if kmer_count:
-                s, _ = sm.dispatch(kmer_count)
+                s = sm.dispatch(kmer_count)
                 spans[s] = spans.get(s, 0) + 1
+                if kmer_count > biggest_sample[1]:
+                    biggest_sample = (name, kmer_count)
+
             else:
                 logger.warning(f"{name}: no field 'kmer_count'... skip")
         except Exception as e:
@@ -153,8 +157,12 @@ def process_data(input, output_dir, false_positive_rate, n_groups):
         with open(os.path.join(output_dir, f"profile.yaml"), "w") as f:
             yaml.dump(
                 {
+                    "k": k,
                     "false_positive_rate": false_positive_rate,
                     "sample_count": len(samples),
+                    "biggest_sample": str(biggest_sample),
+                    "max_kmer_count": sm.max_kmer_count(baseline[-1]),
+                    "default_profile": sa.default_profile or "baseline",
                     "profiles": sa.serialize_profiles(),
                 },
                 f,

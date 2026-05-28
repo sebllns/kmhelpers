@@ -28,7 +28,8 @@ class SpanAnalyzer:
             d[0]: BloomFilterSpecs(d[1], d[2], 256).total_storage_size() for d in data
         }
         # self.boundaries = []
-        self.profiles = {}
+        self._profiles = {}
+        self._default_profile = "baseline"
         self.add_profile("baseline", self.spans, self.nc.values())
 
     @staticmethod
@@ -47,6 +48,10 @@ class SpanAnalyzer:
     def _pack8(n):
         return math.ceil(max(n, 0) / 8) * 8
 
+    @property
+    def default_profile(self):
+        return self._default_profile
+
     def add_profile(self, name, span_list, sample_dist):
         bloom_size = [self.bf[s] for s in span_list]
         span_sizes = [
@@ -55,7 +60,7 @@ class SpanAnalyzer:
         ]
 
         total_size = sum(span_sizes)
-        self.profiles[name] = {
+        self._profiles[name] = {
             "span_list": span_list,
             "bloom_size": bloom_size,
             "sample_dist": sample_dist,
@@ -65,37 +70,40 @@ class SpanAnalyzer:
             "bytes_per_sample": total_size // self.get_total_sample_count(),
         }
 
+        if len(span_list) < len(self._profiles[self._default_profile]["span_list"]):
+            self._default_profile = name
+
     def get_profile(self, name):
-        return self.profiles.get(name)
+        return self._profiles.get(name)
 
     def get_profile_str(self, name):
         res = {}
-        if name in self.profiles:
+        if name in self._profiles:
             res["span_list"] = " ".join(
-                str(s) for s in self.profiles[name]["span_list"]
+                str(s) for s in self._profiles[name]["span_list"]
             )
             res["bloom_size"] = " ".join(
-                str(s) for s in self.profiles[name]["bloom_size"]
+                str(s) for s in self._profiles[name]["bloom_size"]
             )
             res["sample_dist"] = " ".join(
-                str(s) for s in self.profiles[name]["sample_dist"]
+                str(s) for s in self._profiles[name]["sample_dist"]
             )
             res["disk_usage"] = " ".join(
-                ByteCounter.auto(s).to_str() for s in self.profiles[name]["disk_usage"]
+                ByteCounter.auto(s).to_str() for s in self._profiles[name]["disk_usage"]
             )
             res["size_ratio"] = " ".join(
-                f"{s:.3f}" for s in self.profiles[name]["size_ratio"]
+                f"{s:.3f}" for s in self._profiles[name]["size_ratio"]
             )
             res["total_size"] = ByteCounter.auto(
-                self.profiles[name]["total_size"]
+                self._profiles[name]["total_size"]
             ).to_str()
             res["bytes_per_sample"] = ByteCounter.auto(
-                self.profiles[name]["bytes_per_sample"]
+                self._profiles[name]["bytes_per_sample"]
             ).to_str()
         return res
 
     def serialize_profiles(self):
-        return {p: self.get_profile_str(p) for p in self.profiles.keys()}
+        return {p: self.get_profile_str(p) for p in self._profiles.keys()}
 
     def get_total_sample_count(self):
         return sum(self.nc.values())

@@ -68,24 +68,27 @@ class BloomFilterSpecs:
 
 
 class SpanManager:
-    def __init__(self, p=0.25) -> None:
+    def __init__(self, p=0.25, b=2.0) -> None:
         assert p > 0, f"Constraint must be respected: p > 0 (got p = {p})"
+        assert b > 0, f"Constraint must be respected: b > 0 (got b = {b})"
         self._p = p
+        self._b = b
         self._f = -math.log(self._p) / (math.log(2) ** 2)
 
-    def dispatch(self, kmer_count, min_span=0, max_span=0):
+    def dispatch(self, kmer_count):
         assert (
             kmer_count > 0
         ), "Constraint must be respected: kmer_count > 0 (got kmer_count = {kmer_count})"
-        s = int(math.log2(kmer_count))
+        s = int(math.log(kmer_count, self._b))
         assert s > 0, f"Constraint must be respected: s > 0 (got s = {s})"
-        orig_span = s
-        if min_span > 0:
-            s = max(s, min_span)
-        if max_span > 0:
-            s = min(s, max_span)
-        return s, orig_span
+        return s
 
     def get_bf_size(self, span):
         # Calculate real Bloom filter size
-        return ((int(self._f * (2 ** (span + 1))) + 7) // 8) * 8
+        return ((int(self._f * (self._b ** (span + 1))) + 7) // 8) * 8
+
+    def min_kmer_count(self, span):
+        return int(math.ceil(math.pow(self._b, span)))
+
+    def max_kmer_count(self, span):
+        return self.min_kmer_count(span + 1) - 1
