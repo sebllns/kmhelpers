@@ -1,8 +1,19 @@
 import kmparams
 
 p = kmparams.kmtricks_params(
-    kmers=1_000_000,
-    memory=4_000_000_000,
-    files=1024,
-    samples=10,
+    kmers=137_438_953_471,
+    memory=33_050_427_392,
+    files=1_073_741_816,
+    partitions=256,
+    samples=7397,
 )
+print("PROCESS...")
+
+# p.nb_threads_partitions()
+# p.nb_partitions()
+# p.nb_open_files()
+
+p.auto()
+
+print("RESULT")
+print(p)
