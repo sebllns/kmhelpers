@@ -1,9 +1,10 @@
 import argparse
-from dataclasses import dataclass, asdict
-from copy import deepcopy
-import math
 import json
+import math
 import sys
+from copy import deepcopy
+from dataclasses import asdict, dataclass
+
 
 @dataclass
 class kmtricks_params:
@@ -26,9 +27,9 @@ class kmtricks_params:
         return deepcopy(self)
 
     def nb_open_files(self):
-        assert(self.partitions is not None)
-        assert(self.threads is not None)
-        assert(self.samples is not None)
+        assert self.partitions is not None
+        assert self.threads is not None
+        assert self.samples is not None
 
         nw = math.floor(self.threads * self.focus)
         if nw <= 0:
@@ -37,71 +38,69 @@ class kmtricks_params:
         self.files = {
             "superk": (self.threads * self.partitions) + nw,
             "count": (self.threads * 2),
-            "merge": (self.threads * self.samples) + self.threads
+            "merge": (self.threads * self.samples) + self.threads,
         }
 
     def max_memory(self):
-        assert(self.kmers is not None)
-        assert(self.partitions is not None)
-        assert(self.threads is not None)
+        assert self.kmers is not None
+        assert self.partitions is not None
+        assert self.threads is not None
         byte_per_k = 8
         maxk = max(self.kmers) if isinstance(self.kmers, list) else self.kmers
         per_partition = maxk / self.partitions
         self.memory = round(((per_partition * byte_per_k) * 1.05) * self.threads, 2)
 
     def nb_partitions(self):
-        assert(self.kmers is not None)
-        assert(self.memory is not None)
-        assert(self.threads is not None)
+        assert self.kmers is not None
+        assert self.memory is not None
+        assert self.threads is not None
         byte_per_k = 8
         maxk = max(self.kmers) if isinstance(self.kmers, list) else self.kmers
         mem_per_thread = self.memory / self.threads
         kmers_per_partition = mem_per_thread / (byte_per_k * 1.05)
         self.partitions = math.ceil(maxk / kmers_per_partition)
 
-
     def nb_threads(self):
-        assert(self.kmers is not None)
-        assert(self.memory is not None)
-        assert(self.partitions is not None)
+        assert self.kmers is not None
+        assert self.memory is not None
+        assert self.partitions is not None
         byte_per_k = 8
         maxk = max(self.kmers) if isinstance(self.kmers, list) else self.kmers
         per_partition_bytes = (maxk / self.partitions) * byte_per_k * 1.05
         self.threads = max(1, math.floor(self.memory / per_partition_bytes))
 
     def nb_threads_partitions(self):
-        assert(self.samples is not None)
-        assert(isinstance(self.files, int))
+        assert self.samples is not None
+        assert isinstance(self.files, int)
 
         max_files = self.files
         best_threads = 1
         best_partitions = 1
 
-        max_threads = max_files
-
-        for t in range(1, max_threads + 1):
-            max_p = (max_files // t) - self.samples
-
-            if max_p < 1:
-                continue
-
+        for t in range(1, max_files + 1):
             nw = math.floor(t * self.focus)
             if nw <= 0:
                 nw = 1
 
-            total_files = (t * max_p) + nw + (t * 2) + (t * self.samples) + t
+            # merge stage is the binding constraint on threads (sequential stages)
+            if t * (self.samples + 1) > max_files:
+                break
 
-            if total_files <= max_files:
-                if t > best_threads:
-                    best_threads = t
-                    best_partitions = max_p
+            # superk stage constrains partitions given t
+            max_p = (max_files - nw) // t
+
+            if max_p < 1:
+                break
+
+            best_threads = t
+            best_partitions = max_p
 
         self.threads = best_threads
         self.partitions = best_partitions
 
     def auto(self):
         if isinstance(self.files, int) and self.samples is not None:
-            if self.threads is None or self.partitions is None:
+            if self.threads is None and self.partitions is None:
                 self.nb_threads_partitions()
         if (
             self.kmers is not None
@@ -134,6 +133,7 @@ class kmtricks_params:
         ):
             self.nb_open_files()
 
+
 def parse_kmers(value: str):
     try:
         return int(value)
@@ -154,11 +154,10 @@ def parse_kmers(value: str):
         )
 
     if not kmers:
-        raise argparse.ArgumentTypeError(
-            f"Kmers file is empty: '{value}'"
-        )
+        raise argparse.ArgumentTypeError(f"Kmers file is empty: '{value}'")
 
     return kmers
+
 
 def build_parser():
     parser = argparse.ArgumentParser(
@@ -170,13 +169,29 @@ def build_parser():
     parser.add_argument("--memory", type=float, help="Memory available (bytes)")
     parser.add_argument("--partitions", type=int, help="Number of partitions")
     parser.add_argument("--files", type=int, help="Max open files (ulimit -n)")
-    parser.add_argument("--focus", type=float, default=0.5, help="Focus ratio (default: 0.5)")
-    parser.add_argument("--auto", action="store_true", help="Compute all fields that can be derived from the inputs (the default)")
+    parser.add_argument(
+        "--focus", type=float, default=0.5, help="Focus ratio (default: 0.5)"
+    )
+    parser.add_argument(
+        "--auto",
+        action="store_true",
+        help="Compute all fields that can be derived from the inputs (the default)",
+    )
     parser.add_argument("--compute-memory", action="store_true", help="Compute memory")
-    parser.add_argument("--compute-partitions", action="store_true", help="Compute partitions")
-    parser.add_argument("--compute-threads", action="store_true", help="Compute threads")
-    parser.add_argument("--compute-files", action="store_true", help="Compute number of open files")
-    parser.add_argument("--compute-partitions-threads", action="store_true", help="Fit threads & partitions from file limit")
+    parser.add_argument(
+        "--compute-partitions", action="store_true", help="Compute partitions"
+    )
+    parser.add_argument(
+        "--compute-threads", action="store_true", help="Compute threads"
+    )
+    parser.add_argument(
+        "--compute-files", action="store_true", help="Compute number of open files"
+    )
+    parser.add_argument(
+        "--compute-partitions-threads",
+        action="store_true",
+        help="Fit threads & partitions from file limit",
+    )
     return parser
 
 
@@ -197,11 +212,13 @@ def main(argv=None):
     print("input:", params)
 
     try:
-        if args.auto or (not args.compute_memory
-           and not args.compute_partitions
-           and not args.compute_threads
-           and not args.compute_partitions_threads
-           and not args.compute_files):
+        if args.auto or (
+            not args.compute_memory
+            and not args.compute_partitions
+            and not args.compute_threads
+            and not args.compute_partitions_threads
+            and not args.compute_files
+        ):
             params.auto()
             print("result:", params)
             sys.exit(0)
@@ -221,7 +238,6 @@ def main(argv=None):
         if args.compute_partitions_threads:
             params.nb_threads_partitions()
 
-
         print("result:", params)
 
     except AssertionError as e:
@@ -231,6 +247,3 @@ def main(argv=None):
 
 if __name__ == "__main__":
     main()
-
-
-
