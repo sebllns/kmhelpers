@@ -1,4 +1,4 @@
-"""Analyse a sample YAML file and produce a Bloom-filter span distribution."""
+"""Analyse a sample YAML file and produce a Bloom-filter span profile and distribution."""
 
 import logging
 import math
@@ -62,14 +62,28 @@ logger = logging.getLogger(__name__)
 def profile(input, output_dir, n_groups, false_positive_rate):
     """Analyse a sample YAML file and output a Bloom-filter span profile.
 
-    Reads the k-mer counts from INPUT_FILE (a YAML file produced by `list`), assigns each sample to a Bloom-filter span using the given
-    false-positive rate, and writes a CSV summary together with a distribution
-    plot to OUTPUT_DIR.
+    A *span* is an integer s = floor(log2(n)), where n is the number of
+    distinct $k$-mers in a sample. It identifies the Bloom-filter size class
+    required to index that sample at the target false-positive rate: all
+    samples in span s have between 2^s and 2^(s+1)-1 distinct $k$-mers and
+    are stored in a Bloom filter of the same size. A *span profile* is the
+    distribution of samples across spans, together with candidate groupings
+    of those spans into sub-indices and a recommended grouping that minimises
+    the number of sub-indices while balancing storage cost. Fewer spans means
+    fewer index files opened at query time, which can significantly improve
+    query performance on I/O-bound storage.
+
+    Reads the $k$-mer counts from INPUT_FILE (a YAML file produced by `list`),
+    assigns each sample to a span using the given false-positive rate, and
+    writes a CSV summary, a distribution plot, and a YAML profile to OUTPUT_DIR.
 
     \b
     Output files (written to OUTPUT_DIR):
-      span_distribution.csv  — span id, Bloom filter size, and sample count
-      span_distribution_analysis.png    — Span combination analysis plots
+      span_distribution.csv         — span id, Bloom filter size, and sample count
+      span_distribution_analysis.png — span combination analysis plots
+      profile.yaml                  — summary: k, false-positive rate, sample count,
+                                      biggest sample, max k-mer count, and the
+                                      recommended profile with all alternatives
 
     \b
     Expected INPUT format:

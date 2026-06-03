@@ -1,6 +1,6 @@
 # profile
 
-Analyse a sample YAML file and output a Bloom-filter span profile.
+Analyse a sample YAML file and produce a Bloom-filter span profile.
 
 ## Usage
 
@@ -10,7 +10,21 @@ kmhelpers profile [OPTIONS]
 
 ## Description
 
-Reads k-mer counts from a YAML file produced by [`list`](list.md), assigns each sample to a Bloom-filter span using the given false-positive rate, and writes a CSV summary and a distribution plot to the output directory.
+A *span* is an integer `s = floor(log2(n))`, where `n` is the number of distinct
+$k$-mers in a sample. It identifies the Bloom-filter size class required to index
+that sample at the target false-positive rate: all samples in span `s` have between
+`2^s` and `2^(s+1)-1` distinct $k$-mers and are stored in a Bloom filter of the
+same size.
+
+A *span profile* is the distribution of samples across spans, together with
+candidate groupings of those spans into sub-indices and a recommended grouping that
+minimises the number of sub-indices while balancing storage cost. Fewer spans means
+fewer index files opened at query time, which can significantly improve query
+performance on I/O-bound storage.
+
+`profile` reads $k$-mer counts from a YAML file produced by [`list`](list.md),
+assigns each sample to its span, and writes a CSV summary, a distribution plot,
+and a YAML profile to the output directory.
 
 ## Output Files
 
@@ -18,6 +32,16 @@ Reads k-mer counts from a YAML file produced by [`list`](list.md), assigns each 
 |------|-------------|
 | `span_distribution.csv` | Span ID, Bloom filter size, and sample count |
 | `span_distribution_analysis.png` | Span combination analysis plots |
+| `profile.yaml` | Summary: $k$, false-positive rate, sample count, biggest sample, max $k$-mer count, and the recommended profile with all alternatives |
+
+## Options
+
+| Option | Description |
+|--------|-------------|
+| `-i, --input FILE` | Sample YAML file produced by `list` (required) |
+| `-o, --output-dir DIR` | Output directory for results (required) |
+| `--false-positive-rate, --fp FLOAT` | Target Bloom-filter false-positive rate (default: 0.25) |
+| `-g, --group N` | Partition spans into `N` storage-balanced groups and overlay the result on the plot (default: 0 = auto) |
 
 ## Examples
 
@@ -26,20 +50,11 @@ Reads k-mer counts from a YAML file produced by [`list`](list.md), assigns each 
 kmhelpers profile -i samples.yaml -o ./profile_output
 
 # Use a stricter false-positive rate
-kmhelpers profile -i samples.yaml -o ./profile_output -p 0.01
+kmhelpers profile -i samples.yaml -o ./profile_output --fp 0.05
 
-# Export span distribution as JSON
-kmhelpers profile -i samples.yaml -o ./profile_output --export
+# Force a specific number of span groups
+kmhelpers profile -i samples.yaml -o ./profile_output -g 3
 ```
-
-## Options
-
-| Option | Description |
-|--------|-------------|
-| `-i, --input FILE` | Sample YAML file produced by `list` (required) |
-| `-o, --output-dir DIR` | Output directory for results (required) |
-| `-p, --false-positive-rate FLOAT` | Target Bloom-filter false-positive rate (default: 0.05) |
-| `--export` | Export span distribution as JSON |
 
 ## Input Format
 
