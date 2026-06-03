@@ -1,97 +1,103 @@
-"""Recursively list samples from a directory and output a YAML file."""
+"""Recursively list samples from a directory and output a JSONL file."""
 
-import hashlib
+import json
+import logging
 import os
+import platform
+import sys
+import typing
 from datetime import datetime, timezone
 
 import click
-import yaml
 
-from pykmhelpers.core.cache import Cache
+import pykmhelpers
 from pykmhelpers.core.constants import DATA_EXT
-from pykmhelpers.core.kmer import KmerCounter
+from pykmhelpers.core.kmer import KmerCountMode, KmerCounter
 from pykmhelpers.pipeline.index_db import IndexDefinitionTools
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Sample discovery helpers
 # ---------------------------------------------------------------------------
 
 
-def _collect_samples_grouped(root: str) -> dict[str, list[str]]:
-    """Recursively collect samples grouped by leaf folder."""
-    samples: dict[str, list[str]] = {}
-    tools = IndexDefinitionTools()
+def _import_plain_text_list(
+    filename: str,
+    process_callback: typing.Callable[[str, list[str], int], None],
+    tools: IndexDefinitionTools,
+) -> None:
+    # Plain text: [sample_id] file_1[,file_2,...] [kmer_count]
+    with open(filename) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
 
-    for dirpath, dirnames, filenames in os.walk(root):
-        dirnames.sort()
-        data_files = []
-        for fname in sorted(filenames):
-            for ext in DATA_EXT:
-                if fname.endswith(ext):
-                    data_files.append(os.path.join(dirpath, fname))
-                    break
+            parts = line.split()
+            kmer_count = 0
+            try:
+                kmer_count = int(parts[-1])
+                parts = parts[:-1]
+            except ValueError:
+                pass
 
-        if data_files:
-            folder_name = os.path.basename(dirpath)
-            sample_id = tools.clean_sample_id(folder_name)
-            if sample_id in samples:
-                samples[sample_id].extend(data_files)
+            if not parts:
+                logger.warning(
+                    f"Invalid line format: {line}. "
+                    "Expected: [sample_id] file_1[,file_2,...] [kmer_count]"
+                )
+                continue
+
+            if len(parts) == 1:
+                files_str = parts[0]
+                sample_id = tools.clean_sample_id(
+                    os.path.splitext(os.path.basename(files_str.split(",")[0]))[0]
+                )
             else:
-                samples[sample_id] = data_files
+                sample_id = tools.clean_sample_id(parts[0])
+                files_str = " ".join(parts[1:])
 
-    return samples
+            files = [f.strip().strip('"').strip("'") for f in files_str.split(",")]
+            if files:
+                process_callback(sample_id, files, kmer_count)
 
 
-def _collect_samples_flat(root: str) -> dict[str, list[str]]:
-    """Collect all data files under root as individual samples (no grouping)."""
-    tools = IndexDefinitionTools()
-    samples: dict[str, list[str]] = {}
+def _process_samples(
+    root: str,
+    extensions: tuple[str, ...],
+    with_grouping: bool,
+    process_callback: typing.Callable[[str, list[str], int], None],
+    tools: IndexDefinitionTools,
+) -> None:
+    """Walk root and call process_callback(sample_id, files) for each sample.
 
+    with_grouping=True  -> group files by leaf folder name
+    with_grouping=False -> treat each file as its own sample
+    """
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames.sort()
-        for fname in sorted(filenames):
-            for ext in DATA_EXT:
-                if fname.endswith(ext):
-                    filepath = os.path.join(dirpath, fname)
-                    base = fname
-                    for e in DATA_EXT:
-                        if base.endswith(e):
-                            base = base[: len(base) - len(e)]
-                            break
-                    sample_id = tools.clean_sample_id(base)
-                    if sample_id in samples:
-                        samples[sample_id].append(filepath)
-                    else:
-                        samples[sample_id] = [filepath]
-                    break
+        data_files = [
+            os.path.relpath(os.path.join(dirpath, fname), root)
+            for fname in sorted(filenames)
+            if any(fname.endswith(ext) for ext in extensions)
+        ]
 
-    return samples
+        if not data_files:
+            continue
 
-
-# ---------------------------------------------------------------------------
-# Cache helpers
-# ---------------------------------------------------------------------------
-
-_CACHE_TABLE = "kmer_counts"
-
-
-def _cache_dir(output_file: str) -> str:
-    return Cache.get_cache_dir(
-        os.path.dirname(output_file), os.path.basename(output_file)
-    )
-
-
-def _sample_fingerprint(files: list[str], k: int) -> str:
-    """Stable fingerprint for a sample: sorted abs paths + mtime + k."""
-    h = hashlib.sha1()
-    h.update(str(k).encode())
-    for f in sorted(files):
-        h.update(f.encode())
-        try:
-            h.update(str(os.path.getmtime(f)).encode())
-        except OSError:
-            pass
-    return h.hexdigest()
+        if with_grouping:
+            sample_id = tools.clean_sample_id(os.path.basename(dirpath))
+            process_callback(sample_id, data_files, 0)
+        else:
+            for filepath in data_files:
+                fname = os.path.basename(filepath)
+                base = next(
+                    (fname[: -len(ext)] for ext in extensions if fname.endswith(ext)),
+                    fname,
+                )
+                sample_id = tools.clean_sample_id(base)
+                process_callback(sample_id, [filepath], 0)
 
 
 # ---------------------------------------------------------------------------
@@ -100,21 +106,28 @@ def _sample_fingerprint(files: list[str], k: int) -> str:
 
 
 @click.command(name="list")
+@click.argument(
+    "output_file",
+    nargs=1,
+    required=True,
+    type=click.Path(dir_okay=False),
+    # help="Output JSONL file path",
+)
 @click.option(
     "--input",
     "-i",
     "input_dir",
-    required=True,
+    required=False,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     help="Input directory to scan recursively for sample files",
 )
 @click.option(
-    "--output",
-    "-o",
-    "output_file",
-    required=True,
-    type=click.Path(file_okay=True, dir_okay=False),
-    help="Output YAML file path",
+    "--list",
+    "-l",
+    "input_list",
+    required=False,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+    help="Import input list in plain text format",
 )
 @click.option(
     "--kmer-size",
@@ -125,8 +138,17 @@ def _sample_fingerprint(files: list[str], k: int) -> str:
     help="K-mer size used for counting",
 )
 @click.option(
-    "--count",
-    "do_count",
+    "--data-type",
+    "-t",
+    "data_type",
+    type=click.Choice(["a", "assembled", "u", "unassembled"], case_sensitive=False),
+    default="a",
+    show_default=True,
+    help="Data type: a/assembled (default) or u/unassembled (raw reads)",
+)
+@click.option(
+    "--no-count",
+    "no_count",
     is_flag=True,
     default=False,
     help="Count k-mers for each sample using ntcard",
@@ -139,142 +161,235 @@ def _sample_fingerprint(files: list[str], k: int) -> str:
     help="Disable grouping by leaf folder; each file becomes its own sample",
 )
 @click.option(
-    "--threads",
-    "-t",
+    "--autorename",
+    "-r",
+    is_flag=True,
+    default=False,
+    help="Rename duplicate sample IDs by appending a numeric suffix instead of skipping",
+)
+@click.option(
+    "--ntcard-threads",
+    "--ntt",
+    "ntcard_threads",
     type=int,
     default=8,
-    show_default=True,
-    help="Number of threads for k-mer counting (only used with --count)",
+    help="⚙️  Number of threads used by ntcard for k-mer counting (default: 8)",
 )
 @click.option(
-    "--no-cache",
-    "no_cache",
-    is_flag=True,
-    default=False,
-    help="Disable the k-mer count cache (always recount every sample)",
-)
-@click.option(
-    "--clear-cache",
-    "clear_cache",
-    is_flag=True,
-    default=False,
-    help="Delete any existing cache before running",
+    "--ntcard-value",
+    "--ntv",
+    "ntcard_value",
+    default="F0",
+    help="⚙️   Value ID to extract from ntcard output (default: 'F0')",
 )
 def list_samples(
     input_dir,
+    input_list,
     output_file,
     kmer_size,
-    do_count,
+    data_type,
+    no_count,
     no_grouping,
-    threads,
-    no_cache,
-    clear_cache,
+    autorename,
+    ntcard_threads,
+    ntcard_value,
 ):
-    """Recursively list samples from a directory and output a YAML file.
+    """Recursively list samples from a directory and output a JSONL file.
 
     By default, files are grouped by leaf folder: each leaf directory
     becomes one sample whose ID is the folder name. Use --no-grouping to
     treat every file independently.
 
     When --count is used, each completed k-mer count is saved to a cache
-    file (<output>.cache.yaml) so an interrupted run can resume without
-    recounting already-finished samples. The cache is deleted automatically
-    on successful completion. Use --no-cache to skip caching entirely or
-    --clear-cache to discard a previous partial run.
+    file so an interrupted run can resume without recounting already-finished
+    samples. The cache is deleted automatically on successful completion.
     """
-    input_dir = os.path.abspath(input_dir)
 
-    if no_grouping:
-        samples = _collect_samples_flat(input_dir)
-    else:
-        samples = _collect_samples_grouped(input_dir)
-
-    if not samples:
-        raise click.ClickException(f"No data files found under {input_dir}")
+    samples = set[str]()
 
     counter = None
+    do_count = not no_count
+    do_grouping = not no_grouping
+    do_scan = input_dir is not None
+    do_import = input_list is not None
+    is_assembled = data_type.lower() in ("a", "assembled")
+
+    tools = IndexDefinitionTools()
+
     if do_count:
         try:
-            counter = KmerCounter(k=kmer_size, threadCount=threads)
+            counter = KmerCounter(
+                k=kmer_size,
+                threadCount=ntcard_threads,
+                mode=KmerCountMode.DISTINCT if is_assembled else KmerCountMode.SOLID,
+            )
         except FileNotFoundError as e:
             raise click.ClickException(str(e))
 
-    # Cache setup (only meaningful when counting)
-    cache_dir = _cache_dir(output_file)
-    use_cache = do_count and not no_cache
+    def count_sample(sample_id: str, files: list[str]) -> int:
+        if counter is None:
+            return 0
+        try:
+            kmer_count = counter.count_files(files)
+            logger.info(f"{sample_id}:{kmer_count}")
+            return kmer_count
+        except Exception as e:
+            logger.warning(f"Warning: could not count k-mers for {sample_id}: {e}")
+            return 0
 
-    cache: Cache | None = None
-    cached_counts: dict[str, str] = {}
+    backup_file: str | None = None
 
-    if use_cache:
-        if clear_cache:
-            import shutil
+    if input_dir:
+        if not os.path.isdir(input_dir):
+            raise click.UsageError(f"Input directory does not exist: {input_dir}")
+        input_dir = os.path.realpath(input_dir)
 
-            if os.path.exists(cache_dir):
-                shutil.rmtree(cache_dir)
-                click.echo(f"Cache cleared: {cache_dir}")
-        cache = Cache(cache_dir)
-        cached_counts = cache.read(_CACHE_TABLE)  # read before opening append handle
+    if os.path.exists(output_file):
+        backup_file = str(output_file) + ".bak"
+        os.replace(output_file, backup_file)
+        logger.info(f"Backed up existing output file to {backup_file}")
+    else:
+        if input_dir is None and input_list is None:
+            raise click.UsageError(
+                "--input or --list is required when creating a new sample list"
+            )
 
-    samples_out: dict = {}
-    sorted_ids = sorted(samples.keys())
-    total = len(sorted_ids)
+    backup_parsed = False
+    with open(output_file, "w") as out:
 
-    for idx, sample_id in enumerate(sorted_ids, 1):
-        files = samples[sample_id]
-
-        # Relative paths for output
-        rel_files = []
-        for f in files:
+        def process_sample(sample_id: str, files: list[str], kmer_count):
             try:
-                rel_files.append(os.path.relpath(f, start=os.path.dirname(input_dir)))
-            except ValueError:
-                rel_files.append(f)
+                assert sample_id, "Sample ID null or empty"
+                assert files, "Sample file list null or empty"
 
-        kmer_count = 0
+                if sample_id in samples:
+                    if autorename:
+                        n = 1
+                        while f"{sample_id}_{n}" in samples:
+                            n += 1
+                        sample_id = f"{sample_id}_{n}"
+                        logger.info(f"Duplicate sample ID renamed to {sample_id}")
+                    else:
+                        logger.info(
+                            f"Duplicate sample ID: {sample_id}, skipping {files}"
+                        )
+                        return
+                samples.add(sample_id)
+                entry: dict = {"name": sample_id, "files": files}
 
-        if counter is not None:
-            fingerprint = _sample_fingerprint(files, kmer_size)
+                if do_count and kmer_count <= 0:
+                    kmer_count = count_sample(sample_id, files)
 
-            if use_cache and fingerprint in cached_counts:
-                kmer_count = int(cached_counts[fingerprint])
-                click.echo(f"[{idx}/{total}] {sample_id}: cached ({kmer_count})")
-            else:
+                if kmer_count > 0:
+                    entry["kmer_count"] = kmer_count
+
+                out.write(json.dumps(entry) + "\n")
+            except Exception as e:
+                logger.warning(
+                    f"Could not write entry for '{sample_id or '<NONE>'}': {e}"
+                )
+
+        if not backup_file:
+            out.write(_new_header(input_dir, kmer_size, is_assembled))
+        else:
+            input_dir, kmer_size, backup_parsed = _process_backup(
+                input_dir,
+                kmer_size,
+                is_assembled,
+                samples,
+                do_count,
+                count_sample,
+                backup_file,
+                out,
+                process_sample,
+            )
+
+        if do_import:
+            _import_plain_text_list(input_list, process_sample, tools)
+
+        if do_scan:
+            _process_samples(input_dir, DATA_EXT, do_grouping, process_sample, tools)
+
+        if not do_scan and not do_import and not backup_parsed:
+            logger.warning(
+                "No input directory provided and no existing sample list found: nothing to do."
+            )
+        else:
+            total = len(samples)
+            logger.info(f"Listed {total} samples -> {output_file}")
+
+
+def _process_backup(
+    input_dir,
+    kmer_size,
+    is_assembled,
+    samples,
+    do_count,
+    count_sample,
+    backup_file,
+    out,
+    process_sample,
+):
+    with open(backup_file) as src:
+        first_line = src.readline()
+        first_entry = {}
+        try:
+            first_entry = json.loads(first_line)
+            parsed = True
+        except json.JSONDecodeError:
+            logger.warning("Could not parse existing header")
+            parsed = False
+
+        if parsed:
+            kmer_size = first_entry.get("k", kmer_size)
+            input_dir = (
+                first_entry.get("root_path") or input_dir or os.path.realpath(".")
+            )
+            is_assembled = first_entry.get("assembled", is_assembled)
+            first_entry["k"] = kmer_size
+            first_entry["root_path"] = input_dir
+            first_entry["assembled"] = is_assembled
+            first_entry.setdefault("description", "Generated by kmhelpers list")
+            first_entry.setdefault(
+                "date",
+                datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f"),
+            )
+            out.write(json.dumps(first_entry) + "\n")
+
+            if "name" in first_entry:
+                entry = first_entry
+                samples.add(entry["name"])
+                if do_count and "kmer_count" not in entry:
+                    entry["kmer_count"] = count_sample(
+                        entry["name"], entry.get("files", [])
+                    )
+                out.write(json.dumps(entry) + "\n")
+
+            for line in src:
+                if not line.strip():
+                    continue
                 try:
-                    click.echo(f"[{idx}/{total}] {sample_id}: counting...", nl=False)
-                    kmer_count = counter.count_files(files)
-                    click.echo(f" {kmer_count}")
-
-                    if cache is not None:
-                        cache.write(_CACHE_TABLE, fingerprint, str(kmer_count))
-
-                except Exception as e:
-                    click.echo("")  # newline after the "counting..." line
-                    kmer_count = 0
-                    click.echo(
-                        f"Warning: could not count k-mers for {sample_id}: {e}",
-                        err=True,
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    logger.warning(f"Could not parse existing entry: {line.strip()}")
+                    continue
+                if "name" in entry:
+                    process_sample(
+                        entry.get("name"),
+                        entry.get("files"),
+                        entry.get("kmer_count", 0),
                     )
 
-        entry: dict = {"files": rel_files}
-        if do_count:
-            entry = {"kmer_count": kmer_count, "files": rel_files}
+    return input_dir, kmer_size, parsed
 
-        samples_out[sample_id] = entry
 
-    doc = {
-        "description": "generated by kmhelpers",
+def _new_header(input_dir, kmer_size, is_assembled):
+    header = {
+        "description": "Generated by kmhelpers list",
         "date": datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f"),
-        "total_samples": len(samples_out),
+        "root_path": input_dir,
         "k": kmer_size,
-        "samples": samples_out,
+        "assembled": is_assembled,
     }
-
-    with open(output_file, "w") as fh:
-        yaml.dump(doc, fh, default_flow_style=False, sort_keys=False)
-
-    click.echo(f"Listed {len(samples_out)} samples -> {output_file}")
-
-    # Close open handles then remove the cache dir on clean completion
-    if cache is not None:
-        cache.delete()
+    header_line = json.dumps(header) + "\n"
+    return header_line

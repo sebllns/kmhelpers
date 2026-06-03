@@ -35,30 +35,10 @@ from pykmhelpers.pipeline.composer import compose_indices, parse_span_list
     help="🧬  K-mer size (default: 25)",
 )
 @click.option(
-    "--unassembled",
-    is_flag=True,
-    help="🧬  Treat input data as raw reads instead of assembled genomes",
-)
-@click.option(
-    "--false-positive-rate",
-    "--fp",
-    type=float,
-    default=0.25,
-    help="🎯  Bloom filter false-positive rate (default: 0.25). "
-    "A higher rate reduces disk footprint; the findere algorithm compensates at "
-    "query time by using (k+z)-mers. Recommended: build with p=0.25, query with z=6.",
-)
-@click.option(
-    "--recount",
-    is_flag=True,
-    default=False,
-    help="🔄  Force recount k-mers for all samples (ignore cached kmer_count)",
-)
-@click.option(
     "--span-list",
     "-s",
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
-    required=True,
+    required=False,
     help="📋  Allowlist of permitted span IDs (space-separated). Samples assigned to a span not in the list are promoted to the next allowed span.",
 )
 @click.option(
@@ -96,45 +76,12 @@ from pykmhelpers.pipeline.composer import compose_indices, parse_span_list
     default=256,
     help="⚙️   Partition count limit for auto-partitioning (default: 256)",
 )
-@click.option(
-    "--ntcard-threads",
-    "--ntt",
-    type=int,
-    default=8,
-    help="⚙️  Number of threads used by ntcard for k-mer counting (default: 8)",
-)
-@click.option(
-    "--ntcard-value",
-    "--ntv",
-    default="F0",
-    help="⚙️   Value ID to extract from ntcard output (default: 'F0')",
-)
-@click.option(
-    "--no-split",
-    is_flag=True,
-    default=False,
-    help="⚙️   Export all index definitions to a single file",
-)
-@click.option(
-    "--format",
-    "-f",
-    type=click.Choice(["yaml", "json"], case_sensitive=False),
-    default="yaml",
-    help="⚙️  Output format of created database (default: 'yaml')",
-)
-@click.option(
-    "-v",
-    "--verbose",
-    is_flag=True,
-    help="🔊  Increase log level to INFO (unless already higher)",
-)
 def compose(
     input_files,
     output_dir,
     prefix,
     name,
     kmer_size,
-    unassembled,
     span_list,
     partition_count,
     bf_max_size,
@@ -145,10 +92,6 @@ def compose(
     ntcard_threads,
     ntcard_value,
     false_positive_rate,
-    no_split,
-    recount,
-    format,
-    verbose,
 ):
     """Compose index definition file(s) from list(s) of samples.
 
@@ -175,8 +118,6 @@ def compose(
       \b
       kmhelpers compose -o ./db --recount samples.yaml
     """
-    if verbose:
-        force_verbose_mode()
 
     try:
         if kmer_size <= 0:
@@ -236,9 +177,9 @@ def compose(
             ntcard_threads=ntcard_threads,
             ntcard_value=ntcard_value,
             false_positive_rate=false_positive_rate,
-            no_split=no_split,
-            recount=recount,
-            format=format,
+            no_split=False,
+            recount=False,
+            format="yaml",
         )
 
     except click.BadParameter:
