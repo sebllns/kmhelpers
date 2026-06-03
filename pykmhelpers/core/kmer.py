@@ -45,8 +45,6 @@ class KmerCounter(Wrapper):
     Args:
         k: K-mer length.
         threadCount: Number of threads passed to ntcard.
-        mode: Counting strategy; determines which value is extracted from the
-              ntcard histogram (see KmerCountMode).
         dry_run: If True, commands are built but not executed.
     """
 
@@ -54,13 +52,11 @@ class KmerCounter(Wrapper):
         self,
         k: int = 31,
         threadCount: int = 8,
-        mode: KmerCountMode = KmerCountMode.DISTINCT,
         dry_run: bool = False,
     ):
         super().__init__(main_cmd="ntcard", dry_run=dry_run)
         self._k = k
         self._threadCount = threadCount
-        self._mode = mode
 
     @property
     def k(self):
@@ -72,20 +68,16 @@ class KmerCounter(Wrapper):
         """Number of threads used by ntcard."""
         return self._threadCount
 
-    @property
-    def mode(self):
-        """Counting strategy applied when reading the ntcard histogram."""
-        return self._mode
-
-    def count(self, filename, verbose=False):
+    def count(self, filename, mode: KmerCountMode = KmerCountMode.DISTINCT, verbose=False):
         """Count k-mers in a single file using ntcard.
 
         Args:
             filename: Path to the sequence file.
+            mode: Counting strategy (see KmerCountMode).
             verbose: Print the mode name and resulting value to stdout.
 
         Returns:
-            int: K-mer count extracted from the ntcard histogram according to self.mode.
+            int: K-mer count extracted from the ntcard histogram according to mode.
 
         Raises:
             FileNotFoundError: If the sequence file does not exist.
@@ -95,9 +87,9 @@ class KmerCounter(Wrapper):
         if not os.path.exists(filename):
             raise FileNotFoundError(f"Sequence file not found: {filename}")
 
-        return self.count_files([filename], verbose=verbose)
+        return self.count_files([filename], mode=mode, verbose=verbose)
 
-    def count_files(self, files, verbose=False):
+    def count_files(self, files, mode: KmerCountMode = KmerCountMode.DISTINCT, verbose=False):
         """Count k-mers for one or more files in a single ntcard call.
 
         All files are counted together as a single dataset; use count_all for
@@ -105,13 +97,14 @@ class KmerCounter(Wrapper):
 
         Args:
             files: List of sequence file paths.
+            mode: Counting strategy (see KmerCountMode):
+                  DISTINCT → F0 (all distinct k-mers),
+                  SOLID    → F0 - freq[1] (distinct k-mers appearing at least twice),
+                  TOTAL    → F1 (total k-mer occurrences).
             verbose: Print the mode name and resulting value to stdout.
 
         Returns:
-            int: K-mer count extracted from the ntcard histogram according to self.mode:
-                 DISTINCT → F0 (all distinct k-mers),
-                 SOLID    → F0 - freq[1] (distinct k-mers appearing at least twice),
-                 TOTAL    → F1 (total k-mer occurrences).
+            int: K-mer count extracted from the ntcard histogram according to mode.
 
         Raises:
             FileNotFoundError: If any input file does not exist.
@@ -157,16 +150,16 @@ class KmerCounter(Wrapper):
                     raise ValueError(f"Cannot parse ntcard output line: {line!r}")
                 return int(parts[1])
 
-            if self._mode == KmerCountMode.DISTINCT:
+            if mode == KmerCountMode.DISTINCT:
                 value = parse_line(lines[1])  # F0
-            elif self._mode == KmerCountMode.SOLID:
+            elif mode == KmerCountMode.SOLID:
                 freq1 = parse_line(lines[2]) if len(lines) > 2 else 0
                 value = parse_line(lines[1]) - freq1  # F0 - freq[1]
             else:  # TOTAL
                 value = parse_line(lines[0])  # F1
 
             if verbose:
-                print(f"{self._mode.name}={value}")
+                print(f"{mode.name}={value}")
 
             if value == 0:
                 raise ValueError(
@@ -181,7 +174,7 @@ class KmerCounter(Wrapper):
                 if os.path.exists(path):
                     os.remove(path)
 
-    def count_all(self, samples_dict, verbose=False):
+    def count_all(self, samples_dict, mode: KmerCountMode = KmerCountMode.DISTINCT, verbose=False):
         """Count k-mers for multiple samples.
 
         Samples that already contain a "kmer_count" key are skipped.
@@ -194,6 +187,7 @@ class KmerCounter(Wrapper):
                     ...
                 }
 
+            mode: Counting strategy applied to every sample (see KmerCountMode).
             verbose: Forward verbosity to each count_files call.
 
         Returns:
@@ -223,7 +217,7 @@ class KmerCounter(Wrapper):
                 raise ValueError(f"No files specified for sample '{sample_name}'")
 
             try:
-                kmer_count = self.count_files(files, verbose=verbose)
+                kmer_count = self.count_files(files, mode=mode, verbose=verbose)
                 results[sample_name] = kmer_count
 
             except (FileNotFoundError, ValueError, subprocess.SubprocessError) as e:

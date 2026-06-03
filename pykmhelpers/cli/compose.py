@@ -175,7 +175,6 @@ def compose(
             exact_partition_count=exact_partition_count,
             partition_count_limit=partition_count_limit,
             ntcard_threads=ntcard_threads,
-            ntcard_value=ntcard_value,
             false_positive_rate=false_positive_rate,
             no_split=False,
             recount=False,
