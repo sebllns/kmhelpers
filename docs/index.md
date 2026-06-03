@@ -1,6 +1,6 @@
 # kmhelpers
 
-<img src="../assets/kmhelpers-logo-v1.png" alt="kmhelpers logo" width="80">
+<img src="assets/kmhelpers-logo-v1.png" alt="kmhelpers logo" width="80">
 
 A Python toolkit for managing, compressing, and querying [kmindex](https://github.com/tlemane/kmindex) indices efficiently.
 
