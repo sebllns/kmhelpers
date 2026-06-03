@@ -75,6 +75,7 @@ class KmindexWrapper(Wrapper):
         from_index: Optional[str] = None,
         km_path: Optional[Union[str, Path]] = None,
         inplace: bool = False,
+        static_repart: bool = True,
     ) -> dict:
         """
         Build a kmindex index.
@@ -184,10 +185,14 @@ class KmindexWrapper(Wrapper):
                 "Either bloom_size (for presence/absence) or nb_cell (for abundance) must be specified"
             )
 
-        # Add optional parameters
+        # Flags
         if compress_intermediate:
             cmd.append("--cpr")
 
+        if static_repart:
+            cmd.append("--static-repart")
+
+        # Add optional parameters
         if from_index is not None:
             cmd.extend(["--from", from_index])
 
