@@ -22,7 +22,7 @@ A Python toolkit for managing, compressing, and querying [kmindex](https://githu
 ### Clone the repository and navigate to it
 
 ```bash
-git clone https://gitlab.inria.fr/omicfinder/kmhelpers
+git clone https://github.com/sebllns/kmhelpers
 git checkout dev/v0.6.3
 cd kmhelpers
 ```
@@ -108,7 +108,7 @@ For questions, bug reports, or contributions, please contact:
 
 - **Author**: [Sébastien BELLENOUS](https://github.com/sebllns)
 - **Email**: kmhelpers@groupes.renater.fr
-- **Repository**: [GitLab](https://gitlab.inria.fr/omicfinder/kmhelpers)
+- **Repository**: [GitHub](https://github.com/sebllns/kmhelpers)
 - **Supervisor**: [Pierre Peterlongo](https://github.com/pierrepeterlongo)
 
 ---

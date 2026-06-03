@@ -39,12 +39,15 @@ dev = [
     "flake8>=4.0",
     "mypy>=0.950",
 ]
+docs = [
+    "mkdocs-material>=9.0",
+]
 
 [project.scripts]
 kmhelpers = "pykmhelpers.cli.kmhelpers:cli"
 
 [project.urls]
-Repository = "https://gitlab.inria.fr/omicfinder/kmhelpers"
+Repository = "https://github.com/sebllns/kmhelpers"
 
 [tool.setuptools]
 packages = [
