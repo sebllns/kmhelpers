@@ -6,6 +6,8 @@ Unified CLI for kmhelpers - a toolkit for managing, compressing, and querying k-
 import datetime
 import logging
 import os
+import platform
+import sys
 import traceback
 
 import click
@@ -132,6 +134,13 @@ class SectionedGroup(click.Group):
                         f"kmhelpers crash dump - {datetime.datetime.now().isoformat()}\n"
                     )
                     f.write("=" * 60 + "\n\n")
+                    f.write(f"kmhelpers version: {__version__}\n")
+                    f.write(f"kmhelpers path:    {sys.executable}\n")
+                    f.write(
+                        f"OS:                {platform.system()} {platform.release()}\n"
+                    )
+                    f.write(f"OS version:        {platform.version()}\n")
+                    f.write("\n")
                     f.write(f"Exception: {type(e).__name__}: {e}\n\n")
                     f.write("Traceback:\n")
                     traceback.print_exc(file=f)

@@ -1,12 +1,14 @@
 import os
 import subprocess
 import tempfile
+from enum import Enum
 
-from .sequence import Sequence
-from .wrapper import Wrapper
+from pykmhelpers.core.sequence import Sequence
+from pykmhelpers.core.wrapper import Wrapper
 
 
 class Kmer(Sequence):
+    """A k-mer sequence with a fixed length k."""
 
     def __init__(self, seq: str, k: int = 0, header: str = ""):
         if k == 0:
@@ -21,57 +23,104 @@ class Kmer(Sequence):
         return self._k
 
 
+class KmerCountMode(Enum):
+    """Counting strategy returned by KmerCounter.
+
+    DISTINCT: all distinct k-mers; suited for assembled sequences.
+    SOLID:    distinct k-mers appearing at least twice;
+              filters sequencing errors from raw reads.
+    TOTAL:    total k-mer occurrences across all reads.
+    """
+
+    DISTINCT = 0
+    SOLID = 1
+    TOTAL = 2
+
+
+# Accepted input formats: fasta, fastq, sam, bam (plain or compressed gz, bz2, zip, xz).
+# A file listing input paths one per line can also be passed with a '@' prefix.
 class KmerCounter(Wrapper):
-    def __init__(self, k: int = 31, threadCount: int = 8, dry_run: bool = False):
+    """Wrapper around ntcard for counting k-mers in sequence files.
+
+    Args:
+        k: K-mer length.
+        threadCount: Number of threads passed to ntcard.
+        mode: Counting strategy; determines which value is extracted from the
+              ntcard histogram (see KmerCountMode).
+        dry_run: If True, commands are built but not executed.
+    """
+
+    def __init__(
+        self,
+        k: int = 31,
+        threadCount: int = 8,
+        mode: KmerCountMode = KmerCountMode.DISTINCT,
+        dry_run: bool = False,
+    ):
         super().__init__(main_cmd="ntcard", dry_run=dry_run)
         self._k = k
         self._threadCount = threadCount
+        self._mode = mode
 
     @property
     def k(self):
+        """K-mer length."""
         return self._k
 
     @property
     def threadCount(self):
+        """Number of threads used by ntcard."""
         return self._threadCount
+
+    @property
+    def mode(self):
+        """Counting strategy applied when reading the ntcard histogram."""
+        return self._mode
 
     def count(self, filename, verbose=False):
         """Count k-mers in a single file using ntcard.
 
         Args:
-            filename: Path to the sequence file (fasta, fastq, sam, or bam)
+            filename: Path to the sequence file.
+            verbose: Print the mode name and resulting value to stdout.
 
         Returns:
-            int: The F1 value (number of distinct k-mers) from ntcard
+            int: K-mer count extracted from the ntcard histogram according to self.mode.
 
         Raises:
-            FileNotFoundError: If ntcard is not installed or filename doesn't exist
-            ValueError: If output parsing fails
-            subprocess.CalledProcessError: If ntcard execution fails
+            FileNotFoundError: If the sequence file does not exist.
+            ValueError: If ntcard produces no output or parsing fails.
+            subprocess.SubprocessError: If ntcard returns a non-zero exit code.
         """
         if not os.path.exists(filename):
             raise FileNotFoundError(f"Sequence file not found: {filename}")
 
-        return self.count_files([filename])
+        return self.count_files([filename], verbose=verbose)
 
-    def count_files(self, files, target_value="F0", verbose=False):
+    def count_files(self, files, verbose=False):
         """Count k-mers for one or more files in a single ntcard call.
 
+        All files are counted together as a single dataset; use count_all for
+        per-sample counting.
+
         Args:
-            files: List of file paths (fasta, fastq, sam, or bam format)
+            files: List of sequence file paths.
+            verbose: Print the mode name and resulting value to stdout.
 
         Returns:
-            int: The F1 value (number of distinct k-mers) from ntcard
+            int: K-mer count extracted from the ntcard histogram according to self.mode:
+                 DISTINCT → F0 (all distinct k-mers),
+                 SOLID    → F0 - freq[1] (distinct k-mers appearing at least twice),
+                 TOTAL    → F1 (total k-mer occurrences).
 
         Raises:
-            FileNotFoundError: If ntcard fails or files don't exist
-            ValueError: If output parsing fails
-            subprocess.SubprocessError: If ntcard execution fails
+            FileNotFoundError: If any input file does not exist.
+            ValueError: If ntcard produces no output or parsing fails.
+            subprocess.SubprocessError: If ntcard returns a non-zero exit code.
         """
         if not files:
             raise ValueError("At least one file is required")
 
-        # Verify all files exist
         for file_path in files:
             if not os.path.exists(file_path):
                 raise FileNotFoundError(f"File not found: {file_path}")
@@ -80,7 +129,6 @@ class KmerCounter(Wrapper):
             tmp_file = tmp.name
 
         try:
-            # Build command: ntcard -t <threads> -k <k> -o <output> file1 file2 ...
             cmd = [
                 "ntcard",
                 "-t",
@@ -91,57 +139,68 @@ class KmerCounter(Wrapper):
                 tmp_file,
             ] + files
 
-            result = self._run_cmd(cmd, print_trace=verbose)
+            self._run_cmd(cmd, print_trace=verbose)
 
-            # Parse first line from stdout: k=25    F1      96751
-            lines = result.stderr.strip().split("\n")
-            if not lines:
-                raise ValueError("Empty output from ntcard")
+            hist_file = f"{tmp_file}_k{self._k}.hist"
+            if not os.path.exists(hist_file):
+                raise ValueError(f"ntcard output file not found: {hist_file}")
 
-            value = 0
+            with open(hist_file) as f:
+                lines = f.read().strip().split("\n")
 
-            for line in lines:
-                try:
-                    parts = line.split()
-                    if len(parts) >= 3 and target_value == parts[1]:
-                        value = int(parts[2])
-                        break
-                except:
-                    pass
+            if len(lines) < 2:
+                raise ValueError("Unexpected ntcard output format")
+
+            def parse_line(line):
+                parts = line.split()
+                if len(parts) < 2:
+                    raise ValueError(f"Cannot parse ntcard output line: {line!r}")
+                return int(parts[1])
+
+            if self._mode == KmerCountMode.DISTINCT:
+                value = parse_line(lines[1])  # F0
+            elif self._mode == KmerCountMode.SOLID:
+                freq1 = parse_line(lines[2]) if len(lines) > 2 else 0
+                value = parse_line(lines[1]) - freq1  # F0 - freq[1]
+            else:  # TOTAL
+                value = parse_line(lines[0])  # F1
 
             if verbose:
-                print(f"{target_value}={value}")
+                print(f"{self._mode.name}={value}")
 
             if value == 0:
                 raise ValueError(
-                    f"No k-mers found (F1=0). Check if files are empty or k={self._k} is larger than sequences."
+                    f"No k-mers found. Check if files are empty or k={self._k} is larger than sequences."
                 )
 
             return value
 
         finally:
-            if os.path.exists(tmp_file):
-                os.remove(tmp_file)
+            hist_file = f"{tmp_file}_k{self._k}.hist"
+            for path in (tmp_file, hist_file):
+                if os.path.exists(path):
+                    os.remove(path)
 
     def count_all(self, samples_dict, verbose=False):
-        """Count k-mers for multiple samples from a dictionary.
+        """Count k-mers for multiple samples.
+
+        Samples that already contain a "kmer_count" key are skipped.
 
         Args:
-            samples_dict: Dictionary with structure:
+            samples_dict: Dictionary mapping sample names to their metadata::
+
                 {
-                    "sample_name": {"files": [list of file paths]},
+                    "sample_name": {"files": [list of file paths], ...},
                     ...
                 }
+
+            verbose: Forward verbosity to each count_files call.
 
         Returns:
-            dict: Results with structure:
-                {
-                    "sample_name": {"kmer_count": count, "files": [file list]},
-                    ...
-                }
+            dict[str, int]: K-mer count per sample name.
 
         Raises:
-            ValueError: If sample dictionary is malformed
+            ValueError: If a sample entry is malformed or ntcard fails.
         """
         results = {}
 
@@ -164,10 +223,8 @@ class KmerCounter(Wrapper):
                 raise ValueError(f"No files specified for sample '{sample_name}'")
 
             try:
-                # Count k-mers for all files in a single ntcard call
-                f1_value = self.count_files(files)
-
-                results[sample_name] = f1_value
+                kmer_count = self.count_files(files, verbose=verbose)
+                results[sample_name] = kmer_count
 
             except (FileNotFoundError, ValueError, subprocess.SubprocessError) as e:
                 raise ValueError(
