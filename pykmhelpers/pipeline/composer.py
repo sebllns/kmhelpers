@@ -10,7 +10,7 @@ import pykmhelpers.pipeline.index_db as db
 from pykmhelpers.core.bloom_filter import BloomFilterSpecs, SpanManager
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.constants import KMHELPERS_VERSION
-from pykmhelpers.core.kmer import KmerCounter
+from pykmhelpers.core.kmer import KmerCounter, KmerCountMode
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,6 @@ def compose_indices(
     exact_partition_count=False,
     partition_count_limit=256,
     ntcard_threads=8,
-    ntcard_value="F0",
     false_positive_rate=0.25,
     no_split=False,
     recount=False,
@@ -88,7 +87,7 @@ def compose_indices(
                 db_tools=db_tools,
                 kmer_size=kmer_size,
                 ntcard_threads=ntcard_threads,
-                ntcard_value=ntcard_value,
+                mode=KmerCountMode.DISTINCT if assembled else KmerCountMode.SOLID,
                 recount=recount,
             )
 
@@ -389,7 +388,7 @@ def prepare_sample(
     db_tools: db.IndexDefinitionTools,
     kmer_size: int,
     ntcard_threads: int,
-    ntcard_value: str,
+    mode: KmerCountMode = KmerCountMode.DISTINCT,
     recount: bool = False,
 ):
     logger.debug(f"Processing sample {sample.name or sample.files[0]}")
@@ -418,6 +417,4 @@ def prepare_sample(
     if sample.kmer_count == 0 or recount:
         action = "Recounting" if recount else "Counting"
         logger.info(f"  {action} k-mers for sample {sample.name}")
-        sample.kmer_count = kc.count_files(
-            files=sample.files, target_value=ntcard_value
-        )
+        sample.kmer_count = kc.count_files(files=sample.files, mode=mode)
