@@ -35,11 +35,13 @@ class SpanProfiler:
         output_dir: str,
         false_positive_rate: float = 0.25,
         n_groups: int = 0,
+        base: float = 2.0,
     ):
         self.input_file = input_file
         self.output_dir = output_dir
         self.false_positive_rate = false_positive_rate
         self.n_groups = n_groups
+        self.base = base
 
     def run(self) -> None:
         with open(self.input_file) as f:
@@ -52,7 +54,7 @@ class SpanProfiler:
             if not k:
                 raise ValueError(f"Key 'k' not found or 0 in header: {self.input_file}")
 
-            sm = SpanManager(self.false_positive_rate)
+            sm = SpanManager(p=self.false_positive_rate, b=self.base)
             spans: dict[int, int] = {}
             biggest_sample: tuple[str, int] = ("", 0)
             sample_count = 0
@@ -105,9 +107,9 @@ class SpanProfiler:
         baseline = sorted(spans.keys())
 
         try:
-            import pykmhelpers.plots.span_analyzer
+            import pykmhelpers.pipeline.span_analyzer
 
-            sa = pykmhelpers.plots.span_analyzer.SpanAnalyzer(distribution_file)
+            sa = pykmhelpers.pipeline.span_analyzer.SpanAnalyzer(distribution_file)
 
             n_groups = self.n_groups
             if n_groups == 0:

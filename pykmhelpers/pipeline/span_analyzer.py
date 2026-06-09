@@ -1,5 +1,4 @@
 import csv
-import itertools
 import math
 import sys
 
@@ -142,58 +141,63 @@ class SpanAnalyzer:
         return (d_plus - d_minus) / 8e9
 
     def compute_groups(self, n_groups: int):
-        """Find optimal boundaries to partition spans into n_groups storage-balanced groups.
+        """Partition spans into n_groups storage-balanced groups using DP (O(m²·X)).
 
-        Uses self.sizes (actual bloom filter storage per span) as the cost to balance.
-        Returns (boundaries, group_spans, costs) where:
-            boundaries  — tuple of span values used as upper limits between groups
-            group_spans — list of lists, each containing the spans in that group
-            costs       — list of total storage cost (bytes) per group
+        Minimises the maximum per-group storage cost (minimax).
+        Returns (boundaries, group_spans, costs, sample_count).
         """
-        assert (
-            n_groups > 1
-        ), "Assertion from [SpanAnalyzer.compute_groups] failed: n_groups > 1"
+        assert n_groups > 1, "n_groups must be > 1"
 
         spans = self.spans
+        m = len(spans)
 
-        def split(boundaries):
-            limits = [-math.inf] + list(boundaries) + [math.inf]
-            groups = []
-            for i in range(len(limits) - 1):
-                lo, hi = limits[i], limits[i + 1]
-                groups.append([s for s in spans if lo < s <= hi])
-            return groups
+        # Prefix sums of sample counts for O(1) range queries
+        S = [0] * (m + 1)
+        for i, s in enumerate(spans):
+            S[i + 1] = S[i] + self.nc[s]
 
-        best, best_score = None, float("inf")
-        best_groups, best_cost, best_count = None, None, None
+        def seg_cost(a, b):
+            count = S[b + 1] - S[a]
+            return BloomFilterSpecs(self.bf[spans[b]], count, 256).total_storage_size()
 
-        target = 1.0 / n_groups
+        INF = float("inf")
+        dp = [[INF] * m for _ in range(n_groups)]
+        split = [[-1] * m for _ in range(n_groups)]
 
-        for boundaries in itertools.combinations(spans[:-1], n_groups - 1):
-            groups = split(boundaries)
-            # costs = [sum(self.sizes[s] * (2 ** (g[-1] - s)) for s in g) for g in groups]
-            count = [sum(self.nc[s] for s in g) for g in groups]
-            costs = [
-                BloomFilterSpecs(self.bf[g[-1]], count[i], 256).total_storage_size()
-                # kmindex_matrix_storage_cost(self.bf[g[-1]], count[i])
-                for i, g in enumerate(groups)
-            ]
-            print(self.bf)
-            print(groups)
-            print(costs)
-            total = sum(costs)
-            if total == 0:
-                continue
-            score = max(abs(float(c) / total - target) for c in costs)
-            print(score)
-            if score < best_score:
-                best_score = score
-                best = boundaries
-                best_cost = costs
-                best_groups = groups
-                best_count = count
+        for j in range(m):
+            dp[0][j] = seg_cost(0, j)
 
-        return best, best_groups, best_cost, best_count
+        for k in range(1, n_groups):
+            for j in range(k, m):
+                for i in range(k - 1, j):
+                    val = max(dp[k - 1][i], seg_cost(i + 1, j))
+                    if val < dp[k][j]:
+                        dp[k][j] = val
+                        split[k][j] = i
+
+        def backtrack(k, j):
+            if k == 0:
+                return [j]
+            return backtrack(k - 1, split[k][j]) + [j]
+
+        end_indices = backtrack(n_groups - 1, m - 1)
+        boundaries = tuple(spans[end_indices[i]] for i in range(n_groups - 1))
+
+        limits = [-math.inf] + list(boundaries) + [math.inf]
+        group_spans, costs, sample_count = [], [], []
+        for i in range(len(limits) - 1):
+            lo, hi = limits[i], limits[i + 1]
+            g = [s for s in spans if lo < s <= hi]
+            group_spans.append(g)
+            cnt = sum(self.nc[s] for s in g)
+            sample_count.append(cnt)
+            costs.append(
+                BloomFilterSpecs(self.bf[g[-1]], cnt, 256).total_storage_size()
+                if g
+                else 0
+            )
+
+        return boundaries, group_spans, costs, sample_count
 
     def _plot_groups(self, ax, boundaries, group_spans, costs, sample_count):
         COLORS = [plt.colormaps["tab10"](i) for i in range(10)]
@@ -225,12 +229,12 @@ class SpanAnalyzer:
                 xi = spans.index(bnd)
                 ax.axvline(x=xi + 0.5, color="white", linestyle="--", linewidth=1.0)
 
-        print("=" * 100)
-        print(self.bf)
-        print(boundaries)
-        print(sample_count)
-        print(group_spans)
-        print(costs)
+        # print("=" * 100)
+        # print(self.bf)
+        # print(boundaries)
+        # print(sample_count)
+        # print(group_spans)
+        # print(costs)
 
         legend_handles = [
             Patch(
@@ -287,12 +291,13 @@ class SpanAnalyzer:
             self.boundaries = boundaries
 
         fig.suptitle(
-            f"Span profiling (total size ≈ {self.get_total_stored_size_str()})",
+            "SPAN PROFILING",
             color="#e0e4f0",
             fontsize=13,
+            fontweight="bold",
         )
         plt.tight_layout()
-        out = self.path.replace(".csv", "_analysis.png")
+        out = self.path.replace(".csv", "_profiling.png")
         plt.savefig(out, dpi=150, bbox_inches="tight")
 
     def plot_baseline(self, spans, ax):

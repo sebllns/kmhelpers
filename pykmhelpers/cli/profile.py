@@ -49,7 +49,15 @@ logger = logging.getLogger(__name__)
     "A higher rate reduces disk footprint; the findere algorithm compensates at "
     "query time by using (k+z)-mers. Recommended: build with p=0.25, query with z=6.",
 )
-def profile(input, output_dir, n_groups, false_positive_rate):
+@click.option(
+    "--base",
+    "-b",
+    type=click.FloatRange(min=1.0, min_open=True),
+    default=2.0,
+    help="⚙   Base for span bucket boundaries (default: 2.0). "
+    "Use values like 1.1 or 10 to widen or narrow bucket granularity.",
+)
+def profile(input, output_dir, n_groups, base, false_positive_rate):
     """Analyse a JSONL sample index and output a Bloom-filter span profile.
 
     Reads the k-mer counts from INPUT_FILE (a JSONL file produced by `list`),
@@ -73,6 +81,7 @@ def profile(input, output_dir, n_groups, false_positive_rate):
             output_dir=output_dir,
             false_positive_rate=false_positive_rate,
             n_groups=n_groups,
+            base=base,
         ).run()
         logger.info("SUCCESS ('profile')")
     except (ValueError, FileNotFoundError) as e:
