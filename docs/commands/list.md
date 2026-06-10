@@ -1,6 +1,6 @@
 # list
 
-Recursively scan a directory and produce a YAML sample manifest with optional k-mer counting.
+Recursively scan a directory and produce a JSONL sample manifest with optional k-mer counting.
 
 ## Usage
 
@@ -10,55 +10,54 @@ kmhelpers list [OPTIONS] OUTPUT_FILE
 
 ## Description
 
-Scans a directory recursively and groups files into samples. By default, files are grouped by leaf folder — each leaf directory becomes one sample whose ID is the folder name. Use `--no-grouping` to treat every file independently.
+Scans a directory recursively for sequence files and writes a JSONL sample manifest. By default, each file is treated as its own sample. Use `--leaf-grouping` to group files by leaf folder, where each leaf directory becomes one sample whose ID is the folder name.
 
-When `--count` is used, each completed k-mer count is saved to a cache file so an interrupted run can resume without recounting already-finished samples. The cache is deleted automatically on successful completion.
+K-mer counting is enabled by default. If the output file already exists and is incomplete, the run resumes from where it left off without recounting already-finished samples. Use `--no-count` to skip counting entirely.
 
 ## Examples
 
 ```bash
-# Basic scan, group by leaf folder
-kmhelpers list samples.yaml -i /data/sequences
+# Basic scan, one file per sample
+kmhelpers list samples.jsonl -i /data/sequences
 
-# Include k-mer counting (k=31)
-kmhelpers list samples.yaml -i /data/sequences -k 31 --count
+# Group files by leaf folder
+kmhelpers list samples.jsonl -i /data/sequences --leaf-grouping
 
-# Import from a plain text list instead of scanning a directory
-kmhelpers list samples.yaml -l my_files.txt -k 31 --count
+# Custom k-mer size
+kmhelpers list samples.jsonl -i /data/sequences -k 31
 
-# Flat mode: one file = one sample
-kmhelpers list samples.yaml -i /data/sequences --no-grouping
+# Skip k-mer counting
+kmhelpers list samples.jsonl -i /data/sequences --no-count
+
+# Import from a plain text file list instead of scanning a directory
+kmhelpers list samples.jsonl -l my_files.txt
+
+# Rename duplicate sample IDs instead of skipping them
+kmhelpers list samples.jsonl -i /data/sequences -r
 ```
 
 ## Options
 
 | Option | Description |
 |--------|-------------|
-| `OUTPUT_FILE` | Path for the output YAML file |
+| `OUTPUT_FILE` | Path for the output JSONL file (required) |
 | `-i, --input DIR` | Input directory to scan recursively |
 | `-l, --list FILE` | Import input list in plain text format |
-| `-k, --kmer-size INT` | K-mer size for counting (default: 31) |
-| `--count` | Run k-mer counting via ntcard |
-| `--no-grouping` | Treat each file as an independent sample |
-| `--threads INT` | Number of threads for k-mer counting |
+| `-k, --kmer-size INT` | K-mer size for counting (default: 25) |
+| `-t, --data-type TEXT` | Data type: `a`/`assembled` (default) or `u`/`unassembled` (raw reads) |
+| `--no-count` | Skip k-mer counting with ntcard |
+| `--leaf-grouping` | Group files by leaf folder; each leaf directory becomes one sample |
+| `-r, --autorename` | Rename duplicate sample IDs by appending a numeric suffix instead of skipping |
+| `--ntcard-threads, --ntt INT` | Number of threads for ntcard k-mer counting (default: 8) |
 
 ## Output Format
 
-The output YAML contains k-mer counts per sample:
+The output is a JSONL file. The first line is a header and the remaining lines are one sample per line:
 
-```yaml
-k: 31
-false_positive_rate: 0.05
-samples:
-  sample_A:
-    kmer_count: 1234567
-    files:
-      - /data/sequences/sample_A/reads_1.fa
-      - /data/sequences/sample_A/reads_2.fa
-  sample_B:
-    kmer_count: 987654
-    files:
-      - /data/sequences/sample_B/reads.fa
+```jsonl
+{"k": 25, "assembled": true}
+{"name": "sample_A", "files": ["/data/sequences/sample_A/reads_1.fa", "/data/sequences/sample_A/reads_2.fa"], "kmer_count": 1234567}
+{"name": "sample_B", "files": ["/data/sequences/sample_B/reads.fa"], "kmer_count": 987654}
 ```
 
 This file is the input for [`profile`](profile.md) and [`compose`](compose.md).

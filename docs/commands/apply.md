@@ -15,6 +15,7 @@ kmhelpers apply [OPTIONS] INPUT_FILES...
 - If the input is a **span registry**, sub-index definition files are resolved from the same directory and merged into the named indices after building.
 - **Parent indices** are built automatically when required.
 - Filtering by `--name` or `--span` restricts which indices are processed.
+- Options can be loaded from a config file with `-c`; command-line flags take precedence.
 
 ## Examples
 
@@ -22,42 +23,62 @@ kmhelpers apply [OPTIONS] INPUT_FILES...
 # Build all indices in a definition file
 kmhelpers apply index.yaml -w /output
 
-# Build only selected indices by name
-kmhelpers apply index.yaml -w /output --name my_index
+# Build only selected indices by name (comma-separated or repeated flags)
+kmhelpers apply index.yaml -w /output -n idx1,idx2
+kmhelpers apply index.yaml -w /output -n idx1 -n idx2
 
 # Build only specific spans
-kmhelpers apply index.yaml -w /output --span 28 --span 31
+kmhelpers apply index.yaml -w /output -s 28
+kmhelpers apply index.yaml -w /output -s 27,28,29
+kmhelpers apply index.yaml -w /output -s 27-30
 
-# Build a span range
-kmhelpers apply index.yaml -w /output --span 27-30
+# Reuse parameters from an existing parent index
+kmhelpers apply index.yaml -w /output -n my_index --from parent_index
 
-# Dry-run: output a bash script without executing
-kmhelpers apply index.yaml -w /output --dry-run
+# Show progress bar during building
+kmhelpers apply index.yaml -w /output --show-progress
+
+# Skip compression of intermediate files
+kmhelpers apply index.yaml -w /output --skip-compression
+
+# Resolve sample paths from a base directory
+kmhelpers apply index.yaml -w /output -b /data/samples
+
+# Set number of threads and minimizer size
+kmhelpers apply index.yaml -w /output -t 8 --minim-size 12
+
+# Abort on first error
+kmhelpers apply index.yaml -w /output --fail-on-error
 
 # Notify by email when done
 kmhelpers apply index.yaml -w /output --notify user@example.com
 
-# Abort on first error
-kmhelpers apply index.yaml -w /output --fail-on-error
+# Load options from a config file
+kmhelpers apply index.yaml -c config.yaml
 ```
 
 ## Options
 
 | Option | Description |
 |--------|-------------|
-| `INPUT_FILES...` | Index definition file(s) (`.json`/`.yaml`) |
+| `INPUT_FILES...` | Index definition file(s) (`.json`/`.yaml`) (required) |
 | `-w, --work-dir DIR` | Working directory for output |
 | `-c, --config FILE` | Config file (command-line takes precedence) |
-| `--span TEXT` | Span(s) to build (single, comma-separated, or range) |
-| `-n, --name TEXT` | Index name(s) to build |
-| `--dry-run` | Output a ready-to-execute bash script without running |
-| `--plan` | Like `--dry-run` but with upfront path validation |
-| `--show-progress` | Show progress bar with elapsed/estimated time |
-| `--notify EMAIL` | Send email notification on exit (requires sendmail) |
-| `--fail-on-error` | Abort on first failure instead of continuing |
-| `--skip-compression` | Skip intermediate file compression |
-| `--existing POLICY` | How to handle pre-existing index folders: `fail`, `register`, `rename`, `replace` |
+| `-b, --base-path DIR` | Base path to resolve relative sample paths |
+| `-r, --registry DIR` | Custom base path to kmindex registry |
+| `-o, --bloom-dir DIR` | Custom base path to kmindex Bloom filters directory |
+| `-s, --span TEXT` | Span(s) to build: single value, comma-separated, or range (e.g. `27-30`) |
+| `-n, --name TEXT` | Index ID(s) to build (repeatable or comma-separated) |
 | `--from TEXT` | Reuse build parameters from a parent index |
+| `--minim-size INT` | Minimizer size (default: 10) |
+| `-t, --threads INT` | Number of threads (default: 1) |
+| `-p, --partition-count INT` | Override number of partitions |
+| `--existing TEXT` | Action for pre-existing index folders: `fail`, `register`, `rename`, `replace`, `register_or_replace`, `register_or_rename` (default: `fail`) |
+| `--skip-compression` | Skip compression of intermediate files during build |
+| `--show-progress` | Show progress bar with elapsed and estimated remaining time |
+| `--fail-on-error` | Abort on first failure instead of continuing |
+| `--notify EMAIL` | Send email notification on exit (requires sendmail) |
+| `-v, --verbose` | Verbose output |
 
 ## See Also
 
