@@ -28,13 +28,6 @@ from pykmhelpers.pipeline.composer import compose_indices, parse_span_list
     help="🏷️   Name of created index database",
 )
 @click.option(
-    "--kmer-size",
-    "-k",
-    type=click.IntRange(min=8, min_open=False, max=255, max_open=False),
-    default=None,
-    help="🧬  K-mer size (default: read from input file, fallback 25)",
-)
-@click.option(
     "--span-list",
     "-s",
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
@@ -71,7 +64,6 @@ def compose(
     output_dir,
     prefix,
     name,
-    kmer_size,
     span_list,
     partition_count,
     bf_max_size,
@@ -79,7 +71,6 @@ def compose(
     no_merge,
     exact_partition_count,
     partition_count_limit,
-    false_positive_rate,
 ):
     """Compose index definition file(s) from list(s) of samples.
 
@@ -108,18 +99,6 @@ def compose(
     """
 
     try:
-        if kmer_size is not None and kmer_size <= 0:
-            raise click.BadParameter(
-                f"Constraint must be respected: k > 0 (got k = {kmer_size})"
-            )
-        if kmer_size is not None and kmer_size >= 64:
-            raise click.BadParameter(
-                f"Constraint must be respected: k < 64 (got k = {kmer_size})"
-            )
-        if false_positive_rate <= 0:
-            raise click.BadParameter(
-                f"Constraint must be respected: false_positive_rate > 0 (got false_positive_rate = {false_positive_rate})"
-            )
         if partition_count < 0:
             raise click.BadParameter(
                 f"Constraint must be respected: partition_count >= 0 (got partition_count = {partition_count})"
@@ -153,8 +132,6 @@ def compose(
             output_dir=output_dir,
             prefix=prefix,
             name=name,
-            kmer_size=kmer_size,
-            assembled=not unassembled,
             allowed_spans=allowed_spans,
             partition_count=partition_count,
             bf_max_size=bf_max_size,
@@ -162,9 +139,6 @@ def compose(
             no_merge=no_merge,
             exact_partition_count=exact_partition_count,
             partition_count_limit=partition_count_limit,
-            false_positive_rate=false_positive_rate,
-            no_split=False,
-            format="yaml",
         )
 
     except click.BadParameter:

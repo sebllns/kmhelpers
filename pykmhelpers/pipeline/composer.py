@@ -3,9 +3,7 @@
 import json
 import logging
 import os
-from typing import Optional
-
-import yaml
+from typing import Generator, Optional
 
 import pykmhelpers.pipeline.index_db as db
 from pykmhelpers.core.bloom_filter import BloomFilterSpecs, SpanManager
@@ -16,11 +14,10 @@ logger = logging.getLogger(__name__)
 
 
 def compose_indices(
-    input_files,
+    input_file,
     output_dir,
     prefix="span",
     name="index",
-    kmer_size: Optional[int] = None,
     abundance_min=1,
     allowed_spans=None,
     partition_count=0,
@@ -29,9 +26,8 @@ def compose_indices(
     no_merge=False,
     exact_partition_count=False,
     partition_count_limit=256,
-    false_positive_rate=0.25,
-    no_split=False,
-    format="yaml",
+    kmer_size: Optional[int] = None,
+    false_positive_rate=Optional[float] = None,
 ):
     """Compose index definition file(s) from lists of samples.
 
@@ -56,12 +52,17 @@ def compose_indices(
         recount: Force recount k-mers even if cached.
         format: Output format, "yaml" or "json".
     """
+
+    file_k = read_jsonl_header(input_file)
+
+    kmer_size = kmer_size or file_k or 25
+
+
     auto_partitioning = partition_count == 0
     if auto_partitioning:
         partition_count = 256
 
     os.makedirs(output_dir, exist_ok=True)
-    all_samples: list[db.Sample] = []
     split_count = {}
     original_distribution = {}
     bf_sizes = {}
@@ -70,112 +71,96 @@ def compose_indices(
     db_tools = db.IndexDefinitionTools()
     sm = SpanManager(p=false_positive_rate)
 
-    file_kmer_sizes = []
+    # Phase 2: stream and process samples one by one
+    sample_count = 0
     for input_file in input_files:
-        samples, file_k = read_samples(input_file)
-        if file_k is not None:
-            if kmer_size is not None and file_k != kmer_size:
-                logger.warning(
-                    f"File k={file_k} in {input_file} does not match CLI k={kmer_size}"
+        file_sample_count = 0
+        for sample in stream_samples(input_file):
+            file_sample_count += 1
+            sample_count += 1
+            try:
+                assert sample.files and sample.files[0], "Invalid path: empty or null"
+                prepare_sample(
+                    sample=sample,
+                    db_tools=db_tools,
                 )
-            file_kmer_sizes.append(file_k)
-        all_samples.extend(samples)
-        logger.info(f"Loaded {len(samples)} samples from {input_file}")
 
-    if kmer_size is None:
-        if file_kmer_sizes:
-            if len(set(file_kmer_sizes)) > 1:
-                logger.warning(
-                    f"Inconsistent k values across input files: {file_kmer_sizes}, using k={file_kmer_sizes[0]}"
+                span = sm.dispatch(sample.kmer_count)
+
+                if allowed_spans:
+                    promoted = next((s for s in allowed_spans if s >= span), None)
+                    if promoted is None:
+                        raise ValueError(
+                            f"No allowed span >= {span} for sample '{sample.name}' "
+                            f"(kmer_count={sample.kmer_count}). Extend the span list."
+                        )
+                    span = promoted
+
+                original_distribution[span] = original_distribution.get(span, 0) + 1
+
+                bf_sizes[span] = sm.get_bf_size(span)
+
+                if span not in split_count:
+                    split_count[span] = 0
+                if span not in span_size:
+                    span_size[span] = 0
+
+                index_name = db_tools.get_index_name(
+                    name, prefix, span, split_count[span]
                 )
-            kmer_size = file_kmer_sizes[0]
-        else:
-            kmer_size = 25
-            logger.info(
-                f"No k-mer size specified or found in input files, using default k={kmer_size}"
-            )
-
-    logger.info(f"Total samples loaded: {len(all_samples)}")
-
-    for sample in all_samples:
-        try:
-            assert sample.files and sample.files[0], "Invalid path: empty or null"
-            prepare_sample(
-                sample=sample,
-                db_tools=db_tools,
-            )
-
-            span = sm.dispatch(sample.kmer_count)
-
-            if allowed_spans:
-                promoted = next((s for s in allowed_spans if s >= span), None)
-                if promoted is None:
-                    raise ValueError(
-                        f"No allowed span >= {span} for sample '{sample.name}' "
-                        f"(kmer_count={sample.kmer_count}). Extend the span list."
+                if index_name not in db_instance.index_table:
+                    logger.debug(
+                        f"Creating new index: {index_name}, span={span}, bf_size={bf_sizes[span]}"
                     )
-                span = promoted
-
-            original_distribution[span] = original_distribution.get(span, 0) + 1
-
-            bf_sizes[span] = sm.get_bf_size(span)
-
-            if span not in split_count:
-                split_count[span] = 0
-            if span not in span_size:
-                span_size[span] = 0
-
-            index_name = db_tools.get_index_name(name, prefix, span, split_count[span])
-            if index_name not in db_instance.index_table:
-                logger.debug(
-                    f"Creating new index: {index_name}, span={span}, bf_size={bf_sizes[span]}"
-                )
-                i = db.IndexDefinition(
-                    name=index_name,
-                    kmhelpers_version=KMHELPERS_VERSION,
-                    kmer_size=kmer_size,
-                    index_type="kmindex",
-                    span=span,
-                    bf_size=bf_sizes[span],
-                    partition_count=partition_count,
-                    abundance_min=abundance_min,
-                    samples={},
-                )
-                if split_count[span] > 0 and not no_merge:
-                    parent_name = db_tools.get_index_name(name, prefix, span, 0)
-                    i.set_parent(parent_name)
-                    assert (
-                        parent_name in db_instance.index_table
-                    ), f"Parent index not found: {parent_name}"
-                    db_instance.index_table[parent_name].merge_name = (
-                        db_tools.get_merge_name(name, prefix, span)
+                    i = db.IndexDefinition(
+                        name=index_name,
+                        kmhelpers_version=KMHELPERS_VERSION,
+                        kmer_size=kmer_size,
+                        index_type="kmindex",
+                        span=span,
+                        bf_size=bf_sizes[span],
+                        partition_count=partition_count,
+                        abundance_min=abundance_min,
+                        samples={},
                     )
+                    if split_count[span] > 0 and not no_merge:
+                        parent_name = db_tools.get_index_name(name, prefix, span, 0)
+                        i.set_parent(parent_name)
+                        assert (
+                            parent_name in db_instance.index_table
+                        ), f"Parent index not found: {parent_name}"
+                        db_instance.index_table[parent_name].merge_name = (
+                            db_tools.get_merge_name(name, prefix, span)
+                        )
 
-                i.merge_name = db_tools.get_merge_name(name, prefix, span)
-                db_instance.add_index(i)
-            else:
-                logger.debug(f"Adding to existing index: {index_name}")
+                    i.merge_name = db_tools.get_merge_name(name, prefix, span)
+                    db_instance.add_index(i)
+                else:
+                    logger.debug(f"Adding to existing index: {index_name}")
 
-            assert sample.name, "Invalid ID: empty or null"
-            db_instance.index_table[index_name].add_sample(
-                sample_id=sample.name, sample=sample
-            )
+                assert sample.name, "Invalid ID: empty or null"
+                db_instance.index_table[index_name].add_sample(
+                    sample_id=sample.name, sample=sample
+                )
 
-            span_size[span] += 1
-            if (
-                bf_max_size
-                and span_size[span] % 8 == 0
-                and bf_max_size <= db_instance.index_table[index_name].get_stored_size()
-            ):
-                split_count[span] += 1
+                span_size[span] += 1
+                if (
+                    bf_max_size
+                    and span_size[span] % 8 == 0
+                    and bf_max_size
+                    <= db_instance.index_table[index_name].get_stored_size()
+                ):
+                    split_count[span] += 1
 
-        except Exception as e:
-            logger.exception(
-                f"Could not process sample '{sample.name}'({sample.id}): {e} ({type(e).__name__})"
-            )
+            except Exception as e:
+                logger.exception(
+                    f"Could not process sample '{sample.name}'({sample.id}): {e} ({type(e).__name__})"
+                )
+
+        logger.info(f"Loaded {file_sample_count} samples from {input_file}")
 
     logger.info(
-        f"Composed {len(all_samples)} samples into {len(db_instance.index_table)} indices"
+        f"Composed {sample_count} samples into {len(db_instance.index_table)} indices"
     )
 
     for index_name, index in sorted(db_instance.index_table.items()):
@@ -230,7 +215,7 @@ def compose_indices(
     )
 
     logger.info(f"Exported database to {output_dir}")
-    logger.info(f"Created index definition for {len(all_samples)} samples")
+    logger.info(f"Created index definition for {sample_count} samples")
 
 
 def export_db(
@@ -303,144 +288,44 @@ def parse_span_list(path) -> list[int]:
     return spans
 
 
-def read_samples(filename) -> tuple[list[db.Sample], Optional[int]]:
-    """Parse a sample file in YAML, JSON, JSONL, or plain-text format.
+def read_jsonl_header(filename: str) -> Optional[int]:
+    """Return the ``k`` value from the JSONL header (first line), or None."""
+    with open(filename) as f:
+        line = f.readline().strip()
+    if not line:
+        return None
+    try:
+        json_line =json.loads(line)
+        return json_line.get("k"), json_line("")
+    except json.JSONDecodeError:
+        logger.warning(f"Could not parse JSONL header in {filename}")
+        return None
 
-    Plain text (one sample per line):
-        [sample_id] file_1[,file_2,...] [kmer_count]
 
-    YAML/JSON:
-        k: <integer>
-        samples:
-          <sample_id>:
-            [kmer_count: <optional_integer>]
-            files:
-              - <path_to_file>
-
-    JSONL (output of ``kmhelpers list``):
-        First line: header object with at least ``k`` key.
-        Subsequent lines: sample objects with ``name``, ``files``, and optional ``kmer_count``.
-    """
-    samples = []
-    file_k = None
-
-    if filename.endswith((".yaml", ".yml")):
-        with open(filename) as f:
-            data = yaml.safe_load(f)
-        file_k = data.get("k")
-        for sample_id, sample_data in data.get("samples", {}).items():
-            files = sample_data.get("files", [])
-            if not files:
-                logger.warning(f"Sample {sample_id} has no files, skipping")
+def stream_samples(filename: str) -> Generator[db.Sample, None, None]:
+    """Yield Sample objects from a JSONL file, skipping the header line."""
+    with open(filename) as f:
+        f.readline()  # skip header
+        for line in f:
+            line = line.strip()
+            if not line:
                 continue
-            samples.append(
-                db.Sample(
-                    name=sample_id,
-                    files=files,
-                    kmer_count=sample_data.get("kmer_count", 0),
-                )
-            )
-
-    elif filename.endswith(".json"):
-        with open(filename) as f:
-            data = json.load(f)
-        file_k = data.get("k")
-        for sample_id, sample_data in data.get("samples", {}).items():
-            files = sample_data.get("files", [])
-            if not files:
-                logger.warning(f"Sample {sample_id} has no files, skipping")
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                logger.warning(f"Could not parse JSONL entry: {line}")
                 continue
-            samples.append(
-                db.Sample(
-                    name=sample_id,
-                    files=files,
-                    kmer_count=sample_data.get("kmer_count", 0),
-                )
+            if "name" not in entry:
+                continue
+            files = entry.get("files", [])
+            if not files:
+                logger.warning(f"Sample {entry['name']} has no files, skipping")
+                continue
+            yield db.Sample(
+                name=entry["name"],
+                files=files,
+                kmer_count=entry.get("kmer_count", 0),
             )
-
-    elif filename.endswith(".jsonl"):
-        with open(filename) as f:
-            first_line = f.readline().strip()
-            if first_line:
-                try:
-                    first_entry = json.loads(first_line)
-                    file_k = first_entry.get("k")
-                    if "name" in first_entry:
-                        files = first_entry.get("files", [])
-                        if not files:
-                            logger.warning(
-                                f"Sample {first_entry['name']} has no files, skipping"
-                            )
-                        else:
-                            samples.append(
-                                db.Sample(
-                                    name=first_entry["name"],
-                                    files=files,
-                                    kmer_count=first_entry.get("kmer_count", 0),
-                                )
-                            )
-                except json.JSONDecodeError:
-                    logger.warning(f"Could not parse JSONL header: {first_line}")
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    entry = json.loads(line)
-                except json.JSONDecodeError:
-                    logger.warning(f"Could not parse JSONL entry: {line}")
-                    continue
-                if "name" not in entry:
-                    continue
-                files = entry.get("files", [])
-                if not files:
-                    logger.warning(f"Sample {entry['name']} has no files, skipping")
-                    continue
-                samples.append(
-                    db.Sample(
-                        name=entry["name"],
-                        files=files,
-                        kmer_count=entry.get("kmer_count", 0),
-                    )
-                )
-
-    else:
-        # Plain text: [sample_id] file_1[,file_2,...] [kmer_count]
-        with open(filename) as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith("#"):
-                    continue
-
-                parts = line.split()
-                kmer_count = 0
-                try:
-                    kmer_count = int(parts[-1])
-                    parts = parts[:-1]
-                except ValueError:
-                    pass
-
-                if not parts:
-                    logger.warning(
-                        f"Invalid line format: {line}. "
-                        "Expected: [sample_id] file_1[,file_2,...] [kmer_count]"
-                    )
-                    continue
-
-                if len(parts) == 1:
-                    sample_id = None
-                    files_str = parts[0]
-                else:
-                    sample_id = parts[0]
-                    files_str = " ".join(parts[1:])
-
-                files = [f.strip().strip('"').strip("'") for f in files_str.split(",")]
-                if files:
-                    samples.append(
-                        db.Sample(name=sample_id, files=files, kmer_count=kmer_count)
-                    )
-
-    return samples, file_k
 
 
 def prepare_sample(
