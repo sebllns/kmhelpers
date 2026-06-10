@@ -122,7 +122,6 @@ class SpanProfiler:
             with open(os.path.join(self.output_dir, "profile.yaml"), "w") as f:
                 yaml.dump(
                     {
-                        "k": k,
                         "false_positive_rate": self.false_positive_rate,
                         "sample_count": sample_count,
                         "biggest_sample": str(biggest_sample),

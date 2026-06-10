@@ -54,14 +54,14 @@ logger = logging.getLogger(__name__)
     "no_count",
     is_flag=True,
     default=False,
-    help="Count k-mers for each sample using ntcard",
+    help="Skip k-mer counting with ntcard",
 )
 @click.option(
-    "--no-grouping",
-    "no_grouping",
+    "--leaf-grouping",
+    "leaf_grouping",
     is_flag=True,
     default=False,
-    help="Disable grouping by leaf folder; each file becomes its own sample",
+    help="Group files by leaf folder; each leaf directory becomes one sample",
 )
 @click.option(
     "--autorename",
@@ -85,19 +85,19 @@ def list_samples(
     kmer_size,
     data_type,
     no_count,
-    no_grouping,
+    leaf_grouping,
     autorename,
     ntcard_threads,
 ):
     """Recursively list samples from a directory and output a JSONL file.
 
-    By default, files are grouped by leaf folder: each leaf directory
-    becomes one sample whose ID is the folder name. Use --no-grouping to
-    treat every file independently.
+    By default, each file is treated as its own sample. Use --leaf-grouping
+    to group files by leaf folder, where each leaf directory becomes one
+    sample whose ID is the folder name.
 
-    When --count is used, each completed k-mer count is saved to a cache
-    file so an interrupted run can resume without recounting already-finished
-    samples. The cache is deleted automatically on successful completion.
+    K-mer counting is enabled by default. Use --no-count to skip it. If the
+    output file already exists and is incomplete, the run will resume from
+    where it left off without recounting already-finished samples.
     """
     is_assembled = data_type.lower() in ("a", "assembled")
     try:
@@ -108,7 +108,7 @@ def list_samples(
             kmer_size=kmer_size,
             is_assembled=is_assembled,
             do_count=not no_count,
-            do_grouping=not no_grouping,
+            do_grouping=leaf_grouping,
             autorename=autorename,
             ntcard_threads=ntcard_threads,
         ).run()

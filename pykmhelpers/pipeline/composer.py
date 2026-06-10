@@ -29,28 +29,23 @@ def compose_indices(
     kmer_size: Optional[int] = None,
     false_positive_rate=Optional[float] = None,
 ):
-    """Compose index definition file(s) from lists of samples.
+    """Compose index definition file(s) from a sample list.
 
     Args:
-        input_files: Iterable of input file paths.
+        input_file: Path to the input JSONL sample list file.
         output_dir: Output directory for composed database files.
         prefix: Prefix for index names.
         name: Name of the created index database.
-        kmer_size: K-mer size.
-        assembled: True for assembled genomes, False for raw reads.
+        abundance_min: Minimum k-mer abundance threshold.
         allowed_spans: Sorted list of permitted span IDs, or None for no restriction.
         partition_count: Desired number of partitions per index (0 = auto).
-        bf_max_size: ByteCounter max BF size before splitting, or None.
-        partition_min_size: ByteCounter min partition size, or None.
+        bf_max_size: Max Bloom filter size before splitting, or None.
+        partition_min_size: Min partition size as a ByteCounter, or None.
         no_merge: Treat split index parts as independent indices.
         exact_partition_count: Keep exact partition count (no power-of-2 rounding).
         partition_count_limit: Upper bound on auto partition count.
-        ntcard_threads: Threads for ntcard k-mer counting.
-        ntcard_value: Value ID to extract from ntcard output.
+        kmer_size: K-mer size (overrides value from input file header).
         false_positive_rate: Bloom filter false-positive rate.
-        no_split: Export all index definitions to a single file.
-        recount: Force recount k-mers even if cached.
-        format: Output format, "yaml" or "json".
     """
 
     file_k = read_jsonl_header(input_file)
