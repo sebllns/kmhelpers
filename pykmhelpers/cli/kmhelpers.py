@@ -325,29 +325,29 @@ plan.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(plan)
 apply.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(apply)
-pipeline.section = "Main commands"  # type: ignore[assignment]
-cli.add_command(pipeline)
 query.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(query)
 kmindex_compress.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(kmindex_compress)
 
 # Register utilities
-count_kmers.section = "Utilities"  # type: ignore[assignment]
-cli.add_command(count_kmers)
-fof.section = "Utilities"  # type: ignore[assignment]
-cli.add_command(fof)
+# count_kmers.section = "Utilities"  # type: ignore[assignment]
+# cli.add_command(count_kmers)
+# fof.section = "Utilities"  # type: ignore[assignment]
+# cli.add_command(fof)
 # ! DEPRECATED
 # build_subindex.section = "Utilities"  # type: ignore[assignment]
 # cli.add_command(build_subindex)
 registry.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(registry)
-kmindex.section = "Utilities"  # type: ignore[assignment]
-cli.add_command(kmindex)
+# kmindex.section = "Utilities"  # type: ignore[assignment]
+# cli.add_command(kmindex)
+pipeline.section = "Utilities"  # type: ignore[assignment]
+cli.add_command(pipeline)
 
 # Register other commands
-experimental.section = "Other"  # type: ignore[assignment]
-cli.add_command(experimental)
+# experimental.section = "Other"  # type: ignore[assignment]
+# cli.add_command(experimental)
 test.section = "Other"  # type: ignore[assignment]
 cli.add_command(test)
 about.section = "Other"  # type: ignore[assignment]
