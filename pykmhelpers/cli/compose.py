@@ -8,7 +8,7 @@ from pykmhelpers.pipeline.composer import compose_indices, parse_span_list
 
 
 @click.command(name="compose")
-@click.argument("input_files", nargs=-1, required=True, type=click.Path(exists=True))
+@click.argument("input_files", nargs=1, required=True, type=click.Path(exists=True))
 @click.option(
     "--output-dir",
     "-o",
@@ -30,9 +30,9 @@ from pykmhelpers.pipeline.composer import compose_indices, parse_span_list
 @click.option(
     "--kmer-size",
     "-k",
-    type=int,
-    default=25,
-    help="🧬  K-mer size (default: 25)",
+    type=click.IntRange(min=8, min_open=False, max=255, max_open=False),
+    default=None,
+    help="🧬  K-mer size (default: read from input file, fallback 25)",
 )
 @click.option(
     "--span-list",
@@ -49,9 +49,10 @@ from pykmhelpers.pipeline.composer import compose_indices, parse_span_list
     help="💾   Desired number of partitions per index, 0 for automatic count (default: 0)",
 )
 @click.option(
-    "--bf-max-size",
+    "--split-size",
     "-b",
-    help="💾  Maximum Bloom Filter size (e.g., '10GB', '5000MB') before splitting samples across indices (default = no limit)",
+    "bf_max_size",
+    help="💾  Maximum run size (e.g., '10GB', '5000MB') before splitting samples across indices (default = no limit)",
 )
 @click.option(
     "--partition-min-size",
@@ -59,19 +60,8 @@ from pykmhelpers.pipeline.composer import compose_indices, parse_span_list
     help="💾  Minimum partition file size (e.g., '500MB', '1GB'). If not met, partition count will decrease to maintain this size limit per partition (default = no limit)",
 )
 @click.option(
-    "--no-merge",
-    is_flag=True,
-    default=False,
-    help="⚙️   Treat each part of split indices as independent indices (mostly used for partition count calculation)",
-)
-@click.option(
-    "--exact-partition-count",
-    is_flag=True,
-    default=False,
-    help="⚙️   Keep exact partition count (default rounds to nearest power of 2)",
-)
-@click.option(
     "--partition-count-limit",
+    "-P",
     type=int,
     default=256,
     help="⚙️   Partition count limit for auto-partitioning (default: 256)",
@@ -89,8 +79,6 @@ def compose(
     no_merge,
     exact_partition_count,
     partition_count_limit,
-    ntcard_threads,
-    ntcard_value,
     false_positive_rate,
 ):
     """Compose index definition file(s) from list(s) of samples.
@@ -120,11 +108,11 @@ def compose(
     """
 
     try:
-        if kmer_size <= 0:
+        if kmer_size is not None and kmer_size <= 0:
             raise click.BadParameter(
                 f"Constraint must be respected: k > 0 (got k = {kmer_size})"
             )
-        if kmer_size >= 64:
+        if kmer_size is not None and kmer_size >= 64:
             raise click.BadParameter(
                 f"Constraint must be respected: k < 64 (got k = {kmer_size})"
             )
@@ -174,10 +162,8 @@ def compose(
             no_merge=no_merge,
             exact_partition_count=exact_partition_count,
             partition_count_limit=partition_count_limit,
-            ntcard_threads=ntcard_threads,
             false_positive_rate=false_positive_rate,
             no_split=False,
-            recount=False,
             format="yaml",
         )
 

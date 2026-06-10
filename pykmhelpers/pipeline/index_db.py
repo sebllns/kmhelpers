@@ -25,7 +25,6 @@ class DbFields(str, Enum):
     # Index fields
     PARENT_INDEX = "parent_index"
     ABUNDANCE_MIN = "abundance_min"
-    ASSEMBLED = "assembled"
     KMER_SIZE = "kmer_size"
     PARTITION_COUNT = "partition_count"
     SPAN = "span"
@@ -50,7 +49,6 @@ class DbFields(str, Enum):
             DbFields.LINKS: None,
             DbFields.PARENT_INDEX: None,
             DbFields.ABUNDANCE_MIN: 2,
-            DbFields.ASSEMBLED: False,
             DbFields.KMER_SIZE: 25,
             DbFields.PARTITION_COUNT: 0,
             DbFields.SPAN: 0,
@@ -163,7 +161,6 @@ class IndexDefinition(Item, auto_increment=True):
     span: int = DbFields.SPAN.get_default() or 0
     bf_size: int = DbFields.BF_SIZE.get_default() or 0
     abundance_min: int = DbFields.ABUNDANCE_MIN.get_default() or 2
-    assembled: bool = DbFields.ASSEMBLED.get_default() or False
     samples: dict[str, Sample] = field(default_factory=dict)
     merge_name: Optional[str] = None
 
@@ -319,7 +316,6 @@ class IndexDefinitionTools:
                     self.get_field_name(DbFields.SPAN), 0
                 ),
                 index_type=str(self.get_field(DbFields.INDEX_TYPE, index_data)),
-                assembled=bool(self.get_field(DbFields.ASSEMBLED, index_data)),
                 abundance_min=int(self.get_field(DbFields.ABUNDANCE_MIN, parameters)),
                 samples=samples,
             )
@@ -421,7 +417,6 @@ class IndexDefinitionTools:
                     DbFields.KMHELPERS_VERSION
                 ): index.kmhelpers_version,
                 self.get_field_name(DbFields.INDEX_TYPE): index.index_type,
-                self.get_field_name(DbFields.ASSEMBLED): index.assembled,
                 self.get_field_name(DbFields.PARAMETERS): parameters,
                 self.get_field_name(DbFields.INFOS): infos,
                 self.get_field_name(DbFields.SAMPLES): samples_data,

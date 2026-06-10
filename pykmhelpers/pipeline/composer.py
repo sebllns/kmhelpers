@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+from typing import Optional
 
 import yaml
 
@@ -10,7 +11,6 @@ import pykmhelpers.pipeline.index_db as db
 from pykmhelpers.core.bloom_filter import BloomFilterSpecs, SpanManager
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.constants import KMHELPERS_VERSION
-from pykmhelpers.core.kmer import KmerCounter, KmerCountMode
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +20,8 @@ def compose_indices(
     output_dir,
     prefix="span",
     name="index",
-    kmer_size=25,
-    assembled=True,
+    kmer_size: Optional[int] = None,
+    abundance_min=1,
     allowed_spans=None,
     partition_count=0,
     bf_max_size=None,
@@ -29,10 +29,8 @@ def compose_indices(
     no_merge=False,
     exact_partition_count=False,
     partition_count_limit=256,
-    ntcard_threads=8,
     false_positive_rate=0.25,
     no_split=False,
-    recount=False,
     format="yaml",
 ):
     """Compose index definition file(s) from lists of samples.
@@ -72,10 +70,30 @@ def compose_indices(
     db_tools = db.IndexDefinitionTools()
     sm = SpanManager(p=false_positive_rate)
 
+    file_kmer_sizes = []
     for input_file in input_files:
-        samples = read_samples(input_file, kmer_size)
+        samples, file_k = read_samples(input_file)
+        if file_k is not None:
+            if kmer_size is not None and file_k != kmer_size:
+                logger.warning(
+                    f"File k={file_k} in {input_file} does not match CLI k={kmer_size}"
+                )
+            file_kmer_sizes.append(file_k)
         all_samples.extend(samples)
         logger.info(f"Loaded {len(samples)} samples from {input_file}")
+
+    if kmer_size is None:
+        if file_kmer_sizes:
+            if len(set(file_kmer_sizes)) > 1:
+                logger.warning(
+                    f"Inconsistent k values across input files: {file_kmer_sizes}, using k={file_kmer_sizes[0]}"
+                )
+            kmer_size = file_kmer_sizes[0]
+        else:
+            kmer_size = 25
+            logger.info(
+                f"No k-mer size specified or found in input files, using default k={kmer_size}"
+            )
 
     logger.info(f"Total samples loaded: {len(all_samples)}")
 
@@ -85,10 +103,6 @@ def compose_indices(
             prepare_sample(
                 sample=sample,
                 db_tools=db_tools,
-                kmer_size=kmer_size,
-                ntcard_threads=ntcard_threads,
-                mode=KmerCountMode.DISTINCT if assembled else KmerCountMode.SOLID,
-                recount=recount,
             )
 
             span = sm.dispatch(sample.kmer_count)
@@ -124,8 +138,7 @@ def compose_indices(
                     span=span,
                     bf_size=bf_sizes[span],
                     partition_count=partition_count,
-                    assembled=assembled,
-                    abundance_min=db_tools.get_abundance_min(assembled),
+                    abundance_min=abundance_min,
                     samples={},
                 )
                 if split_count[span] > 0 and not no_merge:
@@ -290,8 +303,8 @@ def parse_span_list(path) -> list[int]:
     return spans
 
 
-def read_samples(filename, cli_kmer_size=None) -> list[db.Sample]:
-    """Parse a sample file in YAML, JSON, or plain-text format.
+def read_samples(filename) -> tuple[list[db.Sample], Optional[int]]:
+    """Parse a sample file in YAML, JSON, JSONL, or plain-text format.
 
     Plain text (one sample per line):
         [sample_id] file_1[,file_2,...] [kmer_count]
@@ -303,15 +316,18 @@ def read_samples(filename, cli_kmer_size=None) -> list[db.Sample]:
             [kmer_count: <optional_integer>]
             files:
               - <path_to_file>
+
+    JSONL (output of ``kmhelpers list``):
+        First line: header object with at least ``k`` key.
+        Subsequent lines: sample objects with ``name``, ``files``, and optional ``kmer_count``.
     """
     samples = []
+    file_k = None
 
     if filename.endswith((".yaml", ".yml")):
         with open(filename) as f:
             data = yaml.safe_load(f)
         file_k = data.get("k")
-        if file_k and cli_kmer_size and file_k != cli_kmer_size:
-            logger.warning(f"File k={file_k} does not match CLI k={cli_kmer_size}")
         for sample_id, sample_data in data.get("samples", {}).items():
             files = sample_data.get("files", [])
             if not files:
@@ -329,8 +345,6 @@ def read_samples(filename, cli_kmer_size=None) -> list[db.Sample]:
         with open(filename) as f:
             data = json.load(f)
         file_k = data.get("k")
-        if file_k and cli_kmer_size and file_k != cli_kmer_size:
-            logger.warning(f"File k={file_k} does not match CLI k={cli_kmer_size}")
         for sample_id, sample_data in data.get("samples", {}).items():
             files = sample_data.get("files", [])
             if not files:
@@ -343,6 +357,52 @@ def read_samples(filename, cli_kmer_size=None) -> list[db.Sample]:
                     kmer_count=sample_data.get("kmer_count", 0),
                 )
             )
+
+    elif filename.endswith(".jsonl"):
+        with open(filename) as f:
+            first_line = f.readline().strip()
+            if first_line:
+                try:
+                    first_entry = json.loads(first_line)
+                    file_k = first_entry.get("k")
+                    if "name" in first_entry:
+                        files = first_entry.get("files", [])
+                        if not files:
+                            logger.warning(
+                                f"Sample {first_entry['name']} has no files, skipping"
+                            )
+                        else:
+                            samples.append(
+                                db.Sample(
+                                    name=first_entry["name"],
+                                    files=files,
+                                    kmer_count=first_entry.get("kmer_count", 0),
+                                )
+                            )
+                except json.JSONDecodeError:
+                    logger.warning(f"Could not parse JSONL header: {first_line}")
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    logger.warning(f"Could not parse JSONL entry: {line}")
+                    continue
+                if "name" not in entry:
+                    continue
+                files = entry.get("files", [])
+                if not files:
+                    logger.warning(f"Sample {entry['name']} has no files, skipping")
+                    continue
+                samples.append(
+                    db.Sample(
+                        name=entry["name"],
+                        files=files,
+                        kmer_count=entry.get("kmer_count", 0),
+                    )
+                )
 
     else:
         # Plain text: [sample_id] file_1[,file_2,...] [kmer_count]
@@ -380,16 +440,12 @@ def read_samples(filename, cli_kmer_size=None) -> list[db.Sample]:
                         db.Sample(name=sample_id, files=files, kmer_count=kmer_count)
                     )
 
-    return samples
+    return samples, file_k
 
 
 def prepare_sample(
     sample: db.Sample,
     db_tools: db.IndexDefinitionTools,
-    kmer_size: int,
-    ntcard_threads: int,
-    mode: KmerCountMode = KmerCountMode.DISTINCT,
-    recount: bool = False,
 ):
     logger.debug(f"Processing sample {sample.name or sample.files[0]}")
 
@@ -412,9 +468,4 @@ def prepare_sample(
         sample.name = sample_name
 
     assert sample.name, "Sample ID empty or null"
-
-    kc = KmerCounter(k=kmer_size, threadCount=ntcard_threads)
-    if sample.kmer_count == 0 or recount:
-        action = "Recounting" if recount else "Counting"
-        logger.info(f"  {action} k-mers for sample {sample.name}")
-        sample.kmer_count = kc.count_files(files=sample.files, mode=mode)
+    assert sample.kmer_count > 0, f"Bad number of k-mers ({sample.kmer_count})"
