@@ -5,6 +5,8 @@ import logging
 import os
 from typing import Generator, Optional
 
+import yaml
+
 import pykmhelpers.pipeline.index_db as db
 from pykmhelpers.core.bloom_filter import BloomFilterSpecs, SpanManager
 from pykmhelpers.core.byte import ByteCounter
@@ -13,10 +15,27 @@ from pykmhelpers.core.constants import KMHELPERS_VERSION
 logger = logging.getLogger(__name__)
 
 
+def load_profile(
+    profiles_file: str, selected_profile: Optional[str] = None
+) -> tuple[list[int], Optional[float]]:
+    """Load span list and false-positive rate from a profiles YAML file."""
+    with open(profiles_file) as f:
+        data = yaml.safe_load(f)
+    profile_name = selected_profile or data.get("default_profile")
+    if not profile_name:
+        raise ValueError("No profile selected and no default_profile in profiles file")
+    profile = data.get("profiles", {}).get(profile_name)
+    if profile is None:
+        raise ValueError(f"Profile '{profile_name}' not found in {profiles_file}")
+    span_list = sorted(int(s) for s in str(profile["span_list"]).split())
+    false_positive_rate = data.get("false_positive_rate")
+    return span_list, false_positive_rate
+
+
 def compose_indices(
     input_file,
     output_dir,
-    profiles=None,
+    profiles_file=None,
     selected_profile=None,
     prefix="span",
     name="index",
@@ -29,6 +48,7 @@ def compose_indices(
     partition_count_limit=256,
     kmer_size: Optional[int] = None,
     false_positive_rate: Optional[float] = None,
+    format="yaml",
 ):
     """Compose index definition file(s) from a sample list.
 
@@ -38,7 +58,8 @@ def compose_indices(
         prefix: Prefix for index names.
         name: Name of the created index database.
         abundance_min: Minimum k-mer abundance threshold.
-        allowed_spans: Sorted list of permitted span IDs, or None for no restriction.
+        profiles_file: Path to a YAML profiles file defining span lists and BF parameters.
+        selected_profile: Profile name to use; falls back to default_profile in the file.
         partition_count: Desired number of partitions per index (0 = auto).
         bf_max_size: Max Bloom filter size before splitting, or None.
         partition_min_size: Min partition size as a ByteCounter, or None.
@@ -50,8 +71,14 @@ def compose_indices(
     """
 
     file_k = read_jsonl_header(input_file)
+    file_fp = None
+
+    allowed_spans = None
+    if profiles_file:
+        allowed_spans, file_fp = load_profile(profiles_file, selected_profile)
 
     kmer_size = kmer_size or file_k or 25
+    false_positive_rate = false_positive_rate or file_fp or 0.25
 
     auto_partitioning = partition_count == 0
     if auto_partitioning:
@@ -68,89 +95,85 @@ def compose_indices(
 
     # Phase 2: stream and process samples one by one
     sample_count = 0
-    for input_file in input_files:
-        file_sample_count = 0
-        for sample in stream_samples(input_file):
-            file_sample_count += 1
-            sample_count += 1
-            try:
-                assert sample.files and sample.files[0], "Invalid path: empty or null"
-                prepare_sample(
-                    sample=sample,
-                    db_tools=db_tools,
-                )
+    file_sample_count = 0
+    for sample in stream_samples(input_file):
+        file_sample_count += 1
+        sample_count += 1
+        try:
+            assert sample.files and sample.files[0], "Invalid path: empty or null"
+            prepare_sample(
+                sample=sample,
+                db_tools=db_tools,
+            )
 
-                span = sm.dispatch(sample.kmer_count)
+            span = sm.dispatch(sample.kmer_count)
 
-                if allowed_spans:
-                    promoted = next((s for s in allowed_spans if s >= span), None)
-                    if promoted is None:
-                        raise ValueError(
-                            f"No allowed span >= {span} for sample '{sample.name}' "
-                            f"(kmer_count={sample.kmer_count}). Extend the span list."
-                        )
-                    span = promoted
-
-                original_distribution[span] = original_distribution.get(span, 0) + 1
-
-                bf_sizes[span] = sm.get_bf_size(span)
-
-                if span not in split_count:
-                    split_count[span] = 0
-                if span not in span_size:
-                    span_size[span] = 0
-
-                index_name = db_tools.get_index_name(
-                    name, prefix, span, split_count[span]
-                )
-                if index_name not in db_instance.index_table:
-                    logger.debug(
-                        f"Creating new index: {index_name}, span={span}, bf_size={bf_sizes[span]}"
+            if allowed_spans:
+                promoted = next((s for s in allowed_spans if s >= span), None)
+                if promoted is None:
+                    raise ValueError(
+                        f"No allowed span >= {span} for sample '{sample.name}' "
+                        f"(kmer_count={sample.kmer_count}). Extend the span list."
                     )
-                    i = db.IndexDefinition(
-                        name=index_name,
-                        kmhelpers_version=KMHELPERS_VERSION,
-                        kmer_size=kmer_size,
-                        index_type="kmindex",
-                        span=span,
-                        bf_size=bf_sizes[span],
-                        partition_count=partition_count,
-                        abundance_min=abundance_min,
-                        samples={},
+                span = promoted
+
+            original_distribution[span] = original_distribution.get(span, 0) + 1
+
+            bf_sizes[span] = sm.get_bf_size(span)
+
+            if span not in split_count:
+                split_count[span] = 0
+            if span not in span_size:
+                span_size[span] = 0
+
+            index_name = db_tools.get_index_name(name, prefix, span, split_count[span])
+            if index_name not in db_instance.index_table:
+                logger.debug(
+                    f"Creating new index: {index_name}, span={span}, bf_size={bf_sizes[span]}"
+                )
+                i = db.IndexDefinition(
+                    name=index_name,
+                    kmhelpers_version=KMHELPERS_VERSION,
+                    kmer_size=kmer_size,
+                    index_type="kmindex",
+                    span=span,
+                    bf_size=bf_sizes[span],
+                    partition_count=partition_count,
+                    abundance_min=abundance_min,
+                    samples={},
+                )
+                if split_count[span] > 0 and not no_merge:
+                    parent_name = db_tools.get_index_name(name, prefix, span, 0)
+                    i.set_parent(parent_name)
+                    assert (
+                        parent_name in db_instance.index_table
+                    ), f"Parent index not found: {parent_name}"
+                    db_instance.index_table[parent_name].merge_name = (
+                        db_tools.get_merge_name(name, prefix, span)
                     )
-                    if split_count[span] > 0 and not no_merge:
-                        parent_name = db_tools.get_index_name(name, prefix, span, 0)
-                        i.set_parent(parent_name)
-                        assert (
-                            parent_name in db_instance.index_table
-                        ), f"Parent index not found: {parent_name}"
-                        db_instance.index_table[parent_name].merge_name = (
-                            db_tools.get_merge_name(name, prefix, span)
-                        )
 
-                    i.merge_name = db_tools.get_merge_name(name, prefix, span)
-                    db_instance.add_index(i)
-                else:
-                    logger.debug(f"Adding to existing index: {index_name}")
+                i.merge_name = db_tools.get_merge_name(name, prefix, span)
+                db_instance.add_index(i)
+            else:
+                logger.debug(f"Adding to existing index: {index_name}")
 
-                assert sample.name, "Invalid ID: empty or null"
-                db_instance.index_table[index_name].add_sample(
-                    sample_id=sample.name, sample=sample
-                )
+            assert sample.name, "Invalid ID: empty or null"
+            db_instance.index_table[index_name].add_sample(
+                sample_id=sample.name, sample=sample
+            )
 
-                span_size[span] += 1
-                if (
-                    bf_max_size
-                    and span_size[span] % 8 == 0
-                    and bf_max_size
-                    <= db_instance.index_table[index_name].get_stored_size()
-                ):
-                    split_count[span] += 1
+            span_size[span] += 1
+            if (
+                bf_max_size
+                and span_size[span] % 8 == 0
+                and bf_max_size <= db_instance.index_table[index_name].get_stored_size()
+            ):
+                split_count[span] += 1
 
-            except Exception as e:
-                logger.exception(
-                    f"Could not process sample '{sample.name}'({sample.id}): {e} ({type(e).__name__})"
-                )
+        except Exception as e:
+            logger.exception(
+                f"Could not process sample '{sample.name}'({sample.id}): {e} ({type(e).__name__})"
+            )
 
         logger.info(f"Loaded {file_sample_count} samples from {input_file}")
 
@@ -205,7 +228,7 @@ def compose_indices(
         db_tools=db_tools,
         output_dir=output_dir,
         format=format,
-        split=not no_split,
+        split=True,
         db_name=name,
     )
 
@@ -291,7 +314,7 @@ def read_jsonl_header(filename: str) -> Optional[int]:
         return None
     try:
         json_line = json.loads(line)
-        return json_line.get("k"), json_line("")
+        return json_line.get("k")
     except json.JSONDecodeError:
         logger.warning(f"Could not parse JSONL header in {filename}")
         return None

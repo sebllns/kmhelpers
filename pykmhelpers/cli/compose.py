@@ -4,11 +4,11 @@ import click
 
 from pykmhelpers.cli.shared import force_verbose_mode
 from pykmhelpers.core.byte import ByteCounter
-from pykmhelpers.pipeline.composer import compose_indices, parse_span_list
+from pykmhelpers.pipeline.composer import compose_indices
 
 
 @click.command(name="compose")
-@click.argument("input_files", nargs=1, required=True, type=click.Path(exists=True))
+@click.argument("input_file", nargs=1, required=True, type=click.Path(exists=True))
 @click.option(
     "--output-dir",
     "-o",
@@ -28,11 +28,19 @@ from pykmhelpers.pipeline.composer import compose_indices, parse_span_list
     help="🏷️   Name of created index database",
 )
 @click.option(
-    "--span-list",
-    "-s",
+    "--profiles-file",
+    "-f",
+    "profiles_file",
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
+    required=True,
+    help="📋  YAML profiles file defining span lists and Bloom filter parameters",
+)
+@click.option(
+    "--profile",
+    "selected_profile",
+    type=str,
     required=False,
-    help="📋  Allowlist of permitted span IDs (space-separated). Samples assigned to a span not in the list are promoted to the next allowed span.",
+    help="⚙️  Profile name to use (default: uses default_profile from the profiles file)",
 )
 @click.option(
     "--partition-count",
@@ -60,11 +68,12 @@ from pykmhelpers.pipeline.composer import compose_indices, parse_span_list
     help="⚙️   Partition count limit for auto-partitioning (default: 256)",
 )
 def compose(
-    input_files,
+    input_file,
     output_dir,
+    profiles_file,
+    selected_profile,
     prefix,
     name,
-    span_list,
     partition_count,
     bf_max_size,
     partition_min_size,
@@ -72,30 +81,24 @@ def compose(
     exact_partition_count,
     partition_count_limit,
 ):
-    """Compose index definition file(s) from list(s) of samples.
+    """Compose index definition file(s) from a sample list.
 
     Examples:
 
       \b
-      kmhelpers compose -o ./db -k 31 samples.yaml
+      kmhelpers compose samples.jsonl -o ./db -f profiles.yaml
 
       \b
-      kmhelpers compose -o ./db --min_span 25 --max_span 38 --split samples.yaml
+      kmhelpers compose samples.jsonl -o ./db -f profiles.yaml --profile baseline
 
       \b
-      kmhelpers compose -o ./db --format json samples.yaml
+      kmhelpers compose samples.jsonl -o ./db -f profiles.yaml --partition-count 4
 
       \b
-      kmhelpers compose -o ./db --format yaml --split samples.yaml
+      kmhelpers compose samples.jsonl -o ./db -f profiles.yaml --partition-min-size 500MB
 
       \b
-      kmhelpers compose -o ./db -p 0.01 samples.yaml
-
-      \b
-      kmhelpers compose -o ./db --partition-count 4 samples.yaml
-
-      \b
-      kmhelpers compose -o ./db --recount samples.yaml
+      kmhelpers compose samples.jsonl -o ./db -f profiles.yaml --split-size 10GB
     """
 
     try:
@@ -120,19 +123,13 @@ def compose(
                 f"Invalid partition_min_size format: {partition_min_size} (use format like '1GB', '500MB')"
             )
 
-        allowed_spans = None
-        if span_list:
-            try:
-                allowed_spans = parse_span_list(span_list)
-            except ValueError as e:
-                raise click.BadParameter(str(e))
-
         compose_indices(
-            input_files=input_files,
+            input_file=input_file,
             output_dir=output_dir,
+            profiles_file=profiles_file,
+            selected_profile=selected_profile,
             prefix=prefix,
             name=name,
-            allowed_spans=allowed_spans,
             partition_count=partition_count,
             bf_max_size=bf_max_size,
             partition_min_size=partition_min_size,
