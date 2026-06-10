@@ -1326,6 +1326,9 @@
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Custom compression level with multiple threads</span>
 <a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>compress<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>--cpr-level<span class="w"> </span><span class="m">6</span><span class="w"> </span>-t<span class="w"> </span><span class="m">16</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Delete uncompressed index after compression</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>kmhelpers<span class="w"> </span>compress<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>--delete
 </code></pre></div>
 <h2 id="options">Options</h2>
 <table>
@@ -1346,23 +1349,39 @@
 </tr>
 <tr>
 <td><code>--block-size INT</code></td>
-<td>Size of uncompressed blocks in MB</td>
+<td>Size of uncompressed blocks in MB (default: 8)</td>
 </tr>
 <tr>
 <td><code>--cpr-level INT</code></td>
-<td>Compression level</td>
+<td>Compression level 1–22 (default: 3)</td>
 </tr>
 <tr>
 <td><code>--reorder</code></td>
-<td>Reorder columns before compression</td>
+<td>Enable column reordering before compression</td>
 </tr>
 <tr>
-<td><code>-s, --save-period INT</code></td>
-<td>Save period for column reordering</td>
+<td><code>-s, --sampling INT</code></td>
+<td>Number of rows to sample for column reordering (default: 20000)</td>
+</tr>
+<tr>
+<td><code>--column-per-block INT</code></td>
+<td>Reorder columns in groups of N (0 = all columns, must be multiple of 8; default: 0)</td>
 </tr>
 <tr>
 <td><code>-t, --threads INT</code></td>
-<td>Number of threads</td>
+<td>Number of threads (default: 14)</td>
+</tr>
+<tr>
+<td><code>--delete</code></td>
+<td>Delete uncompressed index after successful compression</td>
+</tr>
+<tr>
+<td><code>--check</code></td>
+<td>Check query results after compression</td>
+</tr>
+<tr>
+<td><code>-v, --verbose</code></td>
+<td>Verbose output</td>
 </tr>
 </tbody>
 </table>

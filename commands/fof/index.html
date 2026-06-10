@@ -1015,6 +1015,50 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#fof-create" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fof create
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fof-add" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fof add
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fof-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fof list
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fof-validate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fof validate
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1268,6 +1312,50 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#fof-create" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fof create
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fof-add" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fof add
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fof-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fof list
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fof-validate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fof validate
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1322,17 +1410,123 @@
 </table>
 <h2 id="examples">Examples</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Create FOF from a directory</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>fof<span class="w"> </span>create<span class="w"> </span>-i<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>samples.fof
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>fof<span class="w"> </span>create<span class="w"> </span>-d<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>samples.fof
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Add a sample</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>fof<span class="w"> </span>add<span class="w"> </span>-f<span class="w"> </span>samples.fof<span class="w"> </span>-n<span class="w"> </span>my_sample<span class="w"> </span>/data/sample.fa
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Create FOF with recursive search</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>fof<span class="w"> </span>create<span class="w"> </span>-d<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>samples.fof<span class="w"> </span>--recursive
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># List samples</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>fof<span class="w"> </span>list<span class="w"> </span>-f<span class="w"> </span>samples.fof
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Add a sample</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>fof<span class="w"> </span>add<span class="w"> </span>--fof<span class="w"> </span>samples.fof<span class="w"> </span>-s<span class="w"> </span>/data/sample.fa
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Validate</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>kmhelpers<span class="w"> </span>fof<span class="w"> </span>validate<span class="w"> </span>-f<span class="w"> </span>samples.fof
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Add a sample with a custom ID</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>kmhelpers<span class="w"> </span>fof<span class="w"> </span>add<span class="w"> </span>--fof<span class="w"> </span>samples.fof<span class="w"> </span>-s<span class="w"> </span>/data/sample.fa<span class="w"> </span>-n<span class="w"> </span>my_sample
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># List samples</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>kmhelpers<span class="w"> </span>fof<span class="w"> </span>list<span class="w"> </span>samples.fof
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># List samples with full paths</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>kmhelpers<span class="w"> </span>fof<span class="w"> </span>list<span class="w"> </span>samples.fof<span class="w"> </span>--show-paths
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="c1"># Validate</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>kmhelpers<span class="w"> </span>fof<span class="w"> </span>validate<span class="w"> </span>samples.fof
 </code></pre></div>
+<hr />
+<h2 id="fof-create">fof create</h2>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-d, --from-directory DIR</code></td>
+<td>Directory containing FASTA/FASTQ files (required)</td>
+</tr>
+<tr>
+<td><code>-o, --output FILE</code></td>
+<td>Output FOF file path (required)</td>
+</tr>
+<tr>
+<td><code>--recursive</code></td>
+<td>Search subdirectories recursively</td>
+</tr>
+<tr>
+<td><code>-x, --extensions TEXT</code></td>
+<td>File extensions to include (repeatable, default: common bioinformatics formats)</td>
+</tr>
+<tr>
+<td><code>-v, --verbose</code></td>
+<td>Show detailed output</td>
+</tr>
+</tbody>
+</table>
+<h2 id="fof-add">fof add</h2>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--fof FILE</code></td>
+<td>FOF file to modify (required)</td>
+</tr>
+<tr>
+<td><code>-s, --sample-file FILE</code></td>
+<td>Sample file to add (required)</td>
+</tr>
+<tr>
+<td><code>-n, --sample-id TEXT</code></td>
+<td>Sample ID (auto-extracted from filename if not provided)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="fof-list">fof list</h2>
+<table>
+<thead>
+<tr>
+<th>Argument/Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FOF_FILE</code></td>
+<td>FOF file to list (required)</td>
+</tr>
+<tr>
+<td><code>--show-paths</code></td>
+<td>Show full file paths</td>
+</tr>
+<tr>
+<td><code>--json</code></td>
+<td>Output as JSON</td>
+</tr>
+</tbody>
+</table>
+<h2 id="fof-validate">fof validate</h2>
+<table>
+<thead>
+<tr>
+<th>Argument/Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FOF_FILE</code></td>
+<td>FOF file to validate (required)</td>
+</tr>
+<tr>
+<td><code>-v, --verbose</code></td>
+<td>Show detailed validation output</td>
+</tr>
+</tbody>
+</table>
 
 
 

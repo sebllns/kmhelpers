@@ -1343,28 +1343,44 @@
 <li>If the input is a <strong>span registry</strong>, sub-index definition files are resolved from the same directory and merged into the named indices after building.</li>
 <li><strong>Parent indices</strong> are built automatically when required.</li>
 <li>Filtering by <code>--name</code> or <code>--span</code> restricts which indices are processed.</li>
+<li>Options can be loaded from a config file with <code>-c</code>; command-line flags take precedence.</li>
 </ul>
 <h2 id="examples">Examples</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Build all indices in a definition file</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>index.yaml<span class="w"> </span>-w<span class="w"> </span>/output
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Build only selected indices by name</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>index.yaml<span class="w"> </span>-w<span class="w"> </span>/output<span class="w"> </span>--name<span class="w"> </span>my_index
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Build only specific spans</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>index.yaml<span class="w"> </span>-w<span class="w"> </span>/output<span class="w"> </span>--span<span class="w"> </span><span class="m">28</span><span class="w"> </span>--span<span class="w"> </span><span class="m">31</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Build a span range</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>index.yaml<span class="w"> </span>-w<span class="w"> </span>/output<span class="w"> </span>--span<span class="w"> </span><span class="m">27</span>-30
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Build only selected indices by name (comma-separated or repeated flags)</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>index.yaml<span class="w"> </span>-w<span class="w"> </span>/output<span class="w"> </span>-n<span class="w"> </span>idx1,idx2
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>index.yaml<span class="w"> </span>-w<span class="w"> </span>/output<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-n<span class="w"> </span>idx2
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="c1"># Build only specific spans</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>index.yaml<span class="w"> </span>-w<span class="w"> </span>/output<span class="w"> </span>-s<span class="w"> </span><span class="m">28</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>index.yaml<span class="w"> </span>-w<span class="w"> </span>/output<span class="w"> </span>-s<span class="w"> </span><span class="m">27</span>,28,29
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>index.yaml<span class="w"> </span>-w<span class="w"> </span>/output<span class="w"> </span>-s<span class="w"> </span><span class="m">27</span>-30
 <a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Dry-run: output a bash script without executing</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>index.yaml<span class="w"> </span>-w<span class="w"> </span>/output<span class="w"> </span>--dry-run
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Reuse parameters from an existing parent index</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>index.yaml<span class="w"> </span>-w<span class="w"> </span>/output<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>--from<span class="w"> </span>parent_index
 <a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># Notify by email when done</span>
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>index.yaml<span class="w"> </span>-w<span class="w"> </span>/output<span class="w"> </span>--notify<span class="w"> </span>user@example.com
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># Show progress bar during building</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>index.yaml<span class="w"> </span>-w<span class="w"> </span>/output<span class="w"> </span>--show-progress
 <a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
-<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="c1"># Abort on first error</span>
-<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>index.yaml<span class="w"> </span>-w<span class="w"> </span>/output<span class="w"> </span>--fail-on-error
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="c1"># Skip compression of intermediate files</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>index.yaml<span class="w"> </span>-w<span class="w"> </span>/output<span class="w"> </span>--skip-compression
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="c1"># Resolve sample paths from a base directory</span>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>index.yaml<span class="w"> </span>-w<span class="w"> </span>/output<span class="w"> </span>-b<span class="w"> </span>/data/samples
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="c1"># Set number of threads and minimizer size</span>
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>index.yaml<span class="w"> </span>-w<span class="w"> </span>/output<span class="w"> </span>-t<span class="w"> </span><span class="m">8</span><span class="w"> </span>--minim-size<span class="w"> </span><span class="m">12</span>
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="c1"># Abort on first error</span>
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>index.yaml<span class="w"> </span>-w<span class="w"> </span>/output<span class="w"> </span>--fail-on-error
+<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>
+<a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a><span class="c1"># Notify by email when done</span>
+<a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>index.yaml<span class="w"> </span>-w<span class="w"> </span>/output<span class="w"> </span>--notify<span class="w"> </span>user@example.com
+<a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a>
+<a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a><span class="c1"># Load options from a config file</span>
+<a id="__codelineno-1-35" name="__codelineno-1-35" href="#__codelineno-1-35"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>index.yaml<span class="w"> </span>-c<span class="w"> </span>config.yaml
 </code></pre></div>
 <h2 id="options">Options</h2>
 <table>
@@ -1377,7 +1393,7 @@
 <tbody>
 <tr>
 <td><code>INPUT_FILES...</code></td>
-<td>Index definition file(s) (<code>.json</code>/<code>.yaml</code>)</td>
+<td>Index definition file(s) (<code>.json</code>/<code>.yaml</code>) (required)</td>
 </tr>
 <tr>
 <td><code>-w, --work-dir DIR</code></td>
@@ -1388,44 +1404,64 @@
 <td>Config file (command-line takes precedence)</td>
 </tr>
 <tr>
-<td><code>--span TEXT</code></td>
-<td>Span(s) to build (single, comma-separated, or range)</td>
+<td><code>-b, --base-path DIR</code></td>
+<td>Base path to resolve relative sample paths</td>
+</tr>
+<tr>
+<td><code>-r, --registry DIR</code></td>
+<td>Custom base path to kmindex registry</td>
+</tr>
+<tr>
+<td><code>-o, --bloom-dir DIR</code></td>
+<td>Custom base path to kmindex Bloom filters directory</td>
+</tr>
+<tr>
+<td><code>-s, --span TEXT</code></td>
+<td>Span(s) to build: single value, comma-separated, or range (e.g. <code>27-30</code>)</td>
 </tr>
 <tr>
 <td><code>-n, --name TEXT</code></td>
-<td>Index name(s) to build</td>
+<td>Index ID(s) to build (repeatable or comma-separated)</td>
 </tr>
 <tr>
-<td><code>--dry-run</code></td>
-<td>Output a ready-to-execute bash script without running</td>
+<td><code>--from TEXT</code></td>
+<td>Reuse build parameters from a parent index</td>
 </tr>
 <tr>
-<td><code>--plan</code></td>
-<td>Like <code>--dry-run</code> but with upfront path validation</td>
+<td><code>--minim-size INT</code></td>
+<td>Minimizer size (default: 10)</td>
+</tr>
+<tr>
+<td><code>-t, --threads INT</code></td>
+<td>Number of threads (default: 1)</td>
+</tr>
+<tr>
+<td><code>-p, --partition-count INT</code></td>
+<td>Override number of partitions</td>
+</tr>
+<tr>
+<td><code>--existing TEXT</code></td>
+<td>Action for pre-existing index folders: <code>fail</code>, <code>register</code>, <code>rename</code>, <code>replace</code>, <code>register_or_replace</code>, <code>register_or_rename</code> (default: <code>fail</code>)</td>
+</tr>
+<tr>
+<td><code>--skip-compression</code></td>
+<td>Skip compression of intermediate files during build</td>
 </tr>
 <tr>
 <td><code>--show-progress</code></td>
-<td>Show progress bar with elapsed/estimated time</td>
-</tr>
-<tr>
-<td><code>--notify EMAIL</code></td>
-<td>Send email notification on exit (requires sendmail)</td>
+<td>Show progress bar with elapsed and estimated remaining time</td>
 </tr>
 <tr>
 <td><code>--fail-on-error</code></td>
 <td>Abort on first failure instead of continuing</td>
 </tr>
 <tr>
-<td><code>--skip-compression</code></td>
-<td>Skip intermediate file compression</td>
+<td><code>--notify EMAIL</code></td>
+<td>Send email notification on exit (requires sendmail)</td>
 </tr>
 <tr>
-<td><code>--existing POLICY</code></td>
-<td>How to handle pre-existing index folders: <code>fail</code>, <code>register</code>, <code>rename</code>, <code>replace</code></td>
-</tr>
-<tr>
-<td><code>--from TEXT</code></td>
-<td>Reuse build parameters from a parent index</td>
+<td><code>-v, --verbose</code></td>
+<td>Verbose output</td>
 </tr>
 </tbody>
 </table>

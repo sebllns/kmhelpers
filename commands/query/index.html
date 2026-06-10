@@ -1330,14 +1330,17 @@
 <a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Read from stdin</span>
 <a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>cat<span class="w"> </span>query.fa<span class="w"> </span><span class="p">|</span><span class="w"> </span>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-
 <a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Treat all sequences as one batch query</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>--single-query<span class="w"> </span>batch1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>multi.fa
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Scan a directory recursively</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>./queries_dir/
 <a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># Score threshold filtering</span>
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-T<span class="w"> </span><span class="m">0</span>.1<span class="w"> </span>query.fa
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># Treat all sequences as one batch query</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>--single-query<span class="w"> </span>batch1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>multi.fa
 <a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
-<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="c1"># Output as CSV</span>
-<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-f<span class="w"> </span>csv<span class="w"> </span>query.fa
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="c1"># Score threshold filtering</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-R<span class="w"> </span><span class="m">0</span>.1<span class="w"> </span>query.fa
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="c1"># Output as CSV</span>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-f<span class="w"> </span>csv<span class="w"> </span>query.fa
 </code></pre></div>
 <h2 id="options">Options</h2>
 <table>
@@ -1350,7 +1353,7 @@
 <tbody>
 <tr>
 <td><code>QUERY_FILES...</code></td>
-<td>FASTA/FASTQ file(s), directories, or <code>-</code> for stdin</td>
+<td>FASTA/FASTQ file(s), directories, or <code>-</code> for stdin (required)</td>
 </tr>
 <tr>
 <td><code>-r, --registry-path DIR</code></td>
@@ -1358,7 +1361,7 @@
 </tr>
 <tr>
 <td><code>-n, --index-ids TEXT</code></td>
-<td>Index ID(s) to query (default: all)</td>
+<td>Index ID(s) to query (repeatable, default: all)</td>
 </tr>
 <tr>
 <td><code>-o, --output-dir DIR</code></td>
@@ -1366,39 +1369,51 @@
 </tr>
 <tr>
 <td><code>-t, --threads INT</code></td>
-<td>Number of threads</td>
+<td>Number of threads (default: 1)</td>
 </tr>
 <tr>
-<td><code>-T, --threshold FLOAT</code></td>
+<td><code>-z, --zvalue INT</code></td>
+<td>Z-value for findere algorithm to filter false positives (default: 6)</td>
+</tr>
+<tr>
+<td><code>-R, --threshold FLOAT</code></td>
 <td>Score threshold for filtering results (default: 0.05)</td>
 </tr>
 <tr>
 <td><code>-b, --batch-query</code></td>
-<td>Treat all sequences across files as a single query</td>
+<td>Treat all sequences across all query files as a single batched query</td>
 </tr>
 <tr>
-<td><code>--single-query NAME</code></td>
-<td>Name for the batch query</td>
+<td><code>-s, --single-query NAME</code></td>
+<td>Name for the single batched query</td>
+</tr>
+<tr>
+<td><code>-a, --aggregate</code></td>
+<td>Aggregate batch results into one file</td>
+</tr>
+<tr>
+<td><code>-c, --compressed</code></td>
+<td>Index is compressed (forces <code>sub</code> parallelization)</td>
 </tr>
 <tr>
 <td><code>-f, --format TEXT</code></td>
-<td>Output format: <code>json</code>, <code>yaml</code>, <code>md</code>, <code>html</code>, <code>csv</code></td>
+<td>Output format: <code>json</code> (default), <code>yaml</code>, <code>md</code>, <code>html</code>, <code>csv</code></td>
 </tr>
 <tr>
 <td><code>-p, --print</code></td>
-<td>Print results to console in addition to writing files</td>
+<td>Print results to console (stderr)</td>
 </tr>
 <tr>
-<td><code>-P, --timestamp</code></td>
-<td>Add timestamp suffix to output directory</td>
+<td><code>-T, --timestamp</code></td>
+<td>Append timestamp suffix to output directory to avoid overwriting</td>
 </tr>
 <tr>
 <td><code>-e, --existing TEXT</code></td>
-<td>Conflict resolution: <code>skip</code>, <code>fail</code>, <code>delete</code>, <code>new-name</code></td>
+<td>Conflict resolution: <code>skip</code> (default), <code>fail</code>, <code>delete</code>, <code>new-name</code></td>
 </tr>
 <tr>
-<td><code>-M, --method TEXT</code></td>
-<td>Query method: <code>seq</code> (parallelise by sequence) or <code>sub</code> (by sub-index)</td>
+<td><code>-P, --parallel TEXT</code></td>
+<td>Parallelization strategy: <code>seq</code> (by sequence, default) or <code>sub</code> (by sub-index)</td>
 </tr>
 </tbody>
 </table>

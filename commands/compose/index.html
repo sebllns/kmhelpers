@@ -767,6 +767,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1290,6 +1301,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1311,33 +1333,28 @@
 
 
 <h1 id="compose">compose</h1>
-<p>Compose index definition file(s) from sample lists.</p>
+<p>Compose index definition file(s) from a sample list.</p>
 <h2 id="usage">Usage</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers compose [OPTIONS] INPUT_FILES...
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers compose [OPTIONS] INPUT_FILE
 </code></pre></div>
 <h2 id="description">Description</h2>
-<p>Takes one or more sample YAML files (produced by <a href="../list/"><code>list</code></a>) and generates index definition files that can be passed to <a href="../apply/"><code>apply</code></a>.</p>
+<p>Takes a JSONL sample list (produced by <a href="../list/"><code>list</code></a>) and a profiles YAML file (produced by <a href="../profile/"><code>profile</code></a>) and generates index definition files that can be passed to <a href="../apply/"><code>apply</code></a>.</p>
+<p>The profiles file defines span lists and Bloom filter parameters. If <code>--profile</code> is not specified, the <code>default_profile</code> field in the profiles file is used.</p>
 <h2 id="examples">Examples</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Basic composition</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.yaml<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-k<span class="w"> </span><span class="m">31</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-f<span class="w"> </span>profiles.yaml
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># With span range</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.yaml<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>--min-span<span class="w"> </span><span class="m">25</span><span class="w"> </span>--max-span<span class="w"> </span><span class="m">38</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Use a specific profile</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-f<span class="w"> </span>profiles.yaml<span class="w"> </span>--profile<span class="w"> </span>baseline
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Split into multiple sub-indices</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.yaml<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>--split
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Override partition count</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-f<span class="w"> </span>profiles.yaml<span class="w"> </span>--partition-count<span class="w"> </span><span class="m">4</span>
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># JSON output format</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.yaml<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>--format<span class="w"> </span>json
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Set minimum partition size</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-f<span class="w"> </span>profiles.yaml<span class="w"> </span>--partition-min-size<span class="w"> </span>500MB
 <a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Strict false-positive rate</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.yaml<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-p<span class="w"> </span><span class="m">0</span>.01
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># Partition across 4 sub-indices</span>
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.yaml<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>--partition-count<span class="w"> </span><span class="m">4</span>
-<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
-<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="c1"># Recount k-mers</span>
-<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.yaml<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>--recount
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Split large spans across multiple sub-indices</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-f<span class="w"> </span>profiles.yaml<span class="w"> </span>--split-size<span class="w"> </span>10GB
 </code></pre></div>
 <h2 id="options">Options</h2>
 <table>
@@ -1349,55 +1366,53 @@
 </thead>
 <tbody>
 <tr>
-<td><code>INPUT_FILES...</code></td>
-<td>Sample YAML file(s) produced by <code>list</code></td>
+<td><code>INPUT_FILE</code></td>
+<td>JSONL sample list produced by <code>list</code> (required)</td>
 </tr>
 <tr>
 <td><code>-o, --output-dir DIR</code></td>
 <td>Output directory for index definitions (required)</td>
 </tr>
 <tr>
-<td><code>-k, --kmer-size INT</code></td>
-<td>K-mer size</td>
+<td><code>-f, --profiles-file FILE</code></td>
+<td>YAML profiles file defining span lists and BF parameters (required)</td>
 </tr>
 <tr>
-<td><code>-p, --false-positive-rate FLOAT</code></td>
-<td>Bloom-filter false-positive rate</td>
-</tr>
-<tr>
-<td><code>--min-span INT</code></td>
-<td>Minimum span value</td>
-</tr>
-<tr>
-<td><code>--max-span INT</code></td>
-<td>Maximum span value</td>
-</tr>
-<tr>
-<td><code>--split</code></td>
-<td>Split samples across multiple sub-indices</td>
-</tr>
-<tr>
-<td><code>--partition-count INT</code></td>
-<td>Number of partitions for sub-index splitting</td>
+<td><code>--profile TEXT</code></td>
+<td>Profile name to use (default: <code>default_profile</code> from profiles file)</td>
 </tr>
 <tr>
 <td><code>--prefix TEXT</code></td>
-<td>Prefix for index names</td>
+<td>Prefix for index names (default: <code>span</code>)</td>
 </tr>
 <tr>
 <td><code>-n, --name TEXT</code></td>
-<td>Override index name</td>
+<td>Name of created index database (default: <code>index</code>)</td>
 </tr>
 <tr>
-<td><code>--format TEXT</code></td>
-<td>Output format: <code>yaml</code> (default) or <code>json</code></td>
+<td><code>-p, --partition-count INT</code></td>
+<td>Desired number of partitions per index, 0 for automatic (default: 0)</td>
 </tr>
 <tr>
-<td><code>--recount</code></td>
-<td>Recount k-mers even if already cached</td>
+<td><code>-b, --split-size SIZE</code></td>
+<td>Max run size (e.g. <code>10GB</code>, <code>5000MB</code>) before splitting samples across indices</td>
+</tr>
+<tr>
+<td><code>-m, --partition-min-size SIZE</code></td>
+<td>Minimum partition file size (e.g. <code>500MB</code>, <code>1GB</code>)</td>
+</tr>
+<tr>
+<td><code>-P, --partition-count-limit INT</code></td>
+<td>Upper bound on auto partition count (default: 256)</td>
 </tr>
 </tbody>
 </table>
+<h2 id="see-also">See Also</h2>
+<ul>
+<li><a href="../list/"><code>list</code></a> — produce the JSONL sample list</li>
+<li><a href="../profile/"><code>profile</code></a> — produce the profiles YAML file</li>
+<li><a href="../apply/"><code>apply</code></a> — build indices from the generated definition files</li>
+</ul>
 
 
 
