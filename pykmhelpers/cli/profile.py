@@ -37,8 +37,7 @@ logger = logging.getLogger(__name__)
     metavar="N_GROUPS",
     default=0,
     type=int,
-    help="⚙   Partition spans into N storage-balanced groups and overlay the result on the plot (default: 0). "
-    "Pass 0 to let the analyser choose the optimal number of groups automatically. ",
+    help="⚙   Partition spans into N storage-balanced groups and overlay the result on the plot (default: 20). ",
 )
 @click.option(
     "--false-positive-rate",

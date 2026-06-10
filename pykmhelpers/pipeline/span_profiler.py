@@ -34,7 +34,7 @@ class SpanProfiler:
         input_file: str,
         output_dir: str,
         false_positive_rate: float = 0.25,
-        n_groups: int = 0,
+        n_groups: int = 20,
         base: float = 2.0,
     ):
         self.input_file = input_file
@@ -112,10 +112,6 @@ class SpanProfiler:
             sa = pykmhelpers.pipeline.span_analyzer.SpanAnalyzer(distribution_file)
 
             n_groups = self.n_groups
-            if n_groups == 0:
-                n_groups = math.ceil(len(spans) / 3)
-            elif n_groups == 1:
-                n_groups = None
 
             sa.plot(n_groups=n_groups)
 

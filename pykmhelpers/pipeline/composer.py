@@ -16,10 +16,11 @@ logger = logging.getLogger(__name__)
 def compose_indices(
     input_file,
     output_dir,
+    profiles=None,
+    selected_profile=None,
     prefix="span",
     name="index",
     abundance_min=1,
-    allowed_spans=None,
     partition_count=0,
     bf_max_size=None,
     partition_min_size=None,
@@ -27,7 +28,7 @@ def compose_indices(
     exact_partition_count=False,
     partition_count_limit=256,
     kmer_size: Optional[int] = None,
-    false_positive_rate=Optional[float] = None,
+    false_positive_rate: Optional[float] = None,
 ):
     """Compose index definition file(s) from a sample list.
 
@@ -51,7 +52,6 @@ def compose_indices(
     file_k = read_jsonl_header(input_file)
 
     kmer_size = kmer_size or file_k or 25
-
 
     auto_partitioning = partition_count == 0
     if auto_partitioning:
@@ -290,7 +290,7 @@ def read_jsonl_header(filename: str) -> Optional[int]:
     if not line:
         return None
     try:
-        json_line =json.loads(line)
+        json_line = json.loads(line)
         return json_line.get("k"), json_line("")
     except json.JSONDecodeError:
         logger.warning(f"Could not parse JSONL header in {filename}")
