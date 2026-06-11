@@ -708,17 +708,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#examples" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Examples
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#options" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -773,6 +762,17 @@
     <span class="md-ellipsis">
       
         Output Format
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
       
     </span>
   </a>
@@ -1267,17 +1267,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#examples" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Examples
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#options" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1332,6 +1321,17 @@
     <span class="md-ellipsis">
       
         Output Format
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
       
     </span>
   </a>
@@ -1433,25 +1433,6 @@
 <p>Scans a directory recursively for sequence files and writes a JSONL sample manifest. By default, each file is treated as its own sample. Use <code>--leaf-grouping</code> to group files by leaf folder, where each leaf directory becomes one sample whose ID is the folder name.</p>
 <p>Either <code>--dir</code> or <code>--list</code> must be provided.</p>
 <p>K-mer counting is enabled by default. Counting is skipped for any sample that already has a <code>kmer_count</code> value (from a resumed run or an imported list). Use <code>--no-count</code> to skip counting entirely.</p>
-<h2 id="examples">Examples</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Basic scan, one file per sample</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Group files by leaf folder</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences<span class="w"> </span>--leaf-grouping
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Custom k-mer size</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences<span class="w"> </span>-k<span class="w"> </span><span class="m">31</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Skip k-mer counting</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences<span class="w"> </span>--no-count
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Import from a plain text file list instead of scanning a directory</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-l<span class="w"> </span>my_files.txt
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># Rename duplicate sample IDs instead of skipping them</span>
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences<span class="w"> </span>-r
-</code></pre></div>
 <h2 id="options">Options</h2>
 <table>
 <thead>
@@ -1502,10 +1483,10 @@
 <h2 id="input-formats-for-list">Input formats for <code>--list</code></h2>
 <h3 id="plain-text-txt">Plain text (<code>.txt</code>)</h3>
 <p>One sample per line. Lines starting with <code>#</code> and empty lines are ignored.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a># [sample_id] file_1[,file_2,...] [kmer_count]
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>sample_A  /data/sample_A_1.fa,/data/sample_A_2.fa  1234567
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>sample_B  /data/sample_B.fa
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>/data/sample_C.fa
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a># [sample_id] file_1[,file_2,...] [kmer_count]
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>sample_A  /data/sample_A_1.fa,/data/sample_A_2.fa  1234567
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>sample_B  /data/sample_B.fa
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>/data/sample_C.fa
 </code></pre></div>
 <ul>
 <li><code>sample_id</code> is optional — if omitted, it is derived from the first filename (without extension)</li>
@@ -1513,24 +1494,43 @@
 <li><code>kmer_count</code> is optional — if omitted and <code>--no-count</code> is not set, it will be computed</li>
 </ul>
 <h3 id="yaml-yaml-yml">YAML (<code>.yaml</code> / <code>.yml</code>)</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">k</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">25</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nt">assembled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="nt">samples</span><span class="p">:</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">sample_A</span><span class="p">:</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="nt">files</span><span class="p">:</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/sample_A_1.fa</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/sample_A_2.fa</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="nt">kmer_count</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1234567</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">  </span><span class="nt">sample_B</span><span class="p">:</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="nt">files</span><span class="p">:</span>
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/sample_B.fa</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">k</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">25</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">assembled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">samples</span><span class="p">:</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">sample_A</span><span class="p">:</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="nt">files</span><span class="p">:</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/sample_A_1.fa</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/sample_A_2.fa</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span><span class="nt">kmer_count</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1234567</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">  </span><span class="nt">sample_B</span><span class="p">:</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="nt">files</span><span class="p">:</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/sample_B.fa</span>
 </code></pre></div>
 <p>Top-level keys other than <code>samples</code> are written as-is into the output header.</p>
 <h2 id="output-format">Output Format</h2>
 <p>The output is a JSONL file. The first line is a header and the remaining lines are one sample per line:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>{&quot;k&quot;: 25, &quot;assembled&quot;: true}
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>{&quot;name&quot;: &quot;sample_A&quot;, &quot;files&quot;: [&quot;/data/sequences/sample_A/reads_1.fa&quot;, &quot;/data/sequences/sample_A/reads_2.fa&quot;], &quot;kmer_count&quot;: 1234567}
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>{&quot;name&quot;: &quot;sample_B&quot;, &quot;files&quot;: [&quot;/data/sequences/sample_B/reads.fa&quot;], &quot;kmer_count&quot;: 987654}
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>{&quot;k&quot;: 25, &quot;assembled&quot;: true}
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>{&quot;name&quot;: &quot;sample_A&quot;, &quot;files&quot;: [&quot;/data/sequences/sample_A/reads_1.fa&quot;, &quot;/data/sequences/sample_A/reads_2.fa&quot;], &quot;kmer_count&quot;: 1234567}
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>{&quot;name&quot;: &quot;sample_B&quot;, &quot;files&quot;: [&quot;/data/sequences/sample_B/reads.fa&quot;], &quot;kmer_count&quot;: 987654}
+</code></pre></div>
+<h2 id="examples">Examples</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Basic scan, one file per sample</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Group files by leaf folder</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences<span class="w"> </span>--leaf-grouping
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># Custom k-mer size</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences<span class="w"> </span>-k<span class="w"> </span><span class="m">31</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="c1"># Skip k-mer counting</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences<span class="w"> </span>--no-count
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="c1"># Import from a plain text file list instead of scanning a directory</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-l<span class="w"> </span>my_files.txt
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="c1"># Rename duplicate sample IDs instead of skipping them</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences<span class="w"> </span>-r
 </code></pre></div>
 <p>This file is the input for <a href="../profile/"><code>profile</code></a> and <a href="../compose/"><code>compose</code></a>.</p>
 
