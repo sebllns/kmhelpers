@@ -1513,6 +1513,7 @@
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>{&quot;name&quot;: &quot;sample_A&quot;, &quot;files&quot;: [&quot;/data/sequences/sample_A/reads_1.fa&quot;, &quot;/data/sequences/sample_A/reads_2.fa&quot;], &quot;kmer_count&quot;: 1234567}
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>{&quot;name&quot;: &quot;sample_B&quot;, &quot;files&quot;: [&quot;/data/sequences/sample_B/reads.fa&quot;], &quot;kmer_count&quot;: 987654}
 </code></pre></div>
+<p>This file is the input for <a href="../profile/"><code>profile</code></a> and <a href="../compose/"><code>compose</code></a>.</p>
 <h2 id="examples">Examples</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Basic scan, one file per sample</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences
@@ -1532,7 +1533,6 @@
 <a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="c1"># Rename duplicate sample IDs instead of skipping them</span>
 <a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences<span class="w"> </span>-r
 </code></pre></div>
-<p>This file is the input for <a href="../profile/"><code>profile</code></a> and <a href="../compose/"><code>compose</code></a>.</p>
 
 
 
