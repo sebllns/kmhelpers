@@ -13,33 +13,27 @@ list → profile → compose → plan → apply → query
 Scan a directory of sequence files and produce a YAML sample manifest with k-mer counts:
 
 ```bash
-kmhelpers list samples.yaml -i /path/to/sequences -k 31 --count
+kmhelpers list samples.jsonl -i /path/to/sequences -k 25
 ```
 
-This generates `samples.yaml` with one entry per sample (grouped by leaf folder by default).
+This generates `samples.jsonl` with one entry per sample.
 
 ## Step 2 — Profile the samples
 
 Analyse k-mer counts to determine the optimal Bloom-filter span configuration:
 
 ```bash
-kmhelpers profile -i samples.yaml -o ./profile_output -p 0.05
+kmhelpers profile -i samples.jsonl -o ./profile_output -p 0.25
 ```
 
-Outputs `span_distribution.csv` and a plot showing span assignments.
+Outputs `./profile_output/profile.yaml` and a plot showing span groups.
 
 ## Step 3 — Compose index definitions
 
 Generate index definition files from the sample manifest:
 
 ```bash
-kmhelpers compose samples.yaml -o ./db -k 31
-```
-
-Use `--split` to partition across multiple sub-indices:
-
-```bash
-kmhelpers compose samples.yaml -o ./db --split
+kmhelpers compose samples.jsonl -o ./db
 ```
 
 ## Step 4 — Preview the build plan
@@ -74,25 +68,6 @@ Pipe from stdin:
 cat query.fa | kmhelpers query -r ./registry -n my_index -o results -
 ```
 
-## Automating with a Pipeline
-
-Combine multiple steps into a single YAML pipeline file:
-
-```yaml
-compose:
-  workdir: /path/to/db
-  input_files: [samples.yaml]
-apply:
-  workdir: /path/to/db
-  threads: 8
-```
-
-Run it:
-
-```bash
-kmhelpers pipeline my_pipeline.yaml
-```
-
 ## Global Options
 
 These options apply to every command:
@@ -105,3 +80,23 @@ These options apply to every command:
 | `-L FILE` | Write logs to a file |
 | `-y` | Skip all confirmation prompts |
 | `--chdir DIR` | Change working directory before running |
+
+
+## Automating with a Pipeline (advanced)
+
+Combine multiple steps into a single YAML pipeline file:
+
+```yaml
+compose:
+  workdir: /path/to/db
+  input_files: [samples.jsonl]
+apply:
+  workdir: /path/to/db
+  threads: 8
+```
+
+Run it:
+
+```bash
+kmhelpers pipeline my_pipeline.yaml
+```

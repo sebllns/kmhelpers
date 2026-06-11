@@ -1,4 +1,4 @@
-site_name: kmhelpers
+site_name: kmhelpers documentation
 site_description: A Python toolkit for managing, compressing, and querying kmindex indices efficiently.
 site_author: Sébastien Bellenous
 repo_url: https://github.com/sebllns/kmhelpers
@@ -21,12 +21,23 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+  navigation_depth: 3
   features:
     - navigation.tabs
+    - navigation.tracking
     - navigation.sections
+    - navigation.path
     - navigation.top
-    - search.highlight
+    - navigation.expand
+    - navigation.footer
+    - navigation.indexes
     - content.code.copy
+    - content.code.select
+    - content.code.annotate
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.tabs.link
 
 markdown_extensions:
   - admonition
