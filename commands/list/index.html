@@ -27,7 +27,7 @@
     
     
       
-        <title>list - kmhelpers</title>
+        <title>list - kmhelpers documentation</title>
       
     
     
@@ -92,7 +92,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="kmhelpers" class="md-header__button md-logo" aria-label="kmhelpers" data-md-component="logo">
+    <a href="../.." title="kmhelpers documentation" class="md-header__button md-logo" aria-label="kmhelpers documentation" data-md-component="logo">
       
   <img src="../../assets/kmhelpers-logo-v1.png" alt="logo">
 
@@ -105,7 +105,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            kmhelpers
+            kmhelpers documentation
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -168,11 +168,18 @@
       </label>
       <nav class="md-search__options" aria-label="Search">
         
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
         <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
           
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
         </button>
       </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
       
     </form>
     <div class="md-search__output">
@@ -287,6 +294,8 @@
           
   
   
+    
+  
   Commands
 
         </a>
@@ -326,6 +335,8 @@
           
   
   
+    
+  
   Contributing
 
         </a>
@@ -356,12 +367,12 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="kmhelpers" class="md-nav__button md-logo" aria-label="kmhelpers" data-md-component="logo">
+    <a href="../.." title="kmhelpers documentation" class="md-nav__button md-logo" aria-label="kmhelpers documentation" data-md-component="logo">
       
   <img src="../../assets/kmhelpers-logo-v1.png" alt="logo">
 
     </a>
-    kmhelpers
+    kmhelpers documentation
   </label>
   
     <div class="md-nav__source">
@@ -469,6 +480,16 @@
   
     
     
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
     
     
       
@@ -487,8 +508,9 @@
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
-            
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
   
   
   <span class="md-ellipsis">
@@ -502,8 +524,14 @@
   
   
 
-            <span class="md-nav__icon md-icon"></span>
-          </label>
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
@@ -517,32 +545,6 @@
           <ul class="md-nav__list" data-md-scrollfix>
             
               
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Overview
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
             
               
                 
@@ -553,6 +555,22 @@
   
   
     
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
     
     
     
@@ -708,6 +726,45 @@
       
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#input-formats-for-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input formats for --list
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Input formats for --list">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#plain-text-txt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plain text (.txt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#yaml-yaml-yml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        YAML (.yaml / .yml)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -915,6 +972,12 @@
   
     
     
+      
+        
+      
+        
+      
+    
     
     
       
@@ -930,7 +993,9 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4_3" >
         
           
           <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="">
@@ -1068,6 +1133,10 @@
   
     
     
+      
+        
+      
+    
     
     
       
@@ -1080,7 +1149,9 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
         
           
           <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
@@ -1218,6 +1289,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#input-formats-for-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input formats for --list
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Input formats for --list">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#plain-text-txt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plain text (.txt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#yaml-yaml-yml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        YAML (.yaml / .yml)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#output-format" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1239,6 +1349,72 @@
           
             <div class="md-content" data-md-component="content">
               
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Commands
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="./" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Main Commands
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
               <article class="md-content__inner md-typeset">
                 
                   
@@ -1255,25 +1431,26 @@
 </code></pre></div>
 <h2 id="description">Description</h2>
 <p>Scans a directory recursively for sequence files and writes a JSONL sample manifest. By default, each file is treated as its own sample. Use <code>--leaf-grouping</code> to group files by leaf folder, where each leaf directory becomes one sample whose ID is the folder name.</p>
-<p>K-mer counting is enabled by default. If the output file already exists and is incomplete, the run resumes from where it left off without recounting already-finished samples. Use <code>--no-count</code> to skip counting entirely.</p>
+<p>Either <code>--dir</code> or <code>--list</code> must be provided.</p>
+<p>K-mer counting is enabled by default. Counting is skipped for any sample that already has a <code>kmer_count</code> value (from a resumed run or an imported list). Use <code>--no-count</code> to skip counting entirely.</p>
 <h2 id="examples">Examples</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Basic scan, one file per sample</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-i<span class="w"> </span>/data/sequences
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Group files by leaf folder</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-i<span class="w"> </span>/data/sequences<span class="w"> </span>--leaf-grouping
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences<span class="w"> </span>--leaf-grouping
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Custom k-mer size</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-i<span class="w"> </span>/data/sequences<span class="w"> </span>-k<span class="w"> </span><span class="m">31</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences<span class="w"> </span>-k<span class="w"> </span><span class="m">31</span>
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
 <a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Skip k-mer counting</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-i<span class="w"> </span>/data/sequences<span class="w"> </span>--no-count
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences<span class="w"> </span>--no-count
 <a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
 <a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Import from a plain text file list instead of scanning a directory</span>
 <a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-l<span class="w"> </span>my_files.txt
 <a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
 <a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># Rename duplicate sample IDs instead of skipping them</span>
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-i<span class="w"> </span>/data/sequences<span class="w"> </span>-r
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences<span class="w"> </span>-r
 </code></pre></div>
 <h2 id="options">Options</h2>
 <table>
@@ -1289,12 +1466,12 @@
 <td>Path for the output JSONL file (required)</td>
 </tr>
 <tr>
-<td><code>-i, --input DIR</code></td>
-<td>Input directory to scan recursively</td>
+<td><code>-d, --dir DIR</code></td>
+<td>Input directory to scan recursively <em>(required if <code>--list</code> not provided)</em></td>
 </tr>
 <tr>
 <td><code>-l, --list FILE</code></td>
-<td>Import input list in plain text format</td>
+<td>Import input list in plain text format <em>(required if <code>--dir</code> not provided)</em></td>
 </tr>
 <tr>
 <td><code>-k, --kmer-size INT</code></td>
@@ -1322,11 +1499,38 @@
 </tr>
 </tbody>
 </table>
+<h2 id="input-formats-for-list">Input formats for <code>--list</code></h2>
+<h3 id="plain-text-txt">Plain text (<code>.txt</code>)</h3>
+<p>One sample per line. Lines starting with <code>#</code> and empty lines are ignored.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a># [sample_id] file_1[,file_2,...] [kmer_count]
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>sample_A  /data/sample_A_1.fa,/data/sample_A_2.fa  1234567
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>sample_B  /data/sample_B.fa
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>/data/sample_C.fa
+</code></pre></div>
+<ul>
+<li><code>sample_id</code> is optional — if omitted, it is derived from the first filename (without extension)</li>
+<li>Multiple files for one sample are comma-separated</li>
+<li><code>kmer_count</code> is optional — if omitted and <code>--no-count</code> is not set, it will be computed</li>
+</ul>
+<h3 id="yaml-yaml-yml">YAML (<code>.yaml</code> / <code>.yml</code>)</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">k</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">25</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nt">assembled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="nt">samples</span><span class="p">:</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">sample_A</span><span class="p">:</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="nt">files</span><span class="p">:</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/sample_A_1.fa</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/sample_A_2.fa</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="nt">kmer_count</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1234567</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">  </span><span class="nt">sample_B</span><span class="p">:</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="nt">files</span><span class="p">:</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/sample_B.fa</span>
+</code></pre></div>
+<p>Top-level keys other than <code>samples</code> are written as-is into the output header.</p>
 <h2 id="output-format">Output Format</h2>
 <p>The output is a JSONL file. The first line is a header and the remaining lines are one sample per line:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>{&quot;k&quot;: 25, &quot;assembled&quot;: true}
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>{&quot;name&quot;: &quot;sample_A&quot;, &quot;files&quot;: [&quot;/data/sequences/sample_A/reads_1.fa&quot;, &quot;/data/sequences/sample_A/reads_2.fa&quot;], &quot;kmer_count&quot;: 1234567}
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>{&quot;name&quot;: &quot;sample_B&quot;, &quot;files&quot;: [&quot;/data/sequences/sample_B/reads.fa&quot;], &quot;kmer_count&quot;: 987654}
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>{&quot;k&quot;: 25, &quot;assembled&quot;: true}
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>{&quot;name&quot;: &quot;sample_A&quot;, &quot;files&quot;: [&quot;/data/sequences/sample_A/reads_1.fa&quot;, &quot;/data/sequences/sample_A/reads_2.fa&quot;], &quot;kmer_count&quot;: 1234567}
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>{&quot;name&quot;: &quot;sample_B&quot;, &quot;files&quot;: [&quot;/data/sequences/sample_B/reads.fa&quot;], &quot;kmer_count&quot;: 987654}
 </code></pre></div>
 <p>This file is the input for <a href="../profile/"><code>profile</code></a> and <a href="../compose/"><code>compose</code></a>.</p>
 
@@ -1346,6 +1550,8 @@
             </div>
           
           
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
 <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
         </div>
         
@@ -1358,6 +1564,46 @@
       </main>
       
         <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../" class="md-footer__link md-footer__link--prev" aria-label="Previous: Overview">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Overview
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../profile/" class="md-footer__link md-footer__link--next" aria-label="Next: profile">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                profile
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
@@ -1384,7 +1630,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
       <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
