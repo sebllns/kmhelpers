@@ -9,7 +9,6 @@
 | [`compose`](compose.md) | Compose index definition files from sample lists |
 | [`plan`](plan.md) | Preview build plan from index definition files (dry-run with path validation) |
 | [`apply`](apply.md) | Build k-mer indices from index definition files |
-| [`pipeline`](pipeline.md) | Run a sequence of commands defined in a YAML pipeline file |
 | [`query`](query.md) | Query indices with FASTA/FASTQ sequences |
 | [`compress`](compress.md) | Compress an index managed in a registry |
 
@@ -17,10 +16,8 @@
 
 | Command | Description |
 |---------|-------------|
-| [`count-kmers`](count-kmers.md) | Count distinct k-mers in a sequence file using ntcard |
-| [`fof`](fof.md) | Manage File-of-Files (FOF) for index building |
 | [`registry`](registry.md) | Manage k-mer index registries |
-| [`kmindex`](kmindex.md) | Low-level wrapper commands for kmindex |
+| [`pipeline`](pipeline.md) | Run a sequence of commands defined in a YAML pipeline file |
 
 ## Global Options
 

@@ -47,21 +47,18 @@ nav:
   - Installation: installation.md
   - Getting Started: getting-started.md
   - Commands:
-    - Overview: commands/index.md
-    - Main Commands:
-      - list: commands/list.md
-      - profile: commands/profile.md
-      - compose: commands/compose.md
-      - plan: commands/plan.md
-      - apply: commands/apply.md
-      - pipeline: commands/pipeline.md
-      - query: commands/query.md
-      - compress: commands/compress.md
-    - Utilities:
-      - count-kmers: commands/count-kmers.md
-      - fof: commands/fof.md
-      - registry: commands/registry.md
-      - kmindex: commands/kmindex.md
+      - Overview: commands/index.md
+      - Main Commands:
+          - list: commands/list.md
+          - profile: commands/profile.md
+          - compose: commands/compose.md
+          - plan: commands/plan.md
+          - apply: commands/apply.md
+          - query: commands/query.md
+          - compress: commands/compress.md
+      - Utilities:
+          - registry: commands/registry.md
+          - pipeline: commands/pipeline.md
   - Changelog: changelog.md
   - Contributing:
-    - Building the Docs: contributing/docs.md
+      - Building the Docs: contributing/docs.md
