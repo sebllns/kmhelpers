@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
     "output_file",
     required=True,
     type=click.Path(dir_okay=False),
-    help="Path for the output JSONL file",
+    help="Path for the output JSONL file. If it already exists, it is backed up and the run resumes without reprocessing already-listed samples (use --autorename to rename duplicates instead of skipping).",
 )
 @click.option(
     "--kmer-size",
