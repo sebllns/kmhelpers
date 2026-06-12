@@ -1,18 +1,18 @@
 # list
 
-Recursively scan a directory and produce a JSONL sample manifest with k-mer counting.
+Scan a directory or import a sample list, count k-mers, and produce a JSONL sample manifest.
 
 ## Usage
 
 ```
-kmhelpers list [OPTIONS] OUTPUT_FILE
+kmhelpers list [OPTIONS] INPUT
 ```
 
 ## Description
 
-Scans a directory recursively for sequence files and writes a JSONL sample manifest. By default, each file is treated as its own sample. Use `--leaf-grouping` to group files by leaf folder, where each leaf directory becomes one sample whose ID is the folder name.
+`INPUT` can be a directory (scanned recursively for sequence files) or a sample list file (plain text or YAML) — the type is detected automatically. K-mer counts are parsed or computed for each sample and written to the JSONL manifest.
 
-Either `--dir` or `--list` must be provided.
+By default, each file is treated as its own sample. Use `--leaf-grouping` to group files by leaf folder, where each leaf directory becomes one sample whose ID is the folder name.
 
 K-mer counting is enabled by default. Counting is skipped for any sample that already has a `kmer_count` value (from a resumed run or an imported list). Use `--no-count` to skip counting entirely.
 
@@ -20,9 +20,8 @@ K-mer counting is enabled by default. Counting is skipped for any sample that al
 
 | Option | Description |
 |--------|-------------|
-| `OUTPUT_FILE` | Path for the output JSONL file (required) |
-| `-d, --dir DIR` | Input directory to scan recursively *(required if `--list` not provided)* |
-| `-l, --list FILE` | Import input list in plain text format *(required if `--dir` not provided)* |
+| `INPUT` | Directory to scan, or a plain-text / YAML sample list (required) |
+| `-o, --output FILE` | Path for the output JSONL file (required) |
 | `-k, --kmer-size INT` | K-mer size for counting (default: 25) |
 | `-t, --data-type TEXT` | Data type: `a`/`assembled` (default) or `u`/`unassembled` (raw reads) |
 | `--no-count` | Skip k-mer counting with ntcard |
@@ -81,22 +80,25 @@ This file is the input for [`profile`](profile.md) and [`compose`](compose.md).
 
 ```bash
 # Basic scan, one file per sample
-kmhelpers list samples.jsonl -d /data/sequences
+kmhelpers list /data/sequences -o samples.jsonl
 
 # Group files by leaf folder
-kmhelpers list samples.jsonl -d /data/sequences --leaf-grouping
+kmhelpers list /data/sequences -o samples.jsonl --leaf-grouping
 
 # Custom k-mer size
-kmhelpers list samples.jsonl -d /data/sequences -k 31
+kmhelpers list /data/sequences -o samples.jsonl -k 31
 
 # Skip k-mer counting
-kmhelpers list samples.jsonl -d /data/sequences --no-count
+kmhelpers list /data/sequences -o samples.jsonl --no-count
 
 # Import from a plain text file list instead of scanning a directory
-kmhelpers list samples.jsonl -l my_files.txt
+kmhelpers list my_files.txt -o samples.jsonl
+
+# Import from a YAML sample list
+kmhelpers list my_files.yaml -o samples.jsonl
 
 # Rename duplicate sample IDs instead of skipping them
-kmhelpers list samples.jsonl -d /data/sequences -r
+kmhelpers list /data/sequences -o samples.jsonl -r
 ```
 
 ## Dependencies

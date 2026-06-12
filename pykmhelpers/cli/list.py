@@ -1,6 +1,7 @@
 """Recursively list samples from a directory and output a JSONL file."""
 
 import logging
+import os
 
 import click
 
@@ -11,26 +12,18 @@ logger = logging.getLogger(__name__)
 
 @click.command(name="list")
 @click.argument(
-    "output_file",
+    "input_path",
     nargs=1,
     required=True,
+    type=click.Path(exists=True),
+)
+@click.option(
+    "--output",
+    "-o",
+    "output_file",
+    required=True,
     type=click.Path(dir_okay=False),
-)
-@click.option(
-    "--dir",
-    "-d",
-    "input_dir",
-    required=False,
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    help="Input directory to scan recursively for sample files (required if --list not provided)",
-)
-@click.option(
-    "--list",
-    "-l",
-    "input_list",
-    required=False,
-    type=click.Path(exists=True, file_okay=True, dir_okay=False),
-    help="Import input list in plain text format (required if --dir not provided)",
+    help="Path for the output JSONL file",
 )
 @click.option(
     "--kmer-size",
@@ -79,8 +72,7 @@ logger = logging.getLogger(__name__)
     help="⚙️  Number of threads used by ntcard for k-mer counting (default: 8)",
 )
 def list_samples(
-    input_dir,
-    input_list,
+    input_path,
     output_file,
     kmer_size,
     data_type,
@@ -89,9 +81,10 @@ def list_samples(
     autorename,
     ntcard_threads,
 ):
-    """Recursively list samples from a directory and output a JSONL file.
+    """Scan a directory or import a sample list, count k-mers, and output a JSONL file.
 
-    Either --dir or --list must be provided.
+    INPUT can be a directory (scanned recursively for sample files) or a
+    plain-text / YAML file listing samples — the type is detected automatically.
 
     By default, each file is treated as its own sample. Use --leaf-grouping
     to group files by leaf folder, where each leaf directory becomes one
@@ -102,10 +95,8 @@ def list_samples(
     where it left off without recounting already-finished samples.
     """
     is_assembled = data_type.lower() in ("a", "assembled")
-    if not input_dir and not input_list:
-        raise click.UsageError("One of --dir or --list is required.")
-    # if input_dir and input_list:
-    #     raise click.UsageError("--dir and --list are mutually exclusive.")
+    input_dir = input_path if os.path.isdir(input_path) else None
+    input_list = input_path if os.path.isfile(input_path) else None
     try:
         SampleLister(
             output_file=output_file,

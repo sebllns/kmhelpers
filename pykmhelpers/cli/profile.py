@@ -41,9 +41,10 @@ logger = logging.getLogger(__name__)
     "--fp",
     type=float,
     default=0.25,
-    help="🎯  Bloom filter false-positive rate (default: 0.25). "
+    help="🎯  Bloom filter false-positive rate p (default: 0.25). "
     "A higher rate reduces disk footprint; the findere algorithm compensates at "
-    "query time by using (k+z)-mers. Recommended: build with p=0.25, query with z=6.",
+    "query time by using (k+z)-mers, reducing the effective FP rate to p^z. "
+    "See NOTE and RECOMMENDED above.",
 )
 @click.option(
     "--base",
@@ -57,10 +58,15 @@ def profile(list_output, output_dir, n_groups, base, false_positive_rate):
     """Analyse a JSONL sample index and output a Bloom-filter profile.
 
     Reads the k-mer counts from LIST_OUTPUT (a JSONL file produced by `list`),
-    assigns each sample to a Bloom-filter using the given false-positive
+    assigns each sample to a Bloom-filter using the given false-positive (FP)
     rate, computes the natural distribution, then partitions index into
     N storage-balanced groups. Outputs a CSV, a profile YAML, and a distribution
     plot to OUTPUT_DIR. Samples without a `kmer_count` field are skipped.
+
+    \b
+    ► NOTE: At query time, the effective FP rate is reduced to p^z, where p is
+      the build-time rate (--fp) and z is a query-time parameter.
+    ► RECOMMENDED: build with p=0.25, query with z=6 (effective FP rate: 0.25^6 ≈ 0.024%).
 
     \b
     Output files (written to OUTPUT_DIR):
