@@ -17,12 +17,12 @@ logger = logging.getLogger(__name__)
     type=click.Path(dir_okay=False),
 )
 @click.option(
-    "--input",
-    "-i",
+    "--dir",
+    "-d",
     "input_dir",
     required=False,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    help="Input directory to scan recursively for sample files",
+    help="Input directory to scan recursively for sample files (required if --list not provided)",
 )
 @click.option(
     "--list",
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
     "input_list",
     required=False,
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
-    help="Import input list in plain text format",
+    help="Import input list in plain text format (required if --dir not provided)",
 )
 @click.option(
     "--kmer-size",
@@ -91,6 +91,8 @@ def list_samples(
 ):
     """Recursively list samples from a directory and output a JSONL file.
 
+    Either --dir or --list must be provided.
+
     By default, each file is treated as its own sample. Use --leaf-grouping
     to group files by leaf folder, where each leaf directory becomes one
     sample whose ID is the folder name.
@@ -100,6 +102,10 @@ def list_samples(
     where it left off without recounting already-finished samples.
     """
     is_assembled = data_type.lower() in ("a", "assembled")
+    if not input_dir and not input_list:
+        raise click.UsageError("One of --dir or --list is required.")
+    # if input_dir and input_list:
+    #     raise click.UsageError("--dir and --list are mutually exclusive.")
     try:
         SampleLister(
             output_file=output_file,

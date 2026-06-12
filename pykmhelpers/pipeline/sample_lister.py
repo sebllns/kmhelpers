@@ -85,7 +85,7 @@ class SampleLister:
         else:
             if self.input_dir is None and self.input_list is None:
                 raise ValueError(
-                    "--input or --list is required when creating a new sample list"
+                    "--dir or --list is required when creating a new sample list"
                 )
 
         if self.do_count:

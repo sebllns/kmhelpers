@@ -68,4 +68,4 @@ Expected JSONL format (output of `kmhelpers list`):
 ## See Also
 
 - [`list`](list.md) — produce the JSONL input file
-- [`compose`](compose.md) — use the profile output to compose index definitions
+- [`compose`](compose.md) — use the JSONL from `list` and a profile to compose index definitions
