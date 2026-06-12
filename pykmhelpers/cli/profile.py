@@ -12,14 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 @click.command(name="profile")
-@click.option(
-    "--input",
-    "-i",
-    "input",
-    metavar="INPUT_FILE",
+@click.argument(
+    "list_output",
+    nargs=1,
     required=True,
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
-    help="📄  JSONL sample index (produced by `list`) containing k-mer counts.",
 )
 @click.option(
     "--output",
@@ -28,7 +25,7 @@ logger = logging.getLogger(__name__)
     metavar="OUTPUT_DIR",
     required=True,
     type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Output directory for the span distribution CSV and analysis plot.",
+    help="📁  Output directory for the index profile and distribution files.",
 )
 @click.option(
     "--group",
@@ -37,7 +34,7 @@ logger = logging.getLogger(__name__)
     metavar="N_GROUPS",
     default=0,
     type=int,
-    help="⚙   Partition spans into N storage-balanced groups and overlay the result on the plot (default: 20). ",
+    help="⚙   Partition index into N storage-balanced groups and overlay the result on the plot (default: 20). ",
 )
 @click.option(
     "--false-positive-rate",
@@ -53,30 +50,33 @@ logger = logging.getLogger(__name__)
     "-b",
     type=click.FloatRange(min=1.0, min_open=True),
     default=2.0,
-    help="⚙   Base for span bucket boundaries (default: 2.0). "
+    help="⚙   Base for bucket boundaries (default: 2.0). "
     "Use values like 1.1 or 10 to widen or narrow bucket granularity.",
 )
-def profile(input, output_dir, n_groups, base, false_positive_rate):
-    """Analyse a JSONL sample index and output a Bloom-filter span profile.
+def profile(list_output, output_dir, n_groups, base, false_positive_rate):
+    """Analyse a JSONL sample index and output a Bloom-filter profile.
 
-    Reads the k-mer counts from INPUT_FILE (a JSONL file produced by `list`),
-    assigns each sample to a Bloom-filter span using the given false-positive
-    rate, and writes a CSV summary together with a distribution plot to
-    OUTPUT_DIR.
+    Reads the k-mer counts from LIST_OUTPUT (a JSONL file produced by `list`),
+    assigns each sample to a Bloom-filter using the given false-positive
+    rate, computes the natural distribution, then partitions index into
+    N storage-balanced groups. Outputs a CSV, a profile YAML, and a distribution
+    plot to OUTPUT_DIR. Samples without a `kmer_count` field are skipped.
 
     \b
     Output files (written to OUTPUT_DIR):
-      span_distribution.csv           — span id, Bloom filter size, sample count
-      span_distribution_analysis.png  — Span combination analysis plots
+      span_distribution.csv  — natural distribution: span id, Bloom filter size, sample count
+      profile.yaml           — natural distribution (baseline) and storage-balanced grouped profile(s)
+      span_distribution_analysis.png  — distribution plot
 
     \b
-    Expected INPUT format (JSONL):
+    Expected LIST_OUTPUT format (JSONL):
       {"k": 25, "assembled": true, ...}
       {"name": "sample_name", "files": [...], "kmer_count": 1234567}
     """
+
     try:
         SpanProfiler(
-            input_file=Toolbox.get_canonical_path(input),
+            input_file=Toolbox.get_canonical_path(list_output),
             output_dir=output_dir,
             false_positive_rate=false_positive_rate,
             n_groups=n_groups,
