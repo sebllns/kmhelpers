@@ -17,19 +17,29 @@ logger = logging.getLogger(__name__)
 
 def load_profile(
     profiles_file: str, selected_profile: Optional[str] = None
-) -> tuple[list[int], Optional[float]]:
+) -> tuple[Optional[float], float, int, dict]:
     """Load span list and false-positive rate from a profiles YAML file."""
     with open(profiles_file) as f:
         data = yaml.safe_load(f)
+
+    base = data.get("span_base")
+    if not base:
+        raise ValueError("No 'span_base' field in profiles file")
+
     profile_name = selected_profile or data.get("default_profile")
     if not profile_name:
-        raise ValueError("No profile selected and no default_profile in profiles file")
+        raise ValueError(
+            "No profile selected and no 'default_profile' in profiles file"
+        )
+
     profile = data.get("profiles", {}).get(profile_name)
     if profile is None:
         raise ValueError(f"Profile '{profile_name}' not found in {profiles_file}")
-    span_list = sorted(int(s) for s in str(profile["span_list"]).split())
+
+    # span_list = sorted(int(s) for s in profile["span_list"])
     false_positive_rate = data.get("false_positive_rate")
-    return span_list, false_positive_rate
+    max_kmer_count = data.get("max_kmer_count", 0)
+    return false_positive_rate, base, max_kmer_count, profile
 
 
 def compose_indices(
@@ -73,9 +83,22 @@ def compose_indices(
     file_k = read_jsonl_header(input_file)
     file_fp = None
 
+    profile = {}
+    kmer_limit = 0
     allowed_spans = None
+
+    os.makedirs(output_dir, exist_ok=True)
+
     if profiles_file:
-        allowed_spans, file_fp = load_profile(profiles_file, selected_profile)
+        file_fp, span_base, kmer_limit, profile = load_profile(
+            profiles_file, selected_profile
+        )
+        if profile.get("span_list"):
+            fingerprint_file = os.path.join(output_dir, f"{name}.fingerprint")
+            tokens = [str(span_base)] + [str(s) for s in profile["span_list"]]
+            with open(fingerprint_file, "w") as f:
+                f.write(" ".join(tokens) + "\n")
+            logger.info(f"Wrote fingerprint: {fingerprint_file}")
 
     kmer_size = kmer_size or file_k or 25
     false_positive_rate = false_positive_rate or file_fp or 0.25
@@ -84,7 +107,6 @@ def compose_indices(
     if auto_partitioning:
         partition_count = 256
 
-    os.makedirs(output_dir, exist_ok=True)
     split_count = {}
     original_distribution = {}
     bf_sizes = {}

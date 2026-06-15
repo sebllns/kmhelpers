@@ -119,6 +119,7 @@ class SpanProfiler:
                 yaml.dump(
                     {
                         "false_positive_rate": self.false_positive_rate,
+                        "span_base": self.base,
                         "sample_count": sample_count,
                         "biggest_sample": str(biggest_sample),
                         "max_kmer_count": sm.max_kmer_count(baseline[-1]),

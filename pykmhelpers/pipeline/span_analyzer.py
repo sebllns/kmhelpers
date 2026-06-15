@@ -4,11 +4,24 @@ import sys
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+import yaml
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
 from pykmhelpers.core.bloom_filter import BloomFilterSpecs
 from pykmhelpers.core.byte import ByteCounter, SizeFormat
+
+
+class FlowList(list):
+    pass
+
+
+yaml.add_representer(
+    FlowList,
+    lambda dumper, data: dumper.represent_sequence(
+        "tag:yaml.org,2002:seq", data, flow_style=True
+    ),
+)
 
 
 class SpanAnalyzer:
@@ -60,6 +73,7 @@ class SpanAnalyzer:
 
         total_size = sum(span_sizes)
         self._profiles[name] = {
+            "group_id": list(range(0, len(span_list))),
             "span_list": span_list,
             "bloom_size": bloom_size,
             "sample_dist": sample_dist,
@@ -78,19 +92,13 @@ class SpanAnalyzer:
     def get_profile_str(self, name):
         res = {}
         if name in self._profiles:
-            res["span_list"] = " ".join(
-                str(s) for s in self._profiles[name]["span_list"]
-            )
-            res["bloom_size"] = " ".join(
-                str(s) for s in self._profiles[name]["bloom_size"]
-            )
-            res["sample_dist"] = " ".join(
-                str(s) for s in self._profiles[name]["sample_dist"]
-            )
-            res["disk_usage"] = " ".join(
+            res["span_list"] = FlowList(self._profiles[name]["span_list"])
+            res["bloom_size"] = FlowList(self._profiles[name]["bloom_size"])
+            res["sample_dist"] = FlowList(self._profiles[name]["sample_dist"])
+            res["disk_usage"] = FlowList(
                 ByteCounter.auto(s).to_str() for s in self._profiles[name]["disk_usage"]
             )
-            res["size_ratio"] = " ".join(
+            res["size_ratio"] = FlowList(
                 f"{s:.3f}" for s in self._profiles[name]["size_ratio"]
             )
             res["total_size"] = ByteCounter.auto(
