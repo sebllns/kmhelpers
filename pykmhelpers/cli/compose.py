@@ -4,7 +4,7 @@ import click
 
 from pykmhelpers.cli.shared import force_verbose_mode
 from pykmhelpers.core.byte import ByteCounter
-from pykmhelpers.pipeline.composer import compose_indices
+from pykmhelpers.pipeline.composer import IndexComposer
 
 
 @click.command(name="compose")
@@ -139,9 +139,7 @@ def compose(
                 f"Invalid partition_min_size format: {partition_min_size} (use format like '1GB', '500MB')"
             )
 
-        compose_indices(
-            input_file=input_file,
-            output_dir=output_dir,
+        IndexComposer(
             profiles_file=profiles_file,
             fingerprint_file=fingerprint_file,
             selected_profile=selected_profile,
@@ -153,7 +151,7 @@ def compose(
             no_merge=no_merge,
             exact_partition_count=exact_partition_count,
             partition_count_limit=partition_count_limit,
-        )
+        ).run(input_file=input_file, output_dir=output_dir)
 
     except click.BadParameter:
         raise

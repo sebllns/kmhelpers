@@ -15,6 +15,249 @@ from pykmhelpers.core.constants import KMHELPERS_VERSION
 logger = logging.getLogger(__name__)
 
 
+class IndexComposer:
+    def __init__(
+        self,
+        profiles_file=None,
+        fingerprint_file=None,
+        selected_profile=None,
+        prefix="span",
+        name="index",
+        abundance_min=1,
+        partition_count=0,
+        bf_max_size=None,
+        partition_min_size=None,
+        no_merge=False,
+        exact_partition_count=False,
+        partition_count_limit=256,
+        kmer_size: Optional[int] = None,
+        false_positive_rate: Optional[float] = None,
+        format="yaml",
+        db_tools: Optional[db.IndexDefinitionTools] = None,
+    ):
+        self.profiles_file = profiles_file
+        self.fingerprint_file = fingerprint_file
+        self.selected_profile = selected_profile
+        self.prefix = prefix
+        self.name = name
+        self.abundance_min = abundance_min
+        self.partition_count = partition_count
+        self.bf_max_size = bf_max_size
+        self.partition_min_size = partition_min_size
+        self.no_merge = no_merge
+        self.exact_partition_count = exact_partition_count
+        self.partition_count_limit = partition_count_limit
+        self.kmer_size = kmer_size
+        self.false_positive_rate = false_positive_rate
+        self.format = format
+        self.db_tools = db_tools or db.IndexDefinitionTools()
+
+    def run(
+        self,
+        input_file: str,
+        output_dir: str,
+        db_instance: Optional[db.IndexDB] = None,
+        span_manager: Optional[SpanManager] = None,
+    ) -> None:
+        """Compose index definition file(s) from a sample list."""
+        file_k = read_jsonl_header(input_file)
+        file_fp = None
+
+        span_base = 2.0
+        allowed_spans: list[int] = []
+
+        os.makedirs(output_dir, exist_ok=True)
+
+        if self.fingerprint_file:
+            span_base, allowed_spans = load_fingerprint(self.fingerprint_file)
+            logger.info(
+                f"Loaded fingerprint: {self.fingerprint_file} (base={span_base}, spans={allowed_spans})"
+            )
+
+        if self.profiles_file:
+            file_fp, span_base, profile = load_profile(
+                self.profiles_file, self.selected_profile
+            )
+            if not profile.get("span_list"):
+                raise ValueError(f"Profile has no 'span_list' in {self.profiles_file}")
+            allowed_spans = sorted(int(s) for s in profile["span_list"])
+            out_fingerprint = os.path.join(output_dir, f"{self.name}-fingerprint.yaml")
+            fingerprint_data = {
+                "type": "fingerprint",
+                "data": {
+                    "base": span_base,
+                    "map": {
+                        s: f"{self.name}_g{i}" for i, s in enumerate(allowed_spans)
+                    },
+                },
+            }
+            with open(out_fingerprint, "w") as f:
+                yaml.dump(fingerprint_data, f, default_flow_style=False, sort_keys=True)
+            logger.info(f"Wrote fingerprint: {out_fingerprint}")
+
+        kmer_size = self.kmer_size or file_k or 25
+        false_positive_rate = self.false_positive_rate or file_fp or 0.25
+
+        partition_count = self.partition_count
+        auto_partitioning = partition_count == 0
+        if auto_partitioning:
+            partition_count = 256
+
+        split_count: dict[int, int] = {}
+        original_distribution: dict[int, int] = {}
+        bf_sizes: dict[int, int] = {}
+        span_size: dict[int, int] = {}
+        db_instance = db_instance or db.IndexDB(name=self.name)
+        sm = span_manager or SpanManager(p=false_positive_rate, b=span_base)
+
+        sample_count = 0
+        file_sample_count = 0
+        for sample in stream_samples(input_file):
+            file_sample_count += 1
+            sample_count += 1
+            try:
+                assert sample.files and sample.files[0], "Invalid path: empty or null"
+                prepare_sample(sample=sample, db_tools=self.db_tools)
+
+                span = sm.dispatch(sample.kmer_count)
+
+                if allowed_spans:
+                    promoted = next((s for s in allowed_spans if s >= span), None)
+                    if promoted is None:
+                        raise ValueError(
+                            f"No allowed span >= {span} for sample '{sample.name}' "
+                            f"(kmer_count={sample.kmer_count}). Extend the span list."
+                        )
+                    span = promoted
+
+                original_distribution[span] = original_distribution.get(span, 0) + 1
+                bf_sizes[span] = sm.get_bf_size(span)
+                split_count.setdefault(span, 0)
+                span_size.setdefault(span, 0)
+
+                index_name = self.db_tools.get_index_name(
+                    self.name, self.prefix, span, split_count[span]
+                )
+                if index_name not in db_instance.index_table:
+                    logger.debug(
+                        f"Creating new index: {index_name}, span={span}, bf_size={bf_sizes[span]}"
+                    )
+                    i = db.IndexDefinition(
+                        name=index_name,
+                        kmhelpers_version=KMHELPERS_VERSION,
+                        kmer_size=kmer_size,
+                        index_type="kmindex",
+                        span=span,
+                        bf_size=bf_sizes[span],
+                        partition_count=partition_count,
+                        abundance_min=self.abundance_min,
+                        samples={},
+                    )
+                    if split_count[span] > 0 and not self.no_merge:
+                        parent_name = self.db_tools.get_index_name(
+                            self.name, self.prefix, span, 0
+                        )
+                        i.set_parent(parent_name)
+                        assert (
+                            parent_name in db_instance.index_table
+                        ), f"Parent index not found: {parent_name}"
+                        db_instance.index_table[parent_name].merge_name = (
+                            self.db_tools.get_merge_name(self.name, self.prefix, span)
+                        )
+                    i.merge_name = self.db_tools.get_merge_name(
+                        self.name, self.prefix, span
+                    )
+                    db_instance.add_index(i)
+                else:
+                    logger.debug(f"Adding to existing index: {index_name}")
+
+                assert sample.name, "Invalid ID: empty or null"
+                db_instance.index_table[index_name].add_sample(
+                    sample_id=sample.name, sample=sample
+                )
+
+                span_size[span] += 1
+                if (
+                    self.bf_max_size
+                    and span_size[span] % 8 == 0
+                    and self.bf_max_size
+                    <= db_instance.index_table[index_name].get_stored_size()
+                ):
+                    split_count[span] += 1
+
+            except Exception as e:
+                logger.exception(
+                    f"Could not process sample '{sample.name}'({sample.id}): {e} ({type(e).__name__})"
+                )
+
+            logger.info(f"Loaded {file_sample_count} samples from {input_file}")
+
+        logger.info(
+            f"Composed {sample_count} samples into {len(db_instance.index_table)} indices"
+        )
+        for index_name, index in sorted(db_instance.index_table.items()):
+            logger.info(
+                f"  {index_name} {index.sample_count} samples {str(index.get_stored_size())}"
+            )
+
+        original_distribution_file = os.path.join(
+            output_dir, f"{self.name}_orig_dist.csv"
+        )
+        with open(original_distribution_file, "w") as f:
+            f.write("span,bf_size,sample_count\n")
+            for span_id, count in sorted(original_distribution.items()):
+                f.write(f"{span_id},{bf_sizes[span_id]},{count}\n")
+
+        index_summary_file = os.path.join(output_dir, f"{self.name}_summary.csv")
+        with open(index_summary_file, "w") as f:
+            f.write("span,sample_count,stored_size_GB\n")
+            for span_id, span_obj in sorted(db_instance.span_table.items()):
+                size = span_obj.get_total_stored_size()
+                f.write(
+                    f"{span_id},{span_obj.get_sample_count()},{size.byte_count/(1000**3)}\n"
+                )
+
+        logger.info(f"Exporting database in {self.format} format to {output_dir}...")
+
+        partition_min_size = self.partition_min_size
+        for i in db_instance.index_table.values():
+            if partition_min_size or auto_partitioning:
+                partition_min_size = partition_min_size or ByteCounter.from_str("200MB")
+                index_name = self.db_tools.get_index_name(
+                    self.name, self.prefix, i.span, 0
+                )
+                ref = db_instance.index_table[index_name]
+                bf_specs = BloomFilterSpecs(
+                    ref.bf_size,
+                    ref.sample_count if self.no_merge else span_size[i.span],
+                    1,
+                )
+                partition_max_count = bf_specs.get_auto_partition_count(
+                    partition_min_size.byte_count
+                )
+                if not auto_partitioning:
+                    partition_max_count = min(partition_max_count, partition_count)
+                i.partition_count = partition_max_count
+            if not self.exact_partition_count and i.partition_count > 1:
+                i.partition_count = 1 << (i.partition_count - 1).bit_length()
+            i.partition_count = min(
+                max(4, i.partition_count), self.partition_count_limit
+            )
+            logger.debug(f"  {i.name}: partitioning into {i.partition_count} files")
+
+        export_db(
+            indices_data=db_instance,
+            db_tools=self.db_tools,
+            output_dir=output_dir,
+            format=self.format,
+            split=True,
+            db_name=self.name,
+        )
+
+        logger.info(f"Exported database to {output_dir}")
+        logger.info(f"Created index definition for {sample_count} samples")
+
+
 def load_fingerprint(path: str) -> tuple[float, list[int]]:
     """Load span_base and allowed span list from a fingerprint YAML file."""
     with open(path) as f:
@@ -48,241 +291,8 @@ def load_profile(
     if profile is None:
         raise ValueError(f"Profile '{profile_name}' not found in {profiles_file}")
 
-    # span_list = sorted(int(s) for s in profile["span_list"])
     false_positive_rate = data.get("false_positive_rate")
     return false_positive_rate, base, profile
-
-
-def compose_indices(
-    input_file,
-    output_dir,
-    profiles_file=None,
-    fingerprint_file=None,
-    selected_profile=None,
-    prefix="span",
-    name="index",
-    abundance_min=1,
-    partition_count=0,
-    bf_max_size=None,
-    partition_min_size=None,
-    no_merge=False,
-    exact_partition_count=False,
-    partition_count_limit=256,
-    kmer_size: Optional[int] = None,
-    false_positive_rate: Optional[float] = None,
-    format="yaml",
-):
-    """Compose index definition file(s) from a sample list.
-
-    Args:
-        input_file: Path to the input JSONL sample list file.
-        output_dir: Output directory for composed database files.
-        prefix: Prefix for index names.
-        name: Name of the created index database.
-        abundance_min: Minimum k-mer abundance threshold.
-        profiles_file: Path to a YAML profiles file defining span lists and BF parameters.
-        selected_profile: Profile name to use; falls back to default_profile in the file.
-        partition_count: Desired number of partitions per index (0 = auto).
-        bf_max_size: Max Bloom filter size before splitting, or None.
-        partition_min_size: Min partition size as a ByteCounter, or None.
-        no_merge: Treat split index parts as independent indices.
-        exact_partition_count: Keep exact partition count (no power-of-2 rounding).
-        partition_count_limit: Upper bound on auto partition count.
-        kmer_size: K-mer size (overrides value from input file header).
-        false_positive_rate: Bloom filter false-positive rate.
-    """
-
-    file_k = read_jsonl_header(input_file)
-    file_fp = None
-
-    profile = {}
-    span_base = 2.0
-    allowed_spans = []
-
-    os.makedirs(output_dir, exist_ok=True)
-
-    if fingerprint_file:
-        span_base, allowed_spans = load_fingerprint(fingerprint_file)
-        logger.info(
-            f"Loaded fingerprint: {fingerprint_file} (base={span_base}, spans={allowed_spans})"
-        )
-
-    if profiles_file:
-        file_fp, span_base, profile = load_profile(profiles_file, selected_profile)
-        if profile.get("span_list"):
-            allowed_spans = sorted(int(s) for s in profile["span_list"])
-            out_fingerprint = os.path.join(output_dir, f"{name}-fingerprint.yaml")
-            fingerprint_data = {
-                "type": "fingerprint",
-                "data": {
-                    "base": span_base,
-                    "map": {s: f"{name}_g{i}" for i, s in enumerate(allowed_spans)},
-                },
-            }
-            with open(out_fingerprint, "w") as f:
-                yaml.dump(fingerprint_data, f, default_flow_style=False, sort_keys=True)
-            logger.info(f"Wrote fingerprint: {out_fingerprint}")
-        else:
-            raise ValueError(f"Profile has no 'span_list' in {profiles_file}")
-
-    kmer_size = kmer_size or file_k or 25
-    false_positive_rate = false_positive_rate or file_fp or 0.25
-
-    auto_partitioning = partition_count == 0
-    if auto_partitioning:
-        partition_count = 256
-
-    split_count = {}
-    original_distribution = {}
-    bf_sizes = {}
-    span_size = {}
-    db_instance = db.IndexDB(name=name)
-    db_tools = db.IndexDefinitionTools()
-    sm = SpanManager(p=false_positive_rate, b=span_base)
-
-    kmer_limit = sm.max_kmer_count(allowed_spans[-1])
-
-    # Phase 2: stream and process samples one by one
-    sample_count = 0
-    file_sample_count = 0
-    for sample in stream_samples(input_file):
-        file_sample_count += 1
-        sample_count += 1
-        try:
-            assert sample.files and sample.files[0], "Invalid path: empty or null"
-            prepare_sample(
-                sample=sample,
-                db_tools=db_tools,
-            )
-
-            span = sm.dispatch(sample.kmer_count)
-
-            if allowed_spans:
-                promoted = next((s for s in allowed_spans if s >= span), None)
-                if promoted is None:
-                    raise ValueError(
-                        f"No allowed span >= {span} for sample '{sample.name}' "
-                        f"(kmer_count={sample.kmer_count}). Extend the span list."
-                    )
-                span = promoted
-
-            original_distribution[span] = original_distribution.get(span, 0) + 1
-
-            bf_sizes[span] = sm.get_bf_size(span)
-
-            if span not in split_count:
-                split_count[span] = 0
-            if span not in span_size:
-                span_size[span] = 0
-
-            index_name = db_tools.get_index_name(name, prefix, span, split_count[span])
-            if index_name not in db_instance.index_table:
-                logger.debug(
-                    f"Creating new index: {index_name}, span={span}, bf_size={bf_sizes[span]}"
-                )
-                i = db.IndexDefinition(
-                    name=index_name,
-                    kmhelpers_version=KMHELPERS_VERSION,
-                    kmer_size=kmer_size,
-                    index_type="kmindex",
-                    span=span,
-                    bf_size=bf_sizes[span],
-                    partition_count=partition_count,
-                    abundance_min=abundance_min,
-                    samples={},
-                )
-                if split_count[span] > 0 and not no_merge:
-                    parent_name = db_tools.get_index_name(name, prefix, span, 0)
-                    i.set_parent(parent_name)
-                    assert (
-                        parent_name in db_instance.index_table
-                    ), f"Parent index not found: {parent_name}"
-                    db_instance.index_table[parent_name].merge_name = (
-                        db_tools.get_merge_name(name, prefix, span)
-                    )
-
-                i.merge_name = db_tools.get_merge_name(name, prefix, span)
-                db_instance.add_index(i)
-            else:
-                logger.debug(f"Adding to existing index: {index_name}")
-
-            assert sample.name, "Invalid ID: empty or null"
-            db_instance.index_table[index_name].add_sample(
-                sample_id=sample.name, sample=sample
-            )
-
-            span_size[span] += 1
-            if (
-                bf_max_size
-                and span_size[span] % 8 == 0
-                and bf_max_size <= db_instance.index_table[index_name].get_stored_size()
-            ):
-                split_count[span] += 1
-
-        except Exception as e:
-            logger.exception(
-                f"Could not process sample '{sample.name}'({sample.id}): {e} ({type(e).__name__})"
-            )
-
-        logger.info(f"Loaded {file_sample_count} samples from {input_file}")
-
-    logger.info(
-        f"Composed {sample_count} samples into {len(db_instance.index_table)} indices"
-    )
-
-    for index_name, index in sorted(db_instance.index_table.items()):
-        logger.info(
-            f"  {index_name} {index.sample_count} samples {str(index.get_stored_size())}"
-        )
-
-    original_distribution_file = os.path.join(output_dir, f"{name}_orig_dist.csv")
-    with open(original_distribution_file, "w") as f:
-        f.write("span,bf_size,sample_count\n")
-        for span_id, sample_count in sorted(original_distribution.items()):
-            f.write(f"{span_id},{bf_sizes[span_id]},{sample_count}\n")
-
-    index_summary_file = os.path.join(output_dir, f"{name}_summary.csv")
-    with open(index_summary_file, "w") as f:
-        f.write("span,sample_count,stored_size_GB\n")
-        for span_id, span_obj in sorted(db_instance.span_table.items()):
-            size = span_obj.get_total_stored_size()
-            f.write(
-                f"{span_id},{span_obj.get_sample_count()},{size.byte_count/(1000**3)}\n"
-            )
-
-    logger.info(f"Exporting database in {format} format to {output_dir}...")
-
-    for i in db_instance.index_table.values():
-        if partition_min_size or auto_partitioning:
-            partition_min_size = partition_min_size or ByteCounter.from_str("200MB")
-            index_name = db_tools.get_index_name(name, prefix, i.span, 0)
-            ref = db_instance.index_table[index_name]
-            bf_specs = BloomFilterSpecs(
-                ref.bf_size, ref.sample_count if no_merge else span_size[i.span], 1
-            )
-            partition_max_count = bf_specs.get_auto_partition_count(
-                partition_min_size.byte_count
-            )
-            if not auto_partitioning:
-                partition_max_count = min(partition_max_count, partition_count)
-            i.partition_count = partition_max_count
-        if not exact_partition_count and i.partition_count > 1:
-            i.partition_count = 1 << (i.partition_count - 1).bit_length()
-
-        i.partition_count = min(max(4, i.partition_count), partition_count_limit)
-        logger.debug(f"  {i.name}: partitioning into {i.partition_count} files")
-
-    export_db(
-        indices_data=db_instance,
-        db_tools=db_tools,
-        output_dir=output_dir,
-        format=format,
-        split=True,
-        db_name=name,
-    )
-
-    logger.info(f"Exported database to {output_dir}")
-    logger.info(f"Created index definition for {sample_count} samples")
 
 
 def export_db(
