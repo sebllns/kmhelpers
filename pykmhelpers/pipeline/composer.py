@@ -108,18 +108,26 @@ class IndexComposer:
         bf_sizes: dict[int, int] = {}
         span_size: dict[int, int] = {}
         db_instance = db_instance or db.IndexDB(name=self.name)
-        sm = span_manager or SpanManager(p=false_positive_rate, b=span_base)
+        span_manager = span_manager or SpanManager(p=false_positive_rate, b=span_base)
 
         sample_count = 0
-        file_sample_count = 0
+        kmer_count_limit = (
+            span_manager.max_kmer_count(allowed_spans[-1]) if allowed_spans else 0
+        )
+
         for sample in stream_samples(input_file):
-            file_sample_count += 1
-            sample_count += 1
             try:
-                assert sample.files and sample.files[0], "Invalid path: empty or null"
+                if not sample.files or not sample.files[0]:
+                    raise ValueError("Invalid path: empty or null")
                 prepare_sample(sample=sample, db_tools=self.db_tools)
 
-                span = sm.dispatch(sample.kmer_count)
+                if kmer_count_limit and sample.kmer_count > kmer_count_limit:
+                    raise ValueError(
+                        f"Sample '{sample.name}' has {sample.kmer_count} k-mers, "
+                        f"exceeding the limit of {kmer_count_limit} for this fingerprint."
+                    )
+
+                span = span_manager.dispatch(sample.kmer_count)
 
                 if allowed_spans:
                     promoted = next((s for s in allowed_spans if s >= span), None)
@@ -131,7 +139,7 @@ class IndexComposer:
                     span = promoted
 
                 original_distribution[span] = original_distribution.get(span, 0) + 1
-                bf_sizes[span] = sm.get_bf_size(span)
+                bf_sizes[span] = span_manager.get_bf_size(span)
                 split_count.setdefault(span, 0)
                 span_size.setdefault(span, 0)
 
@@ -158,9 +166,8 @@ class IndexComposer:
                             self.name, self.prefix, span, 0
                         )
                         i.set_parent(parent_name)
-                        assert (
-                            parent_name in db_instance.index_table
-                        ), f"Parent index not found: {parent_name}"
+                        if parent_name not in db_instance.index_table:
+                            raise ValueError(f"Parent index not found: {parent_name}")
                         db_instance.index_table[parent_name].merge_name = (
                             self.db_tools.get_merge_name(self.name, self.prefix, span)
                         )
@@ -171,7 +178,8 @@ class IndexComposer:
                 else:
                     logger.debug(f"Adding to existing index: {index_name}")
 
-                assert sample.name, "Invalid ID: empty or null"
+                if not sample.name:
+                    raise ValueError("Invalid ID: empty or null")
                 db_instance.index_table[index_name].add_sample(
                     sample_id=sample.name, sample=sample
                 )
@@ -185,12 +193,15 @@ class IndexComposer:
                 ):
                     split_count[span] += 1
 
+                sample_count += 1
+
             except Exception as e:
                 logger.exception(
                     f"Could not process sample '{sample.name}'({sample.id}): {e} ({type(e).__name__})"
                 )
 
-            logger.info(f"Loaded {file_sample_count} samples from {input_file}")
+        if sample_count == 0:
+            raise ValueError(f"No valid sample found in {input_file}")
 
         logger.info(
             f"Composed {sample_count} samples into {len(db_instance.index_table)} indices"
@@ -429,5 +440,7 @@ def prepare_sample(
             sample.create_link(db.DbFields.ORIGINAL_ID, sample.name)
         sample.name = sample_name
 
-    assert sample.name, "Sample ID empty or null"
-    assert sample.kmer_count > 0, f"Bad number of k-mers ({sample.kmer_count})"
+    if not sample.name:
+        raise ValueError("Sample ID empty or null")
+    if sample.kmer_count <= 0:
+        raise ValueError(f"Bad number of k-mers ({sample.kmer_count})")
