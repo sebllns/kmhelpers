@@ -15,9 +15,21 @@ from pykmhelpers.core.constants import KMHELPERS_VERSION
 logger = logging.getLogger(__name__)
 
 
+def load_fingerprint(path: str) -> tuple[float, list[int]]:
+    """Load span_base and allowed span list from a fingerprint YAML file."""
+    with open(path) as f:
+        data = yaml.safe_load(f)
+    if data.get("type") != "fingerprint":
+        raise ValueError(f"Not a fingerprint file: {path}")
+    payload = data.get("data", {})
+    base = float(payload["base"])
+    span_list = sorted(int(s) for s in payload["map"].keys())
+    return base, span_list
+
+
 def load_profile(
     profiles_file: str, selected_profile: Optional[str] = None
-) -> tuple[Optional[float], float, int, dict]:
+) -> tuple[Optional[float], float, dict]:
     """Load span list and false-positive rate from a profiles YAML file."""
     with open(profiles_file) as f:
         data = yaml.safe_load(f)
@@ -38,14 +50,14 @@ def load_profile(
 
     # span_list = sorted(int(s) for s in profile["span_list"])
     false_positive_rate = data.get("false_positive_rate")
-    max_kmer_count = data.get("max_kmer_count", 0)
-    return false_positive_rate, base, max_kmer_count, profile
+    return false_positive_rate, base, profile
 
 
 def compose_indices(
     input_file,
     output_dir,
     profiles_file=None,
+    fingerprint_file=None,
     selected_profile=None,
     prefix="span",
     name="index",
@@ -84,21 +96,34 @@ def compose_indices(
     file_fp = None
 
     profile = {}
-    kmer_limit = 0
-    allowed_spans = None
+    span_base = 2.0
+    allowed_spans = []
 
     os.makedirs(output_dir, exist_ok=True)
 
-    if profiles_file:
-        file_fp, span_base, kmer_limit, profile = load_profile(
-            profiles_file, selected_profile
+    if fingerprint_file:
+        span_base, allowed_spans = load_fingerprint(fingerprint_file)
+        logger.info(
+            f"Loaded fingerprint: {fingerprint_file} (base={span_base}, spans={allowed_spans})"
         )
+
+    if profiles_file:
+        file_fp, span_base, profile = load_profile(profiles_file, selected_profile)
         if profile.get("span_list"):
-            fingerprint_file = os.path.join(output_dir, f"{name}.fingerprint")
-            tokens = [str(span_base)] + [str(s) for s in profile["span_list"]]
-            with open(fingerprint_file, "w") as f:
-                f.write(" ".join(tokens) + "\n")
-            logger.info(f"Wrote fingerprint: {fingerprint_file}")
+            allowed_spans = sorted(int(s) for s in profile["span_list"])
+            out_fingerprint = os.path.join(output_dir, f"{name}-fingerprint.yaml")
+            fingerprint_data = {
+                "type": "fingerprint",
+                "data": {
+                    "base": span_base,
+                    "map": {s: f"{name}_g{i}" for i, s in enumerate(allowed_spans)},
+                },
+            }
+            with open(out_fingerprint, "w") as f:
+                yaml.dump(fingerprint_data, f, default_flow_style=False, sort_keys=True)
+            logger.info(f"Wrote fingerprint: {out_fingerprint}")
+        else:
+            raise ValueError(f"Profile has no 'span_list' in {profiles_file}")
 
     kmer_size = kmer_size or file_k or 25
     false_positive_rate = false_positive_rate or file_fp or 0.25
@@ -113,7 +138,9 @@ def compose_indices(
     span_size = {}
     db_instance = db.IndexDB(name=name)
     db_tools = db.IndexDefinitionTools()
-    sm = SpanManager(p=false_positive_rate)
+    sm = SpanManager(p=false_positive_rate, b=span_base)
+
+    kmer_limit = sm.max_kmer_count(allowed_spans[-1])
 
     # Phase 2: stream and process samples one by one
     sample_count = 0

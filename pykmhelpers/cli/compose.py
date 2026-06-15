@@ -32,8 +32,8 @@ from pykmhelpers.pipeline.composer import compose_indices
     "-f",
     "profiles_file",
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
-    required=True,
-    help="📋  YAML profiles file defining span lists and Bloom filter parameters",
+    required=False,
+    help="📋  YAML profiles file defining span lists and Bloom filter parameters (required to build a new index)",
 )
 @click.option(
     "--profile",
@@ -41,6 +41,13 @@ from pykmhelpers.pipeline.composer import compose_indices
     type=str,
     required=False,
     help="⚙️  Profile name to use (default: uses default_profile from the profiles file)",
+)
+@click.option(
+    "--fingerprint-file",
+    "fingerprint_file",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+    required=False,
+    help="📋  Fingerprint YAML file produced by a previous compose run (required to update an existing index)",
 )
 @click.option(
     "--partition-count",
@@ -71,6 +78,7 @@ def compose(
     input_file,
     output_dir,
     profiles_file,
+    fingerprint_file,
     selected_profile,
     prefix,
     name,
@@ -82,6 +90,9 @@ def compose(
     partition_count_limit,
 ):
     """Compose index definition file(s) from a sample list.
+
+    Use --profiles-file to build a new index, or --fingerprint-file to update an existing one.
+    Exactly one of the two must be provided.
 
     Examples:
 
@@ -102,6 +113,11 @@ def compose(
     """
 
     try:
+        if bool(profiles_file) == bool(fingerprint_file):
+            raise click.UsageError(
+                "Exactly one of --profiles-file or --fingerprint-file must be provided"
+            )
+
         if partition_count < 0:
             raise click.BadParameter(
                 f"Constraint must be respected: partition_count >= 0 (got partition_count = {partition_count})"
@@ -127,6 +143,7 @@ def compose(
             input_file=input_file,
             output_dir=output_dir,
             profiles_file=profiles_file,
+            fingerprint_file=fingerprint_file,
             selected_profile=selected_profile,
             prefix=prefix,
             name=name,
