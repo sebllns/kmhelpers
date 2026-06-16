@@ -1,4 +1,5 @@
 import logging
+import traceback
 
 
 class Log:
@@ -27,3 +28,7 @@ class Log:
         logger: logging.Logger, e: Exception, msg: str, level: int = logging.ERROR
     ):
         Log._handle_exception(logger, msg, e, Log.is_verbose(logger), level)
+
+    @staticmethod
+    def print_trace(e: Exception):
+        traceback.print_exception(type(e), e, e.__traceback__)

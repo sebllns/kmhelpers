@@ -30,6 +30,7 @@ class DbFields(str, Enum):
     SPAN = "span"
     BF_SIZE = "bf_size"
     KMHELPERS_VERSION = "kmhelpers_version"
+    KMHELPERS_COMMIT = "kmhelpers_commit"
     INDEX_TYPE = "index_type"
     SAMPLES = "samples"
     INFOS = "infos"
@@ -54,6 +55,7 @@ class DbFields(str, Enum):
             DbFields.SPAN: 0,
             DbFields.BF_SIZE: 0,
             DbFields.KMHELPERS_VERSION: "undefined",
+            DbFields.KMHELPERS_COMMIT: "undefined",
             DbFields.INDEX_TYPE: "undefined",
             DbFields.FILES: [],
             DbFields.KMER_COUNT: 0,
@@ -155,6 +157,7 @@ class IndexDefinition(Item, auto_increment=True):
 
     parent_db: Optional["IndexDB"] = field(default=None, repr=False)
     kmhelpers_version: str = DbFields.KMHELPERS_VERSION.get_default() or ""
+    kmhelpers_commit: str = DbFields.KMHELPERS_COMMIT.get_default() or ""
     index_type: str = DbFields.INDEX_TYPE.get_default() or ""
     kmer_size: int = DbFields.KMER_SIZE.get_default() or 0
     partition_count: int = DbFields.PARTITION_COUNT.get_default() or 0
@@ -277,7 +280,7 @@ class IndexDefinitionTools:
     def get_index_name(
         self, db_name: str, session: str, group: int, segment: int
     ) -> str:
-        return f"{db_name}_g{group}_p{segment}_{session}"
+        return f"{db_name}_g{group}_{session}_p{segment}"
 
     def _load_db_file(self, filename: str) -> IndexDB:
         """Load index database from JSON or YAML file."""
@@ -308,6 +311,9 @@ class IndexDefinitionTools:
                 name=index_id,
                 kmhelpers_version=str(
                     self.get_field(DbFields.KMHELPERS_VERSION, index_data)
+                ),
+                kmhelpers_commit=str(
+                    self.get_field(DbFields.KMHELPERS_COMMIT, index_data)
                 ),
                 kmer_size=int(self.get_field(DbFields.KMER_SIZE, parameters)),
                 partition_count=int(
@@ -372,8 +378,8 @@ class IndexDefinitionTools:
             samples_data = {}
             for sample_id, sample in index.samples.items():
                 samples_data[sample_id] = {
-                    self.get_field_name(DbFields.KMER_COUNT): sample.kmer_count,
-                    self.get_field_name(DbFields.FILES): sample.files,
+                    # self.get_field_name(DbFields.KMER_COUNT): sample.kmer_count,
+                    # self.get_field_name(DbFields.FILES): sample.files,
                 }
                 if sample.has_link(DbFields.ORIGINAL_ID):
                     samples_data[sample_id][
@@ -418,6 +424,7 @@ class IndexDefinitionTools:
                 self.get_field_name(
                     DbFields.KMHELPERS_VERSION
                 ): index.kmhelpers_version,
+                self.get_field_name(DbFields.KMHELPERS_COMMIT): index.kmhelpers_commit,
                 self.get_field_name(DbFields.INDEX_TYPE): index.index_type,
                 self.get_field_name(DbFields.PARAMETERS): parameters,
                 self.get_field_name(DbFields.INFOS): infos,

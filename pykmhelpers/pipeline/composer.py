@@ -1,5 +1,6 @@
 """Core composition logic for building index definition files from sample lists."""
 
+import datetime
 import json
 import logging
 import os
@@ -10,7 +11,8 @@ import yaml
 import pykmhelpers.pipeline.index_db as db
 from pykmhelpers.core.bloom_filter import BloomFilterSpecs, SpanManager
 from pykmhelpers.core.byte import ByteCounter
-from pykmhelpers.core.constants import KMHELPERS_VERSION
+from pykmhelpers.core.constants import KMHELPERS_COMMIT, KMHELPERS_VERSION
+from pykmhelpers.core.log import Log
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +25,7 @@ class IndexComposer:
         fingerprint_file=None,
         selected_profile=None,
         name="index",
-        session=None,
+        run_id=None,
         abundance_min=1,
         partition_count=0,
         bf_max_size=None,
@@ -39,7 +41,7 @@ class IndexComposer:
         self.profiles_file = profiles_file
         self.fingerprint_file = fingerprint_file
         self.selected_profile = selected_profile
-        self.session = session
+        self.run_id = run_id or datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         self.name = name
         self.abundance_min = abundance_min
         self.partition_count = partition_count
@@ -68,11 +70,12 @@ class IndexComposer:
         allowed_spans: list[int] = []
         spans_properties = {}
 
-        os.makedirs(output_dir, exist_ok=True)
+        run_dir = os.path.realpath(os.path.join(output_dir, self.run_id))
+        os.makedirs(run_dir, exist_ok=True)
 
         if self.fingerprint_file:
             span_base, allowed_spans = load_fingerprint(self.fingerprint_file)
-            spans_properties = self._fill_span_names(allowed_spans)
+            spans_properties = self._fill_span_props(allowed_spans)
             logger.debug(
                 f"Loaded fingerprint: {self.fingerprint_file} (base={span_base}, spans={allowed_spans})"
             )
@@ -84,7 +87,7 @@ class IndexComposer:
             if not profile.get("span_list"):
                 raise ValueError(f"Profile has no 'span_list' in {self.profiles_file}")
             allowed_spans = sorted(int(s) for s in profile["span_list"])
-            spans_properties = self._fill_span_names(allowed_spans)
+            spans_properties = self._fill_span_props(allowed_spans)
             out_fingerprint = os.path.join(output_dir, f"{self.name}_fingerprint.yaml")
             fingerprint_data = {
                 "type": "fingerprint",
@@ -130,6 +133,8 @@ class IndexComposer:
                     )
 
                 span = span_manager.dispatch(sample.kmer_count)
+                original_distribution[span] = original_distribution.get(span, 0) + 1
+                bf_sizes[span] = span_manager.get_bf_size(span)
 
                 if allowed_spans:
                     promoted = next((s for s in allowed_spans if s >= span), None)
@@ -139,14 +144,13 @@ class IndexComposer:
                             f"(kmer_count={sample.kmer_count}). Extend the span list."
                         )
                     span = promoted
+                    bf_sizes[promoted] = span_manager.get_bf_size(promoted)
 
-                original_distribution[span] = original_distribution.get(span, 0) + 1
-                bf_sizes[span] = span_manager.get_bf_size(span)
                 split_count.setdefault(span, 0)
                 span_size.setdefault(span, 0)
 
                 index_name = self.db_tools.get_index_name(
-                    self.name, self.session, span, split_count[span]
+                    self.name, self.run_id, span, split_count[span]
                 )
                 if index_name not in db_instance.index_table:
                     logger.debug(
@@ -155,6 +159,7 @@ class IndexComposer:
                     i = db.IndexDefinition(
                         name=index_name,
                         kmhelpers_version=KMHELPERS_VERSION,
+                        kmhelpers_commit=KMHELPERS_COMMIT,
                         kmer_size=kmer_size,
                         index_type="kmindex",
                         span=span,
@@ -165,17 +170,15 @@ class IndexComposer:
                     )
                     if split_count[span] > 0 and not self.no_merge:
                         parent_name = self.db_tools.get_index_name(
-                            self.name, self.session, span, 0
+                            self.name, self.run_id, span, 0
                         )
                         i.set_parent(parent_name)
                         if parent_name not in db_instance.index_table:
                             raise ValueError(f"Parent index not found: {parent_name}")
                         db_instance.index_table[parent_name].merge_name = (
-                            self.db_tools.get_merge_name(self.name, self.session, span)
+                            spans_properties[span]["name"]
                         )
-                    i.merge_name = self.db_tools.get_merge_name(
-                        self.name, self.session, span
-                    )
+                    i.merge_name = spans_properties[span]["name"]
                     db_instance.add_index(i)
                 else:
                     logger.debug(f"Adding to existing index: {index_name}")
@@ -198,8 +201,11 @@ class IndexComposer:
                 sample_count += 1
 
             except Exception as e:
-                logger.exception(
-                    f"Could not process sample '{sample.name}'({sample.id}): {e} ({type(e).__name__})"
+                Log.handle_exception(
+                    logger=logger,
+                    e=e,
+                    msg=f"Could not process sample '{sample.name}'(L{1+sample.id})",
+                    level=logging.WARNING,
                 )
 
         if sample_count == 0:
@@ -213,15 +219,13 @@ class IndexComposer:
                 f"  {index_name} {index.sample_count} samples {str(index.get_stored_size())}"
             )
 
-        original_distribution_file = os.path.join(
-            output_dir, f"{self.name}_orig_dist.csv"
-        )
+        original_distribution_file = os.path.join(run_dir, f"{self.name}_orig_dist.csv")
         with open(original_distribution_file, "w") as f:
             f.write("span,bf_size,sample_count\n")
             for span_id, count in sorted(original_distribution.items()):
                 f.write(f"{span_id},{bf_sizes[span_id]},{count}\n")
 
-        index_summary_file = os.path.join(output_dir, f"{self.name}_summary.csv")
+        index_summary_file = os.path.join(run_dir, f"{self.name}_summary.csv")
         with open(index_summary_file, "w") as f:
             f.write("span,sample_count,stored_size_GB\n")
             for span_id, span_obj in sorted(db_instance.span_table.items()):
@@ -230,14 +234,14 @@ class IndexComposer:
                     f"{span_id},{span_obj.get_sample_count()},{size.byte_count/(1000**3)}\n"
                 )
 
-        logger.info(f"Exporting database in {self.format} format to {output_dir}...")
+        logger.debug(f"Exporting database in {self.format} format to {run_dir}...")
 
         partition_min_size = self.partition_min_size
         for i in db_instance.index_table.values():
             if partition_min_size or auto_partitioning:
                 partition_min_size = partition_min_size or ByteCounter.from_str("200MB")
                 index_name = self.db_tools.get_index_name(
-                    self.name, self.session, i.span, 0
+                    self.name, self.run_id, i.span, 0
                 )
                 ref = db_instance.index_table[index_name]
                 bf_specs = BloomFilterSpecs(
@@ -261,17 +265,20 @@ class IndexComposer:
         export_db(
             indices_data=db_instance,
             db_tools=self.db_tools,
-            output_dir=output_dir,
+            output_dir=run_dir,
             format=self.format,
             split=True,
             db_name=self.name,
         )
 
-        logger.info(f"Exported database to {output_dir}")
+        logger.info(f"Exported database to {run_dir}")
         logger.info(f"Created index definition for {sample_count} samples")
 
-    def _fill_span_names(self, allowed_spans):
-        return {s: {"name": f"{self.name}_g{i}"} for i, s in enumerate(allowed_spans)}
+    def _fill_span_props(self, allowed_spans):
+        return {
+            s: {"id": i, "name": self.db_tools.get_merge_name(self.name, i)}
+            for i, s in enumerate(allowed_spans)
+        }
 
 
 def load_fingerprint(path: str) -> tuple[float, list[int]]:

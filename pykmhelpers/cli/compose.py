@@ -1,10 +1,15 @@
 """Compose command: build index definition file(s) from lists of samples."""
 
+import logging
+
 import click
 
 from pykmhelpers.cli.shared import force_verbose_mode
 from pykmhelpers.core.byte import ByteCounter
+from pykmhelpers.core.log import Log
 from pykmhelpers.pipeline.composer import IndexComposer
+
+logger = logging.getLogger(__name__)
 
 
 @click.command(name="compose")
@@ -17,8 +22,8 @@ from pykmhelpers.pipeline.composer import IndexComposer
     help="📁  Output directory for compressed index",
 )
 @click.option(
-    "--session",
-    "-s",
+    "--run-id",
+    "-I",
     required=False,
     help="🏷️   Session tag appended to index names (default: timestamp if not given)",
 )
@@ -83,7 +88,7 @@ def compose(
     profiles_file,
     fingerprint_file,
     selected_profile,
-    session,
+    run_id,
     name,
     partition_count,
     bf_max_size,
@@ -144,7 +149,7 @@ def compose(
             profiles_file=profiles_file,
             fingerprint_file=fingerprint_file,
             selected_profile=selected_profile,
-            session=session,
+            run_id=run_id,
             name=name,
             partition_count=partition_count,
             bf_max_size=bf_max_size,
@@ -154,7 +159,7 @@ def compose(
             partition_count_limit=partition_count_limit,
         ).run(input_file=input_file, output_dir=output_dir)
 
-    except click.BadParameter:
-        raise
+    except click.BadParameter as e:
+        Log.handle_exception(logger=logger, e=e, msg="Compose failed")
     except Exception as e:
-        raise click.ClickException(f"Compose failed: {e}")
+        Log.handle_exception(logger=logger, e=e, msg="Compose failed")
