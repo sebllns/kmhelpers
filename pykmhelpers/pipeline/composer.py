@@ -271,8 +271,8 @@ class IndexComposer:
             db_name=self.name,
         )
 
-        logger.info(f"Exported database to {run_dir}")
         logger.info(f"Created index definition for {sample_count} samples")
+        logger.info(f"Exported database to {run_dir}")
 
     def _fill_span_props(self, allowed_spans):
         return {
