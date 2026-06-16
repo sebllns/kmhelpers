@@ -44,6 +44,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--no-count",
+    "-nc",
     "no_count",
     is_flag=True,
     default=False,
@@ -51,6 +52,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--leaf-grouping",
+    "-lg",
     "leaf_grouping",
     is_flag=True,
     default=False,
@@ -65,7 +67,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--ntcard-threads",
-    "--ntt",
+    "-ntt",
     "ntcard_threads",
     type=int,
     default=8,

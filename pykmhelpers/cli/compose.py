@@ -17,9 +17,10 @@ from pykmhelpers.pipeline.composer import IndexComposer
     help="📁  Output directory for compressed index",
 )
 @click.option(
-    "--prefix",
-    default="span",
-    help="🏷️   Prefix for index names",
+    "--session",
+    "-s",
+    required=False,
+    help="🏷️   Session tag appended to index names (default: timestamp if not given)",
 )
 @click.option(
     "--name",
@@ -29,7 +30,7 @@ from pykmhelpers.pipeline.composer import IndexComposer
 )
 @click.option(
     "--profiles-file",
-    "-f",
+    "-pf",
     "profiles_file",
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
     required=False,
@@ -37,6 +38,7 @@ from pykmhelpers.pipeline.composer import IndexComposer
 )
 @click.option(
     "--profile",
+    "-pr",
     "selected_profile",
     type=str,
     required=False,
@@ -44,6 +46,7 @@ from pykmhelpers.pipeline.composer import IndexComposer
 )
 @click.option(
     "--fingerprint-file",
+    "-ff",
     "fingerprint_file",
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
     required=False,
@@ -80,7 +83,7 @@ def compose(
     profiles_file,
     fingerprint_file,
     selected_profile,
-    prefix,
+    session,
     name,
     partition_count,
     bf_max_size,
@@ -141,7 +144,7 @@ def compose(
             profiles_file=profiles_file,
             fingerprint_file=fingerprint_file,
             selected_profile=selected_profile,
-            prefix=prefix,
+            session=session,
             name=name,
             partition_count=partition_count,
             bf_max_size=bf_max_size,

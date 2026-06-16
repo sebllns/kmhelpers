@@ -16,13 +16,14 @@ logger = logging.getLogger(__name__)
 
 
 class IndexComposer:
+
     def __init__(
         self,
         profiles_file=None,
         fingerprint_file=None,
         selected_profile=None,
-        prefix="span",
         name="index",
+        session=None,
         abundance_min=1,
         partition_count=0,
         bf_max_size=None,
@@ -38,7 +39,7 @@ class IndexComposer:
         self.profiles_file = profiles_file
         self.fingerprint_file = fingerprint_file
         self.selected_profile = selected_profile
-        self.prefix = prefix
+        self.session = session
         self.name = name
         self.abundance_min = abundance_min
         self.partition_count = partition_count
@@ -65,12 +66,14 @@ class IndexComposer:
 
         span_base = 2.0
         allowed_spans: list[int] = []
+        spans_properties = {}
 
         os.makedirs(output_dir, exist_ok=True)
 
         if self.fingerprint_file:
             span_base, allowed_spans = load_fingerprint(self.fingerprint_file)
-            logger.info(
+            spans_properties = self._fill_span_names(allowed_spans)
+            logger.debug(
                 f"Loaded fingerprint: {self.fingerprint_file} (base={span_base}, spans={allowed_spans})"
             )
 
@@ -81,14 +84,13 @@ class IndexComposer:
             if not profile.get("span_list"):
                 raise ValueError(f"Profile has no 'span_list' in {self.profiles_file}")
             allowed_spans = sorted(int(s) for s in profile["span_list"])
-            out_fingerprint = os.path.join(output_dir, f"{self.name}-fingerprint.yaml")
+            spans_properties = self._fill_span_names(allowed_spans)
+            out_fingerprint = os.path.join(output_dir, f"{self.name}_fingerprint.yaml")
             fingerprint_data = {
                 "type": "fingerprint",
                 "data": {
                     "base": span_base,
-                    "map": {
-                        s: f"{self.name}_g{i}" for i, s in enumerate(allowed_spans)
-                    },
+                    "map": {s: spans_properties[s]["name"] for s in allowed_spans},
                 },
             }
             with open(out_fingerprint, "w") as f:
@@ -144,7 +146,7 @@ class IndexComposer:
                 span_size.setdefault(span, 0)
 
                 index_name = self.db_tools.get_index_name(
-                    self.name, self.prefix, span, split_count[span]
+                    self.name, self.session, span, split_count[span]
                 )
                 if index_name not in db_instance.index_table:
                     logger.debug(
@@ -163,16 +165,16 @@ class IndexComposer:
                     )
                     if split_count[span] > 0 and not self.no_merge:
                         parent_name = self.db_tools.get_index_name(
-                            self.name, self.prefix, span, 0
+                            self.name, self.session, span, 0
                         )
                         i.set_parent(parent_name)
                         if parent_name not in db_instance.index_table:
                             raise ValueError(f"Parent index not found: {parent_name}")
                         db_instance.index_table[parent_name].merge_name = (
-                            self.db_tools.get_merge_name(self.name, self.prefix, span)
+                            self.db_tools.get_merge_name(self.name, self.session, span)
                         )
                     i.merge_name = self.db_tools.get_merge_name(
-                        self.name, self.prefix, span
+                        self.name, self.session, span
                     )
                     db_instance.add_index(i)
                 else:
@@ -235,7 +237,7 @@ class IndexComposer:
             if partition_min_size or auto_partitioning:
                 partition_min_size = partition_min_size or ByteCounter.from_str("200MB")
                 index_name = self.db_tools.get_index_name(
-                    self.name, self.prefix, i.span, 0
+                    self.name, self.session, i.span, 0
                 )
                 ref = db_instance.index_table[index_name]
                 bf_specs = BloomFilterSpecs(
@@ -267,6 +269,9 @@ class IndexComposer:
 
         logger.info(f"Exported database to {output_dir}")
         logger.info(f"Created index definition for {sample_count} samples")
+
+    def _fill_span_names(self, allowed_spans):
+        return {s: {"name": f"{self.name}_g{i}"} for i, s in enumerate(allowed_spans)}
 
 
 def load_fingerprint(path: str) -> tuple[float, list[int]]:

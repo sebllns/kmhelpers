@@ -271,11 +271,13 @@ class IndexDefinitionTools:
         else:
             return value
 
-    def get_merge_name(self, db_name: str, prefix: str, span: int) -> str:
-        return f"{db_name}_{prefix}_{span}"
+    def get_merge_name(self, db_name: str, group: int) -> str:
+        return f"{db_name}_g{group}"
 
-    def get_index_name(self, db_name: str, prefix: str, span: int, segment: int) -> str:
-        return f"{db_name}_{prefix}_{span}_p{segment}"
+    def get_index_name(
+        self, db_name: str, session: str, group: int, segment: int
+    ) -> str:
+        return f"{db_name}_g{group}_p{segment}_{session}"
 
     def _load_db_file(self, filename: str) -> IndexDB:
         """Load index database from JSON or YAML file."""
