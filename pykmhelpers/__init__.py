@@ -4,7 +4,7 @@ kmhelpers - K-mer Index Helpers
 A Python toolkit for managing, compressing, and querying k-mer indices.
 """
 
-__version__ = "0.6.3"
+__version__ = "0.6.3.dev0"
 
 from pykmhelpers.core.bloom_filter import BloomFilterSpecs
 from pykmhelpers.core.byte import ByteCounter, SizeFormat, SizeUnit

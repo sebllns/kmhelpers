@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pykmhelpers"
-version = "0.6.3"
+version = "0.6.3.dev0"
 description = "A Python toolkit for managing, compressing, and querying indexes with kmindex"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -39,9 +39,7 @@ dev = [
     "flake8>=4.0",
     "mypy>=0.950",
 ]
-docs = [
-    "mkdocs-material>=9.0",
-]
+docs = ["mkdocs-material>=9.0"]
 
 [project.scripts]
 kmhelpers = "pykmhelpers.cli.kmhelpers:cli"

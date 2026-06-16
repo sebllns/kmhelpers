@@ -85,8 +85,6 @@ def compose(
     partition_count,
     bf_max_size,
     partition_min_size,
-    no_merge,
-    exact_partition_count,
     partition_count_limit,
 ):
     """Compose index definition file(s) from a sample list.
@@ -148,8 +146,8 @@ def compose(
             partition_count=partition_count,
             bf_max_size=bf_max_size,
             partition_min_size=partition_min_size,
-            no_merge=no_merge,
-            exact_partition_count=exact_partition_count,
+            no_merge=False,
+            exact_partition_count=False,
             partition_count_limit=partition_count_limit,
         ).run(input_file=input_file, output_dir=output_dir)
 
