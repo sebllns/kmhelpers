@@ -10,27 +10,37 @@ kmhelpers compose [OPTIONS] INPUT_FILE
 
 ## Description
 
-Takes a JSONL sample list (produced by [`list`](list.md)) and a profiles YAML file (produced by [`profile`](profile.md)) and generates index definition files that can be passed to [`apply`](apply.md).
+Takes a JSONL sample list (produced by [`list`](list.md)) and either a profiles YAML file
+(produced by [`profile`](profile.md)) or a fingerprint YAML file (produced by a previous
+`compose` run), and generates index definition files that can be passed to [`apply`](apply.md).
 
-The profiles file defines span lists and Bloom filter parameters. If `--profile` is not specified, the `default_profile` field in the profiles file is used.
+Exactly one of `--profiles-file` or `--fingerprint-file` must be provided:
+
+- Use `--profiles-file` to build a new index from a span profile.
+- Use `--fingerprint-file` to update an existing index, reusing its span layout.
+
+If `--profile` is not specified, the `default_profile` field in the profiles file is used.
 
 ## Examples
 
 ```bash
 # Basic composition
-kmhelpers compose samples.jsonl -o ./db -f profiles.yaml
+kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml
 
 # Use a specific profile
-kmhelpers compose samples.jsonl -o ./db -f profiles.yaml --profile baseline
+kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml --profile baseline
 
 # Override partition count
-kmhelpers compose samples.jsonl -o ./db -f profiles.yaml --partition-count 4
+kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml --partition-count 4
 
 # Set minimum partition size
-kmhelpers compose samples.jsonl -o ./db -f profiles.yaml --partition-min-size 500MB
+kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml --partition-min-size 500MB
 
 # Split large spans across multiple sub-indices
-kmhelpers compose samples.jsonl -o ./db -f profiles.yaml --split-size 10GB
+kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml --split-size 10GB
+
+# Update an existing index using its fingerprint
+kmhelpers compose samples.jsonl -o ./db -ff index_fingerprint.yaml
 ```
 
 ## Options
@@ -39,9 +49,10 @@ kmhelpers compose samples.jsonl -o ./db -f profiles.yaml --split-size 10GB
 |--------|-------------|
 | `INPUT_FILE` | JSONL sample list produced by `list` (required) |
 | `-o, --output-dir DIR` | Output directory for index definitions (required) |
-| `-f, --profiles-file FILE` | YAML profiles file defining span lists and BF parameters (required) |
-| `--profile TEXT` | Profile name to use (default: `default_profile` from profiles file) |
-| `--prefix TEXT` | Prefix for index names (default: `span`) |
+| `-pf, --profiles-file FILE` | YAML profiles file defining span lists and BF parameters |
+| `-ff, --fingerprint-file FILE` | Fingerprint YAML file from a previous compose run |
+| `-pr, --profile TEXT` | Profile name to use (default: `default_profile` from profiles file) |
+| `-I, --run-id TEXT` | Session tag appended to index names (default: timestamp) |
 | `-n, --name TEXT` | Name of created index database (default: `index`) |
 | `-p, --partition-count INT` | Desired number of partitions per index, 0 for automatic (default: 0) |
 | `-b, --split-size SIZE` | Max run size (e.g. `10GB`, `5000MB`) before splitting samples across indices |

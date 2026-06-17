@@ -5,7 +5,7 @@ Analyse a JSONL sample index and produce a Bloom-filter span profile.
 ## Usage
 
 ```
-kmhelpers profile [OPTIONS]
+kmhelpers profile [OPTIONS] LIST_OUTPUT
 ```
 
 ## Description
@@ -20,40 +20,41 @@ groupings of those spans into sub-indices. Fewer spans means fewer index files o
 at query time, which improves query performance on I/O-bound storage.
 
 `profile` reads $k$-mer counts from a JSONL file produced by [`list`](list.md), assigns
-each sample to its span, and writes a CSV summary and a distribution plot to the output
-directory.
+each sample to its span, and writes a CSV summary, a profile YAML, and a distribution
+plot to the output directory.
 
 ## Output Files
 
 | File | Description |
 |------|-------------|
 | `span_distribution.csv` | Span ID, Bloom filter size, and sample count |
+| `profile.yaml` | Natural distribution and storage-balanced grouped profile(s) |
 | `span_distribution_analysis.png` | Span combination analysis plots |
 
 ## Options
 
 | Option | Description |
 |--------|-------------|
-| `-i, --input FILE` | JSONL sample index produced by `list` (required) |
+| `LIST_OUTPUT` | JSONL sample index produced by `list` (required) |
 | `-o, --output-dir DIR` | Output directory for results (required) |
-| `--false-positive-rate, --fp FLOAT` | Target Bloom-filter false-positive rate (default: 0.25) |
-| `-g, --group N` | Partition spans into `N` storage-balanced groups and overlay on plot (default: 0 = auto) |
+| `--false-positive-rate, -fp FLOAT` | Target Bloom-filter false-positive rate (default: 0.25) |
+| `-g, --group N` | Partition spans into `N` storage-balanced groups and overlay on plot (default: 0) |
 | `-b, --base FLOAT` | Base for span bucket boundaries (default: 2.0); use values like 1.1 to narrow granularity |
 
 ## Examples
 
 ```bash
 # Profile with default false-positive rate
-kmhelpers profile -i samples.jsonl -o ./profile_output
+kmhelpers profile samples.jsonl -o ./profile_output
 
 # Use a stricter false-positive rate
-kmhelpers profile -i samples.jsonl -o ./profile_output --fp 0.05
+kmhelpers profile samples.jsonl -o ./profile_output -fp 0.05
 
 # Force a specific number of span groups
-kmhelpers profile -i samples.jsonl -o ./profile_output -g 3
+kmhelpers profile samples.jsonl -o ./profile_output -g 3
 
 # Use a finer bucket granularity
-kmhelpers profile -i samples.jsonl -o ./profile_output --base 1.5
+kmhelpers profile samples.jsonl -o ./profile_output --base 1.5
 ```
 
 ## Input Format

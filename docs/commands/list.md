@@ -24,12 +24,12 @@ K-mer counting is enabled by default. Counting is skipped for any sample that al
 | `-o, --output FILE` | Path for the output JSONL file (required) |
 | `-k, --kmer-size INT` | K-mer size for counting (default: 25) |
 | `-t, --data-type TEXT` | Data type: `a`/`assembled` (default) or `u`/`unassembled` (raw reads) |
-| `--no-count` | Skip k-mer counting with ntcard |
-| `--leaf-grouping` | Group files by leaf folder; each leaf directory becomes one sample |
+| `-nc, --no-count` | Skip k-mer counting with ntcard |
+| `-lg, --leaf-grouping` | Group files by leaf folder; each leaf directory becomes one sample |
 | `-r, --autorename` | Rename duplicate sample IDs by appending a numeric suffix instead of skipping |
-| `--ntcard-threads, --ntt INT` | Number of threads for ntcard k-mer counting (default: 8) |
+| `-ntt, --ntcard-threads INT` | Number of threads for ntcard k-mer counting (default: 8) |
 
-## Input formats for `--list`
+## Input formats
 
 ### Plain text (`.txt`)
 
