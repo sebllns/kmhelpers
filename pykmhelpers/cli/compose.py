@@ -50,12 +50,12 @@ logger = logging.getLogger(__name__)
     help="⚙️  Profile name to use (default: uses default_profile from the profiles file)",
 )
 @click.option(
-    "--fingerprint-file",
-    "-ff",
-    "fingerprint_file",
+    "--layout-file",
+    "-lf",
+    "layout_file",
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
     required=False,
-    help="📋  Fingerprint YAML file produced by a previous compose run (required to update an existing index)",
+    help="📋  Layout YAML file produced by a previous compose run (required to update an existing index)",
 )
 @click.option(
     "--partition-count",
@@ -86,7 +86,7 @@ def compose(
     input_file,
     output_dir,
     profiles_file,
-    fingerprint_file,
+    layout_file,
     selected_profile,
     run_id,
     name,
@@ -97,31 +97,31 @@ def compose(
 ):
     """Compose index definition file(s) from a sample list.
 
-    Use --profiles-file to build a new index, or --fingerprint-file to update an existing one.
+    Use --profiles-file to build a new index, or --layout-file to update an existing one.
     Exactly one of the two must be provided.
 
     Examples:
 
       \b
-      kmhelpers compose samples.jsonl -o ./db -f profiles.yaml
+      kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml
 
       \b
-      kmhelpers compose samples.jsonl -o ./db -f profiles.yaml --profile baseline
+      kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml --profile baseline
 
       \b
-      kmhelpers compose samples.jsonl -o ./db -f profiles.yaml --partition-count 4
+      kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml --partition-count 4
 
       \b
-      kmhelpers compose samples.jsonl -o ./db -f profiles.yaml --partition-min-size 500MB
+      kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml --partition-min-size 500MB
 
       \b
-      kmhelpers compose samples.jsonl -o ./db -f profiles.yaml --split-size 10GB
+      kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml --split-size 10GB
     """
 
     try:
-        if bool(profiles_file) == bool(fingerprint_file):
+        if bool(profiles_file) == bool(layout_file):
             raise click.UsageError(
-                "Exactly one of --profiles-file or --fingerprint-file must be provided"
+                "Exactly one of --profiles-file or --layout-file must be provided"
             )
 
         if partition_count < 0:
@@ -147,7 +147,7 @@ def compose(
 
         IndexComposer(
             profiles_file=profiles_file,
-            fingerprint_file=fingerprint_file,
+            layout_file=layout_file,
             selected_profile=selected_profile,
             name=name,
             partition_count=partition_count,

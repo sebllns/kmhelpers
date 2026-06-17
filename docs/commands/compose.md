@@ -11,13 +11,13 @@ kmhelpers compose [OPTIONS] INPUT_FILE
 ## Description
 
 Takes a JSONL sample list (produced by [`list`](list.md)) and either a profiles YAML file
-(produced by [`profile`](profile.md)) or a fingerprint YAML file (produced by a previous
+(produced by [`profile`](profile.md)) or a layout YAML file (produced by a previous
 `compose` run), and generates index definition files that can be passed to [`apply`](apply.md).
 
-Exactly one of `--profiles-file` or `--fingerprint-file` must be provided:
+Exactly one of `--profiles-file` or `--layout-file` must be provided:
 
 - Use `--profiles-file` to build a new index from a span profile.
-- Use `--fingerprint-file` to update an existing index, reusing its span layout.
+- Use `--layout-file` to update an existing index, reusing its span layout.
 
 If `--profile` is not specified, the `default_profile` field in the profiles file is used.
 
@@ -39,8 +39,8 @@ kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml --partition-min-size 5
 # Split large spans across multiple sub-indices
 kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml --split-size 10GB
 
-# Update an existing index using its fingerprint
-kmhelpers compose samples.jsonl -o ./db -ff index_fingerprint.yaml
+# Update an existing index using its layout
+kmhelpers compose samples.jsonl -o ./db -ff index_layout.yaml
 ```
 
 ## Options
@@ -50,7 +50,7 @@ kmhelpers compose samples.jsonl -o ./db -ff index_fingerprint.yaml
 | `INPUT_FILE` | JSONL sample list produced by `list` (required) |
 | `-o, --output-dir DIR` | Output directory for index definitions (required) |
 | `-pf, --profiles-file FILE` | YAML profiles file defining span lists and BF parameters |
-| `-ff, --fingerprint-file FILE` | Fingerprint YAML file from a previous compose run |
+| `-lf, --layout-file FILE` | Fingerprint YAML file from a previous compose run |
 | `-pr, --profile TEXT` | Profile name to use (default: `default_profile` from profiles file) |
 | `-I, --run-id TEXT` | Session tag appended to index names (default: timestamp) |
 | `-n, --name TEXT` | Name of created index database (default: `index`) |

@@ -23,7 +23,7 @@ class IndexComposer:
     def __init__(
         self,
         profiles_file=None,
-        fingerprint_file=None,
+        layout_file=None,
         selected_profile=None,
         name="index",
         abundance_min=1,
@@ -39,7 +39,7 @@ class IndexComposer:
         db_tools: Optional[db.IndexDefinitionTools] = None,
     ):
         self.profiles_file = profiles_file
-        self.fingerprint_file = fingerprint_file
+        self.layout_file = layout_file
         self.selected_profile = selected_profile
         self.name = name
         self.abundance_min = abundance_min
@@ -82,14 +82,14 @@ class IndexComposer:
         except shutil.SameFileError:
             pass
 
-        if self.fingerprint_file:
-            span_base, map = load_fingerprint(self.fingerprint_file)
+        if self.layout_file:
+            span_base, map = load_layout(self.layout_file)
             allowed_spans = sorted(int(s) for s in map.keys())
             spans_properties = {
                 s: {"id": i, "name": map[s]} for i, s in enumerate(allowed_spans)
             }
             logger.debug(
-                f"Loaded fingerprint: {self.fingerprint_file} (base={span_base}, spans={allowed_spans})"
+                f"Loaded layout: {self.layout_file} (base={span_base}, spans={allowed_spans})"
             )
 
         if self.profiles_file:
@@ -100,19 +100,19 @@ class IndexComposer:
                 raise ValueError(f"Profile has no 'span_list' in {self.profiles_file}")
             allowed_spans = sorted(int(s) for s in profile["span_list"])
             spans_properties = self._fill_span_props(allowed_spans)
-            out_fingerprint = os.path.realpath(
-                os.path.join(output_dir, f"{self.name}_fingerprint.yaml")
+            out_layout = os.path.realpath(
+                os.path.join(output_dir, f"{self.name}_layout.yaml")
             )
-            fingerprint_data = {
-                "type": "fingerprint",
+            layout_data = {
+                "type": "layout",
                 "data": {
                     "base": span_base,
                     "map": {s: spans_properties[s]["name"] for s in allowed_spans},
                 },
             }
-            with open(out_fingerprint, "w") as f:
-                yaml.dump(fingerprint_data, f, default_flow_style=False, sort_keys=True)
-            logger.info(f"Wrote fingerprint: {out_fingerprint}")
+            with open(out_layout, "w") as f:
+                yaml.dump(layout_data, f, default_flow_style=False, sort_keys=True)
+            logger.info(f"Wrote layout: {out_layout}")
 
         kmer_size = self.kmer_size or file_k or 25
         false_positive_rate = self.false_positive_rate or file_fp or 0.25
@@ -143,7 +143,7 @@ class IndexComposer:
                 if kmer_count_limit and sample.kmer_count > kmer_count_limit:
                     raise ValueError(
                         f"Sample '{sample.name}' has {sample.kmer_count} k-mers, "
-                        f"exceeding the limit of {kmer_count_limit} for this fingerprint."
+                        f"exceeding the limit of {kmer_count_limit} for this layout."
                     )
 
                 span = span_manager.dispatch(sample.kmer_count)
@@ -293,20 +293,20 @@ class IndexComposer:
         }
 
 
-def load_fingerprint(path: str) -> tuple[float, dict]:
-    """Load span_base and allowed span list from a fingerprint YAML file."""
+def load_layout(path: str) -> tuple[float, dict]:
+    """Load span_base and allowed span list from a layout YAML file."""
     try:
         with open(path) as f:
             data = yaml.safe_load(f)
-        if data.get("type") != "fingerprint":
-            raise ValueError(f"Not a fingerprint file: {path}")
+        if data.get("type") != "layout":
+            raise ValueError(f"Not a layout file: {path}")
         payload = data.get("data", {})
         base = float(payload["base"])
         if "map" not in payload:
-            raise ValueError(f"Missing 'map' in fingerprint file: {path}")
+            raise ValueError(f"Missing 'map' in layout file: {path}")
         return base, payload["map"]
     except Exception as e:
-        logger.error(f"Could not parse fingerprint file {path}")
+        logger.error(f"Could not parse layout file {path}: {e}")
         raise
 
 
