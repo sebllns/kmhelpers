@@ -77,11 +77,17 @@ class IndexComposer:
         run_dir = os.path.realpath(os.path.join(output_dir, run_id))
         os.makedirs(run_dir, exist_ok=True)
 
-        shutil.copy(input_file, os.path.join(run_dir, f"{self.name}_samples.jsonl"))
+        try:
+            shutil.copy(input_file, os.path.join(run_dir, f"{self.name}_samples.jsonl"))
+        except shutil.SameFileError:
+            pass
 
         if self.fingerprint_file:
-            span_base, allowed_spans = load_fingerprint(self.fingerprint_file)
-            spans_properties = self._fill_span_props(allowed_spans)
+            span_base, map = load_fingerprint(self.fingerprint_file)
+            allowed_spans = sorted(int(s) for s in map.keys())
+            spans_properties = {
+                s: {"id": i, "name": map[s]} for i, s in enumerate(allowed_spans)
+            }
             logger.debug(
                 f"Loaded fingerprint: {self.fingerprint_file} (base={span_base}, spans={allowed_spans})"
             )
@@ -287,16 +293,21 @@ class IndexComposer:
         }
 
 
-def load_fingerprint(path: str) -> tuple[float, list[int]]:
+def load_fingerprint(path: str) -> tuple[float, dict]:
     """Load span_base and allowed span list from a fingerprint YAML file."""
-    with open(path) as f:
-        data = yaml.safe_load(f)
-    if data.get("type") != "fingerprint":
-        raise ValueError(f"Not a fingerprint file: {path}")
-    payload = data.get("data", {})
-    base = float(payload["base"])
-    span_list = sorted(int(s) for s in payload["map"].keys())
-    return base, span_list
+    try:
+        with open(path) as f:
+            data = yaml.safe_load(f)
+        if data.get("type") != "fingerprint":
+            raise ValueError(f"Not a fingerprint file: {path}")
+        payload = data.get("data", {})
+        base = float(payload["base"])
+        if "map" not in payload:
+            raise ValueError(f"Missing 'map' in fingerprint file: {path}")
+        return base, payload["map"]
+    except Exception as e:
+        logger.error(f"Could not parse fingerprint file {path}")
+        raise
 
 
 def load_profile(
@@ -378,7 +389,7 @@ def export_db(
         sort_keys=True,
     )
 
-    logger.info(f"Estimated total index size: {ByteCounter.auto(total_size)}")
+    logger.info(f"Minimum storage required: {ByteCounter.auto(total_size)}")
 
 
 def parse_span_list(path) -> list[int]:
