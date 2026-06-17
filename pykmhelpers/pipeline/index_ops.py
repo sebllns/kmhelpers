@@ -17,6 +17,7 @@ from pykmhelpers.pipeline.index_db import (
     IndexDB,
     IndexDefinition,
     IndexDefinitionTools,
+    Sample,
     SerializedDataType,
 )
 
@@ -465,21 +466,7 @@ class IndexOps:
         fof = FofManager()
 
         for s in i.samples.values():
-            if s.name and s.name != "_":
-                try:
-                    sample_files = (
-                        [os.path.join(self.config.sample_rootpath, f) for f in s.files]
-                        if self.config.sample_rootpath
-                        else s.files
-                    )
-                    if self._mode > ApplyMode.DRY_RUN:
-                        for f in sample_files:
-                            assert os.path.isfile(f), f"Sample file not found: {f}"
-                    fof.add_sample(sample_files, s.name)
-                except Exception as e:
-                    logger.warning(
-                        f"{self._indent_prefix()}Error adding sample '{s.name}' to '{i.name}' | {e}"
-                    )
+            self._add_sample_to_fof(i, fof, s)
 
         result = None
         self._building.add(i.name)
@@ -570,6 +557,27 @@ class IndexOps:
             assert builder.has_subindex(i.name), f"Could not find index '{i.name}'"
 
         return result
+
+    def _add_sample_to_fof(self, i: IndexDefinition, fof: FofManager, s: Sample):
+        try:
+            if not s.name:
+                raise ValueError("Empty name")
+            if not s.files:
+                raise ValueError("Empty file list")
+            if s.name and s.files and s.name != "_":
+                sample_files = (
+                    [os.path.join(self.config.sample_rootpath, f) for f in s.files]
+                    if self.config.sample_rootpath
+                    else s.files
+                )
+                if self._mode > ApplyMode.DRY_RUN:
+                    for f in sample_files:
+                        assert os.path.isfile(f), f"Sample file not found: {f}"
+                fof.add_sample(sample_files, s.name)
+        except Exception as e:
+            logger.warning(
+                f"{self._indent_prefix()}Error adding sample '{s.name or "UNNAMED"}' to '{i.name}' | {e}"
+            )
 
     def _get_dbs(self, path, idt):
         """Load and cache ``IndexDB`` objects from a definition file.
