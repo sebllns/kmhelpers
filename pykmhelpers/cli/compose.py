@@ -149,7 +149,6 @@ def compose(
             profiles_file=profiles_file,
             fingerprint_file=fingerprint_file,
             selected_profile=selected_profile,
-            run_id=run_id,
             name=name,
             partition_count=partition_count,
             bf_max_size=bf_max_size,
@@ -157,7 +156,11 @@ def compose(
             no_merge=False,
             exact_partition_count=False,
             partition_count_limit=partition_count_limit,
-        ).run(input_file=input_file, output_dir=output_dir)
+        ).run(
+            input_file=input_file,
+            output_dir=output_dir,
+            run_id=run_id,
+        )
 
     except click.BadParameter as e:
         Log.handle_exception(logger=logger, e=e, msg="Compose failed")

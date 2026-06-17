@@ -32,6 +32,7 @@ class DbFields(str, Enum):
     KMHELPERS_VERSION = "kmhelpers_version"
     KMHELPERS_COMMIT = "kmhelpers_commit"
     INDEX_TYPE = "index_type"
+    SAMPLE_FILE = "sample_file"
     SAMPLES = "samples"
     INFOS = "infos"
     PARAMETERS = "parameters"
@@ -166,6 +167,7 @@ class IndexDefinition(Item, auto_increment=True):
     abundance_min: int = DbFields.ABUNDANCE_MIN.get_default() or 2
     samples: dict[str, Sample] = field(default_factory=dict)
     merge_name: Optional[str] = None
+    sample_file: Optional[str] = None
 
     @property
     def sample_count(self):
@@ -324,6 +326,7 @@ class IndexDefinitionTools:
                     self.get_field_name(DbFields.SPAN), 0
                 ),
                 index_type=str(self.get_field(DbFields.INDEX_TYPE, index_data)),
+                sample_file=self.get_field_safe(DbFields.SAMPLE_FILE, index_data),
                 abundance_min=int(self.get_field(DbFields.ABUNDANCE_MIN, parameters)),
                 samples=samples,
             )
@@ -426,6 +429,7 @@ class IndexDefinitionTools:
                 ): index.kmhelpers_version,
                 self.get_field_name(DbFields.KMHELPERS_COMMIT): index.kmhelpers_commit,
                 self.get_field_name(DbFields.INDEX_TYPE): index.index_type,
+                self.get_field_name(DbFields.SAMPLE_FILE): index.sample_file,
                 self.get_field_name(DbFields.PARAMETERS): parameters,
                 self.get_field_name(DbFields.INFOS): infos,
                 self.get_field_name(DbFields.SAMPLES): samples_data,

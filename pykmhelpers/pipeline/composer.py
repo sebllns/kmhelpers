@@ -4,6 +4,7 @@ import datetime
 import json
 import logging
 import os
+import shutil
 from typing import Generator, Optional
 
 import yaml
@@ -25,7 +26,6 @@ class IndexComposer:
         fingerprint_file=None,
         selected_profile=None,
         name="index",
-        run_id=None,
         abundance_min=1,
         partition_count=0,
         bf_max_size=None,
@@ -41,7 +41,6 @@ class IndexComposer:
         self.profiles_file = profiles_file
         self.fingerprint_file = fingerprint_file
         self.selected_profile = selected_profile
-        self.run_id = run_id or datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         self.name = name
         self.abundance_min = abundance_min
         self.partition_count = partition_count
@@ -59,6 +58,7 @@ class IndexComposer:
         self,
         input_file: str,
         output_dir: str,
+        run_id: Optional[str] = None,
         db_instance: Optional[db.IndexDB] = None,
         span_manager: Optional[SpanManager] = None,
     ) -> None:
@@ -70,8 +70,14 @@ class IndexComposer:
         allowed_spans: list[int] = []
         spans_properties = {}
 
-        run_dir = os.path.realpath(os.path.join(output_dir, self.run_id))
+        run_id = run_id or datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        logger.info(f"Run ID: {run_id}")
+
+        run_dir = os.path.realpath(os.path.join(output_dir, run_id))
         os.makedirs(run_dir, exist_ok=True)
+
+        shutil.copy(input_file, os.path.join(run_dir, f"{self.name}_samples.jsonl"))
 
         if self.fingerprint_file:
             span_base, allowed_spans = load_fingerprint(self.fingerprint_file)
@@ -88,7 +94,9 @@ class IndexComposer:
                 raise ValueError(f"Profile has no 'span_list' in {self.profiles_file}")
             allowed_spans = sorted(int(s) for s in profile["span_list"])
             spans_properties = self._fill_span_props(allowed_spans)
-            out_fingerprint = os.path.join(output_dir, f"{self.name}_fingerprint.yaml")
+            out_fingerprint = os.path.realpath(
+                os.path.join(output_dir, f"{self.name}_fingerprint.yaml")
+            )
             fingerprint_data = {
                 "type": "fingerprint",
                 "data": {
@@ -150,7 +158,7 @@ class IndexComposer:
                 span_size.setdefault(span, 0)
 
                 index_name = self.db_tools.get_index_name(
-                    self.name, self.run_id, span, split_count[span]
+                    self.name, run_id, span, split_count[span]
                 )
                 if index_name not in db_instance.index_table:
                     logger.debug(
@@ -166,11 +174,12 @@ class IndexComposer:
                         bf_size=bf_sizes[span],
                         partition_count=partition_count,
                         abundance_min=self.abundance_min,
+                        sample_file=f"{self.name}_samples.jsonl",
                         samples={},
                     )
                     if split_count[span] > 0 and not self.no_merge:
                         parent_name = self.db_tools.get_index_name(
-                            self.name, self.run_id, span, 0
+                            self.name, run_id, span, 0
                         )
                         i.set_parent(parent_name)
                         if parent_name not in db_instance.index_table:
@@ -212,11 +221,11 @@ class IndexComposer:
             raise ValueError(f"No valid sample found in {input_file}")
 
         logger.info(
-            f"Composed {sample_count} samples into {len(db_instance.index_table)} indices"
+            f"Composed {sample_count} samples into {len(db_instance.span_table)} indices"
         )
-        for index_name, index in sorted(db_instance.index_table.items()):
+        for s, index in sorted(db_instance.span_table.items()):
             logger.info(
-                f"  {index_name} {index.sample_count} samples {str(index.get_stored_size())}"
+                f"  {spans_properties[s]["name"]}: {index.get_sample_count()} samples → {str(index.get_total_stored_size())}"
             )
 
         original_distribution_file = os.path.join(run_dir, f"{self.name}_orig_dist.csv")
@@ -227,11 +236,11 @@ class IndexComposer:
 
         index_summary_file = os.path.join(run_dir, f"{self.name}_summary.csv")
         with open(index_summary_file, "w") as f:
-            f.write("span,sample_count,stored_size_GB\n")
+            f.write("name,span,sample_count,stored_size_GB\n")
             for span_id, span_obj in sorted(db_instance.span_table.items()):
                 size = span_obj.get_total_stored_size()
                 f.write(
-                    f"{span_id},{span_obj.get_sample_count()},{size.byte_count/(1000**3)}\n"
+                    f"{spans_properties[span_id]["name"]},{span_id},{span_obj.get_sample_count()},{size.byte_count/(1000**3)}\n"
                 )
 
         logger.debug(f"Exporting database in {self.format} format to {run_dir}...")
@@ -240,9 +249,7 @@ class IndexComposer:
         for i in db_instance.index_table.values():
             if partition_min_size or auto_partitioning:
                 partition_min_size = partition_min_size or ByteCounter.from_str("200MB")
-                index_name = self.db_tools.get_index_name(
-                    self.name, self.run_id, i.span, 0
-                )
+                index_name = self.db_tools.get_index_name(self.name, run_id, i.span, 0)
                 ref = db_instance.index_table[index_name]
                 bf_specs = BloomFilterSpecs(
                     ref.bf_size,
@@ -271,7 +278,6 @@ class IndexComposer:
             db_name=self.name,
         )
 
-        logger.info(f"Created index definition for {sample_count} samples")
         logger.info(f"Exported database to {run_dir}")
 
     def _fill_span_props(self, allowed_spans):
