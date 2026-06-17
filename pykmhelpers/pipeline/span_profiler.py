@@ -18,9 +18,9 @@ class SpanProfiler:
 
     Reads the header line for ``k`` (and optionally ``false_positive_rate``),
     then iterates over sample entries to assign each to a Bloom-filter span
-    based on its k-mer count.  Outputs a ``span_distribution.csv`` and, when
-    the plot module is available, a ``profile.yaml`` alongside the analysis
-    plot.
+    based on its k-mer count.  Outputs a ``baseline.csv`` and, when
+    the plot module is available, a ``profile.yaml`` alongside the
+    ``groups.png`` analysis plot.
 
     Args:
         input_file:          Path to the JSONL sample index (produced by ``list``).
@@ -98,7 +98,7 @@ class SpanProfiler:
             )
 
         os.makedirs(self.output_dir, exist_ok=True)
-        distribution_file = os.path.join(self.output_dir, "span_distribution.csv")
+        distribution_file = os.path.join(self.output_dir, "baseline.csv")
         with open(distribution_file, "w") as f:
             f.write("span,bf_size,sample_count\n")
             for span_id, count in sorted(spans.items()):

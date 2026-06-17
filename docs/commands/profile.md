@@ -27,9 +27,9 @@ plot to the output directory.
 
 | File | Description |
 |------|-------------|
-| `span_distribution.csv` | Span ID, Bloom filter size, and sample count |
+| `baseline.csv` | Span ID, Bloom filter size, and sample count |
 | `profile.yaml` | Natural distribution and storage-balanced grouped profile(s) |
-| `span_distribution_analysis.png` | Span combination analysis plots |
+| `groups.png` | Span combination analysis plots |
 
 ## Options
 

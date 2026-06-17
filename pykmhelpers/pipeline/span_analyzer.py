@@ -1,5 +1,6 @@
 import csv
 import math
+import os
 import sys
 
 import matplotlib.pyplot as plt
@@ -305,7 +306,7 @@ class SpanAnalyzer:
             fontweight="bold",
         )
         plt.tight_layout()
-        out = self.path.replace(".csv", "_profiling.png")
+        out = os.path.join(os.path.dirname(self.path), "groups.png")
         plt.savefig(out, dpi=150, bbox_inches="tight")
 
     def plot_baseline(self, spans, ax):
