@@ -133,62 +133,44 @@ def plan(
     fail_on_error,
     verbose,
 ):
-    """Apply changes and build indices from definition files.
+    """Validate paths and preview the build plan from an index definition file.
 
-    📄 input_file are one or more index definition files (.json/.yaml). For each file,
-    the declared indices are built and registered. If the file type is an index definition,
-    indices are built directly; if it is a span registry, sub-index definition files are
-    resolved from the same directory and merged into the named indices after building.
-    Parent indices are built automatically when required. Only indices matching --name or
-    --span are processed; if neither is specified, all declared indices are built.
+    📄 INPUT_FILE is an index definition file (.json/.yaml). If it is an index
+    definition, indices are previewed directly; if it is a span registry, sub-index
+    definition files are resolved from the same directory. Only indices matching
+    --name or --span are processed; if neither is specified, all declared indices
+    are previewed. The resulting build commands are written to a shell script in
+    the working directory.
+
+    Use --offline to skip local path validation when generating scripts for
+    another machine.
 
     Examples:
 
     \b
-    # Build all indices declared in a definition file
-    kmhelpers apply index.yaml -w /output
+    # Preview build plan for a definition file
+    kmhelpers plan index.yaml -w /output
 
     \b
-    # Build only selected indices by name (comma-separated or repeated flags)
-    kmhelpers apply index.yaml -w /output -n idx1,idx2
-    kmhelpers apply index.yaml -w /output -n idx1 -n idx2
+    # Preview only selected indices by name
+    kmhelpers plan index.yaml -w /output -n idx1,idx2
 
     \b
-    # Build only selected k-mer spans from a span registry
-    kmhelpers apply registry.yaml -w /output -s 28
-    kmhelpers apply registry.yaml -w /output -s 27,28,29
-
-    \b
-    # Dry run: print build commands without executing
-    kmhelpers apply index.yaml -w /output --dry-run
+    # Preview only selected k-mer spans
+    kmhelpers plan registry.yaml -w /output -s 28
+    kmhelpers plan registry.yaml -w /output -s 27,28,29
 
     \b
     # Reuse parameters from an existing parent index
-    kmhelpers apply index.yaml -w /output -n my_index --from parent_index
-
-    \b
-    # Show progress bar during building
-    kmhelpers apply index.yaml -w /output --show-progress
-
-    \b
-    # Plan: check paths and preview build without executing
-    kmhelpers apply index.yaml -w /output --plan
-
-    \b
-    # Skip compression of intermediate files
-    kmhelpers apply index.yaml -w /output --skip-compression
+    kmhelpers plan index.yaml -w /output -n my_index --from parent_index
 
     \b
     # Resolve sample paths from a base directory
-    kmhelpers apply index.yaml -w /output -b /data/samples
+    kmhelpers plan index.yaml -w /output -b /data/samples
 
     \b
-    # Set number of threads and minimizer size
-    kmhelpers apply index.yaml -w /output -t 8 --minim-size 12
-
-    \b
-    # Load options from a config file (CLI flags take precedence)
-    kmhelpers apply index.yaml -c config.yaml
+    # Skip path validation (for exporting scripts to another machine)
+    kmhelpers plan index.yaml -w /output --offline
     """
     try:
         force = (ctx.obj or {}).get("yes", False)
