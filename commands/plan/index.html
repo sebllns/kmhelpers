@@ -1347,12 +1347,12 @@
 
 
 <h1 id="plan">plan</h1>
-<p>Preview the build plan from index definition files and output a ready-to-execute shell script.</p>
+<p>Preview the build plan from an index definition file and output a ready-to-execute shell script.</p>
 <h2 id="usage">Usage</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers plan [OPTIONS] INPUT_FILES...
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers plan [OPTIONS] INPUT_FILE
 </code></pre></div>
 <h2 id="description">Description</h2>
-<p><code>plan</code> previews the build commands for one or more index definition files and writes a shell script without executing it. It validates all paths upfront and aborts early if any path is invalid.</p>
+<p><code>plan</code> validates paths and previews the build commands for an index definition file, then writes a shell script without executing it. It validates all paths upfront and aborts early if any path is invalid.</p>
 <p>Use <code>--offline</code> to skip local path validation when generating scripts for another machine.</p>
 <h2 id="examples">Examples</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Preview build plan for a definition file</span>
@@ -1380,16 +1380,12 @@
 </thead>
 <tbody>
 <tr>
-<td><code>INPUT_FILES...</code></td>
-<td>Index definition file(s) (<code>.json</code>/<code>.yaml</code>) (required)</td>
+<td><code>INPUT_FILE</code></td>
+<td>Index definition file (<code>.json</code>/<code>.yaml</code>) (required)</td>
 </tr>
 <tr>
 <td><code>-w, --work-dir DIR</code></td>
-<td>Working directory for index output</td>
-</tr>
-<tr>
-<td><code>-c, --config FILE</code></td>
-<td>Config file (command-line takes precedence)</td>
+<td>Working directory for index output (default: <code>.</code>)</td>
 </tr>
 <tr>
 <td><code>-b, --base-path DIR</code></td>
@@ -1416,12 +1412,8 @@
 <td>Reuse build parameters from a parent index</td>
 </tr>
 <tr>
-<td><code>-p, --partition-count INT</code></td>
-<td>Override number of partitions</td>
-</tr>
-<tr>
 <td><code>--on-conflict TEXT</code></td>
-<td>Action for pre-existing index folders: <code>fail</code>, <code>register</code>, <code>rename</code>, <code>replace</code>, etc. (default: <code>fail</code>)</td>
+<td>Action for pre-existing index folders: <code>fail</code>, <code>register</code>, <code>rename</code>, <code>replace</code>, <code>register_or_replace</code>, <code>register_or_rename</code> (default: <code>fail</code>)</td>
 </tr>
 <tr>
 <td><code>-O, --offline</code></td>

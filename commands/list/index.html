@@ -719,15 +719,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#input-formats-for-list" class="md-nav__link">
+  <a href="#input-formats" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Input formats for --list
+        Input formats
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Input formats for --list">
+    <nav class="md-nav" aria-label="Input formats">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -784,6 +784,17 @@
     <span class="md-ellipsis">
       
         Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
       
     </span>
   </a>
@@ -1289,15 +1300,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#input-formats-for-list" class="md-nav__link">
+  <a href="#input-formats" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Input formats for --list
+        Input formats
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Input formats for --list">
+    <nav class="md-nav" aria-label="Input formats">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1354,6 +1365,17 @@
     <span class="md-ellipsis">
       
         Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
       
     </span>
   </a>
@@ -1447,13 +1469,13 @@
 
 
 <h1 id="list">list</h1>
-<p>Recursively scan a directory and produce a JSONL sample manifest with k-mer counting.</p>
+<p>Scan a directory or import a sample list, count k-mers, and produce a JSONL sample manifest.</p>
 <h2 id="usage">Usage</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers list [OPTIONS] OUTPUT_FILE
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers list [OPTIONS] INPUT
 </code></pre></div>
 <h2 id="description">Description</h2>
-<p>Scans a directory recursively for sequence files and writes a JSONL sample manifest. By default, each file is treated as its own sample. Use <code>--leaf-grouping</code> to group files by leaf folder, where each leaf directory becomes one sample whose ID is the folder name.</p>
-<p>Either <code>--dir</code> or <code>--list</code> must be provided.</p>
+<p><code>INPUT</code> can be a directory (scanned recursively for sequence files) or a sample list file (plain text or YAML) — the type is detected automatically. K-mer counts are parsed or computed for each sample and written to the JSONL manifest.</p>
+<p>By default, each file is treated as its own sample. Use <code>--leaf-grouping</code> to group files by leaf folder, where each leaf directory becomes one sample whose ID is the folder name.</p>
 <p>K-mer counting is enabled by default. Counting is skipped for any sample that already has a <code>kmer_count</code> value (from a resumed run or an imported list). Use <code>--no-count</code> to skip counting entirely.</p>
 <h2 id="options">Options</h2>
 <table>
@@ -1465,16 +1487,12 @@
 </thead>
 <tbody>
 <tr>
-<td><code>OUTPUT_FILE</code></td>
+<td><code>INPUT</code></td>
+<td>Directory to scan, or a plain-text / YAML sample list (required)</td>
+</tr>
+<tr>
+<td><code>-o, --output FILE</code></td>
 <td>Path for the output JSONL file (required)</td>
-</tr>
-<tr>
-<td><code>-d, --dir DIR</code></td>
-<td>Input directory to scan recursively <em>(required if <code>--list</code> not provided)</em></td>
-</tr>
-<tr>
-<td><code>-l, --list FILE</code></td>
-<td>Import input list in plain text format <em>(required if <code>--dir</code> not provided)</em></td>
 </tr>
 <tr>
 <td><code>-k, --kmer-size INT</code></td>
@@ -1485,11 +1503,11 @@
 <td>Data type: <code>a</code>/<code>assembled</code> (default) or <code>u</code>/<code>unassembled</code> (raw reads)</td>
 </tr>
 <tr>
-<td><code>--no-count</code></td>
+<td><code>-nc, --no-count</code></td>
 <td>Skip k-mer counting with ntcard</td>
 </tr>
 <tr>
-<td><code>--leaf-grouping</code></td>
+<td><code>-lg, --leaf-grouping</code></td>
 <td>Group files by leaf folder; each leaf directory becomes one sample</td>
 </tr>
 <tr>
@@ -1497,12 +1515,12 @@
 <td>Rename duplicate sample IDs by appending a numeric suffix instead of skipping</td>
 </tr>
 <tr>
-<td><code>--ntcard-threads, --ntt INT</code></td>
+<td><code>-ntt, --ntcard-threads INT</code></td>
 <td>Number of threads for ntcard k-mer counting (default: 8)</td>
 </tr>
 </tbody>
 </table>
-<h2 id="input-formats-for-list">Input formats for <code>--list</code></h2>
+<h2 id="input-formats">Input formats</h2>
 <h3 id="plain-text-txt">Plain text (<code>.txt</code>)</h3>
 <p>One sample per line. Lines starting with <code>#</code> and empty lines are ignored.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a># [sample_id] file_1[,file_2,...] [kmer_count]
@@ -1538,28 +1556,36 @@
 <p>This file is the input for <a href="../profile/"><code>profile</code></a> and <a href="../compose/"><code>compose</code></a>.</p>
 <h2 id="examples">Examples</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Basic scan, one file per sample</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>samples.jsonl
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Group files by leaf folder</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences<span class="w"> </span>--leaf-grouping
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>samples.jsonl<span class="w"> </span>--leaf-grouping
 <a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
 <a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># Custom k-mer size</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences<span class="w"> </span>-k<span class="w"> </span><span class="m">31</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>samples.jsonl<span class="w"> </span>-k<span class="w"> </span><span class="m">31</span>
 <a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
 <a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="c1"># Skip k-mer counting</span>
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences<span class="w"> </span>--no-count
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>samples.jsonl<span class="w"> </span>--no-count
 <a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>
 <a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="c1"># Import from a plain text file list instead of scanning a directory</span>
-<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-l<span class="w"> </span>my_files.txt
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>my_files.txt<span class="w"> </span>-o<span class="w"> </span>samples.jsonl
 <a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>
-<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="c1"># Rename duplicate sample IDs instead of skipping them</span>
-<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>samples.jsonl<span class="w"> </span>-d<span class="w"> </span>/data/sequences<span class="w"> </span>-r
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="c1"># Import from a YAML sample list</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>my_files.yaml<span class="w"> </span>-o<span class="w"> </span>samples.jsonl
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="c1"># Rename duplicate sample IDs instead of skipping them</span>
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>samples.jsonl<span class="w"> </span>-r
 </code></pre></div>
 <h2 id="dependencies">Dependencies</h2>
 <p>K-mer counting relies on <a href="https://github.com/BirolLab/ntCard"><strong>ntcard</strong></a>, which is automatically installed as a dependency when installing kmhelpers via conda.</p>
 <blockquote>
 <p>Hamid Mohamadi, Hamza Khan, and Inanc Birol. <em>ntCard: a streaming algorithm for cardinality estimation in genomics data.</em> Bioinformatics (2017) 33 (9): 1324–1330. <a href="https://doi.org/10.1093/bioinformatics/btw832">10.1093/bioinformatics/btw832</a></p>
 </blockquote>
+<h2 id="see-also">See Also</h2>
+<ul>
+<li><a href="../profile/"><code>profile</code></a> — produce the profiles YAML file</li>
+<li><a href="../compose/"><code>compose</code></a> — use the JSONL output to compose index definitions</li>
+</ul>
 
 
 
