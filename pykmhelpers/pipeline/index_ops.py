@@ -144,14 +144,13 @@ class IndexOps:
         log_dir (str): ``<work_dir>/logs`` — log file destination.
         kmindex_registry_dir (str): Path to the kmindex registry directory.
         kmindex_data_dir (str): Path to the folder that holds index data.
-        timestamp (str): ``YYYYmmdd_HHMMSS`` string captured at construction,
-            used to name generated artefacts.
+        timestamp (str): ``YYYYmmdd_HHMMSS`` string captured at construction.
 
     Note:
-        When ``dry_run=True`` is set in the config, ``plan`` is also forced
-        to ``True`` and ``show_progress`` is disabled.  Build commands are
-        collected internally and can be written to a shell script via
-        ``write_script()``.
+        The execution mode (dry-run, plan, apply, apply with progress) is
+        controlled by the ``mode`` argument passed to ``run()``.  In non-apply
+        modes, build and merge commands are collected internally and can be
+        written to a shell script via ``write_script()``.
     """
 
     # MAGIC METHODS
@@ -217,12 +216,13 @@ class IndexOps:
     # PUBLIC METHODS
 
     def write_script(self):
-        """Write the collected build/merge commands to a timestamped shell script.
+        """Write the collected build/merge commands to a shell script.
 
         The script is placed under ``asset_dir`` and named
-        ``kmhelpers_apply_<timestamp>.sh``.  It is only meaningful after
-        ``apply()`` has been called in plan or dry-run mode, since that is when
-        commands are accumulated into ``_script_lines``.
+        ``kmhelpers_apply.sh``.  Any pre-existing script at that path is
+        backed up with a ``.bak`` suffix before being overwritten.  Only
+        meaningful after ``run()`` has been called in a non-apply mode, since
+        that is when commands are accumulated into ``_script_lines``.
         """
         script_path = os.path.join(self.asset_dir, "kmhelpers_apply.sh")
         if os.path.exists(script_path):
