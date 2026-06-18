@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import platform
@@ -18,6 +19,7 @@ from pykmhelpers.core.log import Log
 from pykmhelpers.operations.builder import IndexBuilder
 from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.pipeline.index_db import (
+    DbFields,
     IndexDB,
     IndexDefinition,
     IndexDefinitionTools,
@@ -169,6 +171,8 @@ class IndexOps:
 
         self._dbs = dict[str, list[IndexDB]]()
         self._building = set[str]()
+        self._loaded_sample_files = set[int]()
+        self._sample_file_cache = dict[str, dict[str, list[str]]]()
         self._script_lines = [
             "#!/usr/bin/bash",
             f"WORKDIR='{self.work_dir}'",
@@ -260,6 +264,8 @@ class IndexOps:
 
         self._mode = mode
         self._building = set[str]()
+        self._loaded_sample_files = set[int]()
+        self._sample_file_cache = dict[str, dict[str, list[str]]]()
         self._script_lines = [
             "#!/usr/bin/bash",
             f"WORKDIR='{self.work_dir}'",
@@ -323,7 +329,9 @@ class IndexOps:
                 self._merge(result, builder, to_index, parts)
 
             except Exception as e:
-                if self._handle_error(result, e, f"Failed to merge index '{to_index}'", key=to_index):
+                if self._handle_error(
+                    result, e, f"Failed to merge index '{to_index}'", key=to_index
+                ):
                     return result
 
         result.status = ApplyStatus.SUCCESS
@@ -350,11 +358,19 @@ class IndexOps:
         # if ApplyInputType.SPAN_REGISTRY, filter has been already applied by _load_span_registry
         if result.input_type is not ApplyInputType.INDEX_DEFINITION:
             return False
-        name_filtered = self.config.filter_names is not None and i.name not in self.config.filter_names
-        span_filtered = self.config.filter_spans is not None and i.span not in self.config.filter_spans
+        name_filtered = (
+            self.config.filter_names is not None
+            and i.name not in self.config.filter_names
+        )
+        span_filtered = (
+            self.config.filter_spans is not None
+            and i.span not in self.config.filter_spans
+        )
         return name_filtered or span_filtered
 
-    def _deserialize_data(self, path: str, result: ApplyResult, idt: IndexDefinitionTools) -> dict | None:
+    def _deserialize_data(
+        self, path: str, result: ApplyResult, idt: IndexDefinitionTools
+    ) -> dict | None:
         data = None
         if os.path.isfile(path) and path.endswith((".yaml", ".yml", ".json")):
             try:
@@ -442,6 +458,55 @@ class IndexOps:
     def _indent_prefix(self) -> str:
         return "  └── " if logger.isEnabledFor(logging.INFO) else ""
 
+    def _find_source_dir(self, i: IndexDefinition) -> str | None:
+        for path, dbs in self._dbs.items():
+            if i.parent_db in dbs:
+                return os.path.dirname(path)
+        return None
+
+    def _load_sample_file(self, i: IndexDefinition) -> None:
+        if not i.sample_file or id(i) in self._loaded_sample_files:
+            return
+        self._loaded_sample_files.add(id(i))
+
+        source_dir = self._find_source_dir(i)
+        path = (
+            os.path.join(source_dir, i.sample_file)
+            if source_dir and not os.path.isabs(i.sample_file)
+            else i.sample_file
+        )
+
+        if not os.path.isfile(path):
+            logger.warning(f"Sample file not found: {path}")
+            return
+
+        # Parse JSONL once per file path, reuse across definitions
+        if path not in self._sample_file_cache:
+            sample_data: dict[str, list[str]] = {}
+            with open(path) as f:
+                header = json.loads(f.readline())
+                root_path = header.get("root_path", "")
+                for line in f:
+                    data = json.loads(line)
+                    name = data.get("name")
+                    files = data.get("files", [])
+                    if name and files:
+                        sample_data[name] = (
+                            [os.path.join(root_path, fp) for fp in files]
+                            if root_path
+                            else files
+                        )
+            self._sample_file_cache[path] = sample_data
+            logger.debug(f"Loaded sample paths from {path}")
+
+        # Enrich existing Sample objects with their file paths
+        sample_data = self._sample_file_cache[path]
+        for sample in i.samples.values():
+            if not sample.files:
+                lookup = sample.get_link(DbFields.ORIGINAL_ID) or sample.name
+                if lookup and lookup in sample_data:
+                    sample.files = sample_data[lookup]
+
     def _run_build(
         self, builder: IndexBuilder, i: IndexDefinition
     ) -> tuple[dict | None, list[str]]:
@@ -471,6 +536,7 @@ class IndexOps:
         ), f"IndexDefinition {i.name} is missing required 'bf_size' field"
 
         # --- Build FofManager from samples
+        self._load_sample_file(i)
         fof = FofManager()
         issues: list[str] = []
 
@@ -607,7 +673,9 @@ class IndexOps:
             self._dbs[path] = dbs
         return dbs
 
-    def _load_span_registry(self, path: str, idt: IndexDefinitionTools, data: dict) -> tuple[list[IndexDB], dict[str, list[str]]]:
+    def _load_span_registry(
+        self, path: str, idt: IndexDefinitionTools, data: dict
+    ) -> tuple[list[IndexDB], dict[str, list[str]]]:
         """Parse a span registry and return ``(dbs, merges)``.
 
         Iterates over each span in the registry, optionally filtering by
@@ -640,14 +708,10 @@ class IndexOps:
             assert parts, f"Span registry is missing field 'indices'"
             indices = dict[str, list[str]](parts)
             for name, subindices in indices.items():
-                if not self.config.filter_names or name in self.config.filter_names:
-                    merges[name] = subindices
-
-                for subindex in subindices:
-                    if name in merges or (
-                        self.config.filter_names
-                        and subindex in self.config.filter_names
-                    ):
+                if len(subindices) == 1:
+                    # Single sub-index: build directly under the merge target name
+                    if not self.config.filter_names or name in self.config.filter_names:
+                        subindex = subindices[0]
                         db_path = os.path.join(
                             os.path.dirname(path),
                             subindex + os.path.splitext(path)[1],
@@ -655,10 +719,33 @@ class IndexOps:
                         assert os.path.isfile(
                             db_path
                         ), f"Could not find required data file at {db_path}"
-                        dbs.extend(self._get_dbs(db_path, idt))
+                        loaded_dbs = self._get_dbs(db_path, idt)
+                        for db in loaded_dbs:
+                            if subindex in db.index_table:
+                                db.index_table[subindex].name = name
+                        dbs.extend(loaded_dbs)
+                else:
+                    if not self.config.filter_names or name in self.config.filter_names:
+                        merges[name] = subindices
+
+                    for subindex in subindices:
+                        if name in merges or (
+                            self.config.filter_names
+                            and subindex in self.config.filter_names
+                        ):
+                            db_path = os.path.join(
+                                os.path.dirname(path),
+                                subindex + os.path.splitext(path)[1],
+                            )
+                            assert os.path.isfile(
+                                db_path
+                            ), f"Could not find required data file at {db_path}"
+                            dbs.extend(self._get_dbs(db_path, idt))
         return dbs, merges
 
-    def _build(self, result: ApplyResult, builder: IndexBuilder, i: IndexDefinition) -> None:
+    def _build(
+        self, result: ApplyResult, builder: IndexBuilder, i: IndexDefinition
+    ) -> None:
         """Build a sub-index and record the outcome in ``result``.
 
         Args:
@@ -671,13 +758,17 @@ class IndexOps:
             AssertionError: If ``bf_size`` is not set on the definition.
         """
         assert i.name, "IndexDefinition is missing required 'name' field"
-        assert i.bf_size > 0, f"IndexDefinition {i.name} is missing required 'bf_size' field"
+        assert (
+            i.bf_size > 0
+        ), f"IndexDefinition {i.name} is missing required 'bf_size' field"
 
         builder.index.load_json()
         build_result, issues = self._run_build(builder, i)
         if build_result:
             if self._mode < ApplyMode.APPLY or build_result.get("return_code", -1) == 0:
-                self._record_run_result(result, i.name, ApplyStatus.SUCCESS, issues=issues)
+                self._record_run_result(
+                    result, i.name, ApplyStatus.SUCCESS, issues=issues
+                )
             else:
                 self._record_run_result(
                     result,
@@ -690,7 +781,13 @@ class IndexOps:
             status = ApplyStatus.FAILED if issues else ApplyStatus.NONE
             self._record_run_result(result, i.name, status, issues=issues or None)
 
-    def _merge(self, result: ApplyResult, builder: IndexBuilder, to_index: str, parts: list[str]) -> None:
+    def _merge(
+        self,
+        result: ApplyResult,
+        builder: IndexBuilder,
+        to_index: str,
+        parts: list[str],
+    ) -> None:
         """Merge a list of sub-indexes into a combined index and clean up the parts.
 
         Verifies that all constituent sub-indexes are present in the registry
@@ -737,11 +834,11 @@ class IndexOps:
                 self._append_script(merge_result["command"])
                 merge_entry: dict = {"result": ApplyStatus.SUCCESS.value}
                 for sub in parts:
-                    merge_entry[sub] = result.details["run"].pop(sub, {"result": ApplyStatus.NONE.value})
+                    merge_entry[sub] = result.details["run"].pop(
+                        sub, {"result": ApplyStatus.NONE.value}
+                    )
                 sub_results = [
-                    v.get("result")
-                    for v in merge_entry.values()
-                    if isinstance(v, dict)
+                    v.get("result") for v in merge_entry.values() if isinstance(v, dict)
                 ]
                 if all(r == ApplyStatus.FAILED.value for r in sub_results):
                     merge_entry["result"] = ApplyStatus.FAILED.value

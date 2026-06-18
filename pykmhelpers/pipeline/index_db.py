@@ -290,11 +290,15 @@ class IndexDefinitionTools:
             for sample_id, sample_data in index_data.get(
                 self.get_field_name(DbFields.SAMPLES), {}
             ).items():
-                samples[sample_id] = Sample(
+                sample = Sample(
                     name=sample_id,
                     files=self.get_field(DbFields.FILES, sample_data),
                     kmer_count=int(self.get_field(DbFields.KMER_COUNT, sample_data)),
                 )
+                original_id = self.get_field_safe(DbFields.ORIGINAL_ID, sample_data)
+                if original_id:
+                    sample.create_link(DbFields.ORIGINAL_ID, original_id)
+                samples[sample_id] = sample
 
             parameters = index_data.get(self.get_field_name(DbFields.PARAMETERS))
 
