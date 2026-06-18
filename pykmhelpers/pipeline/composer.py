@@ -183,16 +183,6 @@ class IndexComposer:
                         sample_file=f"{self.name}_samples.jsonl",
                         samples={},
                     )
-                    if split_count[span] > 0 and not self.no_merge:
-                        parent_name = self.db_tools.get_index_name(
-                            self.name, run_id, span, 0
-                        )
-                        i.set_parent(parent_name)
-                        if parent_name not in db_instance.index_table:
-                            raise ValueError(f"Parent index not found: {parent_name}")
-                        db_instance.index_table[parent_name].merge_name = (
-                            spans_properties[span]["name"]
-                        )
                     i.merge_name = spans_properties[span]["name"]
                     db_instance.add_index(i)
                 else:

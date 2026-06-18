@@ -301,25 +301,19 @@ class IndexOps:
         for db in dbs:
             for i in db.index_table.values():
 
-                if self._no_build(result, i):
+                if self._no_build(result, i) or not i.name:
                     continue
 
                 logger.info(f"► Processing index definition '{i.name}'...")
 
-                assert i.name, "  └── IndexDefinition is missing required 'name' field"
                 if builder.index.has_index(i.name):
-                    logger.info(f"{i.name} found in registry: skip")
+                    logger.info(f"  └── {i.name} found in registry: skip")
                     result.details["run"][i.name] = f"[{ApplyStatus.NONE.value}]"
                     continue
 
-                parent_index = i.get_parent()
-
-                if self.config.kmindex_build_from:
-                    parent_index = self.config.kmindex_build_from
-
                 try:
                     self._process_entry_details(result, i)
-                    self._build(path, result, idt, builder, i, parent_index)
+                    self._build(path, result, idt, builder, i)
 
                 except Exception as e:
                     Log.handle_exception(
@@ -452,17 +446,6 @@ class IndexOps:
             i.bf_size
         ), f"IndexDefinition {i.name} is missing required 'bf_size' field"
 
-        parent_index = (
-            self.config.kmindex_build_from
-            if self.config.kmindex_build_from
-            else i.get_parent()
-        )
-
-        if parent_index and self._mode >= ApplyMode.APPLY:
-            assert builder.has_subindex(
-                parent_index
-            ), f"Could not find index '{parent_index}' required to build index '{i.name}'"
-
         fof = FofManager()
 
         for s in i.samples.values():
@@ -528,7 +511,6 @@ class IndexOps:
                     n_partitions=partition_count,
                     n_threads=self.config.kmindex_threads,
                     auto_check=True,
-                    build_from=parent_index,
                     compress_intermediate=not self.config.kmindex_skip_compression,
                     minim_size=self.config.minimizer_length,
                     dry_run=self._mode < ApplyMode.APPLY,
@@ -700,13 +682,8 @@ class IndexOps:
                         ), f"Could not find required data file at {db_path}"
                         dbs.extend(self._get_dbs(db_path, idt))
 
-    def _build(self, path, result, idt, builder, i, parent_index):
-        """Build a sub-index, first building its parent if necessary.
-
-        If ``parent_index`` is specified and not yet present in the registry,
-        the parent's definition is resolved via ``_find_definition`` and built
-        first.  The target index ``i`` is then built via ``_build_single``.
-        Build outcomes are written into ``result.details``.
+    def _build(self, path, result, idt, builder, i):
+        """Build a sub-index
 
         Args:
             path: Source definition file path, forwarded to ``_find_definition``
@@ -724,17 +701,6 @@ class IndexOps:
         assert (
             i.bf_size > 0
         ), f"IndexDefinition {i.name} is missing required 'bf_size' field"
-
-        if (
-            parent_index
-            and parent_index not in self._building
-            and not builder.has_subindex(parent_index)
-        ):
-            parent_def = self._find_definition(parent_index, path, idt)
-            builder.index.load_json()
-            logger.debug(f"Building required parent index '{parent_index}'")
-            build_result = self._build_single(builder, parent_def)
-            self._parse_build_result(result, i, build_result)
 
         builder.index.load_json()
         build_result = self._build_single(builder, i)

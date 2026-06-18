@@ -23,7 +23,6 @@ class DbFields(str, Enum):
     LINKS = "links"
 
     # Index fields
-    PARENT_INDEX = "parent_index"
     ABUNDANCE_MIN = "abundance_min"
     KMER_SIZE = "kmer_size"
     PARTITION_COUNT = "partition_count"
@@ -49,7 +48,6 @@ class DbFields(str, Enum):
             DbFields.ID: 0,
             DbFields.NAME: None,
             DbFields.LINKS: None,
-            DbFields.PARENT_INDEX: None,
             DbFields.ABUNDANCE_MIN: 2,
             DbFields.KMER_SIZE: 25,
             DbFields.PARTITION_COUNT: 0,
@@ -172,15 +170,6 @@ class IndexDefinition(Item, auto_increment=True):
     @property
     def sample_count(self):
         return len(self.samples)
-
-    def get_parent(self):
-        return self.get_link(DbFields.PARENT_INDEX.value)
-
-    def set_parent(self, parent_name):
-        return self.create_link(
-            DbFields.PARENT_INDEX.value,
-            parent_name,
-        )
 
     def add_sample(self, sample_id: str, sample: Sample):
         # Check sample name uniqueness within this Index
@@ -331,12 +320,6 @@ class IndexDefinitionTools:
                 samples=samples,
             )
 
-            if self.has_field(DbFields.PARENT_INDEX, parameters):
-                index.create_link(
-                    self.get_field_name(DbFields.PARENT_INDEX),
-                    self.get_field(DbFields.PARENT_INDEX, parameters),
-                )
-
             index_db.add_index(index)
 
         return index_db
@@ -417,11 +400,6 @@ class IndexDefinitionTools:
                 self.get_field_name(DbFields.BF_SIZE): str(index.bf_size),
                 self.get_field_name(DbFields.ABUNDANCE_MIN): str(index.abundance_min),
             }
-
-            parent = index.get_link(DbFields.PARENT_INDEX.value)
-
-            if parent:
-                parameters[DbFields.PARENT_INDEX.value] = parent
 
             data[index_id] = {
                 self.get_field_name(
