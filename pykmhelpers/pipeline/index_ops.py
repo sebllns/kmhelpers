@@ -58,7 +58,6 @@ class ApplyInputType(str, Enum):
     NONE = "none"
 
 
-
 @dataclass
 class ApplyResult:
     """Result of an apply operation.
@@ -234,7 +233,7 @@ class IndexOps:
             f.write("\n".join(self._script_lines) + "\n")
         logger.info(f"Script written to {script_path}")
 
-    def apply(self, path: str, mode: ApplyMode) -> ApplyResult:
+    def run(self, path: str, mode: ApplyMode) -> ApplyResult:
         """Apply an index definition or span registry file to the kmindex registry.
 
         Reads ``path``, detects whether it is an index definition or a span
@@ -259,7 +258,6 @@ class IndexOps:
         self._mode = mode
         result = ApplyResult()
         idt = IndexDefinitionTools()
-        data = None
 
         self._init_result(path, mode, result)
         data = self._deserialize_data(path, result, idt)
@@ -303,10 +301,12 @@ class IndexOps:
 
                 try:
                     self._update_span_stats(result, i)
-                    self._build(path, result, idt, builder, i)
+                    self._build(result, builder, i)
 
                 except Exception as e:
-                    if self._handle_error(result, e, f"   Failed to build index '{i.name}'", key=i.name):
+                    if self._handle_error(
+                        result, e, f"   Failed to build index '{i.name}'", key=i.name
+                    ):
                         return result
 
         for to_index, parts in merges.items():
@@ -407,7 +407,9 @@ class IndexOps:
         """Log an error and update result status. Returns True if the caller should abort."""
         Log.handle_exception(logger, e, msg)
         if key:
-            self._record_run_result(result, key, ApplyStatus.FAILED, Log.format_exception(e))
+            self._record_run_result(
+                result, key, ApplyStatus.FAILED, Log.format_exception(e)
+            )
         result.status = ApplyStatus.PARTIAL
         if self.config.fail_on_error:
             result.status = ApplyStatus.FAILED
@@ -518,22 +520,20 @@ class IndexOps:
                 )
                 if result and "command" in result:
                     self._append_script(result["command"])
-            except:
-                raise
             finally:
                 if stop_event:
                     stop_event.set()
                 if wait_handler:
                     wait_handler.join()
+
+            # --- Post-build verification
+            if self._mode >= ApplyMode.APPLY:
+                builder.index.load_json()
+                assert builder.has_subindex(i.name), f"Could not find index '{i.name}'"
         else:
             logger.warning(
                 f"{self._indent_prefix()}Skipping index '{i.name}' as no sample was added to it"
             )
-
-        # --- Post-build verification
-        if self._mode >= ApplyMode.APPLY:
-            builder.index.load_json()
-            assert builder.has_subindex(i.name), f"Could not find index '{i.name}'"
 
         return result
 
@@ -576,49 +576,6 @@ class IndexOps:
             dbs = idt.load_db(path)
             self._dbs[path] = dbs
         return dbs
-
-    def _find_definition(
-        self, name: str, source_file: str, idt: IndexDefinitionTools
-    ) -> IndexDefinition:
-        """Look up an ``IndexDefinition`` by name across all loaded databases.
-
-        Searches already-cached databases first.  If not found, constructs a
-        sibling file path (same directory and extension as ``source_file``,
-        named ``<name>.<ext>``) and attempts to load it.
-
-        Args:
-            name: Name of the index definition to find.
-            source_file: Path of the file that referenced this index, used to
-                resolve sibling definition files.
-            idt: ``IndexDefinitionTools`` instance used to load sibling files.
-
-        Returns:
-            The matching ``IndexDefinition``.
-
-        Raises:
-            FileNotFoundError: If the sibling file does not exist.
-            AssertionError: If the definition is still not found after loading
-                the sibling file.
-        """
-        for l in self._dbs.values():
-            for db in l:
-                if name in db.index_table:
-                    return db.index_table[name]
-
-        db_path = os.path.join(
-            os.path.dirname(source_file),
-            name + os.path.splitext(source_file)[1],
-        )
-        if not os.path.isfile(db_path):
-            raise FileNotFoundError(db_path)
-
-        res = None
-        for d in self._get_dbs(db_path, idt):
-            if name in d.index_table:
-                res = d.index_table[name]
-                break
-        assert res, f"Could not find definition for required index {name}"
-        return res
 
     def _load_span_registry(self, path, idt, data) -> tuple[list, dict]:
         """Parse a span registry and return ``(dbs, merges)``.
@@ -671,18 +628,14 @@ class IndexOps:
                         dbs.extend(self._get_dbs(db_path, idt))
         return dbs, merges
 
-    def _build(self, path, result, idt, builder, i):
-        """Build a sub-index
+    def _build(self, result, builder, i):
+        """Build a sub-index and record the outcome in ``result``.
 
         Args:
-            path: Source definition file path, forwarded to ``_find_definition``
-                for sibling lookups.
             result: The ``ApplyResult`` being accumulated; ``details`` is
                 updated in place.
-            idt: ``IndexDefinitionTools`` for loading sibling definition files.
             builder: The ``IndexBuilder`` managing the target registry.
             i: The ``IndexDefinition`` of the index to build.
-            parent_index: Name of the required parent index, or ``None``.
 
         Raises:
             AssertionError: If ``bf_size`` is not set on the definition.
@@ -697,7 +650,12 @@ class IndexOps:
             if self._mode < ApplyMode.APPLY or build_result.get("return_code", -1) == 0:
                 self._record_run_result(result, i.name, ApplyStatus.SUCCESS)
             else:
-                self._record_run_result(result, i.name, ApplyStatus.FAILED, f"error_code={build_result['return_code']}")
+                self._record_run_result(
+                    result,
+                    i.name,
+                    ApplyStatus.FAILED,
+                    f"error_code={build_result['return_code']}",
+                )
         else:
             self._record_run_result(result, i.name, ApplyStatus.NONE)
 

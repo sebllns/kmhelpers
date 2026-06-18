@@ -251,7 +251,7 @@ def plan(
         for input_file in input_files:
             try:
                 logger.info(f"Plan {input_file}...")
-                result = iops.apply(
+                result = iops.run(
                     input_file,
                     mode=(ops.ApplyMode.DRY_RUN if offline else ops.ApplyMode.PLAN),
                 )

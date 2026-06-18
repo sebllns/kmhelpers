@@ -411,7 +411,7 @@ def apply(
     for input_file in input_files:
         try:
             logger.info(f"Apply {input_file}...")
-            result = iops.apply(input_file, apply_mode)
+            result = iops.run(input_file, apply_mode)
             _notify_state["status"] = result.status.value
             if result.details:
                 details_path = os.path.join(
