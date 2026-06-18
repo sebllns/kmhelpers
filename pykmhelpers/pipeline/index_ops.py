@@ -1,12 +1,16 @@
 import logging
 import os
+import platform
 import shutil
+import sys
 import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from time import sleep
 from typing import Optional
+
+import pykmhelpers
 
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
@@ -319,7 +323,7 @@ class IndexOps:
                 self._merge(result, builder, to_index, parts)
 
             except Exception as e:
-                if self._handle_error(result, e, f"Failed to merge index '{to_index}'"):
+                if self._handle_error(result, e, f"Failed to merge index '{to_index}'", key=to_index):
                     return result
 
         result.status = ApplyStatus.SUCCESS
@@ -379,14 +383,24 @@ class IndexOps:
         result.mode = mode
         result.status = ApplyStatus.NONE
         result.input_type = ApplyInputType.UNKNOWN
-        result.details = {}
-        result.details["input_file"] = path
-        result.details["kmindex"] = {}
-        result.details["span"] = {}
-        result.details["run"] = {}
         wrapper = KmindexWrapper(dry_run=False)
-        result.details["kmindex"]["version"] = wrapper.kmindex_version()
-        result.details["kmindex"]["path"] = wrapper.which
+        result.details = {
+            "input_file": path,
+            "kmindex": {
+                "version": wrapper.kmindex_version(),
+                "path": wrapper.which,
+            },
+            "kmhelpers": {
+                "version": pykmhelpers.__version__,
+                "path": sys.argv[0],
+            },
+            "system": {
+                "os": platform.system(),
+                "os_version": platform.version(),
+            },
+            "span": {},
+            "run": {},
+        }
 
     def _append_script(self, cmd: str) -> None:
         self._script_lines.append(cmd.replace(self.config.workdir, "${WORKDIR}"))
@@ -397,11 +411,14 @@ class IndexOps:
         name: str,
         status: ApplyStatus,
         extra: str | None = None,
+        issues: list[str] | None = None,
     ) -> None:
-        value = f"[{status.value}]"
+        entry: dict = {"result": status.value}
+        if issues:
+            entry["issues"] = issues
         if extra:
-            value += f" {extra}"
-        result.details["run"][name] = value
+            entry["error"] = extra
+        result.details["run"][name] = entry
 
     def _handle_error(
         self,
@@ -425,7 +442,9 @@ class IndexOps:
     def _indent_prefix(self) -> str:
         return "  └── " if logger.isEnabledFor(logging.INFO) else ""
 
-    def _run_build(self, builder: IndexBuilder, i: IndexDefinition):
+    def _run_build(
+        self, builder: IndexBuilder, i: IndexDefinition
+    ) -> tuple[dict | None, list[str]]:
         """Build a single sub-index, showing a progress spinner or bar if configured.
 
         Resolves sample file paths, populates a ``FofManager``, and delegates
@@ -437,13 +456,15 @@ class IndexOps:
             i: The index definition describing the sub-index to build.
 
         Returns:
-            The result dict returned by ``IndexBuilder.create_subindex``, or
-            ``None`` if the index was already building or no samples were added.
+            A ``(build_result, issues)`` tuple where ``build_result`` is the
+            dict returned by ``IndexBuilder.create_subindex`` (or ``None`` if
+            the index was already building or no samples were added), and
+            ``issues`` is a list of sample-level warning strings.
         """
         assert i.name, "IndexDefinition is missing required 'name' field"
 
         if i.name in self._building or builder.has_subindex(i.name):
-            return None
+            return None, []
 
         assert (
             i.bf_size
@@ -451,9 +472,10 @@ class IndexOps:
 
         # --- Build FofManager from samples
         fof = FofManager()
+        issues: list[str] = []
 
         for s in i.samples.values():
-            self._add_sample_to_fof(i, fof, s)
+            self._add_sample_to_fof(i, fof, s, issues)
 
         result = None
         self._building.add(i.name)
@@ -541,9 +563,11 @@ class IndexOps:
                 f"{self._indent_prefix()}Skipping index '{i.name}' as no sample was added to it"
             )
 
-        return result
+        return result, issues
 
-    def _add_sample_to_fof(self, i: IndexDefinition, fof: FofManager, s: Sample):
+    def _add_sample_to_fof(
+        self, i: IndexDefinition, fof: FofManager, s: Sample, issues: list[str]
+    ) -> None:
         try:
             if not s.name:
                 raise ValueError("Empty name")
@@ -560,9 +584,9 @@ class IndexOps:
                         assert os.path.isfile(f), f"Sample file not found: {f}"
                 fof.add_sample(sample_files, s.name)
         except Exception as e:
-            logger.warning(
-                f"{self._indent_prefix()}Error adding sample '{s.name or "UNNAMED"}' to '{i.name}' | {e}"
-            )
+            msg = f"Error adding sample '{s.name or 'UNNAMED'}' to '{i.name}' | {e}"
+            logger.warning(f"{self._indent_prefix()}{msg}")
+            issues.append(msg)
 
     def _get_dbs(self, path: str, idt: IndexDefinitionTools) -> list[IndexDB]:
         """Load and cache ``IndexDB`` objects from a definition file.
@@ -650,19 +674,20 @@ class IndexOps:
         assert i.bf_size > 0, f"IndexDefinition {i.name} is missing required 'bf_size' field"
 
         builder.index.load_json()
-        build_result = self._run_build(builder, i)
+        build_result, issues = self._run_build(builder, i)
         if build_result:
             if self._mode < ApplyMode.APPLY or build_result.get("return_code", -1) == 0:
-                self._record_run_result(result, i.name, ApplyStatus.SUCCESS)
+                self._record_run_result(result, i.name, ApplyStatus.SUCCESS, issues=issues)
             else:
                 self._record_run_result(
                     result,
                     i.name,
                     ApplyStatus.FAILED,
-                    f"error_code={build_result['return_code']}",
+                    extra=f"error_code={build_result['return_code']}",
+                    issues=issues,
                 )
         else:
-            self._record_run_result(result, i.name, ApplyStatus.NONE)
+            self._record_run_result(result, i.name, ApplyStatus.NONE, issues=issues)
 
     def _merge(self, result: ApplyResult, builder: IndexBuilder, to_index: str, parts: list[str]) -> None:
         """Merge a list of sub-indexes into a combined index and clean up the parts.
@@ -694,9 +719,10 @@ class IndexOps:
             logger.warning(
                 f"Cannot merge '{to_index}' due to some sub-indexes missing: {missing}"
             )
-            result.details[to_index] = (
-                f"[{ApplyStatus.FAILED.value}] Missing sub-indexes: {missing}"
-            )
+            result.details["run"][to_index] = {
+                "result": ApplyStatus.FAILED.value,
+                "error": f"Missing sub-indexes: {missing}",
+            }
         else:
             merge_result = builder.merge(
                 to_index,
@@ -708,7 +734,10 @@ class IndexOps:
 
             if merge_result and "command" in merge_result:
                 self._append_script(merge_result["command"])
-                result.details[to_index] = f"[{ApplyStatus.SUCCESS.value}]"
+                merge_entry: dict = {"result": ApplyStatus.SUCCESS.value}
+                for sub in parts:
+                    merge_entry[sub] = result.details["run"].pop(sub, {"result": ApplyStatus.NONE.value})
+                result.details["run"][to_index] = merge_entry
             else:
                 raise Exception("Malformed result")
 
