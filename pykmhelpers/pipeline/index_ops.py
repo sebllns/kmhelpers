@@ -687,7 +687,8 @@ class IndexOps:
                     issues=issues,
                 )
         else:
-            self._record_run_result(result, i.name, ApplyStatus.NONE, issues=issues)
+            status = ApplyStatus.FAILED if issues else ApplyStatus.NONE
+            self._record_run_result(result, i.name, status, issues=issues or None)
 
     def _merge(self, result: ApplyResult, builder: IndexBuilder, to_index: str, parts: list[str]) -> None:
         """Merge a list of sub-indexes into a combined index and clean up the parts.
@@ -737,6 +738,17 @@ class IndexOps:
                 merge_entry: dict = {"result": ApplyStatus.SUCCESS.value}
                 for sub in parts:
                     merge_entry[sub] = result.details["run"].pop(sub, {"result": ApplyStatus.NONE.value})
+                sub_results = [
+                    v.get("result")
+                    for v in merge_entry.values()
+                    if isinstance(v, dict)
+                ]
+                if all(r == ApplyStatus.FAILED.value for r in sub_results):
+                    merge_entry["result"] = ApplyStatus.FAILED.value
+                elif any(r == ApplyStatus.FAILED.value for r in sub_results):
+                    merge_entry["result"] = ApplyStatus.PARTIAL.value
+                else:
+                    merge_entry["result"] = ApplyStatus.SUCCESS.value
                 result.details["run"][to_index] = merge_entry
             else:
                 raise Exception("Malformed result")
