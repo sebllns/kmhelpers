@@ -58,6 +58,7 @@ class ApplyInputType(str, Enum):
     NONE = "none"
 
 
+
 @dataclass
 class ApplyResult:
     """Result of an apply operation.
@@ -260,7 +261,7 @@ class IndexOps:
         idt = IndexDefinitionTools()
         data = None
 
-        self._init_result_details(path, mode, result)
+        self._init_result(path, mode, result)
         data = self._deserialize_data(path, result, idt)
 
         if data is None or result.input_type is ApplyInputType.UNKNOWN:
@@ -277,54 +278,35 @@ class IndexOps:
             log_folder=self.log_dir,
         )
 
-        if result.input_type is ApplyInputType.INDEX_DEFINITION:
-            try:
+        try:
+            if result.input_type is ApplyInputType.INDEX_DEFINITION:
                 dbs = self._get_dbs(path, idt)
-            except Exception as e:
-                Log.handle_exception(
-                    logger, e, f"Failed to load definition file '{path}'"
-                )
-                result.status = ApplyStatus.FAILED
-                return result
-        elif result.input_type is ApplyInputType.SPAN_REGISTRY:
-            try:
-                self._load_span_registry(path, idt, data, dbs, merges)
-
-            except Exception as e:
-                Log.handle_exception(
-                    logger, e, f"Failed to load definition file '{path}'"
-                )
-                result.status = ApplyStatus.FAILED
-                return result
-            pass
+            elif result.input_type is ApplyInputType.SPAN_REGISTRY:
+                dbs, merges = self._load_span_registry(path, idt, data)
+        except Exception as e:
+            Log.handle_exception(logger, e, f"Failed to load definition file '{path}'")
+            result.status = ApplyStatus.FAILED
+            return result
 
         for db in dbs:
             for i in db.index_table.values():
 
-                if self._no_build(result, i) or not i.name:
+                if self._is_filtered(result, i) or not i.name:
                     continue
 
                 logger.info(f"► Processing index definition '{i.name}'...")
 
                 if builder.index.has_index(i.name):
                     logger.info(f"  └── {i.name} found in registry: skip")
-                    result.details["run"][i.name] = f"[{ApplyStatus.NONE.value}]"
+                    self._record_run_result(result, i.name, ApplyStatus.NONE)
                     continue
 
                 try:
-                    self._process_entry_details(result, i)
+                    self._update_span_stats(result, i)
                     self._build(path, result, idt, builder, i)
 
                 except Exception as e:
-                    Log.handle_exception(
-                        logger, e, f"   Failed to build index '{i.name}'"
-                    )
-                    result.details["run"][
-                        i.name
-                    ] = f"[{ApplyStatus.FAILED.value}] {Log.format_exception(e)}"
-                    result.status = ApplyStatus.PARTIAL
-                    if self.config.fail_on_error:
-                        result.status = ApplyStatus.FAILED
+                    if self._handle_error(result, e, f"   Failed to build index '{i.name}'", key=i.name):
                         return result
 
         for to_index, parts in merges.items():
@@ -332,13 +314,7 @@ class IndexOps:
                 self._merge(result, builder, to_index, parts)
 
             except Exception as e:
-                Log.handle_exception(logger, e, f"Failed to merge index '{to_index}'")
-                result.details[to_index] = (
-                    f"[{ApplyStatus.FAILED.value}] {Log.format_exception(e)}"
-                )
-                result.status = ApplyStatus.PARTIAL
-                if self.config.fail_on_error:
-                    result.status = ApplyStatus.FAILED
+                if self._handle_error(result, e, f"Failed to merge index '{to_index}'"):
                     return result
 
         result.status = ApplyStatus.SUCCESS
@@ -347,31 +323,21 @@ class IndexOps:
     # ---
     # PRIVATE METHODS
 
-    def _process_entry_details(self, result, i):
+    def _update_span_stats(self, result, i):
         index_size = i.get_stored_size()
         sample_count = i.sample_count
 
-        if i.span not in result.details["span"]:
-            result.details["span"][i.span] = {
-                "sample_count": 0,
-                "bytes": 0,
-                "size_str": "0B",
-            }
-
-        result.details["span"][i.span]["sample_count"] = (
-            result.details["span"][i.span].get("sample_count", 0) + sample_count
+        span_data = result.details["span"].setdefault(
+            i.span, {"sample_count": 0, "bytes": 0, "size_str": "0B"}
         )
-        result.details["span"][i.span]["bytes"] = (
-            result.details["span"][i.span].get("bytes", 0) + index_size.byte_count
-        )
-        result.details["span"][i.span]["size_str"] = str(
-            ByteCounter.auto(result.details["span"][i.span]["bytes"])
-        )
+        span_data["sample_count"] += sample_count
+        span_data["bytes"] += index_size.byte_count
+        span_data["size_str"] = str(ByteCounter.auto(span_data["bytes"]))
 
         logger.info(f"  └── Sample count: {sample_count}")
         logger.info(f"  └── Estimated build size: {index_size}")
 
-    def _no_build(self, result, i):
+    def _is_filtered(self, result, i):
         # if ApplyInputType.SPAN_REGISTRY, filter has been already applied by _load_span_registry
         return result.input_type is ApplyInputType.INDEX_DEFINITION and (
             (self.config.filter_names and i.name not in self.config.filter_names)
@@ -391,22 +357,19 @@ class IndexOps:
 
             if data:
                 try:
-                    result.input_type = (
-                        ApplyInputType.INDEX_DEFINITION
-                        if data.get("type") == SerializedDataType.INDEX_DEFINITION.value
-                        else (
-                            ApplyInputType.SPAN_REGISTRY
-                            if data.get("type")
-                            == SerializedDataType.SPAN_DEFINITION.value
-                            else ApplyInputType.UNKNOWN
-                        )
-                    )
+                    type_value = data.get("type")
+                    if type_value == SerializedDataType.INDEX_DEFINITION.value:
+                        result.input_type = ApplyInputType.INDEX_DEFINITION
+                    elif type_value == SerializedDataType.SPAN_DEFINITION.value:
+                        result.input_type = ApplyInputType.SPAN_REGISTRY
+                    else:
+                        result.input_type = ApplyInputType.UNKNOWN
                 except (ValueError, KeyError):
                     logger.error(f"Invalid type value: {data.get('type')}")
                     return None
         return data
 
-    def _init_result_details(self, path, mode, result):
+    def _init_result(self, path, mode, result):
         result.mode = mode
         result.status = ApplyStatus.NONE
         result.input_type = ApplyInputType.UNKNOWN
@@ -419,10 +382,42 @@ class IndexOps:
         result.details["kmindex"]["version"] = wrapper.kmindex_version()
         result.details["kmindex"]["path"] = wrapper.which
 
+    def _append_script(self, cmd: str) -> None:
+        self._script_lines.append(cmd.replace(self.config.workdir, "${WORKDIR}"))
+
+    def _record_run_result(
+        self,
+        result: ApplyResult,
+        name: str,
+        status: ApplyStatus,
+        extra: str | None = None,
+    ) -> None:
+        value = f"[{status.value}]"
+        if extra:
+            value += f" {extra}"
+        result.details["run"][name] = value
+
+    def _handle_error(
+        self,
+        result: ApplyResult,
+        e: Exception,
+        msg: str,
+        key: str | None = None,
+    ) -> bool:
+        """Log an error and update result status. Returns True if the caller should abort."""
+        Log.handle_exception(logger, e, msg)
+        if key:
+            self._record_run_result(result, key, ApplyStatus.FAILED, Log.format_exception(e))
+        result.status = ApplyStatus.PARTIAL
+        if self.config.fail_on_error:
+            result.status = ApplyStatus.FAILED
+            return True
+        return False
+
     def _indent_prefix(self):
         return "  └── " if logger.isEnabledFor(logging.INFO) else ""
 
-    def _build_single(self, builder: IndexBuilder, i: IndexDefinition):
+    def _run_build(self, builder: IndexBuilder, i: IndexDefinition):
         """Build a single sub-index, showing a progress spinner or bar if configured.
 
         Resolves sample file paths, populates a ``FofManager``, and delegates
@@ -446,6 +441,7 @@ class IndexOps:
             i.bf_size
         ), f"IndexDefinition {i.name} is missing required 'bf_size' field"
 
+        # --- Build FofManager from samples
         fof = FofManager()
 
         for s in i.samples.values():
@@ -454,6 +450,7 @@ class IndexOps:
         result = None
         self._building.add(i.name)
         if fof.get_sample_count() > 0:
+            # --- Progress handlers setup
             stop_event = None
             wait_handler = None
             progress_handler = None
@@ -497,6 +494,7 @@ class IndexOps:
             elif self._mode >= ApplyMode.APPLY:
                 logger.info(f"  └── Building '{i.name}'...")
 
+            # --- Call builder
             try:
                 partition_count = (
                     self.config.partition_count
@@ -519,9 +517,7 @@ class IndexOps:
                     progress=progress_handler,
                 )
                 if result and "command" in result:
-                    self._script_lines.append(
-                        result["command"].replace(self.config.workdir, "${WORKDIR}")
-                    )
+                    self._append_script(result["command"])
             except:
                 raise
             finally:
@@ -534,6 +530,7 @@ class IndexOps:
                 f"{self._indent_prefix()}Skipping index '{i.name}' as no sample was added to it"
             )
 
+        # --- Post-build verification
         if self._mode >= ApplyMode.APPLY:
             builder.index.load_json()
             assert builder.has_subindex(i.name), f"Could not find index '{i.name}'"
@@ -546,7 +543,7 @@ class IndexOps:
                 raise ValueError("Empty name")
             if not s.files:
                 raise ValueError("Empty file list")
-            if s.name and s.files and s.name != "_":
+            if s.name != "_":
                 sample_files = (
                     [os.path.join(self.config.sample_rootpath, f) for f in s.files]
                     if self.config.sample_rootpath
@@ -603,41 +600,28 @@ class IndexOps:
             AssertionError: If the definition is still not found after loading
                 the sibling file.
         """
-        res = None
-
         for l in self._dbs.values():
             for db in l:
-                print(db.index_table.keys())
                 if name in db.index_table:
                     return db.index_table[name]
 
-        if not res:
-            db_path = os.path.join(
-                os.path.dirname(source_file),
-                name + os.path.splitext(source_file)[1],
-            )
-            if os.path.isfile(db_path):
-                db = self._get_dbs(db_path, idt)
-                for d in db:
-                    if name in d.index_table:
-                        res = d.index_table[name]
-            else:
-                raise FileNotFoundError(db_path)
+        db_path = os.path.join(
+            os.path.dirname(source_file),
+            name + os.path.splitext(source_file)[1],
+        )
+        if not os.path.isfile(db_path):
+            raise FileNotFoundError(db_path)
+
+        res = None
+        for d in self._get_dbs(db_path, idt):
+            if name in d.index_table:
+                res = d.index_table[name]
+                break
         assert res, f"Could not find definition for required index {name}"
         return res
 
-    # def _assert_field(self, field):
-    #     assert self.has_field_in_config(field), f"Field '{field}' not found in config"
-
-    # def _check_config(self):
-    #     self._assert_field("workdir")
-    #     self._assert_field("")
-
-    # def has_field_in_config(self, field_name: str) -> bool:
-    #     return field_name in self._config
-
-    def _load_span_registry(self, path, idt, data, dbs, merges):
-        """Parse a span registry and populate the ``dbs`` and ``merges`` structures.
+    def _load_span_registry(self, path, idt, data) -> tuple[list, dict]:
+        """Parse a span registry and return ``(dbs, merges)``.
 
         Iterates over each span in the registry, optionally filtering by
         ``config.filter_spans`` and ``config.filter_names``.  For each index
@@ -650,13 +634,17 @@ class IndexOps:
                 sibling definition files).
             idt: ``IndexDefinitionTools`` instance for loading definition files.
             data: Deserialized registry dict (``{"data": {span_id: {...}}}``)
-            dbs: List to extend with loaded ``IndexDB`` objects.
-            merges: Dict to populate with ``{merge_target: [sub_index_names]}``.
+
+        Returns:
+            A ``(dbs, merges)`` tuple where ``dbs`` is a list of ``IndexDB``
+            objects and ``merges`` maps each merge target to its sub-index names.
 
         Raises:
             AssertionError: If a span entry is missing the ``"indices"`` field
                 or a required definition file does not exist on disk.
         """
+        dbs = list[IndexDB]()
+        merges = dict[str, list[str]]()
         spans = dict[int, dict](data["data"])
         for to_index, parts in spans.items():
             if self.config.filter_spans and to_index not in self.config.filter_spans:
@@ -681,6 +669,7 @@ class IndexOps:
                             db_path
                         ), f"Could not find required data file at {db_path}"
                         dbs.extend(self._get_dbs(db_path, idt))
+        return dbs, merges
 
     def _build(self, path, result, idt, builder, i):
         """Build a sub-index
@@ -703,19 +692,14 @@ class IndexOps:
         ), f"IndexDefinition {i.name} is missing required 'bf_size' field"
 
         builder.index.load_json()
-        build_result = self._build_single(builder, i)
-        self._parse_build_result(result, i, build_result)
-
-    def _parse_build_result(self, result, i, build_result):
+        build_result = self._run_build(builder, i)
         if build_result:
             if self._mode < ApplyMode.APPLY or build_result.get("return_code", -1) == 0:
-                result.details["run"][i.name] = f"[{ApplyStatus.SUCCESS.value}]"
+                self._record_run_result(result, i.name, ApplyStatus.SUCCESS)
             else:
-                result.details["run"][
-                    i.name
-                ] = f"[{ApplyStatus.FAILED.value}] error_code={build_result["return_code"]}"
+                self._record_run_result(result, i.name, ApplyStatus.FAILED, f"error_code={build_result['return_code']}")
         else:
-            result.details["run"][i.name] = f"[{ApplyStatus.NONE.value}]"
+            self._record_run_result(result, i.name, ApplyStatus.NONE)
 
     def _merge(self, result, builder, to_index, parts):
         """Merge a list of sub-indexes into a combined index and clean up the parts.
@@ -759,10 +743,8 @@ class IndexOps:
                 threads=self._config.kmindex_threads,
             )
 
-            if result and "command" in merge_result:
-                self._script_lines.append(
-                    merge_result["command"].replace(self.config.workdir, "${WORKDIR}")
-                )
+            if merge_result and "command" in merge_result:
+                self._append_script(merge_result["command"])
                 result.details[to_index] = f"[{ApplyStatus.SUCCESS.value}]"
             else:
                 raise Exception("Malformed result")
@@ -787,16 +769,18 @@ class IndexOps:
             segment: Name of the sub-index segment to delete.
         """
         logger.info(f"Delete {segment}...")
+
+        # --- Unregister from registry
         try:
             builder.index.remove_index(
                 segment, delete_files=False, skip_unregistered=True
             )
-
         except Exception as e:
             logger.warning(f"Failed to remove {segment} from registry: {e}")
 
         index_path = os.path.join(self.config.index_data_folder, segment)
 
+        # --- Delete files from disk
         if self._mode >= ApplyMode.APPLY:
             try:
                 # Get index before removal (needed to delete files)
@@ -828,15 +812,7 @@ class IndexOps:
                     f"Could not remove dir {index_path}, please remove it manually."
                 )
         else:
-            self._script_lines.append(
-                f"rm -rf $(realpath {index_path})".replace(
-                    self.config.workdir, "${WORKDIR}"
-                )
-            )
-            self._script_lines.append(
-                f"[ -L {index_path} ] && unlink {index_path}".replace(
-                    self.config.workdir, "${WORKDIR}"
-                )
-            )
+            self._append_script(f"rm -rf $(realpath {index_path})")
+            self._append_script(f"[ -L {index_path} ] && unlink {index_path}")
 
     # ---
