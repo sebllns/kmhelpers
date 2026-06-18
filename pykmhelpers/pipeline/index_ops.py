@@ -485,7 +485,8 @@ class IndexOps:
             sample_data: dict[str, list[str]] = {}
             with open(path) as f:
                 header = json.loads(f.readline())
-                root_path = header.get("root_path", "")
+                file_root = header.get("root_path", "")
+                root_path = self.config.sample_rootpath or file_root
                 for line in f:
                     data = json.loads(line)
                     name = data.get("name")
@@ -641,7 +642,10 @@ class IndexOps:
                 raise ValueError("Empty file list")
             if s.name != "_":
                 sample_files = (
-                    [os.path.join(self.config.sample_rootpath, f) for f in s.files]
+                    [
+                        os.path.join(self.config.sample_rootpath, f) if not os.path.isabs(f) else f
+                        for f in s.files
+                    ]
                     if self.config.sample_rootpath
                     else s.files
                 )
