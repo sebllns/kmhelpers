@@ -224,7 +224,7 @@ class IndexOps:
         ``apply()`` has been called in plan or dry-run mode, since that is when
         commands are accumulated into ``_script_lines``.
         """
-        script_path = os.path.join(self.asset_dir, f"kmhelpers_apply.sh")
+        script_path = os.path.join(self.asset_dir, "kmhelpers_apply.sh")
         if os.path.exists(script_path):
             backup_path = script_path + ".bak"
             os.replace(script_path, backup_path)
@@ -254,8 +254,13 @@ class IndexOps:
 
         path = os.path.realpath(path)
 
-        # Load desired state
         self._mode = mode
+        self._building = set[str]()
+        self._script_lines = [
+            "#!/usr/bin/bash",
+            f"WORKDIR='{self.work_dir}'",
+            "cd ${WORKDIR}",
+        ]
         result = ApplyResult()
         idt = IndexDefinitionTools()
 
@@ -323,7 +328,7 @@ class IndexOps:
     # ---
     # PRIVATE METHODS
 
-    def _update_span_stats(self, result, i):
+    def _update_span_stats(self, result: ApplyResult, i: IndexDefinition) -> None:
         index_size = i.get_stored_size()
         sample_count = i.sample_count
 
@@ -337,14 +342,15 @@ class IndexOps:
         logger.info(f"  └── Sample count: {sample_count}")
         logger.info(f"  └── Estimated build size: {index_size}")
 
-    def _is_filtered(self, result, i):
+    def _is_filtered(self, result: ApplyResult, i: IndexDefinition) -> bool:
         # if ApplyInputType.SPAN_REGISTRY, filter has been already applied by _load_span_registry
-        return result.input_type is ApplyInputType.INDEX_DEFINITION and (
-            (self.config.filter_names and i.name not in self.config.filter_names)
-            or (self.config.filter_spans and i.span not in self.config.filter_spans)
-        )
+        if result.input_type is not ApplyInputType.INDEX_DEFINITION:
+            return False
+        name_filtered = self.config.filter_names is not None and i.name not in self.config.filter_names
+        span_filtered = self.config.filter_spans is not None and i.span not in self.config.filter_spans
+        return name_filtered or span_filtered
 
-    def _deserialize_data(self, path, result, idt):
+    def _deserialize_data(self, path: str, result: ApplyResult, idt: IndexDefinitionTools) -> dict | None:
         data = None
         if os.path.isfile(path) and path.endswith((".yaml", ".yml", ".json")):
             try:
@@ -369,11 +375,11 @@ class IndexOps:
                     return None
         return data
 
-    def _init_result(self, path, mode, result):
+    def _init_result(self, path: str, mode: ApplyMode, result: ApplyResult) -> None:
         result.mode = mode
         result.status = ApplyStatus.NONE
         result.input_type = ApplyInputType.UNKNOWN
-        result.details = dict()
+        result.details = {}
         result.details["input_file"] = path
         result.details["kmindex"] = {}
         result.details["span"] = {}
@@ -416,7 +422,7 @@ class IndexOps:
             return True
         return False
 
-    def _indent_prefix(self):
+    def _indent_prefix(self) -> str:
         return "  └── " if logger.isEnabledFor(logging.INFO) else ""
 
     def _run_build(self, builder: IndexBuilder, i: IndexDefinition):
@@ -558,7 +564,7 @@ class IndexOps:
                 f"{self._indent_prefix()}Error adding sample '{s.name or "UNNAMED"}' to '{i.name}' | {e}"
             )
 
-    def _get_dbs(self, path, idt):
+    def _get_dbs(self, path: str, idt: IndexDefinitionTools) -> list[IndexDB]:
         """Load and cache ``IndexDB`` objects from a definition file.
 
         Args:
@@ -577,7 +583,7 @@ class IndexOps:
             self._dbs[path] = dbs
         return dbs
 
-    def _load_span_registry(self, path, idt, data) -> tuple[list, dict]:
+    def _load_span_registry(self, path: str, idt: IndexDefinitionTools, data: dict) -> tuple[list[IndexDB], dict[str, list[str]]]:
         """Parse a span registry and return ``(dbs, merges)``.
 
         Iterates over each span in the registry, optionally filtering by
@@ -628,7 +634,7 @@ class IndexOps:
                         dbs.extend(self._get_dbs(db_path, idt))
         return dbs, merges
 
-    def _build(self, result, builder, i):
+    def _build(self, result: ApplyResult, builder: IndexBuilder, i: IndexDefinition) -> None:
         """Build a sub-index and record the outcome in ``result``.
 
         Args:
@@ -640,9 +646,8 @@ class IndexOps:
         Raises:
             AssertionError: If ``bf_size`` is not set on the definition.
         """
-        assert (
-            i.bf_size > 0
-        ), f"IndexDefinition {i.name} is missing required 'bf_size' field"
+        assert i.name, "IndexDefinition is missing required 'name' field"
+        assert i.bf_size > 0, f"IndexDefinition {i.name} is missing required 'bf_size' field"
 
         builder.index.load_json()
         build_result = self._run_build(builder, i)
@@ -659,7 +664,7 @@ class IndexOps:
         else:
             self._record_run_result(result, i.name, ApplyStatus.NONE)
 
-    def _merge(self, result, builder, to_index, parts):
+    def _merge(self, result: ApplyResult, builder: IndexBuilder, to_index: str, parts: list[str]) -> None:
         """Merge a list of sub-indexes into a combined index and clean up the parts.
 
         Verifies that all constituent sub-indexes are present in the registry
@@ -714,7 +719,7 @@ class IndexOps:
                     for segment in parts:
                         self._delete_segment(builder, segment)
 
-    def _delete_segment(self, builder, segment):
+    def _delete_segment(self, builder: IndexBuilder, segment: str) -> None:
         """Remove a segment sub-index from the registry and delete its files.
 
         Unregisters ``segment`` from the kmindex registry (ignoring it if
@@ -766,7 +771,7 @@ class IndexOps:
                 )
 
             if os.path.exists(index_path):
-                logging.warning(
+                logger.warning(
                     f"Could not remove dir {index_path}, please remove it manually."
                 )
         else:
