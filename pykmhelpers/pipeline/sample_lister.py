@@ -98,9 +98,14 @@ class SampleLister:
             self._out = out
 
             if not backup_file:
+                root_path = self.input_dir or (
+                    os.path.dirname(os.path.realpath(self.input_list))
+                    if self.input_list
+                    else None
+                )
                 self._out.write(
                     self._new_header(
-                        self.input_dir,
+                        root_path,
                         self.kmer_size,
                         self.is_assembled,
                         self._tools.get_abundance_min(self.is_assembled),
@@ -110,15 +115,21 @@ class SampleLister:
                 self.input_dir, self.kmer_size, backup_parsed = self._process_backup(
                     backup_file
                 )
+                root_path = self.input_dir
 
             if self.input_list is not None:
                 if self.input_list.endswith((".yaml", ".yml")):
-                    self._import_yaml_list(self.input_list, self._process_sample)
+                    self._import_yaml_list(
+                        self.input_list, self._process_sample, root_path
+                    )
                 else:
-                    self._import_plain_text_list(self.input_list, self._process_sample)
+                    self._import_plain_text_list(
+                        self.input_list, self._process_sample, root_path
+                    )
 
-            if self.input_dir is not None:
-                self._process_samples(self.input_dir, DATA_EXT, self._process_sample)
+            scan_dir = self.input_dir
+            if scan_dir is not None and (do_scan or (backup_parsed and not do_import)):
+                self._process_samples(scan_dir, DATA_EXT, self._process_sample)
 
             if not do_scan and not do_import and not backup_parsed:
                 logger.warning(
@@ -133,6 +144,7 @@ class SampleLister:
         self,
         input_list,
         process_callback: typing.Callable[[str, list[str], int], None],
+        root_path: str | None = None,
     ):
         with open(input_list) as f:
             data = yaml.safe_load(f)
@@ -141,7 +153,15 @@ class SampleLister:
 
         self._out.write(json.dumps(header) + "\n")
         for name, attrs in data["samples"].items():
-            process_callback(name, attrs.get("files", []), attrs.get("kmer_count", 0))
+            files = (
+                [
+                    f if os.path.isabs(f) else os.path.join(root_path, f)
+                    for f in attrs.get("files", [])
+                ]
+                if root_path
+                else attrs.get("files", [])
+            )
+            process_callback(name, files, attrs.get("kmer_count", 0))
 
     def _process_sample(
         self, sample_id: str, files: list[str], kmer_count: int
@@ -177,7 +197,9 @@ class SampleLister:
         if self._counter is None:
             return 0
         try:
-            kmer_count = self._counter.count_files(files, mode=self._count_mode)
+            kmer_count = self._counter.count_files(
+                files, mode=self._count_mode, verbose=logger.isEnabledFor(logging.DEBUG)
+            )
             logger.info(f"{sample_id}:{kmer_count}")
             return kmer_count
         except Exception as e:
@@ -188,6 +210,7 @@ class SampleLister:
         self,
         filename: str,
         process_callback: typing.Callable[[str, list[str], int], None],
+        root_path: str | None = None,
     ) -> None:
         # Plain text: [sample_id] file_1[,file_2,...] [kmer_count]
         with open(filename) as f:
@@ -221,6 +244,11 @@ class SampleLister:
                     files_str = " ".join(parts[1:])
 
                 files = [f.strip().strip('"').strip("'") for f in files_str.split(",")]
+                if root_path:
+                    files = [
+                        f if os.path.isabs(f) else os.path.join(root_path, f)
+                        for f in files
+                    ]
                 if files:
                     process_callback(sample_id, files, kmer_count)
 
@@ -279,9 +307,7 @@ class SampleLister:
 
             if parsed:
                 kmer_size = first_entry.get("k", kmer_size)
-                input_dir = (
-                    first_entry.get("root_path") or input_dir or os.path.realpath(".")
-                )
+                input_dir = first_entry.get("root_path") or input_dir
                 is_assembled = first_entry.get("assembled", self.is_assembled)
                 first_entry["k"] = kmer_size
                 first_entry["root_path"] = input_dir

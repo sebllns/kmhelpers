@@ -68,7 +68,9 @@ class KmerCounter(Wrapper):
         """Number of threads used by ntcard."""
         return self._threadCount
 
-    def count(self, filename, mode: KmerCountMode = KmerCountMode.DISTINCT, verbose=False):
+    def count(
+        self, filename, mode: KmerCountMode = KmerCountMode.DISTINCT, verbose=False
+    ):
         """Count k-mers in a single file using ntcard.
 
         Args:
@@ -89,7 +91,9 @@ class KmerCounter(Wrapper):
 
         return self.count_files([filename], mode=mode, verbose=verbose)
 
-    def count_files(self, files, mode: KmerCountMode = KmerCountMode.DISTINCT, verbose=False):
+    def count_files(
+        self, files, mode: KmerCountMode = KmerCountMode.DISTINCT, verbose=False
+    ):
         """Count k-mers for one or more files in a single ntcard call.
 
         All files are counted together as a single dataset; use count_all for
@@ -118,7 +122,7 @@ class KmerCounter(Wrapper):
             if not os.path.exists(file_path):
                 raise FileNotFoundError(f"File not found: {file_path}")
 
-        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as tmp:
             tmp_file = tmp.name
 
         try:
@@ -132,31 +136,72 @@ class KmerCounter(Wrapper):
                 tmp_file,
             ] + files
 
-            self._run_cmd(cmd, print_trace=verbose)
+            result = self._run_cmd(cmd, print_trace=verbose)
 
             hist_file = f"{tmp_file}_k{self._k}.hist"
-            if not os.path.exists(hist_file):
-                raise ValueError(f"ntcard output file not found: {hist_file}")
 
-            with open(hist_file) as f:
-                lines = f.read().strip().split("\n")
+            if os.path.exists(hist_file):
+                # Old ntcard: "<prefix>_k<k>.hist" with "F1 <n>\nF0 <n>\n1 <n>\n..."
+                with open(hist_file) as f:
+                    lines = f.read().strip().split("\n")
 
-            if len(lines) < 2:
-                raise ValueError("Unexpected ntcard output format")
+                if len(lines) < 2:
+                    raise ValueError("Unexpected ntcard output format")
 
-            def parse_line(line):
-                parts = line.split()
-                if len(parts) < 2:
-                    raise ValueError(f"Cannot parse ntcard output line: {line!r}")
-                return int(parts[1])
+                def parse_hist_line(line):
+                    parts = line.split()
+                    if len(parts) < 2:
+                        raise ValueError(f"Cannot parse ntcard output line: {line!r}")
+                    return int(parts[1])
 
-            if mode == KmerCountMode.DISTINCT:
-                value = parse_line(lines[1])  # F0
-            elif mode == KmerCountMode.SOLID:
-                freq1 = parse_line(lines[2]) if len(lines) > 2 else 0
-                value = parse_line(lines[1]) - freq1  # F0 - freq[1]
-            else:  # TOTAL
-                value = parse_line(lines[0])  # F1
+                if mode == KmerCountMode.DISTINCT:
+                    value = parse_hist_line(lines[1])  # F0
+                elif mode == KmerCountMode.SOLID:
+                    freq1 = parse_hist_line(lines[2]) if len(lines) > 2 else 0
+                    value = parse_hist_line(lines[1]) - freq1  # F0 - freq[1]
+                else:  # TOTAL
+                    value = parse_hist_line(lines[0])  # F1
+
+            elif os.path.getsize(tmp_file) > 0:
+                # New ntcard: output written directly to "-o" path as TSV "k\tf\tn"
+                # F0/F1 summary also available on stderr as "k=<k>\t<stat>\t<value>"
+                with open(tmp_file) as f:
+                    lines = f.read().strip().split("\n")
+
+                freq: dict[int, int] = {}
+                for line in lines[1:]:  # skip header "k  f  n"
+                    parts = line.split()
+                    if len(parts) >= 3:
+                        try:
+                            freq[int(parts[1])] = int(parts[2])
+                        except ValueError:
+                            pass
+
+                f0 = sum(freq.values())
+                freq1 = freq.get(1, 0)
+
+                f1: int | None = None
+                for line in result.stderr.splitlines():
+                    parts = line.split()
+                    if (
+                        len(parts) >= 3
+                        and parts[0].startswith("k=")
+                        and parts[1] == "F1"
+                    ):
+                        try:
+                            f1 = int(parts[2])
+                        except ValueError:
+                            pass
+
+                if mode == KmerCountMode.DISTINCT:
+                    value = f0
+                elif mode == KmerCountMode.SOLID:
+                    value = f0 - freq1
+                else:  # TOTAL
+                    value = f1 or 0
+
+            else:
+                raise ValueError("ntcard produced no output")
 
             if verbose:
                 print(f"{mode.name}={value}")
@@ -174,7 +219,9 @@ class KmerCounter(Wrapper):
                 if os.path.exists(path):
                     os.remove(path)
 
-    def count_all(self, samples_dict, mode: KmerCountMode = KmerCountMode.DISTINCT, verbose=False):
+    def count_all(
+        self, samples_dict, mode: KmerCountMode = KmerCountMode.DISTINCT, verbose=False
+    ):
         """Count k-mers for multiple samples.
 
         Samples that already contain a "kmer_count" key are skipped.
