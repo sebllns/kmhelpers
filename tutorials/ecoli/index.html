@@ -1693,7 +1693,7 @@ five commands: <code>list</code> → <code>profile</code> → <code>compose</cod
 <hr />
 <h2 id="prerequisites">Prerequisites</h2>
 <ul>
-<li><strong>kmhelpers</strong> installed (see <a href="installation.md">Installation</a>)</li>
+<li><strong>kmhelpers</strong> installed (see <a href="../../installation/">Installation</a>)</li>
 <li>~25 GB of free disk space for the dataset and the resulting index</li>
 </ul>
 <h3 id="dependencies">Dependencies</h3>
@@ -1845,7 +1845,7 @@ disk latency rather than CPU, so every sub-index multiplies the number of
 partitions that must be opened and read. Fewer sub-indices means fewer
 partition files accessed per query, directly reducing that latency overhead.</p>
 </div>
-<p><img alt="Span distribution plot" src="coli3682_profile/groups.png" /></p>
+<p><img alt="Span distribution plot" src="../images/coli3682_profile.png" /></p>
 <hr />
 <h2 id="step-5-compose-index-definitions-compose">Step 5 — Compose index definitions (<code>compose</code>)</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>coli3682_1.jsonl<span class="w"> </span><span class="se">\</span>
