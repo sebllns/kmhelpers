@@ -25,7 +25,10 @@ If `--profile` is not specified, the `default_profile` field in the profiles fil
 
 ```bash
 # Basic composition
-kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml
+kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml 
+
+# Basic composition with custom index name and session ID
+kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml -n my_index -S session_1
 
 # Use a specific profile
 kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml --profile baseline
@@ -52,7 +55,7 @@ kmhelpers compose samples.jsonl -o ./db -ff index_layout.yaml
 | `-pf, --profiles-file FILE` | YAML profiles file defining span lists and BF parameters |
 | `-lf, --layout-file FILE` | Fingerprint YAML file from a previous compose run |
 | `-pr, --profile TEXT` | Profile name to use (default: `default_profile` from profiles file) |
-| `-I, --run-id TEXT` | Session tag appended to index names (default: timestamp) |
+| `-S, --session-id TEXT` | Session tag appended to index names (default: timestamp) |
 | `-n, --name TEXT` | Name of created index database (default: `index`) |
 | `-p, --partition-count INT` | Desired number of partitions per index, 0 for automatic (default: 0) |
 | `-b, --split-size SIZE` | Max run size (e.g. `10GB`, `5000MB`) before splitting samples across indices |

@@ -22,16 +22,16 @@ logger = logging.getLogger(__name__)
     help="📁  Output directory for compressed index",
 )
 @click.option(
-    "--run-id",
-    "-I",
+    "--session-id",
+    "-S",
     required=False,
     help="🏷️   Session tag appended to index names (default: timestamp if not given)",
 )
 @click.option(
     "--name",
     "-n",
-    default="index",
-    help="🏷️   Name of created index database",
+    required=True,
+    help="🏷️   Name of created index",
 )
 @click.option(
     "--profiles-file",
@@ -88,12 +88,12 @@ def compose(
     profiles_file,
     layout_file,
     selected_profile,
-    run_id,
     name,
     partition_count,
     bf_max_size,
     partition_min_size,
     partition_count_limit,
+    session_id,
 ):
     """Compose index definition file(s) from a sample list.
 
@@ -159,7 +159,7 @@ def compose(
         ).run(
             input_file=input_file,
             output_dir=output_dir,
-            run_id=run_id,
+            run_id=session_id,
         )
 
     except click.BadParameter as e:
