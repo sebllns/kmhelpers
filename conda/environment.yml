@@ -1,12 +1,14 @@
 name: kmhelpers
 channels:
+  - local
   - bioconda
   - conda-forge
   - nodefaults
 dependencies:
   - python>=3.8
-  - bioconda::kmindex>=0.6.0
+  - kmindex
   - bioconda::ntcard>=1.2.2
+  - conda-build
   - pip
   - pip:
       - -e ..

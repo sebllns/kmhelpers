@@ -20,6 +20,7 @@ requirements:
     - python >=3.8
     - psutil >=5.8.0
     - pyyaml >=5.4
+    # TODO: bump version once --static-repart is released on bioconda (currently only in next-dev)
     - bioconda::kmindex >=0.5.3
 
 test:
