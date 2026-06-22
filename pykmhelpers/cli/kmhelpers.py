@@ -8,6 +8,7 @@ import logging
 import os
 import platform
 import sys
+import time
 import traceback
 
 import click
@@ -115,8 +116,12 @@ class SectionedGroup(click.Group):
 
     def invoke(self, ctx):
         """Invoke the group with global exception handling."""
+        _start = time.monotonic()
         try:
-            return super().invoke(ctx)
+            result = super().invoke(ctx)
+            elapsed = time.monotonic() - _start
+            print(f"Done in {elapsed:.2f}s")
+            return result
         except (click.ClickException, click.exceptions.Exit, SystemExit):
             # Let Click exceptions and sys.exit pass through
             raise
