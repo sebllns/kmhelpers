@@ -101,7 +101,7 @@ of the bucket — the maximum k-mer count $\text{base}^{s+1}$ — so every sampl
 in the span fits:
 
 $$
-\text{bf\_size} = \left\lceil \frac{f \cdot \text{base}^{s+1}}{8} \right\rceil \times 8
+\text{bf_size} = \left\lceil \frac{f \cdot \text{base}^{s+1}}{8} \right\rceil \times 8
 \qquad \text{where } f = \frac{-\ln p}{(\ln 2)^2}
 $$
 
