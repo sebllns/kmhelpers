@@ -74,7 +74,7 @@ class IndexComposer:
 
         logger.info(f"Run ID: {run_id}")
 
-        run_dir = os.path.realpath(os.path.join(output_dir, run_id))
+        run_dir = os.path.realpath(os.path.join(output_dir, self.name, run_id))
         os.makedirs(run_dir, exist_ok=True)
 
         try:

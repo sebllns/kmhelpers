@@ -130,9 +130,10 @@ aligns the size to a byte boundary.
     `base` controls bucket width. With `base=2.0` (default) each bucket spans
     a 2× range of k-mer counts, producing few coarse spans. `-b 1.1` narrows
     each bucket to a 10 % range, giving finer resolution at the cost of more
-    spans. `-g 2` then requests that those spans be merged into 2 groups
-    (chosen here for this small dataset — pick a value that fits your own
-    distribution).
+    spans. `-g 2` then requests that those spans be merged into 2 groups.
+    For a dataset this small and uniform, `-g 1` (a single group) would
+    actually be the optimal choice; we use `-g 2` here to illustrate how
+    grouping works — pick a value that fits your own distribution.
 
 `profile` writes three output files to `coli3682_profile/`:
 
@@ -215,6 +216,8 @@ requested 2-group overlay.
 ```bash
 kmhelpers compose coli3682_1.jsonl \
     -o coli3682_db/ \
+    -n coli3682 \
+    -S initial \
     -pf coli3682_profile/profile.yaml
 ```
 
@@ -232,7 +235,7 @@ Before committing to a potentially long build, validate paths and preview the
 commands that will be executed:
 
 ```bash
-kmhelpers plan coli3682_db/index.yaml -w coli3682_db/
+kmhelpers plan coli3682_db/coli3682/initial/coli3682.yaml -w coli3682_build/
 ```
 
 `plan` checks that every sample file exists, reports any missing paths, and

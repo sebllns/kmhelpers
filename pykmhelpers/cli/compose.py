@@ -22,16 +22,16 @@ logger = logging.getLogger(__name__)
     help="📁  Output directory for compressed index",
 )
 @click.option(
-    "--session-id",
-    "-S",
-    required=False,
-    help="🏷️   Session tag appended to index names (default: timestamp if not given)",
-)
-@click.option(
     "--name",
     "-n",
     required=True,
     help="🏷️   Name of created index",
+)
+@click.option(
+    "--session-id",
+    "-S",
+    required=False,
+    help="🏷️   Session tag appended to index names (default: current timestamp)",
 )
 @click.option(
     "--profiles-file",

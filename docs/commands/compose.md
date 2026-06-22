@@ -24,23 +24,20 @@ If `--profile` is not specified, the `default_profile` field in the profiles fil
 ## Examples
 
 ```bash
-# Basic composition
-kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml 
-
 # Basic composition with custom index name and session ID
 kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml -n my_index -S session_1
 
 # Use a specific profile
-kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml --profile baseline
+kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml -n my_index --profile baseline
 
 # Override partition count
-kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml --partition-count 4
+kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml -n my_index --partition-count 4
 
 # Set minimum partition size
-kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml --partition-min-size 500MB
+kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml -n my_index --partition-min-size 500MB
 
 # Split large spans across multiple sub-indices
-kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml --split-size 10GB
+kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml -n my_index --split-size 10GB
 
 # Update an existing index using its layout
 kmhelpers compose samples.jsonl -o ./db -ff index_layout.yaml
