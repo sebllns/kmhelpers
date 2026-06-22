@@ -1,0 +1,2025 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A Python toolkit for managing, compressing, and querying kmindex indices efficiently.">
+      
+      
+        <meta name="author" content="Sébastien Bellenous">
+      
+      
+      
+        <link rel="prev" href="../../getting-started/">
+      
+      
+        <link rel="next" href="../../commands/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/kmhelpers-logo-v1.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>E. coli Dataset - kmhelpers documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#tutorial-indexing-e-coli-assemblies" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="kmhelpers documentation" class="md-header__button md-logo" aria-label="kmhelpers documentation" data-md-component="logo">
+      
+  <img src="../../assets/kmhelpers-logo-v1.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            kmhelpers documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              E. coli Dataset
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="teal"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="teal"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/sebllns/kmhelpers" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    sebllns/kmhelpers
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../installation/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Installation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../getting-started/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../commands/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Commands
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../contributing/docs/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Contributing
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="kmhelpers documentation" class="md-nav__button md-logo" aria-label="kmhelpers documentation" data-md-component="logo">
+      
+  <img src="../../assets/kmhelpers-logo-v1.png" alt="logo">
+
+    </a>
+    kmhelpers documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/sebllns/kmhelpers" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    sebllns/kmhelpers
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    E. coli Dataset
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    E. coli Dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Prerequisites">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-1-download-and-extract-the-dataset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1 — Download and extract the dataset
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-2-create-a-file-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2 — Create a file list
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-3-scan-samples-and-count-k-mers-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3 — Scan samples and count k-mers (list)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#k-25-assembled-true-name-gca_0007805151_asm78051v1-files-coli3682_datasetgca_0007805151_asm78051v1fna-kmer_count-10898876-name-gca_0010761251_asm107612v1-files-coli3682_datasetgca_0010761251_asm107612v1fna-kmer_count-10180102" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        {&quot;k&quot;: 25, &quot;assembled&quot;: true} {&quot;name&quot;: &quot;GCA_000780515.1_ASM78051v1&quot;, &quot;files&quot;: [&quot;coli3682_dataset/GCA_000780515.1_ASM78051v1.fna&quot;], &quot;kmer_count&quot;: 10898876} {&quot;name&quot;: &quot;GCA_001076125.1_ASM107612v1&quot;, &quot;files&quot;: [&quot;coli3682_dataset/GCA_001076125.1_ASM107612v1.fna&quot;], &quot;kmer_count&quot;: 10180102} ...
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-4-profile-the-k-mer-distribution-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4 — Profile the k-mer distribution (profile)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 4 — Profile the k-mer distribution (profile)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#baselinecsv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        baseline.csv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#profileyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        profile.yaml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#groupspng" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        groups.png
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-5-compose-index-definitions-compose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5 — Compose index definitions (compose)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-6-preview-the-build-plan-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6 — Preview the build plan (plan)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-7-build-the-index-apply" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 7 — Build the index (apply)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-8-query-the-index-query" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 8 — Query the index (query)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../commands/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Commands
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Commands
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Main Commands
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Main Commands
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/list/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    list
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/profile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    profile
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/compose/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    compose
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/apply/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    apply
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/query/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    query
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/compress/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    compress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_3" id="__nav_5_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Utilities
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Utilities
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Contributing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/docs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building the Docs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Prerequisites">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-1-download-and-extract-the-dataset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1 — Download and extract the dataset
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-2-create-a-file-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2 — Create a file list
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-3-scan-samples-and-count-k-mers-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3 — Scan samples and count k-mers (list)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#k-25-assembled-true-name-gca_0007805151_asm78051v1-files-coli3682_datasetgca_0007805151_asm78051v1fna-kmer_count-10898876-name-gca_0010761251_asm107612v1-files-coli3682_datasetgca_0010761251_asm107612v1fna-kmer_count-10180102" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        {&quot;k&quot;: 25, &quot;assembled&quot;: true} {&quot;name&quot;: &quot;GCA_000780515.1_ASM78051v1&quot;, &quot;files&quot;: [&quot;coli3682_dataset/GCA_000780515.1_ASM78051v1.fna&quot;], &quot;kmer_count&quot;: 10898876} {&quot;name&quot;: &quot;GCA_001076125.1_ASM107612v1&quot;, &quot;files&quot;: [&quot;coli3682_dataset/GCA_001076125.1_ASM107612v1.fna&quot;], &quot;kmer_count&quot;: 10180102} ...
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-4-profile-the-k-mer-distribution-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4 — Profile the k-mer distribution (profile)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 4 — Profile the k-mer distribution (profile)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#baselinecsv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        baseline.csv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#profileyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        profile.yaml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#groupspng" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        groups.png
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-5-compose-index-definitions-compose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5 — Compose index definitions (compose)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-6-preview-the-build-plan-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6 — Preview the build plan (plan)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-7-build-the-index-apply" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 7 — Build the index (apply)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-8-query-the-index-query" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 8 — Query the index (query)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="./" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Tutorials
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="tutorial-indexing-e-coli-assemblies">Tutorial: Indexing <em>E. coli</em> Assemblies</h1>
+<p>This tutorial walks through the full kmhelpers workflow on a real public dataset:
+3 682 <em>E. coli</em> assemblies downloaded from NCBI and archived on Zenodo.</p>
+<blockquote>
+<p>Jarno N. Alanko. (2022). <em>3682 E. coli assemblies from NCBI</em> [Data set].
+Zenodo. <a href="https://doi.org/10.5281/zenodo.6577997">https://doi.org/10.5281/zenodo.6577997</a></p>
+</blockquote>
+<p>By the end you will have a queryable k-mer index of these assemblies built in
+five commands: <code>list</code> → <code>profile</code> → <code>compose</code> → <code>plan</code> → <code>apply</code>.</p>
+<hr />
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><strong>kmhelpers</strong> installed (see <a href="installation.md">Installation</a>)</li>
+<li>~25 GB of free disk space for the dataset and the resulting index</li>
+</ul>
+<h3 id="dependencies">Dependencies</h3>
+<p>The following tools are installed alongside kmhelpers when using the conda environment:</p>
+<ul>
+<li><strong><a href="https://github.com/tlemane/kmindex">kmindex</a></strong> — the underlying indexing engine</li>
+<li><strong><a href="https://github.com/BirolLab/ntCard">ntcard</a></strong> — k-mer counter used by <code>list</code></li>
+</ul>
+<hr />
+<h2 id="step-1-download-and-extract-the-dataset">Step 1 — Download and extract the dataset</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>wget<span class="w"> </span>https://zenodo.org/records/6577997/files/coli3682_dataset.tar.gz
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>tar<span class="w"> </span>-xzf<span class="w"> </span>coli3682_dataset.tar.gz
+</code></pre></div>
+<p>This creates a <code>coli3682_dataset/</code> directory containing 3 682 <code>.fna</code> assembly
+files named after their NCBI accessions (e.g. <code>GCA_000780515.1_ASM78051v1.fna</code>).</p>
+<hr />
+<h2 id="step-2-create-a-file-list">Step 2 — Create a file list</h2>
+<p><code>kmhelpers list</code> accepts a plain-text file of sample paths as input.
+In the directory where you ran <code>tar</code> (the parent of <code>coli3682_dataset/</code>), create <code>zenodo_list_1.txt</code>.
+Paths are relative to that directory, and <code>kmhelpers list</code> must be run from the same location:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>cat<span class="w"> </span>&gt;<span class="w"> </span>zenodo_list_1.txt<span class="w"> </span><span class="s">&lt;&lt; &#39;EOF&#39;</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="s">coli3682_dataset/GCA_000780515.1_ASM78051v1.fna</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="s">coli3682_dataset/GCA_001076125.1_ASM107612v1.fna</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="s">coli3682_dataset/GCA_001417575.1_ASM141757v1.fna</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="s">coli3682_dataset/GCA_000944435.1_Ec57A_E8C1_MIRA_assembly.fna</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="s">coli3682_dataset/GCA_001075925.1_ASM107592v1.fna</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="s">coli3682_dataset/GCA_000936715.1_E8C1_assembly.fna</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="s">coli3682_dataset/GCA_000939215.1_Ec57A_A7_MIRA_assembly.fna</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="s">coli3682_dataset/GCA_001413795.1_ASM141379v1.fna</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="s">coli3682_dataset/GCA_001373195.1_57A_A7_assembly.fna</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="s">coli3682_dataset/GCA_000938575.1_D1C4_assembly.fna</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="s">EOF</span>
+</code></pre></div>
+<hr />
+<h2 id="step-3-scan-samples-and-count-k-mers-list">Step 3 — Scan samples and count k-mers (<code>list</code>)</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>zenodo_list_1.txt<span class="w"> </span>-o<span class="w"> </span>coli3682_1.jsonl<span class="w"> </span>-k<span class="w"> </span><span class="m">25</span><span class="w"> </span>-t<span class="w"> </span>a
+</code></pre></div>
+<p><code>list</code> reads each path, counts k-mers with ntcard (k = 25), and writes one
+JSONL record per sample to <code>coli3682_1.jsonl</code>.</p>
+<p>The header line records the shared parameters; every subsequent line is one
+sample:</p>
+<h2 id="k-25-assembled-true-name-gca_0007805151_asm78051v1-files-coli3682_datasetgca_0007805151_asm78051v1fna-kmer_count-10898876-name-gca_0010761251_asm107612v1-files-coli3682_datasetgca_0010761251_asm107612v1fna-kmer_count-10180102"><div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>{&quot;k&quot;: 25, &quot;assembled&quot;: true}
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>{&quot;name&quot;: &quot;GCA_000780515.1_ASM78051v1&quot;, &quot;files&quot;: [&quot;coli3682_dataset/GCA_000780515.1_ASM78051v1.fna&quot;], &quot;kmer_count&quot;: 10898876}
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>{&quot;name&quot;: &quot;GCA_001076125.1_ASM107612v1&quot;, &quot;files&quot;: [&quot;coli3682_dataset/GCA_001076125.1_ASM107612v1.fna&quot;], &quot;kmer_count&quot;: 10180102}
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>...
+</code></pre></div></h2>
+<h2 id="step-4-profile-the-k-mer-distribution-profile">Step 4 — Profile the k-mer distribution (<code>profile</code>)</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kmhelpers<span class="w"> </span>profile<span class="w"> </span>coli3682_1.jsonl<span class="w"> </span>-o<span class="w"> </span>coli3682_profile/<span class="w"> </span>-b<span class="w"> </span><span class="m">1</span>.1<span class="w"> </span>-g<span class="w"> </span><span class="m">2</span>
+</code></pre></div>
+<p>A <em>span</em> is an integer bucket that summarises a sample's k-mer count:</p>
+<div class="arithmatex">\[
+s = \left\lfloor \log_{\text{base}}(n) \right\rfloor
+\]</div>
+<p>where <span class="arithmatex">\(n\)</span> is the sample's distinct k-mer count. All samples whose k-mer count
+falls in the same bucket <span class="arithmatex">\([\text{base}^s,\, \text{base}^{s+1})\)</span> share span <span class="arithmatex">\(s\)</span>
+and are indexed together in one sub-index.</p>
+<p>The Bloom filter allocated for that sub-index is sized for the <strong>worst case</strong>
+of the bucket — the maximum k-mer count <span class="arithmatex">\(\text{base}^{s+1}\)</span> — so every sample
+in the span fits:</p>
+<div class="arithmatex">\[
+\text{bf\_size} = \left\lceil \frac{f \cdot \text{base}^{s+1}}{8} \right\rceil \times 8
+\qquad \text{where } f = \frac{-\ln p}{(\ln 2)^2}
+\]</div>
+<p><span class="arithmatex">\(p\)</span> is the false-positive rate (default 0.25) and the <span class="arithmatex">\(\times 8\)</span> rounding
+aligns the size to a byte boundary.</p>
+<div class="admonition tip">
+<p class="admonition-title">False-positive rate and findere</p>
+<p>A higher <span class="arithmatex">\(p\)</span> reduces Bloom-filter size and therefore disk footprint, at the
+cost of more false positives. At query time the
+<a href="https://doi.org/10.1007/978-3-030-86692-1_13">findere</a> algorithm
+compensates by querying <span class="arithmatex">\((k+z)\)</span>-mers instead of <span class="arithmatex">\(k\)</span>-mers, reducing the
+effective false-positive rate to <span class="arithmatex">\(p^z\)</span>:</p>
+<div class="arithmatex">\[
+p_{\text{eff}} = p^z
+\]</div>
+<p><strong>Recommended settings:</strong> build with <code>--fp 0.25</code> (default), query with
+<code>-z 6</code> (default), giving <span class="arithmatex">\(0.25^6 \approx 0.024\,\%\)</span> effective FP rate.</p>
+<blockquote>
+<p>Lucas Robidou and Pierre Peterlongo. <em>findere: fast and precise
+approximate membership query.</em> SPIRE 2021, Springer, pp. 151–163.
+<a href="https://doi.org/10.1007/978-3-030-86692-1_13">https://doi.org/10.1007/978-3-030-86692-1_13</a></p>
+</blockquote>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Choosing <code>base</code> and the number of groups</p>
+<p><code>base</code> controls bucket width. With <code>base=2.0</code> (default) each bucket spans
+a 2× range of k-mer counts, producing few coarse spans. <code>-b 1.1</code> narrows
+each bucket to a 10 % range, giving finer resolution at the cost of more
+spans. <code>-g 2</code> then requests that those spans be merged into 2 groups
+(chosen here for this small dataset — pick a value that fits your own
+distribution).</p>
+</div>
+<p><code>profile</code> writes three output files to <code>coli3682_profile/</code>:</p>
+<h3 id="baselinecsv"><code>baseline.csv</code></h3>
+<p>One row per span: the Bloom-filter size required for that span and how many
+samples fall into it.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>span,bf_size,sample_count
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>161,14649392,5
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>167,25952288,1
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>168,28547520,2
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>169,31402272,1
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>170,34542496,1
+</code></pre></div>
+<p>With base 1.1, our 10 assemblies spread across 5 fine-grained spans.</p>
+<h3 id="profileyaml"><code>profile.yaml</code></h3>
+<p>Records global parameters and one named profile per grouping. The <code>baseline</code>
+profile preserves the natural 5-span distribution; <code>2_groups</code> merges them into
+two sub-indices:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">false_positive_rate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.25</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nt">span_base</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.1</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="nt">sample_count</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="nt">biggest_sample</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">(&#39;GCA_000780515_1_ASM78051v1&#39;, 10898876)</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="nt">max_kmer_count</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">11971516</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="nt">default_profile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2_groups</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="nt">profiles</span><span class="p">:</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">  </span><span class="nt">baseline</span><span class="p">:</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">    </span><span class="nt">span_list</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">161</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">167</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">168</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">169</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">170</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">    </span><span class="nt">bloom_size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">14649392</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">25952288</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">28547520</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">31402272</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">34542496</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">    </span><span class="nt">sample_dist</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">5</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">    </span><span class="nt">disk_usage</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1.47e+07B</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2.6e+07B</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2.86e+07B</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">3.14e+07B</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">3.46e+07B</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">    </span><span class="nt">size_ratio</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;0.109&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;0.192&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;0.211&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;0.232&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;0.256&#39;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">    </span><span class="nt">total_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.35e+08B</span>
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">    </span><span class="nt">bytes_per_sample</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.35e+07B</span>
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="w">  </span><span class="nt">2_groups</span><span class="p">:</span>
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="w">    </span><span class="nt">span_list</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">161</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">170</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="w">    </span><span class="nt">bloom_size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">14649392</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">34542496</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="w">    </span><span class="nt">sample_dist</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">5</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">5</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a><span class="w">    </span><span class="nt">disk_usage</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1.47e+07B</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">3.46e+07B</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a><span class="w">    </span><span class="nt">size_ratio</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;0.298&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;0.702&#39;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a><span class="w">    </span><span class="nt">total_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4.92e+07B</span>
+<a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a><span class="w">    </span><span class="nt">bytes_per_sample</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4.92e+06B</span>
+</code></pre></div>
+<h3 id="groupspng"><code>groups.png</code></h3>
+<p>A plot showing the k-mer count distribution, natural span boundaries, and the
+requested 2-group overlay.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Grouping affects both storage and query performance.</p>
+<p><strong>Storage:</strong> <code>kmindex</code> stores samples in packs of 8 (bit-packing), so a
+sub-index with 1 sample occupies the same disk space as one with 8. In the
+<code>baseline</code> profile, spans 167, 169 and 170 hold only 1–2 samples each —
+those near-empty packs waste most of their allocated space, bringing the
+total to <strong>135 MB</strong>. In this case, merging the 5 sub-indices into 2 reduces
+the number of packs from 5 to 2 (one per group), cutting the total to
+<strong>50 MB</strong>.</p>
+<p><strong>Query time:</strong> each sub-index is composed of multiple partition files
+(<code>kmindex</code> terminology). Query performance on large datasets is dominated by
+disk latency rather than CPU, so every sub-index multiplies the number of
+partitions that must be opened and read. Fewer sub-indices means fewer
+partition files accessed per query, directly reducing that latency overhead.</p>
+</div>
+<p><img alt="Span distribution plot" src="coli3682_profile/groups.png" /></p>
+<hr />
+<h2 id="step-5-compose-index-definitions-compose">Step 5 — Compose index definitions (<code>compose</code>)</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>coli3682_1.jsonl<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span>-o<span class="w"> </span>coli3682_db/<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span>-pf<span class="w"> </span>coli3682_profile/profile.yaml
+</code></pre></div>
+<p><code>compose</code> reads the sample list and the profile, then writes index definition
+files into <code>coli3682_db/</code>. The sample-to-sub-index repartition is driven by
+the selected profile — here <code>2_groups</code>, the default set by <code>profile</code> — whose
+Bloom-filter sizes, are read from
+<code>coli3682_profile/profile.yaml</code>.</p>
+<hr />
+<h2 id="step-6-preview-the-build-plan-plan">Step 6 — Preview the build plan (<code>plan</code>)</h2>
+<p>Before committing to a potentially long build, validate paths and preview the
+commands that will be executed:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>kmhelpers<span class="w"> </span>plan<span class="w"> </span>coli3682_db/index.yaml<span class="w"> </span>-w<span class="w"> </span>coli3682_db/
+</code></pre></div>
+<p><code>plan</code> checks that every sample file exists, reports any missing paths, and
+prints the equivalent <code>kmindex</code> commands — without running them. Fix any path
+errors now rather than discovering them mid-build.</p>
+<hr />
+<h2 id="step-7-build-the-index-apply">Step 7 — Build the index (<code>apply</code>)</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli3682_db/index.yaml<span class="w"> </span>-w<span class="w"> </span>coli3682_db/<span class="w"> </span>-t<span class="w"> </span><span class="m">8</span>
+</code></pre></div>
+<p><code>apply</code> runs the build. The <code>-t 8</code> flag sets the number of threads; adjust it
+to match your machine.</p>
+<p>Useful options for long runs:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Show a progress bar</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli3682_db/index.yaml<span class="w"> </span>-w<span class="w"> </span>coli3682_db/<span class="w"> </span>-t<span class="w"> </span><span class="m">8</span><span class="w"> </span>--show-progress
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># Abort immediately on any error</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli3682_db/index.yaml<span class="w"> </span>-w<span class="w"> </span>coli3682_db/<span class="w"> </span>-t<span class="w"> </span><span class="m">8</span><span class="w"> </span>--fail-on-error
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="c1"># Get an email when the build finishes</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli3682_db/index.yaml<span class="w"> </span>-w<span class="w"> </span>coli3682_db/<span class="w"> </span>-t<span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">    </span>--notify<span class="w"> </span>you@example.com
+</code></pre></div>
+<p>Once complete, the index is registered in <code>coli3682_db/</code> and ready to query.</p>
+<hr />
+<h2 id="step-8-query-the-index-query">Step 8 — Query the index (<code>query</code>)</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>coli3682_db/<span class="w"> </span>-n<span class="w"> </span>index<span class="w"> </span>-o<span class="w"> </span>results/<span class="w"> </span>query.fa
+</code></pre></div>
+<p><code>query</code> searches the index for every sequence in <code>query.fa</code> and writes one
+result file per query sequence to <code>results/</code>. The index name (<code>-n index</code>)
+must match the name used during <code>compose</code>.</p>
+<p>Results are written in JSON by default. Use <code>-f</code> to change the format:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># CSV output</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>coli3682_db/<span class="w"> </span>-n<span class="w"> </span>index<span class="w"> </span>-o<span class="w"> </span>results/<span class="w"> </span>-f<span class="w"> </span>csv<span class="w"> </span>query.fa
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="c1"># Print results to the console as well</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>coli3682_db/<span class="w"> </span>-n<span class="w"> </span>index<span class="w"> </span>-o<span class="w"> </span>results/<span class="w"> </span>-p<span class="w"> </span>query.fa
+</code></pre></div>
+<p>To query all sequences together as a single batch (one result row instead of
+one per sequence):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>coli3682_db/<span class="w"> </span>-n<span class="w"> </span>index<span class="w"> </span>-o<span class="w"> </span>results/<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">    </span>--single-query<span class="w"> </span>my_batch<span class="w"> </span>query.fa
+</code></pre></div>
+<p>Use <code>-R</code> to filter out low-confidence hits (fraction of shared k-mers below
+the threshold):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>coli3682_db/<span class="w"> </span>-n<span class="w"> </span>index<span class="w"> </span>-o<span class="w"> </span>results/<span class="w"> </span>-R<span class="w"> </span><span class="m">0</span>.5<span class="w"> </span>query.fa
+</code></pre></div>
+<hr />
+<h2 id="next-steps">Next steps</h2>
+<ul>
+<li><strong>Compress</strong> the index to save disk space:
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>kmhelpers<span class="w"> </span>compress<span class="w"> </span>-r<span class="w"> </span>coli3682_db/<span class="w"> </span>-n<span class="w"> </span>index<span class="w"> </span>--reorder
+</code></pre></div></li>
+<li>See the <a href="../../commands/">Command Reference</a> for the full option list of
+  every command used here.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../../getting-started/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Getting Started">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Getting Started
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../../commands/" class="md-footer__link md-footer__link--next" aria-label="Next: Overview">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Overview
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
