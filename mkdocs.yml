@@ -52,11 +52,18 @@ markdown_extensions:
       base_path: .
   - tables
   - attr_list
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_javascript:
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
 
 nav:
   - Home: index.md
   - Installation: installation.md
   - Getting Started: getting-started.md
+  - Tutorials:
+      - E. coli Dataset: tutorials/ecoli.md
   - Commands:
       - Overview: commands/index.md
       - Main Commands:
