@@ -1,14 +1,24 @@
 name: kmhelpers
 channels:
-  - local
   - bioconda
   - conda-forge
   - nodefaults
 dependencies:
   - python>=3.8
-  - kmindex
   - bioconda::ntcard>=1.2.2
-  - conda-build
+  # kmindex build dependencies
+  - cmake
+  - make
+  - gcc_linux-64=12.2.0
+  - gxx_linux-64=12.2.0
+  - gcc_impl_linux-64=12.2.0
+  - gxx_impl_linux-64=12.2.0
+  - zlib
+  - xxhash
+  - spdlog=1.10.0
+  - fmt=8.1.1
+  - boost-cpp
+  - bzip2
   - pip
   - pip:
       - -e ..

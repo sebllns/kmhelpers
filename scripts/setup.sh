@@ -17,36 +17,36 @@ ENV_PATH="${SCRIPT_DIR}/../.env"
 
 trap 'rm -rf "$BUILD_DIR"' EXIT
 
-echo "==> Creating base environment at ${ENV_PATH} (without kmindex)"
-TMP_YML="$(mktemp --suffix=.yml)"
-grep -v "^  - kmindex$" "$SCRIPT_DIR/../conda/environment.yml" > "$TMP_YML"
+echo "==> Creating conda environment at ${ENV_PATH}"
 if [[ -d "$ENV_PATH" ]]; then
-  conda env update --prefix "$ENV_PATH" -f "$TMP_YML" --prune
+  conda env update --prefix "$ENV_PATH" -f "$SCRIPT_DIR/../conda/environment.yml" --prune
 else
-  conda env create --prefix "$ENV_PATH" -f "$TMP_YML"
+  conda env create --prefix "$ENV_PATH" -f "$SCRIPT_DIR/../conda/environment.yml"
 fi
-rm "$TMP_YML"
 
 echo "==> Cloning kmindex ${KMINDEX_BRANCH}"
-git clone --depth 1 --branch "$KMINDEX_BRANCH" "$KMINDEX_REPO" "$BUILD_DIR/kmindex"
+git clone --depth 1 --branch "$KMINDEX_BRANCH" --recurse-submodules "$KMINDEX_REPO" "$BUILD_DIR/kmindex"
 
-echo "==> Building kmindex conda package"
-RECIPE_DIR="$BUILD_DIR/kmindex/conda/kmindex"
-RECIPE_FILE="$RECIPE_DIR/meta.local.yaml"
-COMMIT=$(git -C "$BUILD_DIR/kmindex" rev-parse --short HEAD 2>/dev/null || echo "unknown")
-
-sed \
-  -e 's|\({% set version = "[^"]*\)"\s*%}|\1.dev0" %}|' \
-  -e "s|{% set version.*|&\n{% set commit = \"${COMMIT}\" %}|" \
-  -e 's|git_url:.*|path: ../..|' \
-  -e '/git_rev:/d' \
-  -e 's|^source:|build:\n  string: {{ commit }}\n\nsource:|' \
-  "$RECIPE_DIR/meta.yaml" > "$RECIPE_FILE"
-
-echo "Generated meta.local.yaml (commit: ${COMMIT})"
-conda run --prefix "$ENV_PATH" conda build "$RECIPE_DIR" --recipe-file "$RECIPE_FILE" --no-test
-
-echo "==> Installing kmindex into ${ENV_PATH}"
-conda install --prefix "$ENV_PATH" -y --use-local kmindex
+echo "==> Building and installing kmindex into ${ENV_PATH}"
+export CC="$ENV_PATH/bin/x86_64-conda-linux-gnu-gcc"
+export CXX="$ENV_PATH/bin/x86_64-conda-linux-gnu-g++"
+conda run --prefix "$ENV_PATH" \
+  bash -c "
+    rm -rf '$BUILD_DIR/kmindex/kmbuild' && mkdir -p '$BUILD_DIR/kmindex/kmbuild' && cd '$BUILD_DIR/kmindex/kmbuild' && \
+    $CC --version && $CXX --version && \
+    cmake .. \
+      -DCMAKE_C_COMPILER='$CC' \
+      -DCMAKE_CXX_COMPILER='$CXX' \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DWITH_TESTS=OFF \
+      -DWITH_SERVER=OFF \
+      -DPORTABLE_BUILD=OFF \
+      -DCMAKE_CXX_STANDARD=17 \
+      -DMAX_KMER_SIZE=256 \
+      -DSPDLOG_HEADER_ONLY=ON \
+      -DCMAKE_INSTALL_PREFIX='$ENV_PATH' \
+      -DCMAKE_PREFIX_PATH='$ENV_PATH' && \
+    make -j$(nproc) && make install
+  "
 
 echo "==> Done. Activate with: conda activate ${ENV_PATH}"
