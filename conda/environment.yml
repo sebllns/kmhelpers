@@ -7,8 +7,9 @@ dependencies:
   - python>=3.8
   - bioconda::ntcard>=1.2.2
   # kmindex build dependencies
-  - cmake
+  - cmake=3.24.0
   - make
+  - git
   - gcc_linux-64=12.2.0
   - gxx_linux-64=12.2.0
   - gcc_impl_linux-64=12.2.0
