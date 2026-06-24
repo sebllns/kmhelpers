@@ -1,7 +1,15 @@
+import logging
+
 import click
-from pykmhelpers import KmindexWrapper, KmindexRegistry
+
+from pykmhelpers import KmindexRegistry, KmindexWrapper
+from pykmhelpers.core.log import Log
+
+logger = logging.getLogger(__name__)
+
 
 @click.command(name="compress")
+@click.pass_context
 @click.option(
     "--registry-path",
     "-r",
@@ -65,13 +73,8 @@ from pykmhelpers import KmindexWrapper, KmindexRegistry
     default=False,
     help="Check query results after compressing",
 )
-@click.option(
-    "--verbose",
-    "-v",
-    is_flag=True,
-    help="Verbose output",
-)
 def kmindex_compress(
+    ctx,
     registry_path,
     index_name,
     block_size,
@@ -82,7 +85,6 @@ def kmindex_compress(
     reorder,
     delete,
     check,
-    verbose,
 ):
     """Compress an index.
 
@@ -99,12 +101,22 @@ def kmindex_compress(
       # Custom compression level with multiple threads
       kmhelpers kmindex-compress -r ./registry -n my_index --cpr-level 6 -t 16
     """
+    if delete and not (ctx.obj or {}).get("yes", False):
+        if not click.confirm(
+            f"Delete uncompressed index '{index_name}' after compression?",
+            default=False,
+        ):
+            raise click.Abort()
+
     try:
         registry = KmindexRegistry(registry_path)
 
-        if verbose:
-            click.echo(f"Preparing to compress index: {index_name}")
-            click.echo(f"  Registry: {registry_path}")
+        logger.info(f"Preparing to compress index: {index_name}")
+        logger.info(f"  Registry: {registry_path}")
+        logger.info(f"  Compression level: {cpr_level}")
+
+        if reorder:
+            logger.info(f"  Column reordering: enabled")
 
         registry.compress(
             index_name=index_name,
@@ -116,23 +128,16 @@ def kmindex_compress(
             reorder=reorder,
             delete_uncompressed=delete,
             check_results=check,
-            verbose="debug" if verbose else "info",
+            verbose="debug" if logger.isEnabledFor(logging.DEBUG) else "info",
         )
 
-        click.echo(f"✓ Compression completed successfully")
-        click.echo(f"  Index: {index_name}")
-        click.echo(f"  Block size: {block_size} MB")
-        click.echo(f"  Compression level: {cpr_level}")
-
+        logger.info(f"✓ Compression completed successfully")
+        logger.info(f"  Index: {index_name}")
+        logger.info(f"  Block size: {block_size} MB")
         if reorder:
-            click.echo(f"  Column reordering: enabled")
-
+            logger.info(f"  Column reordered")
         if delete:
-            click.echo(f"  Uncompressed index deleted")
+            logger.info(f"  Uncompressed index deleted")
 
-    except ValueError as e:
-        raise click.ClickException(f"Registry error: {e}")
-    except FileNotFoundError as e:
-        raise click.ClickException(f"Registry file not found: {e}")
     except Exception as e:
-        raise click.ClickException(f"Compression failed: {e}")
+        Log.handle_exception(logger, e, "Compression failed")

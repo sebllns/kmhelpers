@@ -111,12 +111,6 @@ need to resolve them from a different location.",
     is_flag=True,
     help="🚩  Abort the entire run if any index fails to build, instead of skipping it and continuing.",
 )
-@click.option(
-    "--verbose",
-    "-v",
-    is_flag=True,
-    help="🚩  Verbose output.",
-)
 @click.pass_context
 def plan(
     ctx,
@@ -131,7 +125,6 @@ def plan(
     existing,
     offline,
     fail_on_error,
-    verbose,
 ):
     """Validate paths and preview the build plan from an index definition file.
 
@@ -176,10 +169,6 @@ def plan(
         force = (ctx.obj or {}).get("yes", False)
 
         abort_msg = "FAILED ('plan')"
-
-        # Bump logging level to INFO if -v is set and current level is higher
-        if verbose:
-            shared.force_verbose_mode()
 
         try:
             selected_ids = (

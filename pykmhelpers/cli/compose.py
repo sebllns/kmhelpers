@@ -4,7 +4,6 @@ import logging
 
 import click
 
-from pykmhelpers.cli.shared import force_verbose_mode
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.log import Log
 from pykmhelpers.pipeline.composer import IndexComposer

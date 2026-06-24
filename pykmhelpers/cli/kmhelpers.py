@@ -175,13 +175,13 @@ class SectionedGroup(click.Group):
     "-v",
     "--verbose",
     count=True,
-    help="Increase verbosity: -v for INFO, -vv for DEBUG",  # TODO , -vvv for TRACE
+    help="Increase verbosity: -v for DEBUG",
 )
 @click.option(
     "-q",
     "--quiet",
     count=True,
-    help="Decrease verbosity: -q for ERROR, -qq for CRITICAL,",
+    help="Decrease verbosity: -q for WARNING, -qq for ERROR, -qqq for CRITICAL",
 )
 @click.option(
     "--no-log-formatting",
@@ -233,12 +233,12 @@ def cli(
     ctx.obj["yes"] = yes
     # Configure logging based on verbosity level
     log_levels = {
-        0: logging.CRITICAL,  # -qq
-        1: logging.ERROR,  # -q
-        2: logging.WARNING,  # default
-        3: logging.INFO,  # -v
-        4: logging.DEBUG,  # -vv
-        # 5: logging_TRACE # -vvv
+        0: logging.CRITICAL,  # -qqq
+        1: logging.ERROR,  # -qq
+        2: logging.WARNING,  # -q
+        3: logging.INFO,  # default
+        4: logging.DEBUG,  # -v
+        # 5: logging_TRACE # -vv
     }
 
     # TODO
@@ -248,7 +248,7 @@ def cli(
     #    logging.log()
     # Use Log. as interface
 
-    default_level = os.getenv("KMHELPERS_LOG_LEVEL", 2)
+    default_level = os.getenv("KMHELPERS_LOG_LEVEL", 3)
     log_level = log_levels.get(
         max(min(default_level + verbose - quiet, 4), 0), logging.ERROR
     )

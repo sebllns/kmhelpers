@@ -131,12 +131,6 @@ need to resolve them from a different location.",
     help="⚙   Action when an existing unregistered index folder is found: fail, register, rename,  replace, register_or_replace, register_or_rename (default: fail).",
 )
 @click.option(
-    "--verbose",
-    "-v",
-    is_flag=True,
-    help="🚩  Verbose output.",
-)
-@click.option(
     "--skip-compression",
     is_flag=True,
     help="🚩  Skip compression of intermediate files during index building. Can improve performance on fast drives where I/O is not a bottleneck.",
@@ -173,7 +167,6 @@ def apply(
     threads,
     partition_count,
     existing,
-    verbose,
     skip_compression,
     show_progress,
     fail_on_error,
@@ -290,10 +283,6 @@ def apply(
     if notify:
         atexit.register(_send_notification)
         signal.signal(signal.SIGTERM, _handle_sigterm)
-
-    # Bump logging level to INFO if -v is set and current level is higher
-    if verbose:
-        shared.force_verbose_mode()
 
     config_map = {}
     if config:
