@@ -19,7 +19,7 @@ from pykmhelpers.core.utils import Bin, BlockCompressorZSTD, Kmindex, Main, Tool
 from pykmhelpers.operations.builder import IndexBuilder
 from pykmhelpers.operations.compressor import CompressionParams, Compressor
 from pykmhelpers.pipeline.fof import FofManager
-from pykmhelpers.pipeline.query import KmindexQuery, KmindexQueryResult
+from pykmhelpers.pipeline.query import KmindexQuery, KmindexQueryResult, QueryRunner, QueryRunnerConfig
 
 __all__ = [
     # Core utilities
@@ -42,6 +42,8 @@ __all__ = [
     # Operations - Query and Sequence
     "KmindexQuery",
     "KmindexQueryResult",
+    "QueryRunner",
+    "QueryRunnerConfig",
     "Sequence",
     "Kmer",
     # Operations - File Handling
