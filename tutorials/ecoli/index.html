@@ -1754,7 +1754,7 @@ and are indexed together in one sub-index.</p>
 of the bucket — the maximum k-mer count <span class="arithmatex">\(\text{base}^{s+1}\)</span> — so every sample
 in the span fits:</p>
 <div class="arithmatex">\[
-\text{bf\_size} = \left\lceil \frac{f \cdot \text{base}^{s+1}}{8} \right\rceil \times 8
+\text{bf_size} = \left\lceil \frac{f \cdot \text{base}^{s+1}}{8} \right\rceil \times 8
 \qquad \text{where } f = \frac{-\ln p}{(\ln 2)^2}
 \]</div>
 <p><span class="arithmatex">\(p\)</span> is the false-positive rate (default 0.25) and the <span class="arithmatex">\(\times 8\)</span> rounding
@@ -1782,9 +1782,10 @@ approximate membership query.</em> SPIRE 2021, Springer, pp. 151–163.
 <p><code>base</code> controls bucket width. With <code>base=2.0</code> (default) each bucket spans
 a 2× range of k-mer counts, producing few coarse spans. <code>-b 1.1</code> narrows
 each bucket to a 10 % range, giving finer resolution at the cost of more
-spans. <code>-g 2</code> then requests that those spans be merged into 2 groups
-(chosen here for this small dataset — pick a value that fits your own
-distribution).</p>
+spans. <code>-g 2</code> then requests that those spans be merged into 2 groups.
+For a dataset this small and uniform, <code>-g 1</code> (a single group) would
+actually be the optimal choice; we use <code>-g 2</code> here to illustrate how
+grouping works — pick a value that fits your own distribution.</p>
 </div>
 <p><code>profile</code> writes three output files to <code>coli3682_profile/</code>:</p>
 <h3 id="baselinecsv"><code>baseline.csv</code></h3>
@@ -1850,7 +1851,9 @@ partition files accessed per query, directly reducing that latency overhead.</p>
 <h2 id="step-5-compose-index-definitions-compose">Step 5 — Compose index definitions (<code>compose</code>)</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>coli3682_1.jsonl<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span>-o<span class="w"> </span>coli3682_db/<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span>-pf<span class="w"> </span>coli3682_profile/profile.yaml
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span>-n<span class="w"> </span>coli3682<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span>-S<span class="w"> </span>initial<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span>-pf<span class="w"> </span>coli3682_profile/profile.yaml
 </code></pre></div>
 <p><code>compose</code> reads the sample list and the profile, then writes index definition
 files into <code>coli3682_db/</code>. The sample-to-sub-index repartition is driven by
@@ -1861,7 +1864,7 @@ Bloom-filter sizes, are read from
 <h2 id="step-6-preview-the-build-plan-plan">Step 6 — Preview the build plan (<code>plan</code>)</h2>
 <p>Before committing to a potentially long build, validate paths and preview the
 commands that will be executed:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>kmhelpers<span class="w"> </span>plan<span class="w"> </span>coli3682_db/index.yaml<span class="w"> </span>-w<span class="w"> </span>coli3682_db/
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>kmhelpers<span class="w"> </span>plan<span class="w"> </span>coli3682_db/coli3682/initial/coli3682.yaml<span class="w"> </span>-w<span class="w"> </span>coli3682_build/
 </code></pre></div>
 <p><code>plan</code> checks that every sample file exists, reports any missing paths, and
 prints the equivalent <code>kmindex</code> commands — without running them. Fix any path
@@ -1886,17 +1889,17 @@ to match your machine.</p>
 <p>Once complete, the index is registered in <code>coli3682_db/</code> and ready to query.</p>
 <hr />
 <h2 id="step-8-query-the-index-query">Step 8 — Query the index (<code>query</code>)</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>coli3682_db/<span class="w"> </span>-n<span class="w"> </span>index<span class="w"> </span>-o<span class="w"> </span>results/<span class="w"> </span>query.fa
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>coli3682_build/<span class="w"> </span>-o<span class="w"> </span>results/<span class="w"> </span>query.fa
 </code></pre></div>
 <p><code>query</code> searches the index for every sequence in <code>query.fa</code> and writes one
 result file per query sequence to <code>results/</code>. The index name (<code>-n index</code>)
 must match the name used during <code>compose</code>.</p>
 <p>Results are written in JSON by default. Use <code>-f</code> to change the format:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># CSV output</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>coli3682_db/<span class="w"> </span>-n<span class="w"> </span>index<span class="w"> </span>-o<span class="w"> </span>results/<span class="w"> </span>-f<span class="w"> </span>csv<span class="w"> </span>query.fa
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>coli3682_build/<span class="w"> </span>-o<span class="w"> </span>results/<span class="w"> </span>-f<span class="w"> </span>csv<span class="w"> </span>query.fa
 <a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
 <a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="c1"># Print results to the console as well</span>
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>coli3682_db/<span class="w"> </span>-n<span class="w"> </span>index<span class="w"> </span>-o<span class="w"> </span>results/<span class="w"> </span>-p<span class="w"> </span>query.fa
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>coli3682_build/<span class="w"> </span>-n<span class="w"> </span>index<span class="w"> </span>-o<span class="w"> </span>results/<span class="w"> </span>-p<span class="w"> </span>query.fa
 </code></pre></div>
 <p>To query all sequences together as a single batch (one result row instead of
 one per sequence):</p>

@@ -1477,20 +1477,20 @@
 </ul>
 <p>If <code>--profile</code> is not specified, the <code>default_profile</code> field in the profiles file is used.</p>
 <h2 id="examples">Examples</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Basic composition</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-pf<span class="w"> </span>profiles.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Basic composition with custom index name and session ID</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-pf<span class="w"> </span>profiles.yaml<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>-S<span class="w"> </span>session_1
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Use a specific profile</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-pf<span class="w"> </span>profiles.yaml<span class="w"> </span>--profile<span class="w"> </span>baseline
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-pf<span class="w"> </span>profiles.yaml<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>--profile<span class="w"> </span>baseline
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Override partition count</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-pf<span class="w"> </span>profiles.yaml<span class="w"> </span>--partition-count<span class="w"> </span><span class="m">4</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-pf<span class="w"> </span>profiles.yaml<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>--partition-count<span class="w"> </span><span class="m">4</span>
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
 <a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Set minimum partition size</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-pf<span class="w"> </span>profiles.yaml<span class="w"> </span>--partition-min-size<span class="w"> </span>500MB
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-pf<span class="w"> </span>profiles.yaml<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>--partition-min-size<span class="w"> </span>500MB
 <a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
 <a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Split large spans across multiple sub-indices</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-pf<span class="w"> </span>profiles.yaml<span class="w"> </span>--split-size<span class="w"> </span>10GB
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-pf<span class="w"> </span>profiles.yaml<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>--split-size<span class="w"> </span>10GB
 <a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
 <a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># Update an existing index using its layout</span>
 <a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-ff<span class="w"> </span>index_layout.yaml
@@ -1525,7 +1525,7 @@
 <td>Profile name to use (default: <code>default_profile</code> from profiles file)</td>
 </tr>
 <tr>
-<td><code>-I, --run-id TEXT</code></td>
+<td><code>-S, --session-id TEXT</code></td>
 <td>Session tag appended to index names (default: timestamp)</td>
 </tr>
 <tr>
