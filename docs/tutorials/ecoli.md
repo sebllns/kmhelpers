@@ -274,7 +274,7 @@ Once complete, the index is registered in `coli3682_db/` and ready to query.
 ## Step 8 — Query the index (`query`)
 
 ```bash
-kmhelpers query -r coli3682_db/ -n index -o results/ query.fa
+kmhelpers query -r coli3682_build/ -o results/ query.fa
 ```
 
 `query` searches the index for every sequence in `query.fa` and writes one
@@ -285,10 +285,10 @@ Results are written in JSON by default. Use `-f` to change the format:
 
 ```bash
 # CSV output
-kmhelpers query -r coli3682_db/ -n index -o results/ -f csv query.fa
+kmhelpers query -r coli3682_build/ -o results/ -f csv query.fa
 
 # Print results to the console as well
-kmhelpers query -r coli3682_db/ -n index -o results/ -p query.fa
+kmhelpers query -r coli3682_build/ -n index -o results/ -p query.fa
 ```
 
 To query all sequences together as a single batch (one result row instead of
