@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-for cmd in git conda; do
+for cmd in conda python3; do
   if ! command -v "$cmd" &>/dev/null; then
     echo "Error: '$cmd' is not available. Please install it before running this script." >&2
     exit 1
@@ -11,13 +11,12 @@ done
 
 KMINDEX_REPO="https://github.com/tlemane/kmindex"
 KMINDEX_BRANCH="next-dev"
-BUILD_DIR="$(mktemp -d)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_PATH="${SCRIPT_DIR}/../.env"
+BUILD_DIR="$(realpath -m "${SCRIPT_DIR}/../.build")"
+ENV_PATH="$(realpath -m "${SCRIPT_DIR}/../.env")"
 
-BUILD_DIR="/tmp/tmp.jgOCQs1fFS"
-
-## trap 'rm -rf "$BUILD_DIR"' EXIT
+echo "==> Wipe out ${BUILD_DIR}"
+rm -rf "$BUILD_DIR"
 
 echo "==> Creating conda environment at ${ENV_PATH}"
 if [[ -d "$ENV_PATH" ]]; then
@@ -31,6 +30,9 @@ set +u
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate "$ENV_PATH"
 set -u
+
+echo "==> Cloning kmindex ${KMINDEX_BRANCH}"
+git clone --depth 1 --branch "$KMINDEX_BRANCH" --recurse-submodules "$KMINDEX_REPO" "$BUILD_DIR/kmindex"
 
 echo "==> Switching kmtricks submodule to static_repart branch"
 git -C "$BUILD_DIR/kmindex/thirdparty/kmtricks" fetch --depth 1 origin static_repart
@@ -64,6 +66,8 @@ echo "==> Building and installing kmtricks into ${ENV_PATH}"
 rm -rf "$BUILD_DIR/kmindex/thirdparty/kmtricks/kmbuild"
 mkdir -p "$BUILD_DIR/kmindex/thirdparty/kmtricks/kmbuild"
 cd "$BUILD_DIR/kmindex/thirdparty/kmtricks/kmbuild"
+
+set -x
 cmake .. \
   -DCMAKE_C_COMPILER="$CC" \
   -DCMAKE_CXX_COMPILER="$CXX" \
@@ -73,19 +77,23 @@ cmake .. \
   -DWITH_MODULES=OFF \
   -DWITH_SOCKS=OFF \
   -DWITH_HOWDE=OFF \
-  -DCOMPILE_TESTS=ON \
+  -DCOMPILE_TESTS=OFF \
   -DSTATIC=OFF \
   "-DKMER_LIST=32 64 96 128" \
   -DMAX_C=4294967295 \
   -DNATIVE=ON \
   -DWITH_PLUGIN=OFF
-make -j"$(nproc)"
-make install
+set +x
+
+make -j8
+cp "$BUILD_DIR/kmindex/thirdparty/kmtricks/bin/kmtricks" "$ENV_PATH/bin/"
 
 echo "==> Building and installing kmindex into ${ENV_PATH}"
 rm -rf "$BUILD_DIR/kmindex/kmbuild"
 mkdir -p "$BUILD_DIR/kmindex/kmbuild"
 cd "$BUILD_DIR/kmindex/kmbuild"
+
+set -x
 cmake .. \
   -DCMAKE_C_COMPILER="$CC" \
   -DCMAKE_CXX_COMPILER="$CXX" \
@@ -98,7 +106,12 @@ cmake .. \
   -DSPDLOG_HEADER_ONLY=ON \
   -DCMAKE_INSTALL_PREFIX="$ENV_PATH" \
   -DCMAKE_PREFIX_PATH="$ENV_PATH"
-make -j"$(nproc)"
+set +x
+
+make -j8
 make install
+
+echo "==> Cleaning ${BUILD_DIR}"
+rm -rf "$BUILD_DIR"
 
 echo "==> Done. Activate with: conda activate ${ENV_PATH}"

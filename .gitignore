@@ -157,5 +157,6 @@ test_data/
 results/
 
 /.env/
+/.build/
 /nogit/
 *.dump
