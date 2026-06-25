@@ -1,5 +1,7 @@
 # compose
 
+## Synopsis
+
 Compose index definition file(s) from a sample list produced by [`list`](list.md). Building a new index requires a profile from [`profile`](profile.md).
 
 !!! abstract "USAGE"
