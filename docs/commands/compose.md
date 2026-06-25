@@ -2,25 +2,25 @@
 
 Compose index definition file(s) from a sample list produced by [`list`](list.md). Building a new index requires a profile from [`profile`](profile.md).
 
-## Usage
+!!! abstract "USAGE"
+    ```
+    kmhelpers compose -o OUTPUT_DIR -n NAME [-pf PROFILES_FILE] [-S SESSION_NAME] [OPTIONS] INPUT_FILE
+    ```
 
-```
-kmhelpers compose -o OUTPUT_DIR -n NAME [OPTIONS] INPUT_FILE
-```
+    | Argument | Description |
+    |----------|-------------|
+    | `INPUT_FILE` | JSONL sample list produced by `list` |
+    | `-o, --output-dir DIR` | Output directory for index definitions |
+    | `-n, --name TEXT` | Name of created or updated index |
+    | `-pf, --profiles-file FILE` | Profiles YAML file with index configuration (required to build a new index) |
+    | `-S, --session-id TEXT` | Session tag appended to index names (default: timestamp) |
 
-| Argument | Description |
-|----------|-------------|
-| `INPUT_FILE` | JSONL sample list produced by `list` |
-| `-o, --output-dir DIR` | Output directory for index definitions |
-| `-n, --name TEXT` | Name of created or updated index |
 
-## Options
+## Advanced Options
 
 | Option | Description |
 |--------|-------------|
-| `-pf, --profiles-file FILE` | YAML profiles file defining span lists and BF parameters (required to build a new index) |
 | `-pr, --profile TEXT` | Profile name to use (default: `default_profile` from profiles file) |
-| `-S, --session-id TEXT` | Session tag appended to index names (default: timestamp) |
 | `-p, --partition-count INT` | Desired number of partitions per index, 0 for automatic (default: 0) |
 | `-b, --split-size SIZE` | Max run size (e.g. `10GB`, `5000MB`) before splitting samples across indices |
 | `-m, --partition-min-size SIZE` | Minimum partition file size (e.g. `500MB`, `1GB`) |
@@ -41,6 +41,15 @@ A layout file is written to `OUTPUT_DIR/NAME_layout.yaml` for future updates.
 `OUTPUT_DIR/NAME_layout.yaml` is detected and loaded automatically.
 
 If `--profile` is not specified, the `default_profile` field in the profiles file is used.
+
+**Partitioning** — each Bloom filter is split into N partition files. The partition count is
+determined automatically by default, or set explicitly with `--partition-count`. Use
+`--partition-min-size` to enforce a minimum file size per partition, or
+`--partition-count-limit` to cap the auto-computed count.
+
+**Splitting** — when the accumulated size of samples assigned to a span exceeds `--split-size`,
+they are distributed across multiple sub-indices rather than one. This is useful to keep
+individual index files manageable for large datasets.
 
 
 ## Examples
