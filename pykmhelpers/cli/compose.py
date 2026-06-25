@@ -1,6 +1,7 @@
 """Compose command: build index definition file(s) from lists of samples."""
 
 import logging
+import os
 
 import click
 
@@ -49,14 +50,6 @@ logger = logging.getLogger(__name__)
     help="⚙️  Profile name to use (default: uses default_profile from the profiles file)",
 )
 @click.option(
-    "--layout-file",
-    "-lf",
-    "layout_file",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False),
-    required=False,
-    help="📋  Layout YAML file produced by a previous compose run (required to update an existing index)",
-)
-@click.option(
     "--partition-count",
     "-p",
     type=int,
@@ -85,7 +78,6 @@ def compose(
     input_file,
     output_dir,
     profiles_file,
-    layout_file,
     selected_profile,
     name,
     partition_count,
@@ -96,32 +88,41 @@ def compose(
 ):
     """Compose index definition file(s) from a sample list.
 
-    Use --profiles-file to build a new index, or --layout-file to update an existing one.
-    Exactly one of the two must be provided.
+    Use --profiles-file to build a new index. To update an existing index, omit
+    --profiles-file: the layout file at OUTPUT_DIR/NAME_layout.yaml is loaded automatically.
 
     Examples:
 
       \b
-      kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml
+      kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml
 
       \b
-      kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml --profile baseline
+      kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --profile baseline
 
       \b
-      kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml --partition-count 4
+      kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --partition-count 4
 
       \b
-      kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml --partition-min-size 500MB
+      kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --partition-min-size 500MB
 
       \b
-      kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml --split-size 10GB
+      kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --split-size 10GB
+
+      \b
+      kmhelpers compose samples.jsonl -o ./db -n my_index
     """
 
     try:
-        if bool(profiles_file) == bool(layout_file):
-            raise click.UsageError(
-                "Exactly one of --profiles-file or --layout-file must be provided"
-            )
+        layout_file = None
+        if not profiles_file:
+            auto_layout = os.path.join(output_dir, f"{name}_layout.yaml")
+            if os.path.isfile(auto_layout):
+                layout_file = auto_layout
+            else:
+                raise click.UsageError(
+                    f"No layout file found at {auto_layout}. "
+                    "Use --profiles-file to build a new index."
+                )
 
         if partition_count < 0:
             raise click.BadParameter(

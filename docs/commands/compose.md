@@ -1,63 +1,72 @@
 # compose
 
-Compose index definition file(s) from a sample list.
+Compose index definition file(s) from a sample list produced by [`list`](list.md). Building a new index requires a profile from [`profile`](profile.md).
 
 ## Usage
 
 ```
-kmhelpers compose [OPTIONS] INPUT_FILE
+kmhelpers compose -o OUTPUT_DIR -n NAME [OPTIONS] INPUT_FILE
 ```
 
-## Description
-
-Takes a JSONL sample list (produced by [`list`](list.md)) and either a profiles YAML file
-(produced by [`profile`](profile.md)) or a layout YAML file (produced by a previous
-`compose` run), and generates index definition files that can be passed to [`apply`](apply.md).
-
-Exactly one of `--profiles-file` or `--layout-file` must be provided:
-
-- Use `--profiles-file` to build a new index from a span profile.
-- Use `--layout-file` to update an existing index, reusing its span layout.
-
-If `--profile` is not specified, the `default_profile` field in the profiles file is used.
-
-## Examples
-
-```bash
-# Basic composition with custom index name and session ID
-kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml -n my_index -S session_1
-
-# Use a specific profile
-kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml -n my_index --profile baseline
-
-# Override partition count
-kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml -n my_index --partition-count 4
-
-# Set minimum partition size
-kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml -n my_index --partition-min-size 500MB
-
-# Split large spans across multiple sub-indices
-kmhelpers compose samples.jsonl -o ./db -pf profiles.yaml -n my_index --split-size 10GB
-
-# Update an existing index using its layout
-kmhelpers compose samples.jsonl -o ./db -ff index_layout.yaml
-```
+| Argument | Description |
+|----------|-------------|
+| `INPUT_FILE` | JSONL sample list produced by `list` |
+| `-o, --output-dir DIR` | Output directory for index definitions |
+| `-n, --name TEXT` | Name of created or updated index |
 
 ## Options
 
 | Option | Description |
 |--------|-------------|
-| `INPUT_FILE` | JSONL sample list produced by `list` (required) |
-| `-o, --output-dir DIR` | Output directory for index definitions (required) |
-| `-pf, --profiles-file FILE` | YAML profiles file defining span lists and BF parameters |
-| `-lf, --layout-file FILE` | Fingerprint YAML file from a previous compose run |
+| `-pf, --profiles-file FILE` | YAML profiles file defining span lists and BF parameters (required to build a new index) |
 | `-pr, --profile TEXT` | Profile name to use (default: `default_profile` from profiles file) |
 | `-S, --session-id TEXT` | Session tag appended to index names (default: timestamp) |
-| `-n, --name TEXT` | Name of created index database (default: `index`) |
 | `-p, --partition-count INT` | Desired number of partitions per index, 0 for automatic (default: 0) |
 | `-b, --split-size SIZE` | Max run size (e.g. `10GB`, `5000MB`) before splitting samples across indices |
 | `-m, --partition-min-size SIZE` | Minimum partition file size (e.g. `500MB`, `1GB`) |
 | `-P, --partition-count-limit INT` | Upper bound on auto partition count (default: 256) |
+
+## Description
+
+Takes a JSONL sample list (produced by [`list`](list.md)) and generates index definition
+files that can be passed to [`apply`](apply.md).
+
+Output files are written to `OUTPUT_DIR/NAME/SESSION/`, where `SESSION` defaults to the
+current timestamp if `--session-id` is not provided.
+
+**Building a new index** — provide `--profiles-file` (produced by [`profile`](profile.md)).
+A layout file is written to `OUTPUT_DIR/NAME_layout.yaml` for future updates.
+
+**Updating an existing index** — omit `--profiles-file`. The layout file at
+`OUTPUT_DIR/NAME_layout.yaml` is detected and loaded automatically.
+
+If `--profile` is not specified, the `default_profile` field in the profiles file is used.
+
+
+## Examples
+
+```bash
+# Build a new index (writes layout to ./db/my_index_layout.yaml)
+kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml
+
+# Build with a session tag (output goes to ./db/my_index/my_session/)
+kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml -S my_session
+
+# Use a specific profile
+kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --profile baseline
+
+# Override partition count
+kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --partition-count 4
+
+# Set minimum partition size
+kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --partition-min-size 500MB
+
+# Split large spans across multiple sub-indices
+kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --split-size 10GB
+
+# Update an existing index (auto-detects ./db/my_index_layout.yaml)
+kmhelpers compose samples.jsonl -o ./db -n my_index
+```
 
 ## See Also
 
