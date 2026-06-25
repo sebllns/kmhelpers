@@ -1442,8 +1442,8 @@
 <h1 id="compose">compose</h1>
 <p>Compose index definition file(s) from a sample list produced by <a href="../list/"><code>list</code></a>. Building a new index requires a profile from <a href="../profile/"><code>profile</code></a>.</p>
 <div class="admonition abstract">
-<p class="admonition-title">Usage</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers compose -o OUTPUT_DIR -n NAME [OPTIONS] INPUT_FILE
+<p class="admonition-title">USAGE</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers compose -o OUTPUT_DIR -n NAME [-pf PROFILES_FILE] [OPTIONS] INPUT_FILE
 </code></pre></div>
 <table>
 <thead>
@@ -1465,6 +1465,10 @@
 <td><code>-n, --name TEXT</code></td>
 <td>Name of created or updated index</td>
 </tr>
+<tr>
+<td><code>-pf, --profiles-file FILE</code></td>
+<td>YAML profiles file defining span lists and BF parameters (required to build a new index)</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -1477,10 +1481,6 @@
 </tr>
 </thead>
 <tbody>
-<tr>
-<td><code>-pf, --profiles-file FILE</code></td>
-<td>YAML profiles file defining span lists and BF parameters (required to build a new index)</td>
-</tr>
 <tr>
 <td><code>-pr, --profile TEXT</code></td>
 <td>Profile name to use (default: <code>default_profile</code> from profiles file)</td>
