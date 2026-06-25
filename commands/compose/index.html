@@ -857,10 +857,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#options" class="md-nav__link">
+  <a href="#advanced-options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Options
+        Advanced Options
       
     </span>
   </a>
@@ -1310,10 +1310,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#options" class="md-nav__link">
+  <a href="#advanced-options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Options
+        Advanced Options
       
     </span>
   </a>
@@ -1443,7 +1443,7 @@
 <p>Compose index definition file(s) from a sample list produced by <a href="../list/"><code>list</code></a>. Building a new index requires a profile from <a href="../profile/"><code>profile</code></a>.</p>
 <div class="admonition abstract">
 <p class="admonition-title">USAGE</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers compose -o OUTPUT_DIR -n NAME [-pf PROFILES_FILE] [OPTIONS] INPUT_FILE
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers compose -o OUTPUT_DIR -n NAME [-pf PROFILES_FILE] [-S SESSION_NAME] [OPTIONS] INPUT_FILE
 </code></pre></div>
 <table>
 <thead>
@@ -1467,12 +1467,16 @@
 </tr>
 <tr>
 <td><code>-pf, --profiles-file FILE</code></td>
-<td>YAML profiles file defining span lists and BF parameters (required to build a new index)</td>
+<td>Profiles YAML file with index configuration (required to build a new index)</td>
+</tr>
+<tr>
+<td><code>-S, --session-id TEXT</code></td>
+<td>Session tag appended to index names (default: timestamp)</td>
 </tr>
 </tbody>
 </table>
 </div>
-<h2 id="options">Options</h2>
+<h2 id="advanced-options">Advanced Options</h2>
 <table>
 <thead>
 <tr>
@@ -1484,10 +1488,6 @@
 <tr>
 <td><code>-pr, --profile TEXT</code></td>
 <td>Profile name to use (default: <code>default_profile</code> from profiles file)</td>
-</tr>
-<tr>
-<td><code>-S, --session-id TEXT</code></td>
-<td>Session tag appended to index names (default: timestamp)</td>
 </tr>
 <tr>
 <td><code>-p, --partition-count INT</code></td>
@@ -1517,6 +1517,13 @@ A layout file is written to <code>OUTPUT_DIR/NAME_layout.yaml</code> for future 
 <p><strong>Updating an existing index</strong> — omit <code>--profiles-file</code>. The layout file at
 <code>OUTPUT_DIR/NAME_layout.yaml</code> is detected and loaded automatically.</p>
 <p>If <code>--profile</code> is not specified, the <code>default_profile</code> field in the profiles file is used.</p>
+<p><strong>Partitioning</strong> — each Bloom filter is split into N partition files. The partition count is
+determined automatically by default, or set explicitly with <code>--partition-count</code>. Use
+<code>--partition-min-size</code> to enforce a minimum file size per partition, or
+<code>--partition-count-limit</code> to cap the auto-computed count.</p>
+<p><strong>Splitting</strong> — when the accumulated size of samples assigned to a span exceeds <code>--split-size</code>,
+they are distributed across multiple sub-indices rather than one. This is useful to keep
+individual index files manageable for large datasets.</p>
 <h2 id="examples">Examples</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Build a new index (writes layout to ./db/my_index_layout.yaml)</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>-pf<span class="w"> </span>profiles.yaml
