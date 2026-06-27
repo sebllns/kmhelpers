@@ -1,4 +1,4 @@
-# Tutorial: Indexing *E. coli* Assemblies
+# Tutorial: Indexing 10 *E. coli* Assemblies
 
 This tutorial walks through the full kmhelpers workflow on a real public dataset:
 3 682 *E. coli* assemblies downloaded from NCBI and archived on Zenodo.
@@ -14,7 +14,8 @@ five commands: `list` → `profile` → `compose` → `plan` → `apply`.
 ## Prerequisites
 
 - **kmhelpers** installed (see [Installation](../installation.md))
-- ~25 GB of free disk space for the dataset and the resulting index
+- Command `wget` to download the dataset
+- ~200 MB of free disk space for the dataset and the resulting index
 
 ### Dependencies
 
@@ -25,20 +26,26 @@ The following tools are installed alongside kmhelpers when using the conda envir
 
 ---
 
-## Step 1 — Download and extract the dataset
+## Step 1 — Download the dataset
 
 ```bash
-wget https://zenodo.org/records/6577997/files/coli3682_dataset.tar.gz
-tar -xzf coli3682_dataset.tar.gz
+mkdir -p coli10_dataset && cd coli10_dataset
+wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/780/515/GCA_000780515.1_ASM78051v1/GCA_000780515.1_ASM78051v1_genomic.fna.gz"
+wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/001/076/125/GCA_001076125.1_ASM107612v1/GCA_001076125.1_ASM107612v1_genomic.fna.gz"
+wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/001/417/575/GCA_001417575.1_ASM141757v1/GCA_001417575.1_ASM141757v1_genomic.fna.gz"
+wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/944/435/GCA_000944435.1_Ec57A_E8C1_MIRA_assembly/GCA_000944435.1_Ec57A_E8C1_MIRA_assembly_genomic.fna.gz"
+wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/001/075/925/GCA_001075925.1_ASM107592v1/GCA_001075925.1_ASM107592v1_genomic.fna.gz"
+wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/936/715/GCA_000936715.1_E8C1_assembly/GCA_000936715.1_E8C1_assembly_genomic.fna.gz"
+wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/939/215/GCA_000939215.1_Ec57A_A7_MIRA_assembly/GCA_000939215.1_Ec57A_A7_MIRA_assembly_genomic.fna.gz"
+wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/001/413/795/GCA_001413795.1_ASM141379v1/GCA_001413795.1_ASM141379v1_genomic.fna.gz"
+wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/001/373/195/GCA_001373195.1_57A_A7_assembly/GCA_001373195.1_57A_A7_assembly_genomic.fna.gz"
+wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/938/575/GCA_000938575.1_D1C4_assembly/GCA_000938575.1_D1C4_assembly_genomic.fna.gz"
+cd ..
 ```
-
-This creates a `coli3682_dataset/` directory containing 3 682 `.fna` assembly
-files named after their NCBI accessions (e.g. `GCA_000780515.1_ASM78051v1.fna`).
 
 ---
 
 ## Step 2 — Create a file list
-
 `kmhelpers list` accepts a plain-text file of sample paths as input.
 In the directory where you ran `tar` (the parent of `coli3682_dataset/`), create `zenodo_list_1.txt`.
 Paths are relative to that directory, and `kmhelpers list` must be run from the same location:
@@ -66,18 +73,20 @@ EOF
 kmhelpers list zenodo_list_1.txt -o coli3682_1.jsonl -k 25 -t a
 ```
 
-`list` reads each path, counts k-mers with ntcard (k = 25), and writes one
-JSONL record per sample to `coli3682_1.jsonl`.
+??? info "INFO"
+    `list` reads each path, counts k-mers with ntcard (k = 25), and writes one
+    JSONL record per sample to `coli3682_1.jsonl`.
 
-The header line records the shared parameters; every subsequent line is one
-sample:
+??? tip "RESULT"
+    The header line records the shared parameters; every subsequent line is one
+    sample:
 
-```jsonl
-{"k": 25, "assembled": true}
-{"name": "GCA_000780515.1_ASM78051v1", "files": ["coli3682_dataset/GCA_000780515.1_ASM78051v1.fna"], "kmer_count": 10898876}
-{"name": "GCA_001076125.1_ASM107612v1", "files": ["coli3682_dataset/GCA_001076125.1_ASM107612v1.fna"], "kmer_count": 10180102}
-...
-```
+    ```json
+    {"k": 25, "assembled": true}
+    {"name": "GCA_000780515.1_ASM78051v1", "files": ["coli3682_dataset/GCA_000780515.1_ASM78051v1.fna"], "kmer_count": 10898876}
+    {"name": "GCA_001076125.1_ASM107612v1", "files": ["coli3682_dataset/GCA_001076125.1_ASM107612v1.fna"], "kmer_count": 10180102}
+    ...
+    ```
 ---
 
 ## Step 4 — Profile the k-mer distribution (`profile`)
@@ -86,128 +95,131 @@ sample:
 kmhelpers profile coli3682_1.jsonl -o coli3682_profile/ -b 1.1 -g 2
 ```
 
-A *span* is an integer bucket that summarises a sample's k-mer count:
-
-$$
-s = \left\lfloor \log_{\text{base}}(n) \right\rfloor
-$$
-
-where $n$ is the sample's distinct k-mer count. All samples whose k-mer count
-falls in the same bucket $[\text{base}^s,\, \text{base}^{s+1})$ share span $s$
-and are indexed together in one sub-index.
-
-The Bloom filter allocated for that sub-index is sized for the **worst case**
-of the bucket — the maximum k-mer count $\text{base}^{s+1}$ — so every sample
-in the span fits:
-
-$$
-\text{bf_size} = \left\lceil \frac{f \cdot \text{base}^{s+1}}{8} \right\rceil \times 8
-\qquad \text{where } f = \frac{-\ln p}{(\ln 2)^2}
-$$
-
-$p$ is the false-positive rate (default 0.25) and the $\times 8$ rounding
-aligns the size to a byte boundary.
-
-!!! tip "False-positive rate and findere"
-    A higher $p$ reduces Bloom-filter size and therefore disk footprint, at the
-    cost of more false positives. At query time the
-    [findere](https://doi.org/10.1007/978-3-030-86692-1_13) algorithm
-    compensates by querying $(k+z)$-mers instead of $k$-mers, reducing the
-    effective false-positive rate to $p^z$:
+??? info "INFO"
+    A *span* is an integer bucket that summarises a sample's k-mer count:
 
     $$
-    p_{\text{eff}} = p^z
+    s = \left\lfloor \log_{\text{base}}(n) \right\rfloor
     $$
 
-    **Recommended settings:** build with `--fp 0.25` (default), query with
-    `-z 6` (default), giving $0.25^6 \approx 0.024\,\%$ effective FP rate.
+    where $n$ is the sample's distinct k-mer count. All samples whose k-mer count
+    falls in the same bucket $[\text{base}^s,\, \text{base}^{s+1})$ share span $s$
+    and are indexed together in one sub-index.
 
-    > Lucas Robidou and Pierre Peterlongo. *findere: fast and precise
-    > approximate membership query.* SPIRE 2021, Springer, pp. 151–163.
-    > <https://doi.org/10.1007/978-3-030-86692-1_13>
+    The Bloom filter allocated for that sub-index is sized for the **worst case**
+    of the bucket — the maximum k-mer count $\text{base}^{s+1}$ — so every sample
+    in the span fits:
 
-!!! tip "Choosing `base` and the number of groups"
-    `base` controls bucket width. With `base=2.0` (default) each bucket spans
-    a 2× range of k-mer counts, producing few coarse spans. `-b 1.1` narrows
-    each bucket to a 10 % range, giving finer resolution at the cost of more
-    spans. `-g 2` then requests that those spans be merged into 2 groups.
-    For a dataset this small and uniform, `-g 1` (a single group) would
-    actually be the optimal choice; we use `-g 2` here to illustrate how
-    grouping works — pick a value that fits your own distribution.
+    $$
+    \text{bf_size} = \left\lceil \frac{f \cdot \text{base}^{s+1}}{8} \right\rceil \times 8
+    \qquad \text{where } f = \frac{-\ln p}{(\ln 2)^2}
+    $$
 
-`profile` writes three output files to `coli3682_profile/`:
+    $p$ is the false-positive rate (default 0.25) and the $\times 8$ rounding
+    aligns the size to a byte boundary.
 
-### `baseline.csv`
+    ??? note "False-positive rate and findere"
+        A higher $p$ reduces Bloom-filter size and therefore disk footprint, at the
+        cost of more false positives. At query time the
+        [findere](https://doi.org/10.1007/978-3-030-86692-1_13) algorithm
+        compensates by querying $(k+z)$-mers instead of $k$-mers, reducing the
+        effective false-positive rate to $p^z$:
 
-One row per span: the Bloom-filter size required for that span and how many
-samples fall into it.
+        $$
+        p_{\text{eff}} = p^z
+        $$
 
-```
-span,bf_size,sample_count
-161,14649392,5
-167,25952288,1
-168,28547520,2
-169,31402272,1
-170,34542496,1
-```
+        **Recommended settings:** build with `--fp 0.25` (default), query with
+        `-z 6` (default), giving $0.25^6 \approx 0.024\,\%$ effective FP rate.
 
-With base 1.1, our 10 assemblies spread across 5 fine-grained spans.
+        > Lucas Robidou and Pierre Peterlongo. *findere: fast and precise
+        > approximate membership query.* SPIRE 2021, Springer, pp. 151–163.
+        > <https://doi.org/10.1007/978-3-030-86692-1_13>
 
-### `profile.yaml`
+    ??? note "Choosing `base` and the number of groups"
+        `base` controls bucket width. With `base=2.0` (default) each bucket spans
+        a 2× range of k-mer counts, producing few coarse spans. `-b 1.1` narrows
+        each bucket to a 10 % range, giving finer resolution at the cost of more
+        spans. `-g 2` then requests that those spans be merged into 2 groups.
+        For a dataset this small and uniform, `-g 1` (a single group) would
+        actually be the optimal choice; we use `-g 2` here to illustrate how
+        grouping works — pick a value that fits your own distribution.
 
-Records global parameters and one named profile per grouping. The `baseline`
-profile preserves the natural 5-span distribution; `2_groups` merges them into
-two sub-indices:
 
-```yaml
-false_positive_rate: 0.25
-span_base: 1.1
-sample_count: 10
-biggest_sample: ('GCA_000780515_1_ASM78051v1', 10898876)
-max_kmer_count: 11971516
-default_profile: 2_groups
-profiles:
-  baseline:
-    span_list: [161, 167, 168, 169, 170]
-    bloom_size: [14649392, 25952288, 28547520, 31402272, 34542496]
-    sample_dist: [5, 1, 2, 1, 1]
-    disk_usage: [1.47e+07B, 2.6e+07B, 2.86e+07B, 3.14e+07B, 3.46e+07B]
-    size_ratio: ['0.109', '0.192', '0.211', '0.232', '0.256']
-    total_size: 1.35e+08B
-    bytes_per_sample: 1.35e+07B
-  2_groups:
-    span_list: [161, 170]
-    bloom_size: [14649392, 34542496]
-    sample_dist: [5, 5]
-    disk_usage: [1.47e+07B, 3.46e+07B]
-    size_ratio: ['0.298', '0.702']
-    total_size: 4.92e+07B
-    bytes_per_sample: 4.92e+06B
-```
+??? tip "RESULT"
+    `profile` writes three output files to `coli3682_profile/`:
 
-### `groups.png`
+    ??? tip "`baseline.csv`"
 
-A plot showing the k-mer count distribution, natural span boundaries, and the
-requested 2-group overlay.
+        One row per span: the Bloom-filter size required for that span and how many
+        samples fall into it.
 
-!!! note
-    Grouping affects both storage and query performance.
+        ```
+        span,bf_size,sample_count
+        161,14649392,5
+        167,25952288,1
+        168,28547520,2
+        169,31402272,1
+        170,34542496,1
+        ```
 
-    **Storage:** `kmindex` stores samples in packs of 8 (bit-packing), so a
-    sub-index with 1 sample occupies the same disk space as one with 8. In the
-    `baseline` profile, spans 167, 169 and 170 hold only 1–2 samples each —
-    those near-empty packs waste most of their allocated space, bringing the
-    total to **135 MB**. In this case, merging the 5 sub-indices into 2 reduces
-    the number of packs from 5 to 2 (one per group), cutting the total to
-    **50 MB**.
+        With base 1.1, our 10 assemblies spread across 5 fine-grained spans.
 
-    **Query time:** each sub-index is composed of multiple partition files
-    (`kmindex` terminology). Query performance on large datasets is dominated by
-    disk latency rather than CPU, so every sub-index multiplies the number of
-    partitions that must be opened and read. Fewer sub-indices means fewer
-    partition files accessed per query, directly reducing that latency overhead.
+    ??? tip "`profile.yaml`"
 
-![Span distribution plot](images/coli3682_profile.png)
+        Records global parameters and one named profile per grouping. The `baseline`
+        profile preserves the natural 5-span distribution; `2_groups` merges them into
+        two sub-indices:
+
+        ```yaml
+        false_positive_rate: 0.25
+        span_base: 1.1
+        sample_count: 10
+        biggest_sample: ('GCA_000780515_1_ASM78051v1', 10898876)
+        max_kmer_count: 11971516
+        default_profile: 2_groups
+        profiles:
+        baseline:
+            span_list: [161, 167, 168, 169, 170]
+            bloom_size: [14649392, 25952288, 28547520, 31402272, 34542496]
+            sample_dist: [5, 1, 2, 1, 1]
+            disk_usage: [1.47e+07B, 2.6e+07B, 2.86e+07B, 3.14e+07B, 3.46e+07B]
+            size_ratio: ['0.109', '0.192', '0.211', '0.232', '0.256']
+            total_size: 1.35e+08B
+            bytes_per_sample: 1.35e+07B
+        2_groups:
+            span_list: [161, 170]
+            bloom_size: [14649392, 34542496]
+            sample_dist: [5, 5]
+            disk_usage: [1.47e+07B, 3.46e+07B]
+            size_ratio: ['0.298', '0.702']
+            total_size: 4.92e+07B
+            bytes_per_sample: 4.92e+06B
+        ```
+
+    ??? tip "`groups.png`"
+
+        A plot showing the k-mer count distribution, natural span boundaries, and the
+        requested 2-group overlay.
+
+        !!! note
+            Grouping affects both storage and query performance.
+
+            **Storage:** `kmindex` stores samples in packs of 8 (bit-packing), so a
+            sub-index with 1 sample occupies the same disk space as one with 8. In the
+            `baseline` profile, spans 167, 169 and 170 hold only 1–2 samples each —
+            those near-empty packs waste most of their allocated space, bringing the
+            total to **135 MB**. In this case, merging the 5 sub-indices into 2 reduces
+            the number of packs from 5 to 2 (one per group), cutting the total to
+            **50 MB**.
+
+            **Query time:** each sub-index is composed of multiple partition files
+            (`kmindex` terminology). Query performance on large datasets is dominated by
+            disk latency rather than CPU, so every sub-index multiplies the number of
+            partitions that must be opened and read. Fewer sub-indices means fewer
+            partition files accessed per query, directly reducing that latency overhead.
+
+        ![Span distribution plot](images/coli3682_profile.png)
 
 ---
 
