@@ -9,7 +9,7 @@ five commands: `list` → `profile` → `compose` → `plan` → `apply`.
 
 - **kmhelpers** installed (see [Installation](../installation.md))
 - Command `wget` to download the dataset
-- ~100 MB of free disk space for the dataset + resulting index
+- ~200 MB of free disk space for the dataset + resulting index
 
 ### Dependencies
 
