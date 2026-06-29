@@ -6,11 +6,14 @@
 
 A Python toolkit for managing, compressing, and querying [kmindex](https://github.com/tlemane/kmindex) indices efficiently.
 
+**Documentation:** <https://sebllns.github.io/kmhelpers/>
+
 ---
 
 ## Table of Contents
 
 - [Getting Started](#getting-started)
+- [Documentation](https://sebllns.github.io/kmhelpers/)
 - [Update](#update)
 - [License](#license)
 - [Contact](#contact)
