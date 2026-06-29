@@ -9,7 +9,7 @@ five commands: `list` → `profile` → `compose` → `plan` → `apply`.
 
 - **kmhelpers** installed (see [Installation](../installation.md))
 - Command `wget` to download the dataset
-- ~200 MB of free disk space for the dataset and the resulting index
+- ~100 MB of free disk space for the dataset + resulting index
 
 ### Dependencies
 
@@ -37,32 +37,44 @@ wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/938/575/GCA_000938575.1_D
 cd ..
 ```
 
+??? abstract "I/O"
+    **Input:** 10 NCBI FTP URLs  
+    **Output:** `coli_dataset/` 
+
 ---
 
 ## Step 2 — Create a file list
 
 ```bash
 cat > coli_10.txt << 'EOF'
-coli_dataset/GCA_000780515.1_ASM78051v1.fna
-coli_dataset/GCA_001076125.1_ASM107612v1.fna
-coli_dataset/GCA_001417575.1_ASM141757v1.fna
-coli_dataset/GCA_000944435.1_Ec57A_E8C1_MIRA_assembly.fna
-coli_dataset/GCA_001075925.1_ASM107592v1.fna
-coli_dataset/GCA_000936715.1_E8C1_assembly.fna
-coli_dataset/GCA_000939215.1_Ec57A_A7_MIRA_assembly.fna
-coli_dataset/GCA_001413795.1_ASM141379v1.fna
-coli_dataset/GCA_001373195.1_57A_A7_assembly.fna
-coli_dataset/GCA_000938575.1_D1C4_assembly.fna
+coli_dataset/GCA_000780515.1_ASM78051v1_genomic.fna.gz
+coli_dataset/GCA_001076125.1_ASM107612v1_genomic.fna.gz
+coli_dataset/GCA_001417575.1_ASM141757v1_genomic.fna.gz
+coli_dataset/GCA_000944435.1_Ec57A_E8C1_MIRA_assembly_genomic.fna.gz
+coli_dataset/GCA_001075925.1_ASM107592v1_genomic.fna.gz
+coli_dataset/GCA_000936715.1_E8C1_assembly_genomic.fna.gz
+coli_dataset/GCA_000939215.1_Ec57A_A7_MIRA_assembly_genomic.fna.gz
+coli_dataset/GCA_001413795.1_ASM141379v1_genomic.fna.gz
+coli_dataset/GCA_001373195.1_57A_A7_assembly_genomic.fna.gz
+coli_dataset/GCA_000938575.1_D1C4_assembly_genomic.fna.gz
 EOF
 ```
+
+??? abstract "I/O"
+    **Input:** paths to the 10 `.fna.gz` files (written manually)  
+    **Output:** `coli_10.txt`
 
 ---
 
 ## Step 3 — Scan samples and count k-mers (`list`)
 
 ```bash
-kmhelpers list coli_10.txt -o coli.jsonl -k 25 -t a
+kmhelpers list coli_10.txt -o coli.jsonl -k 25
 ```
+
+??? abstract "I/O"
+    **Input:** `coli_10.txt`
+    **Output:** `coli.jsonl`
 
 ??? info "INFO"
     `list` reads each path, counts k-mers with ntcard (k = 25), and writes one
@@ -85,6 +97,10 @@ kmhelpers list coli_10.txt -o coli.jsonl -k 25 -t a
 ```bash
 kmhelpers profile coli.jsonl -o coli_profile/ -b 1.1 -g 2
 ```
+
+??? abstract "I/O"
+    **Input:** `coli.jsonl`
+    **Output:** `coli_profile/profile.yaml`, `coli_profile/groups.png`
 
 ??? info "INFO"
     A *span* is an integer bucket that summarises a sample's k-mer count:
@@ -215,21 +231,26 @@ the selected profile — here `2_groups`, the default set by `profile` — whose
 Bloom-filter sizes, are read from
 `coli_profile/profile.yaml`.
 
+??? abstract "I/O"
+    **Input:** `coli.jsonl`, `coli_profile/profile.yaml`  
+    **Output:** `coli_db/`
+
 ---
 
 ## Step 6 — Preview the build plan (`plan`)
-
-Before committing to a potentially long build, validate paths and preview the
-commands that will be executed:
 
 ```bash
 kmhelpers plan coli_db/coli/initial/coli.yaml -w coli_build/
 ```
 
-`plan` checks that every sample file exists, reports any missing paths, and
-prints the equivalent `kmindex` commands — without running them. Fix any path
-errors now rather than discovering them mid-build.
+??? abstract "I/O"
+    **Input:** `coli_db/coli/initial/coli.yaml`  
+    **Output:** `coli_build/assets/kmhelpers_apply.sh` + validation report in `coli_build/logs/`
 
+??? info "INFO"
+    Before committing to a potentially long build, validate paths and preview the commands that will be executed: `plan` checks that every sample file exists, reports any missing paths, and
+    prints the equivalent `kmindex` commands — without running them. Fix any path
+    errors now rather than discovering them mid-build.
 ---
 
 ## Step 7 — Build the index (`bash`)
@@ -238,6 +259,10 @@ errors now rather than discovering them mid-build.
 bash coli_build/assets/kmhelpers_apply.sh
 ```
 
+??? abstract "I/O"
+    **Input:** `coli_build/assets/kmhelpers_apply.sh`  
+    **Output:** `coli_build/index.json` + sub-index data files in `coli_build/kmindex_data/` -- ready-to-query index (~50 MB)
+
 ??? tip "RESULT"
     Once complete, the index is registered in `coli_build/index.json` and ready to query.
 
@@ -245,14 +270,22 @@ bash coli_build/assets/kmhelpers_apply.sh
 
 ## Step 8 — Query the index (`query`)
 
+Extract the first contig of the first sample as a query sequence:
+
+```bash
+zcat coli_dataset/GCA_000780515.1_ASM78051v1_genomic.fna.gz \
+    | awk '/^>/{n++} n==2{exit} {print}' > query.fa
+```
+
+Then query the index:
+
 ```bash
 kmhelpers query -r coli_build/ -o results/ query.fa
 ```
 
-`query` searches the index for every sequence in `query.fa` and writes one
-result file per query sequence to `results/`. The index name (`-n index`)
-must match the name used during `compose`.
-
+??? abstract "I/O"
+    **Input:** `coli_build/` (index root), `query.fa` (first contig of `GCA_000780515`)  
+    **Output:** `results/` 
 ---
 
 ## References
