@@ -24,6 +24,7 @@ if [[ -d "$ENV_PATH" ]]; then
 else
   conda env create --prefix "$ENV_PATH" -f "$SCRIPT_DIR/../conda/environment.yml"
 fi
+conda env update --prefix "$ENV_PATH" -f "$SCRIPT_DIR/../conda/build_kmindex.yml"
 
 echo "==> Activating conda environment"
 set +u
