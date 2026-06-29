@@ -57,11 +57,60 @@ conda activate ./.env
 
 `kmhelpers` relies on a feature of `kmindex` — the `static_repart` index type — that is not yet available in the official conda package. Until an official release includes it, `kmindex` (and its dependency `kmtricks`) must be built from source.
 
+#### Supported platforms
+
+`scripts/setup.sh` automates the full build and is tested on the following platforms:
+
+| OS | Architecture | Status |
+|---|---|---|
+| Linux | x86\_64 | Supported |
+| macOS | x86\_64 (Intel) | Supported |
+| macOS | arm64 (Apple Silicon) | Supported |
+
+
 ```bash
 bash scripts/setup.sh
 ```
 
 This installs `kmtricks` and `kmindex` directly into the `.env` environment. The source tree is removed after a successful build.
+
+#### Manual build
+
+If `setup.sh` fails or your platform is not listed above, you can build manually. Requirements: a C++17 compiler, `cmake = 3.24`, `git`, and the libraries in `conda/build_kmindex_<platform>.yml`.
+
+> **Note:** `$CONDA_PREFIX` points to the active conda environment. Make sure the environment is activated before running these commands.
+
+```bash
+# 1. Clone kmindex and switch kmtricks to static_repart
+git clone --depth 1 --branch next-dev --recurse-submodules \
+  https://github.com/tlemane/kmindex .build/kmindex
+git -C .build/kmindex/thirdparty/kmtricks fetch --depth 1 origin static_repart
+git -C .build/kmindex/thirdparty/kmtricks checkout FETCH_HEAD
+
+# 2. Build and install kmtricks
+mkdir -p .build/kmindex/thirdparty/kmtricks/kmbuild
+cd .build/kmindex/thirdparty/kmtricks/kmbuild
+cmake .. -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX="$CONDA_PREFIX" \
+  -DCMAKE_PREFIX_PATH="$CONDA_PREFIX" \
+  -DWITH_MODULES=OFF -DWITH_SOCKS=OFF -DWITH_HOWDE=OFF \
+  -DCOMPILE_TESTS=OFF -DSTATIC=OFF -DWITH_PLUGIN=OFF \
+  "-DKMER_LIST=32 64 96 128" -DMAX_C=4294967295
+make -j"$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)"
+cp ../bin/kmtricks "$CONDA_PREFIX/bin/"
+
+# 3. Build and install kmindex
+cd -
+mkdir -p .build/kmindex/kmbuild
+cd .build/kmindex/kmbuild
+cmake .. -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX="$CONDA_PREFIX" \
+  -DCMAKE_PREFIX_PATH="$CONDA_PREFIX" \
+  -DWITH_TESTS=OFF -DWITH_SERVER=OFF \
+  -DCMAKE_CXX_STANDARD=17 -DMAX_KMER_SIZE=256 -DSPDLOG_HEADER_ONLY=ON
+make -j"$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)"
+make install
+```
 
 ### Verify Installation
 
@@ -73,6 +122,15 @@ kmhelpers --version
 
 # View available commands
 kmhelpers --help
+
+# Check ntcard
+ntcard --version
+
+# Check kmtricks
+kmtricks --version
+
+# Check kmindex
+kmindex --version
 ```
 
 ### Update

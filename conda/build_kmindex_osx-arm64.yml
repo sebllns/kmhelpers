@@ -1,0 +1,18 @@
+name: kmindex_build
+channels:
+  - bioconda
+  - conda-forge
+  - nodefaults
+dependencies:
+  # kmindex build dependencies
+  - cmake=3.24.0
+  - make
+  - git
+  - clang_osx-arm64=14.0.6
+  - clangxx_osx-arm64=14.0.6
+  - zlib
+  - xxhash
+  - spdlog=1.10.0
+  - fmt=8.1.1
+  - boost-cpp
+  - bzip2

@@ -24,7 +24,18 @@ if [[ -d "$ENV_PATH" ]]; then
 else
   conda env create --prefix "$ENV_PATH" -f "$SCRIPT_DIR/../conda/environment.yml"
 fi
-conda env update --prefix "$ENV_PATH" -f "$SCRIPT_DIR/../conda/build_kmindex.yml"
+OS="$(uname)"
+ARCH="$(uname -m)"
+if [[ "$OS" == "Linux" ]]; then
+  BUILD_YML="build_kmindex_linux.yml"
+elif [[ "$OS" == "Darwin" && "$ARCH" == "arm64" ]]; then
+  BUILD_YML="build_kmindex_osx-arm64.yml"
+elif [[ "$OS" == "Darwin" ]]; then
+  BUILD_YML="build_kmindex_osx-64.yml"
+else
+  echo "Error: unsupported platform ${OS}/${ARCH}" >&2; exit 1
+fi
+conda env update --prefix "$ENV_PATH" -f "$SCRIPT_DIR/../conda/${BUILD_YML}"
 
 echo "==> Activating conda environment"
 set +u
@@ -52,14 +63,23 @@ with open(path, 'w') as f:
     f.write(content)
 PYEOF
 
-export CC="$(command -v x86_64-conda-linux-gnu-gcc)"
-export CXX="$(command -v x86_64-conda-linux-gnu-g++)"
+if [[ -z "${CC:-}" || -z "${CXX:-}" ]]; then
+  echo "Error: CC/CXX not set after conda activation. Check the build yml for ${OS}/${ARCH}." >&2
+  exit 1
+fi
 
 echo "==> Print environment infos"
-echo "  OS:    $(uname -sr) / $(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d= -f2 | tr -d '"')"
-echo "  CPU:   $(uname -m) / $(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2 | xargs)"
-echo "  gcc:   $CC — $($CC --version | head -1)"
-echo "  g++:   $CXX — $($CXX --version | head -1)"
+if [[ "$OS" == "Linux" ]]; then
+  OS_PRETTY="$(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d= -f2 | tr -d '"')"
+  CPU_MODEL="$(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2 | xargs)"
+else
+  OS_PRETTY="$(sw_vers -productName) $(sw_vers -productVersion)"
+  CPU_MODEL="$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo unknown)"
+fi
+echo "  OS:    $(uname -sr) / ${OS_PRETTY}"
+echo "  CPU:   ${ARCH} / ${CPU_MODEL}"
+echo "  cc:    $CC — $($CC --version | head -1)"
+echo "  c++:   $CXX — $($CXX --version | head -1)"
 echo "  cmake: $(command -v cmake) — $(cmake --version | head -1)"
 echo "  git:   $(command -v git) — $(git --version)"
 
