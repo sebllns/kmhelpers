@@ -46,9 +46,6 @@ cd ..
 ---
 
 ## Step 2 — Create a file list
-`kmhelpers list` accepts a plain-text file of sample paths as input.
-In the directory where you ran `tar` (the parent of `coli3682_dataset/`), create `zenodo_list_1.txt`.
-Paths are relative to that directory, and `kmhelpers list` must be run from the same location:
 
 ```bash
 cat > zenodo_list_1.txt << 'EOF'
@@ -256,27 +253,10 @@ errors now rather than discovering them mid-build.
 
 ---
 
-## Step 7 — Build the index (`apply`)
+## Step 7 — Build the index (`bash`)
 
 ```bash
-kmhelpers apply coli3682_db/index.yaml -w coli3682_db/ -t 8
-```
-
-`apply` runs the build. The `-t 8` flag sets the number of threads; adjust it
-to match your machine.
-
-Useful options for long runs:
-
-```bash
-# Show a progress bar
-kmhelpers apply coli3682_db/index.yaml -w coli3682_db/ -t 8 --show-progress
-
-# Abort immediately on any error
-kmhelpers apply coli3682_db/index.yaml -w coli3682_db/ -t 8 --fail-on-error
-
-# Get an email when the build finishes
-kmhelpers apply coli3682_db/index.yaml -w coli3682_db/ -t 8 \
-    --notify you@example.com
+bash coli3682_db/index.yaml -w coli3682_db/ -t 8
 ```
 
 Once complete, the index is registered in `coli3682_db/` and ready to query.
@@ -320,7 +300,34 @@ kmhelpers query -r coli3682_db/ -n index -o results/ -R 0.5 query.fa
 
 ---
 
-## Next steps
+## Going Further
+
+### Build an index with `apply`
+
+```bash
+kmhelpers apply coli3682_db/index.yaml -w coli3682_db/ -t 8
+```
+
+`apply` runs the build. The `-t 8` flag sets the number of threads; adjust it
+to match your machine.
+
+Useful options for long runs:
+
+```bash
+# Show a progress bar
+kmhelpers apply coli3682_db/index.yaml -w coli3682_db/ -t 8 --show-progress
+
+# Abort immediately on any error
+kmhelpers apply coli3682_db/index.yaml -w coli3682_db/ -t 8 --fail-on-error
+
+# Get an email when the build finishes
+kmhelpers apply coli3682_db/index.yaml -w coli3682_db/ -t 8 \
+    --notify you@example.com
+```
+
+Once complete, the index is registered in `coli3682_db/` and ready to query.
+
+### Next steps
 
 - **Compress** the index to save disk space:
   ```bash
