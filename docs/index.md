@@ -15,8 +15,8 @@ A Python toolkit for managing, compressing, and querying [kmindex](https://githu
 - **Compose** index definition files from sample lists
 - **Build** indices with `apply` or batch them with `pipeline`
 - **Query** indices against FASTA/FASTQ sequences
-- **Compress** indices for storage efficiency
-- **Manage** index registries with full CRUD operations
+- **Compress** indices for storage efficiency *(under development)*
+- **Manage** index registries with full CRUD operations *(under development)*
 
 ## Quick links
 
