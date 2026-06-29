@@ -413,6 +413,7 @@ def apply(
                 attachements.append(details_path)
                 logger.info(f"Result details written to {details_path}")
                 i += 1
+                logger.info("SUCCESS ('apply')")
         except Exception as e:
             _notify_state["status"] = ops.ApplyStatus.FAILED.value
             Log.handle_exception(

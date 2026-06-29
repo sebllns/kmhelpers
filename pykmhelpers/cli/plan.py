@@ -260,6 +260,7 @@ def plan(
                 )
 
         iops.write_script()
+        logger.info("SUCCESS ('plan')")
     except (ValueError, FileNotFoundError) as e:
         raise click.ClickException(str(e))
     except Exception as e:

@@ -111,6 +111,7 @@ def list_samples(
             autorename=autorename,
             ntcard_threads=ntcard_threads,
         ).run()
+        logger.info("SUCCESS ('list')")
     except FileNotFoundError as e:
         raise click.ClickException(str(e))
     except (NotADirectoryError, ValueError) as e:

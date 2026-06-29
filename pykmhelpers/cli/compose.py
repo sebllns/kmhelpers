@@ -161,7 +161,7 @@ def compose(
             output_dir=output_dir,
             run_id=session_id,
         )
-
+        logger.info("SUCCESS ('compose')")
     except click.BadParameter as e:
         Log.handle_exception(logger=logger, e=e, msg="Compose failed")
     except Exception as e:
