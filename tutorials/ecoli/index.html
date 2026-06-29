@@ -1786,15 +1786,18 @@ partition files accessed per query, directly reducing that latency overhead.</p>
 <a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span>-S<span class="w"> </span>initial<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span>-pf<span class="w"> </span>coli_profile/profile.yaml
 </code></pre></div>
+<details class="abstract">
+<summary>I/O</summary>
+<p><strong>Input:</strong> <code>coli.jsonl</code>, <code>coli_profile/profile.yaml</code><br />
+<strong>Output:</strong> <code>coli_db/</code></p>
+</details>
+<details class="info">
+<summary>INFO</summary>
 <p><code>compose</code> reads the sample list and the profile, then writes index definition
 files into <code>coli_db/</code>. The sample-to-sub-index repartition is driven by
 the selected profile — here <code>2_groups</code>, the default set by <code>profile</code> — whose
 Bloom-filter sizes, are read from
 <code>coli_profile/profile.yaml</code>.</p>
-<details class="abstract">
-<summary>I/O</summary>
-<p><strong>Input:</strong> <code>coli.jsonl</code>, <code>coli_profile/profile.yaml</code><br />
-<strong>Output:</strong> <code>coli_db/</code></p>
 </details>
 <hr />
 <h2 id="step-6-preview-the-build-plan-plan">Step 6 — Preview the build plan (<code>plan</code>)</h2>
