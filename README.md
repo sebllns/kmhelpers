@@ -30,7 +30,6 @@ cd kmhelpers
 ### Quick Install with Conda 
 
 This will automatically:
-- Install [`kmindex`](https://github.com/tlemane/kmindex) and [`ntcard`](https://github.com/BirolLab/ntCard) from bioconda
 - Install `kmhelpers` Python package
 
 **Prerequisites:** Conda (Miniconda or Anaconda) must be installed. If you don't have it, see [Installation Instructions](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
@@ -53,6 +52,16 @@ conda activate ./.env
 > conda env create -f conda/environment.yml -p ~/.kmhelpers
 > conda activate ~/.kmhelpers
 > ```
+
+### Install `kmindex`
+
+`kmhelpers` relies on a feature of `kmindex` — the `static_repart` index type — that is not yet available in the official conda package. Until an official release includes it, `kmindex` (and its dependency `kmtricks`) must be built from source.
+
+```bash
+bash scripts/setup.sh
+```
+
+This installs `kmtricks` and `kmindex` directly into the `.env` environment. The source tree is removed after a successful build.
 
 ### Verify Installation
 
@@ -119,3 +128,13 @@ For questions, bug reports, or contributions, please contact:
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
+
+
+# Acknowledgements
+
+The authors thank Téo Lemane for developing `kmindex` and for his
+responsiveness in addressing feature requests and issues raised during the
+development of `kmhelpers`. We acknowledge the GenOuest core facility
+(<https://www.genouest.org>) for providing the computing infrastructure.
+The work was funded by the Inria Challenge "OmicFinder"
+(<https://project.inria.fr/omicfinder/>), and by the state funding managed by the French National Research Agency under the France 2030 program [ANR-22-PEAE-0005].
