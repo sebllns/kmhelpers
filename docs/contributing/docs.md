@@ -4,11 +4,19 @@ The docs are built with [MkDocs](https://www.mkdocs.org/) using the [Material th
 
 ## Install dependencies
 
+For development:
+
+```bash
+pip install -e ".[dev]"
+```
+
+For docs only:
+
 ```bash
 pip install -e ".[docs]"
 ```
 
-Or directly:
+Or install only the docs dependencies directly:
 
 ```bash
 pip install mkdocs-material
@@ -43,11 +51,19 @@ docs/
   installation.md   # Installation guide
   getting-started.md
   changelog.md      # Includes CHANGELOG.md via snippet
+  tutorials/
+    ecoli.md        # E. coli indexing tutorial
   commands/
     index.md        # Command reference overview
-    apply.md
     list.md
-    ...             # One page per command
+    profile.md
+    compose.md
+    plan.md
+    apply.md
+    query.md
+    compress.md
+    registry.md
+    pipeline.md
   contributing/
     docs.md         # This file
 ```

@@ -1,18 +1,43 @@
 # plan
 
-Preview the build plan from an index definition file and output a ready-to-execute shell script.
+## Synopsis
 
-## Usage
+Validate paths and preview the build plan from an index definition file, then write a ready-to-execute shell script.
 
-```
-kmhelpers plan [OPTIONS] INPUT_FILE
-```
+!!! abstract "USAGE"
+    ```
+    kmhelpers plan [OPTIONS] INPUT_FILE
+    ```
+
+    | Argument | Description |
+    |----------|-------------|
+    | `INPUT_FILE` | Index definition file (`.json`/`.yaml`) from `compose` (required) |
+    | `-w, --work-dir DIR` | Working directory for output (default: `.`) |
+
+!!! abstract "I/O"
+    **Input:** index definition file (`.json`/`.yaml`) from `compose`  
+    **Output:** shell script in `WORK_DIR/assets/`, validation report in `WORK_DIR/logs/`
+
+## Advanced Options
+| Option | Description |
+|--------|-------------|
+| `-b, --base-path DIR` | Base path to resolve relative sample paths |
+| `-r, --registry DIR` | Custom base path to kmindex registry |
+| `-o, --bloom-dir DIR` | Custom base path to kmindex Bloom filters directory |
+| `-s, --span TEXT` | Span(s) to preview: single value, comma-separated, or range (e.g. `27-30`) |
+| `-n, --name TEXT` | Index ID(s) to preview (repeatable or comma-separated) |
+| `--from TEXT` | Reuse build parameters from a parent index |
+| `--on-conflict TEXT` | Action for pre-existing index folders: `fail`, `register`, `rename`, `replace`, `register_or_replace`, `register_or_rename` (default: `fail`) |
+| `-O, --offline` | Skip local path validation (useful when exporting scripts for another machine) |
+| `-X, --fail-fast` | Abort on first failure instead of continuing |
 
 ## Description
 
-`plan` validates paths and previews the build commands for an index definition file, then writes a shell script without executing it. It validates all paths upfront and aborts early if any path is invalid.
+`plan` validates all sample paths upfront and previews the `kmindex` commands that would be executed by [`apply`](apply.md), without running them. It writes the equivalent shell script to `WORK_DIR/assets/` and a validation report to `WORK_DIR/logs/`.
 
-Use `--offline` to skip local path validation when generating scripts for another machine.
+**Offline mode** — use `--offline` to skip local path validation when generating scripts destined for another machine.
+
+**Filtering** — use `--name` or `--span` to preview only a subset of the declared indices.
 
 ## Examples
 
@@ -32,23 +57,6 @@ kmhelpers plan index.yaml -w /output --offline
 # Abort on first error
 kmhelpers plan index.yaml -w /output --fail-fast
 ```
-
-## Options
-
-| Option | Description |
-|--------|-------------|
-| `INPUT_FILE` | Index definition file (`.json`/`.yaml`) (required) |
-| `-w, --work-dir DIR` | Working directory for index output (default: `.`) |
-| `-b, --base-path DIR` | Base path to resolve relative sample paths |
-| `-r, --registry DIR` | Custom base path to kmindex registry |
-| `-o, --bloom-dir DIR` | Custom base path to kmindex Bloom filters directory |
-| `-s, --span TEXT` | Span(s) to build: single value, comma-separated, or range (e.g. `27-30`) |
-| `-n, --name TEXT` | Index ID(s) to build (repeatable or comma-separated) |
-| `--from TEXT` | Reuse build parameters from a parent index |
-| `--on-conflict TEXT` | Action for pre-existing index folders: `fail`, `register`, `rename`, `replace`, `register_or_replace`, `register_or_rename` (default: `fail`) |
-| `-O, --offline` | Skip local path validation (useful when exporting scripts for another machine) |
-| `-X, --fail-fast` | Abort on first failure instead of continuing |
-| `-v, --verbose` | Verbose output |
 
 ## See Also
 

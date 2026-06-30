@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--data-type",
-    "-t",
+    "-dt",
     "data_type",
     type=click.Choice(["a", "assembled", "u", "unassembled"], case_sensitive=False),
     default="a",

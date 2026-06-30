@@ -1,29 +1,28 @@
 # list
 
+## Synopsis
+
 Scan a directory or import a sample list, count k-mers, and produce a JSONL sample manifest.
 
-## Usage
+!!! abstract "USAGE"
+    ```
+    kmhelpers list [OPTIONS] INPUT
+    ```
 
-```
-kmhelpers list [OPTIONS] INPUT
-```
+    | Argument | Description |
+    |----------|-------------|
+    | `INPUT` | Directory to scan, or a plain-text / YAML sample list (required) — see [Input formats](#input-formats) |
+    | `-o, --output FILE` | Path for the output JSONL file (required) |
+    | `-k, --kmer-size INT` | K-mer size for counting (default: 25) |
+    | `-dt, --data-type TEXT` | Data type: `a`/`assembled` (default) or `u`/`unassembled` (raw reads) — see [K-mer counting](#description) |
 
-## Description
+!!! abstract "I/O"
+    **Input:** directory to scan, or a plain-text / YAML sample list  
+    **Output:** JSONL sample manifest (`-o`)
 
-`INPUT` can be a directory (scanned recursively for sequence files) or a sample list file (plain text or YAML) — the type is detected automatically. K-mer counts are parsed or computed for each sample and written to the JSONL manifest.
-
-By default, each file is treated as its own sample. Use `--leaf-grouping` to group files by leaf folder, where each leaf directory becomes one sample whose ID is the folder name.
-
-K-mer counting is enabled by default. Counting is skipped for any sample that already has a `kmer_count` value (from a resumed run or an imported list). Use `--no-count` to skip counting entirely.
-
-## Options
-
+## Advanced Options
 | Option | Description |
 |--------|-------------|
-| `INPUT` | Directory to scan, or a plain-text / YAML sample list (required) |
-| `-o, --output FILE` | Path for the output JSONL file (required) |
-| `-k, --kmer-size INT` | K-mer size for counting (default: 25) |
-| `-t, --data-type TEXT` | Data type: `a`/`assembled` (default) or `u`/`unassembled` (raw reads) |
 | `-nc, --no-count` | Skip k-mer counting with ntcard |
 | `-lg, --leaf-grouping` | Group files by leaf folder; each leaf directory becomes one sample |
 | `-r, --autorename` | Rename duplicate sample IDs by appending a numeric suffix instead of skipping |
@@ -62,6 +61,20 @@ samples:
       - /data/sample_B.fa
 ```
 
+## Description
+
+`INPUT` can be a directory (scanned recursively for sequence files) or a sample list file (plain text or YAML) — the type is detected automatically. K-mer counts are parsed or computed for each sample and written to the JSONL manifest.
+
+**Grouping** — by default, each file is treated as its own sample. Use `--leaf-grouping` to group files by leaf folder, where each leaf directory becomes one sample whose ID is the folder name.
+
+**K-mer counting** — enabled by default. Counting is skipped for any sample that already has a `kmer_count` value. Use `--no-count` to skip counting entirely. The `--data-type` option controls what is counted:
+
+- `assembled` (default) — counts all distinct k-mers; suited for assemblies where every k-mer is expected at least once
+- `unassembled` — counts only k-mers appearing at least twice, filtering out likely sequencing errors; suited for raw reads
+
+**Resuming** — if the output file already exists, it is backed up and the run resumes without reprocessing already-listed samples. Use `--autorename` to rename duplicate sample IDs instead of skipping them.
+
+
 Top-level keys other than `samples` are written as-is into the output header.
 
 ## Output Format
@@ -91,7 +104,7 @@ kmhelpers list /data/sequences -o samples.jsonl -k 31
 # Skip k-mer counting
 kmhelpers list /data/sequences -o samples.jsonl --no-count
 
-# Import from a plain text file list instead of scanning a directory
+# Import from a plain-text file list
 kmhelpers list my_files.txt -o samples.jsonl
 
 # Import from a YAML sample list

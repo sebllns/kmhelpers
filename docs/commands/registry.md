@@ -1,18 +1,21 @@
 # registry
 
+## Synopsis
+
 Manage k-mer index registries.
 
-## Usage
+!!! abstract "USAGE"
+    ```
+    kmhelpers registry [OPTIONS] COMMAND [ARGS]...
+    ```
 
-```
-kmhelpers registry [OPTIONS] COMMAND [ARGS]...
-```
+    | Argument | Description |
+    |----------|-------------|
+    | `-r, --registry-path DIR` | Path to kmindex registry (default: current directory) |
 
-## Options
-
-| Option | Description |
-|--------|-------------|
-| `-r, --registry-path DIR` | Path to kmindex registry (default: current directory) |
+!!! abstract "I/O"
+    **Input:** kmindex registry (`-r`), subcommand-specific arguments  
+    **Output:** updated registry state (create, add, remove, rename, relink) or printed info (list, info, check)
 
 ## Subcommands
 
@@ -26,6 +29,51 @@ kmhelpers registry [OPTIONS] COMMAND [ARGS]...
 | `remove` | Remove one or more indices from the registry |
 | `rename` | Rename an index |
 | `relink` | Recreate links after moving index files |
+
+## Subcommand Options
+
+### `create`
+
+| Option | Description |
+|--------|-------------|
+| `-i, --input-dir DIR` | Directory containing existing kmtricks indices to register |
+| `-n, --index-ids TEXT` | Specific index IDs to register (default: all found) |
+
+### `add`
+
+| Option | Description |
+|--------|-------------|
+| `-i, --input-dir DIR` | Directory containing kmtricks indices to add (required) |
+| `-n, --index-ids TEXT` | Specific index IDs to register (default: all found) |
+
+### `info`
+
+| Option | Description |
+|--------|-------------|
+| `-n, --index-id TEXT` | Index ID to show information for (required) |
+| `--json` | Output as JSON |
+
+### `remove`
+
+| Option | Description |
+|--------|-------------|
+| `-n, --index-ids TEXT` | Index ID(s) to remove (required, repeatable) |
+| `-d, --delete-files` | Also delete index files from disk |
+| `-y, --yes` | Skip confirmation prompt |
+
+### `rename`
+
+| Option | Description |
+|--------|-------------|
+| `-f, --from TEXT` | Current index ID (required) |
+| `-t, --to TEXT` | New index ID (required) |
+
+### `relink`
+
+| Option | Description |
+|--------|-------------|
+| `-i, --input-dir DIR` | Directory containing the moved index files (required) |
+| `-n, --index-id TEXT` | Index ID to relink (default: all registered indices) |
 
 ## Examples
 

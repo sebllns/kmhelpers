@@ -17,6 +17,9 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
     | `-pf, --profiles-file FILE` | Profiles YAML file with index configuration (required to build a new index) |
     | `-S, --session-id TEXT` | Session tag appended to index names (default: timestamp) |
 
+!!! abstract "I/O"
+    **Input:** JSONL sample list (from [`list`](list.md)), profiles YAML required only for new index creation (from [`profile`](profile.md))  
+    **Output:** index definition files in `OUTPUT_DIR/NAME/`
 
 ## Advanced Options
 

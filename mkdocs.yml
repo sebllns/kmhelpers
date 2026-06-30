@@ -82,4 +82,5 @@ nav:
           - pipeline: commands/pipeline.md
   - Changelog: changelog.md
   - Contributing:
+      - Development: contributing/dev.md
       - Building the Docs: contributing/docs.md

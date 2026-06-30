@@ -1,7 +1,8 @@
 # Tutorial: Indexing 10 *E. coli* Assemblies
 
 By the end you will have a queryable k-mer index of these assemblies built in
-five commands: `list` → `profile` → `compose` → `plan` → `apply`.
+five commands:  
+ `list` → `profile` → `compose` → `plan` → `apply`.
 
 ---
 
@@ -73,14 +74,14 @@ kmhelpers list coli_10.txt -o coli.jsonl -k 25
 ```
 
 ??? abstract "I/O"
-    **Input:** `coli_10.txt`
+    **Input:** `coli_10.txt`  
     **Output:** `coli.jsonl`
 
 ??? info "INFO"
     `list` reads each path, counts k-mers with ntcard (k = 25), and writes one
     JSONL record per sample to `coli.jsonl`.
 
-??? tip "RESULT"
+??? success "RESULT"
     The header line records the shared parameters; every subsequent line is one
     sample:
 
@@ -99,7 +100,7 @@ kmhelpers profile coli.jsonl -o coli_profile/ -b 1.1 -g 2
 ```
 
 ??? abstract "I/O"
-    **Input:** `coli.jsonl`
+    **Input:** `coli.jsonl`  
     **Output:** `coli_profile/profile.yaml`, `coli_profile/groups.png`
 
 ??? info "INFO"
@@ -153,7 +154,7 @@ kmhelpers profile coli.jsonl -o coli_profile/ -b 1.1 -g 2
         grouping works — pick a value that fits your own distribution.
 
 
-??? tip "RESULT"
+??? success "RESULT"
     `profile` writes three output files to `coli_profile/`:
 
     ??? tip "`profile.yaml`"
@@ -252,6 +253,18 @@ kmhelpers plan coli_db/coli/initial/coli.yaml -w coli_build/
     Before committing to a potentially long build, validate paths and preview the commands that will be executed: `plan` checks that every sample file exists, reports any missing paths, and
     prints the equivalent `kmindex` commands — without running them. Fix any path
     errors now rather than discovering them mid-build.
+
+??? success "RESULT"
+    ??? tip "Validation report in `coli_build/logs/`"
+        - **`input_file`** -- path to the `coli.yaml` used as input
+        - **`kmindex` / `kmhelpers`** -- tool versions detected at runtime
+        - **`span`** -- one entry per sub-index: sample count and estimated disk size
+        - **`run`** -- validation result (`SUCCESS` / `FAILURE`) per sub-index
+
+    ??? tip "Build script `coli_build/assets/kmhelpers_apply.sh`"
+        One `kmindex build` call per sub-index (`coli_g0`, `coli_g1`), with Bloom-filter
+        size, k-mer size, and output paths pre-filled from the profile.
+
 ---
 
 ## Step 7 — Build the index (`bash`)
@@ -264,7 +277,7 @@ bash coli_build/assets/kmhelpers_apply.sh
     **Input:** `coli_build/assets/kmhelpers_apply.sh`  
     **Output:** `coli_build/index.json` + sub-index data files in `coli_build/kmindex_data/` -- ready-to-query index (~50 MB)
 
-??? tip "RESULT"
+??? success "RESULT"
     Once complete, the index is registered in `coli_build/index.json` and ready to query.
 
 ---
@@ -287,6 +300,34 @@ kmhelpers query -r coli_build/ -o results/ query.fa
 ??? abstract "I/O"
     **Input:** `coli_build/` (index root), `query.fa` (first contig of `GCA_000780515`)  
     **Output:** `results/` 
+
+??? success "RESULT"
+    `query` writes one JSON file per sub-index into `results/query/result`:
+
+    ??? tip "`coli_g0.json`"
+        ```json
+        {
+            "coli_g0": {
+                "JSPL01000060.1": {}
+            }
+        }
+        ```
+
+    ??? tip "`coli_g1.json`"
+        ```json
+        {
+            "coli_g1": {
+                "JSPL01000060.1": {
+                    "GCA_000780515_1_ASM78051v1_genomic_fna": 1.0
+                }
+            }
+        }
+        ```
+
+    Each value is the fraction of query k-mers found in that sample.
+    `GCA_000780515` scores **1.0** -- a perfect match, as expected since `query.fa` was
+    extracted from that assembly.
+
 ---
 
 ## References
