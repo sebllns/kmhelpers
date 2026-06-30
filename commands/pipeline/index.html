@@ -355,7 +355,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../contributing/docs/" class="md-tabs__link">
+        <a href="../../contributing/dev/" class="md-tabs__link">
           
   
   
@@ -1098,10 +1098,21 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#usage" class="md-nav__link">
+  <a href="#synopsis" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Usage
+        Synopsis
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Options
       
     </span>
   </a>
@@ -1163,17 +1174,6 @@
     <span class="md-ellipsis">
       
         Examples
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Options
       
     </span>
   </a>
@@ -1242,6 +1242,8 @@
       
         
       
+        
+      
     
     
     
@@ -1288,6 +1290,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/dev/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -1351,10 +1381,21 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#usage" class="md-nav__link">
+  <a href="#synopsis" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Usage
+        Synopsis
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Options
       
     </span>
   </a>
@@ -1416,17 +1457,6 @@
     <span class="md-ellipsis">
       
         Examples
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Options
       
     </span>
   </a>
@@ -1520,12 +1550,50 @@
 
 
 <h1 id="pipeline">pipeline</h1>
+<h2 id="synopsis">Synopsis</h2>
 <p>Run a sequence of commands defined in a YAML pipeline file.</p>
-<h2 id="usage">Usage</h2>
+<div class="admonition abstract">
+<p class="admonition-title">USAGE</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers pipeline [OPTIONS] PIPELINE_FILE
 </code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PIPELINE_FILE</code></td>
+<td>YAML pipeline definition file (required)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="admonition abstract">
+<p class="admonition-title">I/O</p>
+<p><strong>Input:</strong> YAML pipeline definition file<br />
+<strong>Output:</strong> depends on pipeline steps</p>
+</div>
+<h2 id="advanced-options">Advanced Options</h2>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-x KEY VALUE</code></td>
+<td>Override a parameter for all steps (repeatable)</td>
+</tr>
+</tbody>
+</table>
 <h2 id="description">Description</h2>
 <p><code>pipeline</code> executes a series of <code>kmhelpers</code> commands in order, as defined in a YAML file. Steps run sequentially. Use <code>-x</code> to override parameters for all steps at runtime.</p>
+<p><strong>Priority</strong> — global config (<code>-C</code>) &lt; pipeline YAML &lt; <code>-x</code> overrides.</p>
 <h2 id="pipeline-file-formats">Pipeline File Formats</h2>
 <h3 id="dict-format-simple-no-repeated-commands">Dict format (simple, no repeated commands)</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">compose</span><span class="p">:</span>
@@ -1550,25 +1618,6 @@
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Override workdir and threads for all steps</span>
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>kmhelpers<span class="w"> </span>pipeline<span class="w"> </span>my_pipeline.yaml<span class="w"> </span>-x<span class="w"> </span>workdir<span class="w"> </span>/tmp<span class="w"> </span>-x<span class="w"> </span>threads<span class="w"> </span><span class="m">16</span>
 </code></pre></div>
-<h2 id="options">Options</h2>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>PIPELINE_FILE</code></td>
-<td>YAML pipeline definition file</td>
-</tr>
-<tr>
-<td><code>-x KEY VALUE</code></td>
-<td>Override a parameter for all steps (repeatable)</td>
-</tr>
-</tbody>
-</table>
 
 
 

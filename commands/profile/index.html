@@ -355,7 +355,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../contributing/docs/" class="md-tabs__link">
+        <a href="../../contributing/dev/" class="md-tabs__link">
           
   
   
@@ -831,10 +831,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#usage" class="md-nav__link">
+  <a href="#synopsis" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Usage
+        Synopsis
       
     </span>
   </a>
@@ -842,10 +842,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#description" class="md-nav__link">
+  <a href="#advanced-options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Description
+        Advanced Options
       
     </span>
   </a>
@@ -864,10 +864,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#options" class="md-nav__link">
+  <a href="#description" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Options
+        Description
       
     </span>
   </a>
@@ -879,17 +879,6 @@
     <span class="md-ellipsis">
       
         Examples
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#input-format" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Input Format
       
     </span>
   </a>
@@ -1236,6 +1225,8 @@
       
         
       
+        
+      
     
     
     
@@ -1282,6 +1273,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/dev/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -1345,10 +1364,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#usage" class="md-nav__link">
+  <a href="#synopsis" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Usage
+        Synopsis
       
     </span>
   </a>
@@ -1356,10 +1375,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#description" class="md-nav__link">
+  <a href="#advanced-options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Description
+        Advanced Options
       
     </span>
   </a>
@@ -1378,10 +1397,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#options" class="md-nav__link">
+  <a href="#description" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Options
+        Description
       
     </span>
   </a>
@@ -1393,17 +1412,6 @@
     <span class="md-ellipsis">
       
         Examples
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#input-format" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Input Format
       
     </span>
   </a>
@@ -1508,21 +1516,59 @@
 
 
 <h1 id="profile">profile</h1>
-<p>Analyse a JSONL sample index and produce a Bloom-filter span profile.</p>
-<h2 id="usage">Usage</h2>
+<h2 id="synopsis">Synopsis</h2>
+<p>Analyse a JSONL sample manifest produced by <code>list</code> and produce a Bloom-filter span profile.</p>
+<div class="admonition abstract">
+<p class="admonition-title">USAGE</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers profile [OPTIONS] LIST_OUTPUT
 </code></pre></div>
-<h2 id="description">Description</h2>
-<p>A <em>span</em> is an integer <code>s = floor(log_base(n))</code>, where <code>n</code> is the number of distinct
-<span class="arithmatex">\(k\)</span>-mers in a sample and <code>base</code> controls bucket granularity (default: 2). It identifies
-the Bloom-filter size class required to index that sample at the target false-positive
-rate.</p>
-<p>A <em>span profile</em> is the distribution of samples across spans, together with candidate
-groupings of those spans into sub-indices. Fewer spans means fewer index files opened
-at query time, which improves query performance on I/O-bound storage.</p>
-<p><code>profile</code> reads <span class="arithmatex">\(k\)</span>-mer counts from a JSONL file produced by <a href="../list/"><code>list</code></a>, assigns
-each sample to its span, and writes a CSV summary, a profile YAML, and a distribution
-plot to the output directory.</p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>LIST_OUTPUT</code></td>
+<td>JSONL sample manifest produced by <code>list</code> (required)</td>
+</tr>
+<tr>
+<td><code>-o, --output DIR</code></td>
+<td>Output directory for results (required)</td>
+</tr>
+<tr>
+<td><code>-g, --group N</code></td>
+<td>Partition Bloom Filters into <code>N</code> storage-balanced groups and overlay on plot (default: 0)</td>
+</tr>
+<tr>
+<td><code>-b, --base FLOAT</code></td>
+<td>Base for span bucket boundaries (default: 2.0); use values like 1.1 to narrow granularity</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="admonition abstract">
+<p class="admonition-title">I/O</p>
+<p><strong>Input:</strong> JSONL sample manifest produced by <code>list</code><br />
+<strong>Output:</strong> <code>profile.yaml</code>, <code>groups.png</code> in output directory (<code>-o</code>)</p>
+</div>
+<h2 id="advanced-options">Advanced Options</h2>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-fp, --false-positive-rate FLOAT</code></td>
+<td>Target Bloom-filter false-positive rate (default: 0.25)</td>
+</tr>
+</tbody>
+</table>
 <h2 id="output-files">Output Files</h2>
 <table>
 <thead>
@@ -1533,10 +1579,6 @@ plot to the output directory.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>baseline.csv</code></td>
-<td>Span ID, Bloom filter size, and sample count</td>
-</tr>
-<tr>
 <td><code>profile.yaml</code></td>
 <td>Natural distribution and storage-balanced grouped profile(s)</td>
 </tr>
@@ -1546,39 +1588,27 @@ plot to the output directory.</p>
 </tr>
 </tbody>
 </table>
-<h2 id="options">Options</h2>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>LIST_OUTPUT</code></td>
-<td>JSONL sample index produced by <code>list</code> (required)</td>
-</tr>
-<tr>
-<td><code>-o, --output-dir DIR</code></td>
-<td>Output directory for results (required)</td>
-</tr>
-<tr>
-<td><code>--false-positive-rate, -fp FLOAT</code></td>
-<td>Target Bloom-filter false-positive rate (default: 0.25)</td>
-</tr>
-<tr>
-<td><code>-g, --group N</code></td>
-<td>Partition spans into <code>N</code> storage-balanced groups and overlay on plot (default: 0)</td>
-</tr>
-<tr>
-<td><code>-b, --base FLOAT</code></td>
-<td>Base for span bucket boundaries (default: 2.0); use values like 1.1 to narrow granularity</td>
-</tr>
-</tbody>
-</table>
+<h2 id="description">Description</h2>
+<p>A <em>span</em> is an integer <code>s = floor(log_base(n))</code>, where <code>n</code> is the number of distinct
+<span class="arithmatex">\(k\)</span>-mers in a sample and <code>base</code> controls bucket granularity (default: 2). It identifies
+the Bloom-filter size class required to index that sample at the target false-positive
+rate.</p>
+<p>A <em>span profile</em> is the distribution of samples across spans, together with candidate
+groupings of those spans into sub-indices. Fewer spans means fewer index files opened
+at query time, which improves query performance on I/O-bound storage.</p>
+<p><code>profile</code> reads <span class="arithmatex">\(k\)</span>-mer counts from a JSONL file produced by <a href="../list/"><code>list</code></a>, assigns
+each sample to its span, and writes a CSV summary, a profile YAML, and a distribution
+plot to the output directory. Samples without a <code>kmer_count</code> field are skipped.</p>
+<p><strong>False-positive rate</strong> — a higher rate reduces Bloom-filter size and therefore disk
+footprint. At query time the <a href="https://doi.org/10.1007/978-3-030-86692-1_13">findere</a>
+algorithm compensates by querying <span class="arithmatex">\((k+z)\)</span>-mers, reducing the effective FP rate to <span class="arithmatex">\(p^z\)</span>.
+Recommended: build with <code>--fp 0.25</code> (default), query with <code>-z 6</code>, giving
+<span class="arithmatex">\(0.25^6 \approx 0.024\,\%\)</span> effective FP rate.</p>
+<p><strong>Grouping</strong> — use <code>-g N</code> to merge spans into <code>N</code> storage-balanced sub-indices. Fewer
+sub-indices reduce the number of partition files opened per query. The grouping is
+overlaid on the distribution plot for visual inspection.</p>
 <h2 id="examples">Examples</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Profile with default false-positive rate</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Profile with default settings</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>profile<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./profile_output
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Use a stricter false-positive rate</span>
@@ -1588,12 +1618,7 @@ plot to the output directory.</p>
 <a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>profile<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./profile_output<span class="w"> </span>-g<span class="w"> </span><span class="m">3</span>
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
 <a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Use a finer bucket granularity</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>kmhelpers<span class="w"> </span>profile<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./profile_output<span class="w"> </span>--base<span class="w"> </span><span class="m">1</span>.5
-</code></pre></div>
-<h2 id="input-format">Input Format</h2>
-<p>Expected JSONL format (output of <code>kmhelpers list</code>):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>{&quot;k&quot;: 25, &quot;assembled&quot;: true}
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>{&quot;name&quot;: &quot;sample_name&quot;, &quot;files&quot;: [...], &quot;kmer_count&quot;: 1234567}
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>kmhelpers<span class="w"> </span>profile<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./profile_output<span class="w"> </span>-b<span class="w"> </span><span class="m">1</span>.5
 </code></pre></div>
 <h2 id="see-also">See Also</h2>
 <ul>

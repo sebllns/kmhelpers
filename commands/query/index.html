@@ -355,7 +355,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../contributing/docs/" class="md-tabs__link">
+        <a href="../../contributing/dev/" class="md-tabs__link">
           
   
   
@@ -943,10 +943,21 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#usage" class="md-nav__link">
+  <a href="#synopsis" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Usage
+        Synopsis
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Options
       
     </span>
   </a>
@@ -969,17 +980,6 @@
     <span class="md-ellipsis">
       
         Examples
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Options
       
     </span>
   </a>
@@ -1203,6 +1203,8 @@
       
         
       
+        
+      
     
     
     
@@ -1249,6 +1251,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/dev/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -1312,10 +1342,21 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#usage" class="md-nav__link">
+  <a href="#synopsis" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Usage
+        Synopsis
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Options
       
     </span>
   </a>
@@ -1338,17 +1379,6 @@
     <span class="md-ellipsis">
       
         Examples
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Options
       
     </span>
   </a>
@@ -1442,42 +1472,16 @@
 
 
 <h1 id="query">query</h1>
+<h2 id="synopsis">Synopsis</h2>
 <p>Query indices with FASTA/FASTQ sequences.</p>
-<h2 id="usage">Usage</h2>
+<div class="admonition abstract">
+<p class="admonition-title">USAGE</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers query [OPTIONS] QUERY_FILES...
 </code></pre></div>
-<h2 id="description">Description</h2>
-<p>Searches one or more kmindex indices for sequences from FASTA/FASTQ files. Directories are scanned recursively. Pass <code>-</code> to read from stdin.</p>
-<h2 id="examples">Examples</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Single query file against one index</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>query.fa
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Multiple query files with threading</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-t<span class="w"> </span><span class="m">4</span><span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>q1.fa<span class="w"> </span>q2.fa
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Query multiple indices</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-n<span class="w"> </span>idx2<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>query.fa
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Read from stdin</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>cat<span class="w"> </span>query.fa<span class="w"> </span><span class="p">|</span><span class="w"> </span>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Scan a directory recursively</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>./queries_dir/
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># Treat all sequences as one batch query</span>
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>--single-query<span class="w"> </span>batch1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>multi.fa
-<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
-<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="c1"># Score threshold filtering</span>
-<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-R<span class="w"> </span><span class="m">0</span>.1<span class="w"> </span>query.fa
-<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>
-<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="c1"># Output as CSV</span>
-<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-f<span class="w"> </span>csv<span class="w"> </span>query.fa
-</code></pre></div>
-<h2 id="options">Options</h2>
 <table>
 <thead>
 <tr>
-<th>Option</th>
+<th>Argument</th>
 <th>Description</th>
 </tr>
 </thead>
@@ -1491,12 +1495,29 @@
 <td>Path to kmindex registry (default: <code>.</code>)</td>
 </tr>
 <tr>
-<td><code>-n, --index-ids TEXT</code></td>
-<td>Index ID(s) to query (repeatable, default: all)</td>
-</tr>
-<tr>
 <td><code>-o, --output-dir DIR</code></td>
 <td>Output directory for results (required)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="admonition abstract">
+<p class="admonition-title">I/O</p>
+<p><strong>Input:</strong> FASTA/FASTQ file(s), kmindex registry (<code>-r</code>)<br />
+<strong>Output:</strong> result files in output directory (<code>-o</code>)</p>
+</div>
+<h2 id="advanced-options">Advanced Options</h2>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-n, --index-ids TEXT</code></td>
+<td>Index ID(s) to query (repeatable, default: all)</td>
 </tr>
 <tr>
 <td><code>-t, --threads INT</code></td>
@@ -1532,7 +1553,7 @@
 </tr>
 <tr>
 <td><code>-p, --print</code></td>
-<td>Print results to console (stderr)</td>
+<td>Print results to console</td>
 </tr>
 <tr>
 <td><code>-T, --timestamp</code></td>
@@ -1548,6 +1569,36 @@
 </tr>
 </tbody>
 </table>
+<h2 id="description">Description</h2>
+<p>Searches one or more kmindex indices for sequences from FASTA/FASTQ files. Directories are scanned recursively. Pass <code>-</code> to read from stdin.</p>
+<p>Each value in the output is the fraction of query k-mers found in that sample. Results below <code>--threshold</code> are filtered out.</p>
+<p><strong>Batch mode</strong> — use <code>--batch-query</code> to treat all sequences across all query files as a single query, or <code>--single-query NAME</code> to assign them a specific identifier.</p>
+<p><strong>Parallelization</strong> — <code>seq</code> parallelises across sequences (default); <code>sub</code> parallelises across sub-indices (forced when <code>--compressed</code> is set).</p>
+<h2 id="examples">Examples</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Single query file against one index</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>query.fa
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Multiple query files with threading</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-t<span class="w"> </span><span class="m">4</span><span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>q1.fa<span class="w"> </span>q2.fa
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Query multiple indices</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-n<span class="w"> </span>idx2<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>query.fa
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Read from stdin</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>cat<span class="w"> </span>query.fa<span class="w"> </span><span class="p">|</span><span class="w"> </span>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Scan a directory recursively</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>./queries_dir/
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># Treat all sequences as one batch query</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>--single-query<span class="w"> </span>batch1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>multi.fa
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="c1"># Score threshold filtering</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-R<span class="w"> </span><span class="m">0</span>.1<span class="w"> </span>query.fa
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="c1"># Output as CSV</span>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-f<span class="w"> </span>csv<span class="w"> </span>query.fa
+</code></pre></div>
 
 
 

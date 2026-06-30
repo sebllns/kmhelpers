@@ -355,7 +355,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../contributing/docs/" class="md-tabs__link">
+        <a href="../../contributing/dev/" class="md-tabs__link">
           
   
   
@@ -1280,6 +1280,8 @@
       
         
       
+        
+      
     
     
     
@@ -1326,6 +1328,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/dev/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -1585,7 +1615,8 @@
 
 <h1 id="tutorial-indexing-10-e-coli-assemblies">Tutorial: Indexing 10 <em>E. coli</em> Assemblies</h1>
 <p>By the end you will have a queryable k-mer index of these assemblies built in
-five commands: <code>list</code> → <code>profile</code> → <code>compose</code> → <code>plan</code> → <code>apply</code>.</p>
+five commands:<br />
+<code>list</code> → <code>profile</code> → <code>compose</code> → <code>plan</code> → <code>apply</code>.</p>
 <hr />
 <h2 id="prerequisites">Prerequisites</h2>
 <ul>
@@ -1645,7 +1676,7 @@ five commands: <code>list</code> → <code>profile</code> → <code>compose</cod
 </code></pre></div>
 <details class="abstract">
 <summary>I/O</summary>
-<p><strong>Input:</strong> <code>coli_10.txt</code>
+<p><strong>Input:</strong> <code>coli_10.txt</code><br />
 <strong>Output:</strong> <code>coli.jsonl</code></p>
 </details>
 <details class="info">
@@ -1653,7 +1684,7 @@ five commands: <code>list</code> → <code>profile</code> → <code>compose</cod
 <p><code>list</code> reads each path, counts k-mers with ntcard (k = 25), and writes one
 JSONL record per sample to <code>coli.jsonl</code>.</p>
 </details>
-<details class="tip">
+<details class="success">
 <summary>RESULT</summary>
 <p>The header line records the shared parameters; every subsequent line is one
 sample:</p>
@@ -1669,7 +1700,7 @@ sample:</p>
 </code></pre></div>
 <details class="abstract">
 <summary>I/O</summary>
-<p><strong>Input:</strong> <code>coli.jsonl</code>
+<p><strong>Input:</strong> <code>coli.jsonl</code><br />
 <strong>Output:</strong> <code>coli_profile/profile.yaml</code>, <code>coli_profile/groups.png</code></p>
 </details>
 <details class="info">
@@ -1719,7 +1750,7 @@ actually be the optimal choice; we use <code>-g 2</code> here to illustrate how
 grouping works — pick a value that fits your own distribution.</p>
 </details>
 </details>
-<details class="tip">
+<details class="success">
 <summary>RESULT</summary>
 <p><code>profile</code> writes three output files to <code>coli_profile/</code>:</p>
 <details class="tip">
@@ -1814,6 +1845,23 @@ Bloom-filter sizes, are read from
 prints the equivalent <code>kmindex</code> commands — without running them. Fix any path
 errors now rather than discovering them mid-build.</p>
 </details>
+<details class="success">
+<summary>RESULT</summary>
+<details class="tip">
+<summary>Validation report in <code>coli_build/logs/</code></summary>
+<ul>
+<li><strong><code>input_file</code></strong> -- path to the <code>coli.yaml</code> used as input</li>
+<li><strong><code>kmindex</code> / <code>kmhelpers</code></strong> -- tool versions detected at runtime</li>
+<li><strong><code>span</code></strong> -- one entry per sub-index: sample count and estimated disk size</li>
+<li><strong><code>run</code></strong> -- validation result (<code>SUCCESS</code> / <code>FAILURE</code>) per sub-index</li>
+</ul>
+</details>
+<details class="tip">
+<summary>Build script <code>coli_build/assets/kmhelpers_apply.sh</code></summary>
+<p>One <code>kmindex build</code> call per sub-index (<code>coli_g0</code>, <code>coli_g1</code>), with Bloom-filter
+size, k-mer size, and output paths pre-filled from the profile.</p>
+</details>
+</details>
 <hr />
 <h2 id="step-7-build-the-index-bash">Step 7 — Build the index (<code>bash</code>)</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>bash<span class="w"> </span>coli_build/assets/kmhelpers_apply.sh
@@ -1823,7 +1871,7 @@ errors now rather than discovering them mid-build.</p>
 <p><strong>Input:</strong> <code>coli_build/assets/kmhelpers_apply.sh</code><br />
 <strong>Output:</strong> <code>coli_build/index.json</code> + sub-index data files in <code>coli_build/kmindex_data/</code> -- ready-to-query index (~50 MB)</p>
 </details>
-<details class="tip">
+<details class="success">
 <summary>RESULT</summary>
 <p>Once complete, the index is registered in <code>coli_build/index.json</code> and ready to query.</p>
 </details>
@@ -1840,6 +1888,33 @@ errors now rather than discovering them mid-build.</p>
 <summary>I/O</summary>
 <p><strong>Input:</strong> <code>coli_build/</code> (index root), <code>query.fa</code> (first contig of <code>GCA_000780515</code>)<br />
 <strong>Output:</strong> <code>results/</code> </p>
+</details>
+<details class="success">
+<summary>RESULT</summary>
+<p><code>query</code> writes one JSON file per sub-index into <code>results/query/result</code>:</p>
+<details class="tip">
+<summary><code>coli_g0.json</code></summary>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="p">{</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">    </span><span class="nt">&quot;coli_g0&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">        </span><span class="nt">&quot;JSPL01000060.1&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{}</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="p">}</span>
+</code></pre></div>
+</details>
+<details class="tip">
+<summary><code>coli_g1.json</code></summary>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="p">{</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">    </span><span class="nt">&quot;coli_g1&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">        </span><span class="nt">&quot;JSPL01000060.1&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">            </span><span class="nt">&quot;GCA_000780515_1_ASM78051v1_genomic_fna&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">1.0</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">        </span><span class="p">}</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="p">}</span>
+</code></pre></div>
+</details>
+<p>Each value is the fraction of query k-mers found in that sample.
+<code>GCA_000780515</code> scores <strong>1.0</strong> -- a perfect match, as expected since <code>query.fa</code> was
+extracted from that assembly.</p>
 </details>
 <hr />
 <h2 id="references">References</h2>
