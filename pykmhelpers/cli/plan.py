@@ -1,21 +1,14 @@
 """Build k-mer index command."""
 
-import atexit
-import datetime
 import logging
 import os
-import signal
-import sys
-import tempfile
 
 import click
 import yaml
 
 import pykmhelpers.cli.shared as shared
+import pykmhelpers.core.log
 import pykmhelpers.pipeline.index_ops as ops
-from pykmhelpers.core.constants import KMHELPERS_VERSION
-from pykmhelpers.core.log import Log
-from pykmhelpers.pipeline.mail_notifier import MailNotifier
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +174,7 @@ def plan(
             assert work_dir, "Required parameter 'work_dir' was not provided."
 
         except Exception as e:
-            Log.handle_exception(logger, e, f"Invalid argument.")
+            pykmhelpers.core.log.Log.handle_exception(logger, e, f"Invalid argument.")
             raise click.ClickException(abort_msg)
 
         work_dir = os.path.realpath(work_dir)
@@ -255,7 +248,7 @@ def plan(
                     logger.info(f"Result details written to {details_path}")
                     i += 1
             except Exception as e:
-                Log.handle_exception(
+                pykmhelpers.core.log.Log.handle_exception(
                     logger, e, f"Could not plan {os.path.basename(input_file)}"
                 )
 
@@ -264,4 +257,4 @@ def plan(
     except (ValueError, FileNotFoundError) as e:
         raise click.ClickException(str(e))
     except Exception as e:
-        Log.handle_exception(logger, e, "FAILED ('profile')")
+        pykmhelpers.core.log.Log.handle_exception(logger, e, "FAILED ('profile')")

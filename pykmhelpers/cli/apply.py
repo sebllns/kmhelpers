@@ -1,21 +1,18 @@
 """Build k-mer index command."""
 
 import atexit
-import datetime
 import logging
 import os
 import signal
 import sys
-import tempfile
 
 import click
 import yaml
 
 import pykmhelpers.cli.shared as shared
+import pykmhelpers.core.log
 import pykmhelpers.pipeline.index_ops as ops
-from pykmhelpers.core.constants import KMHELPERS_VERSION
-from pykmhelpers.core.log import Log
-from pykmhelpers.pipeline.mail_notifier import MailNotifier
+import pykmhelpers.pipeline.mail_notifier
 
 logger = logging.getLogger(__name__)
 
@@ -236,8 +233,8 @@ def apply(
     attachements = []
     log_dir = "UNDEFINED_LOG_DIR"
 
-    if Log.log_file:
-        attachements.append(Log.log_file)
+    if pykmhelpers.core.log.Log.log_file:
+        attachements.append(pykmhelpers.core.log.Log.log_file)
 
     # Notification setup
     _notify_state = {
@@ -264,7 +261,7 @@ def apply(
             status = "CANCELLED"
         # attachment = _build_attachment()
         try:
-            MailNotifier(dry_run=False).send(
+            pykmhelpers.pipeline.mail_notifier.MailNotifier(dry_run=False).send(
                 to=recipient,
                 subject=f"[kmhelpers apply] {status}",
                 body=f"kmhelpers apply exited with status: {status}\nkmindex logs can be found in {log_dir}",
@@ -289,7 +286,7 @@ def apply(
         try:
             config_map = shared.deserialize(config)
         except Exception as e:
-            Log.handle_exception(
+            pykmhelpers.core.log.Log.handle_exception(
                 logger, e, f"Could not deserialize config from {config}"
             )
             raise click.ClickException(abort_msg)
@@ -336,7 +333,7 @@ def apply(
             fail_on_error = config_map.get("fail_on_error", False)
 
     except Exception as e:
-        Log.handle_exception(logger, e, f"Invalid argument.")
+        pykmhelpers.core.log.Log.handle_exception(logger, e, f"Invalid argument.")
         raise click.ClickException(abort_msg)
 
     work_dir = os.path.realpath(work_dir)
@@ -416,6 +413,6 @@ def apply(
                 logger.info("SUCCESS ('apply')")
         except Exception as e:
             _notify_state["status"] = ops.ApplyStatus.FAILED.value
-            Log.handle_exception(
+            pykmhelpers.core.log.Log.handle_exception(
                 logger, e, f"Could not apply {os.path.basename(input_file)}"
             )
