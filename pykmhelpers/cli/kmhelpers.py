@@ -27,6 +27,7 @@ from pykmhelpers.cli.experimental import experimental
 from pykmhelpers.cli.fof import fof
 from pykmhelpers.cli.kmindex import kmindex
 from pykmhelpers.cli.list import list_samples
+from pykmhelpers.cli.lpc import lpc
 from pykmhelpers.cli.pipeline import pipeline
 from pykmhelpers.cli.plan import plan
 from pykmhelpers.cli.profile import profile
@@ -328,6 +329,8 @@ profile.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(profile)
 compose.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(compose)
+lpc.section = "Main commands"  # type: ignore[assignment]
+cli.add_command(lpc)
 plan.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(plan)
 apply.section = "Main commands"  # type: ignore[assignment]

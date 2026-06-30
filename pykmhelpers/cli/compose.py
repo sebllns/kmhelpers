@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
     "-o",
     required=True,
     type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Output directory for compressed index",
+    help="📁  Output directory",
 )
 @click.option(
     "--name",
