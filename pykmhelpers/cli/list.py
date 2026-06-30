@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
     "output_file",
     required=True,
     type=click.Path(dir_okay=False),
-    help="Path for the output JSONL file. If it already exists, it is backed up and the run resumes without reprocessing already-listed samples (use --autorename to rename duplicates instead of skipping).",
+    help="📄  Path for the output JSONL file. If it already exists, it is backed up and the run resumes without reprocessing already-listed samples (use --autorename to rename duplicates instead of skipping).",
 )
 @click.option(
     "--kmer-size",
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
     type=int,
     default=25,
     show_default=True,
-    help="K-mer size used for counting",
+    help="🧬  K-mer size used for counting.",
 )
 @click.option(
     "--data-type",
@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
     type=click.Choice(["a", "assembled", "u", "unassembled"], case_sensitive=False),
     default="a",
     show_default=True,
-    help="Data type: a/assembled (default) or u/unassembled (raw reads)",
+    help="🧬  Data type: a/assembled (default) or u/unassembled (raw reads).",
 )
 @click.option(
     "--no-count",
@@ -48,7 +48,8 @@ logger = logging.getLogger(__name__)
     "no_count",
     is_flag=True,
     default=False,
-    help="Skip k-mer counting with ntcard",
+    show_default=True,
+    help="🚩  Skip k-mer counting with ntcard.",
 )
 @click.option(
     "--leaf-grouping",
@@ -56,14 +57,16 @@ logger = logging.getLogger(__name__)
     "leaf_grouping",
     is_flag=True,
     default=False,
-    help="Group files by leaf folder; each leaf directory becomes one sample",
+    show_default=True,
+    help="🚩  Group files by leaf folder; each leaf directory becomes one sample.",
 )
 @click.option(
     "--autorename",
     "-r",
     is_flag=True,
     default=False,
-    help="Rename duplicate sample IDs by appending a numeric suffix instead of skipping",
+    show_default=True,
+    help="🚩  Rename duplicate sample IDs by appending a numeric suffix instead of skipping.",
 )
 @click.option(
     "--ntcard-threads",
@@ -71,7 +74,8 @@ logger = logging.getLogger(__name__)
     "ntcard_threads",
     type=int,
     default=8,
-    help="⚙️  Number of threads used by ntcard for k-mer counting (default: 8)",
+    show_default=True,
+    help="⚙️  Number of threads used by ntcard for k-mer counting.",
 )
 def list_samples(
     input_path,
@@ -84,6 +88,10 @@ def list_samples(
     ntcard_threads,
 ):
     """Scan a directory or import a sample list, count k-mers, and output a JSONL file.
+
+    \b
+    Input:  directory to scan, or a plain-text / YAML sample list
+    Output: JSONL sample manifest (-o)
 
     INPUT can be a directory (scanned recursively for sample files) or a
     plain-text / YAML file listing samples — the type is detected automatically.

@@ -28,19 +28,21 @@ logger = logging.getLogger(__name__)
     "-o",
     required=True,
     type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Output directory",
+    help="📁  Output directory.",
 )
 @click.option(
     "--name",
     "-n",
     required=True,
-    help="🏷️   Name of created index",
+    help="🏷️   Name of created index.",
 )
 @click.option(
     "--session-id",
     "-S",
     required=False,
-    help="🏷️   Session tag appended to index names (default: current timestamp)",
+    default=lambda: datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),
+    show_default="current timestamp",
+    help="🏷️   Session tag appended to index names.",
 )
 @click.option(
     "--kmer-size",
@@ -48,7 +50,7 @@ logger = logging.getLogger(__name__)
     type=int,
     default=25,
     show_default=True,
-    help="🧬  K-mer size used for counting",
+    help="🧬  K-mer size used for counting.",
 )
 @click.option(
     "--data-type",
@@ -57,7 +59,7 @@ logger = logging.getLogger(__name__)
     type=click.Choice(["a", "assembled", "u", "unassembled"], case_sensitive=False),
     default="a",
     show_default=True,
-    help="🧬  Data type: a/assembled (default) or u/unassembled (raw reads)",
+    help="🧬  Data type: a/assembled (default) or u/unassembled (raw reads).",
 )
 @click.option(
     "--group",
@@ -66,14 +68,16 @@ logger = logging.getLogger(__name__)
     metavar="N_GROUPS",
     default=20,
     type=int,
-    help="⚙   Partition index into N storage-balanced groups and overlay the result on the plot (default: 20). ",
+    show_default=True,
+    help="⚙   Partition index into N storage-balanced groups and overlay the result on the plot.",
 )
 @click.option(
     "--base",
     "-b",
     type=click.FloatRange(min=1.0, min_open=True),
     default=1.1,
-    help="⚙   Base for bucket boundaries (default: 1.1). "
+    show_default=True,
+    help="⚙   Base for bucket boundaries. "
     "Use values like 1.1 or 2 to widen or narrow bucket granularity.",
 )
 @click.option(
@@ -82,7 +86,8 @@ logger = logging.getLogger(__name__)
     "no_count",
     is_flag=True,
     default=False,
-    help="🚩   Skip k-mer counting with ntcard",
+    show_default=True,
+    help="🚩   Skip k-mer counting with ntcard.",
 )
 @click.option(
     "--leaf-grouping",
@@ -90,14 +95,16 @@ logger = logging.getLogger(__name__)
     "leaf_grouping",
     is_flag=True,
     default=False,
-    help="🚩  Group files by leaf folder; each leaf directory becomes one sample",
+    show_default=True,
+    help="🚩  Group files by leaf folder; each leaf directory becomes one sample.",
 )
 @click.option(
     "--autorename",
     "-r",
     is_flag=True,
     default=False,
-    help="🚩  Rename duplicate sample IDs by appending a numeric suffix instead of skipping",
+    show_default=True,
+    help="🚩  Rename duplicate sample IDs by appending a numeric suffix instead of skipping.",
 )
 @click.option(
     "--ntcard-threads",
@@ -105,14 +112,16 @@ logger = logging.getLogger(__name__)
     "ntcard_threads",
     type=int,
     default=8,
-    help="⚙️  Number of threads used by ntcard for k-mer counting (default: 8)",
+    show_default=True,
+    help="⚙️  Number of threads used by ntcard for k-mer counting.",
 )
 @click.option(
     "--false-positive-rate",
     "-fp",
     type=float,
     default=0.25,
-    help="🎯  Bloom filter false-positive rate p (default: 0.25). "
+    show_default=True,
+    help="🎯  Bloom filter false-positive rate p. "
     "A higher rate reduces disk footprint; the findere algorithm compensates at "
     "query time by using (k+z)-mers, reducing the effective FP rate to p^z. "
     "See NOTE and RECOMMENDED above.",
@@ -122,7 +131,8 @@ logger = logging.getLogger(__name__)
     "-p",
     type=int,
     default=0,
-    help="💾  Desired number of partitions per index, 0 for automatic count (default: 0)",
+    show_default=True,
+    help="💾  Desired number of partitions per index, 0 for automatic count.",
 )
 def lpc(
     input,
@@ -142,20 +152,26 @@ def lpc(
 ):
     """Scan a directory, profile k-mer spans, and compose index definition files.
 
-    Runs the full list → profile → compose pipeline in a single command.
+    Runs the pipeline [list → profile → compose] in a single command.
     INPUT can be a directory (scanned recursively) or a sample list file.
 
     \b
+    Input:  directory to scan, or a plain-text / YAML sample list
+    Output: OUTPUT_DIR/list/ (JSONL), OUTPUT_DIR/profile/ (profile.yaml, groups.png),
+            OUTPUT_DIR/compose/ (index definitions)
+
+    \b
     Steps:
-      1. list    — scan INPUT, count k-mers, write JSONL output file to OUTPUT_DIR/list/
-      2. profile — compute Bloom-filter span distribution, write profile.yaml to OUTPUT_DIR/profile/
-      3. compose — build index definition files to OUTPUT_DIR/compose/
+      1. list    - scan INPUT, count k-mers, write JSONL output file to OUTPUT_DIR/list/
+      2. profile - compute Bloom-filter span distribution, write profile.yaml to OUTPUT_DIR/profile/
+      3. compose - build index definition files to OUTPUT_DIR/compose/
 
     \b
     ► NOTE: At query time, the effective FP rate is reduced to p^z, where p is
       the build-time rate (--fp) and z is a query-time parameter.
     ► RECOMMENDED: build with p=0.25, query with z=6 (effective FP rate: 0.25^6 ≈ 0.024%).
     """
+
     is_assembled = data_type.lower() in ("a", "assembled")
     input_dir = input if os.path.isdir(input) else None
     input_list = input if os.path.isfile(input) else None

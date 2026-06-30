@@ -130,16 +130,22 @@ need to resolve them from a different location.",
 @click.option(
     "--skip-compression",
     is_flag=True,
+    default=False,
+    show_default=True,
     help="🚩  Skip compression of intermediate files during index building. Can improve performance on fast drives where I/O is not a bottleneck.",
 )
 @click.option(
     "--show-progress",
     is_flag=True,
+    default=False,
+    show_default=True,
     help="🚩  Show a progress bar with elapsed time and estimated remaining time during index building.",
 )
 @click.option(
     "--fail-on-error",
     is_flag=True,
+    default=False,
+    show_default=True,
     help="🚩  Abort the entire run if any index fails to build, instead of skipping it and continuing.",
 )
 @click.option(
@@ -170,6 +176,10 @@ def apply(
     notify,
 ):
     """Apply changes and build indices from definition files.
+
+    \b
+    Input:  index definition file(s) (.json/.yaml) from `compose`
+    Output: built k-mer index in WORK_DIR/, registered in WORK_DIR/index.json
 
     📄 INPUT_FILES are one or more index definition files (.json/.yaml). For each file,
     the declared indices are built and registered. If the file type is an index definition,

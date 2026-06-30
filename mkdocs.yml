@@ -70,6 +70,7 @@ nav:
   - Commands:
       - Overview: commands/index.md
       - Main Commands:
+          - lpc: commands/lpc.md
           - list: commands/list.md
           - profile: commands/profile.md
           - compose: commands/compose.md

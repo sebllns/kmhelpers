@@ -34,14 +34,16 @@ logger = logging.getLogger(__name__)
     metavar="N_GROUPS",
     default=20,
     type=int,
-    help="⚙   Partition index into N storage-balanced groups and overlay the result on the plot (default: 20). ",
+    show_default=True,
+    help="⚙   Partition index into N storage-balanced groups and overlay the result on the plot.",
 )
 @click.option(
     "--false-positive-rate",
     "-fp",
     type=float,
     default=0.25,
-    help="🎯  Bloom filter false-positive rate p (default: 0.25). "
+    show_default=True,
+    help="🎯  Bloom filter false-positive rate p. "
     "A higher rate reduces disk footprint; the findere algorithm compensates at "
     "query time by using (k+z)-mers, reducing the effective FP rate to p^z. "
     "See NOTE and RECOMMENDED above.",
@@ -51,11 +53,16 @@ logger = logging.getLogger(__name__)
     "-b",
     type=click.FloatRange(min=1.0, min_open=True),
     default=1.1,
-    help="⚙   Base for bucket boundaries (default: 1.1). "
+    show_default=True,
+    help="⚙   Base for bucket boundaries. "
     "Use values like 1.1 or 2 to widen or narrow bucket granularity.",
 )
 def profile(list_output, output_dir, n_groups, base, false_positive_rate):
     """Analyse a JSONL sample index and output a Bloom-filter profile.
+
+    \b
+    Input:  JSONL sample manifest produced by `list`
+    Output: profile.yaml, groups.png in output directory (-o)
 
     Reads the k-mer counts from LIST_OUTPUT (a JSONL file produced by `list`),
     assigns each sample to a Bloom-filter using the given false-positive (FP)

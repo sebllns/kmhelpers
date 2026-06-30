@@ -1,5 +1,6 @@
 """Compose command: build index definition file(s) from lists of samples."""
 
+import datetime
 import logging
 import os
 
@@ -19,19 +20,21 @@ logger = logging.getLogger(__name__)
     "-o",
     required=True,
     type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Output directory",
+    help="📁  Output directory.",
 )
 @click.option(
     "--name",
     "-n",
     required=True,
-    help="🏷️   Name of created index",
+    help="🏷️   Name of created index.",
 )
 @click.option(
     "--session-id",
     "-S",
     required=False,
-    help="🏷️   Session tag appended to index names (default: current timestamp)",
+    default=lambda: datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),
+    show_default="current timestamp",
+    help="🏷️   Session tag appended to index names.",
 )
 @click.option(
     "--profiles-file",
@@ -39,7 +42,7 @@ logger = logging.getLogger(__name__)
     "profiles_file",
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
     required=False,
-    help="📋  YAML profiles file defining span lists and Bloom filter parameters (required to build a new index)",
+    help="📋  YAML profiles file defining span lists and Bloom filter parameters (required to build a new index).",
 )
 @click.option(
     "--profile",
@@ -47,32 +50,34 @@ logger = logging.getLogger(__name__)
     "selected_profile",
     type=str,
     required=False,
-    help="⚙️  Profile name to use (default: uses default_profile from the profiles file)",
+    help="⚙️  Profile name to use (default: uses default_profile from the profiles file).",
 )
 @click.option(
     "--partition-count",
     "-p",
     type=int,
     default=0,
-    help="💾   Desired number of partitions per index, 0 for automatic count (default: 0)",
+    show_default=True,
+    help="💾  Desired number of partitions per index, 0 for automatic count.",
 )
 @click.option(
     "--split-size",
     "-b",
     "bf_max_size",
-    help="💾  Maximum run size (e.g., '10GB', '5000MB') before splitting samples across indices (default = no limit)",
+    help="💾  Maximum run size (e.g., '10GB', '5000MB') before splitting samples across indices.",
 )
 @click.option(
     "--partition-min-size",
     "-m",
-    help="💾  Minimum partition file size (e.g., '500MB', '1GB'). If not met, partition count will decrease to maintain this size limit per partition (default = no limit)",
+    help="💾  Minimum partition file size (e.g., '500MB', '1GB'). If not met, partition count will decrease to maintain this size limit per partition.",
 )
 @click.option(
     "--partition-count-limit",
     "-P",
     type=int,
     default=256,
-    help="⚙️   Partition count limit for auto-partitioning (default: 256)",
+    show_default=True,
+    help="⚙️  Partition count limit for auto-partitioning.",
 )
 def compose(
     input_file,
@@ -87,6 +92,10 @@ def compose(
     session_id,
 ):
     """Compose index definition file(s) from a sample list.
+
+    \b
+    Input:  JSONL sample list (from `list`), profiles YAML for new index (from `profile`)
+    Output: index definition files in OUTPUT_DIR/NAME/
 
     Use --profiles-file to build a new index. To update an existing index, omit
     --profiles-file: the layout file at OUTPUT_DIR/NAME_layout.yaml is loaded automatically.

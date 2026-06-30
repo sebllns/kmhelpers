@@ -15,100 +15,117 @@ logger = logging.getLogger(__name__)
     "--registry-path",
     "-r",
     default=".",
+    show_default=True,
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    help="Path to kmindex registry",
+    help="📁  Path to kmindex registry.",
 )
 @click.option(
     "--index-ids",
     "-n",
     multiple=True,
     required=False,
-    help="Index ID(s) to query against (can specify multiple, default: all)",
+    help="⚙   Index ID(s) to query against (can specify multiple, default: all).",
 )
 @click.option(
     "--output-dir",
     "-o",
     required=True,
     type=click.Path(file_okay=False, dir_okay=True),
-    help="Output directory for query results",
+    help="📁  Output directory for query results.",
 )
 @click.option(
     "--zvalue",
     "-z",
     type=int,
     default=6,
-    help="Z-value for findere algorithm, to filter false positives (default: 6)",
+    show_default=True,
+    help="⚙   Z-value for findere algorithm, to filter false positives.",
 )
 @click.option(
     "--threshold",
     "-R",
     type=float,
     default=0.05,
-    help="Score threshold for results filtering (default: 0.05)",
+    show_default=True,
+    help="🎯  Score threshold for results filtering.",
 )
 @click.option(
     "--threads",
     "-t",
     type=int,
     default=1,
-    help="Number of threads for parallel execution (default: 1)",
+    show_default=True,
+    help="⚙️  Number of threads for parallel execution.",
 )
 @click.option(
     "--single-query",
     "-s",
-    help="Treat all sequences as single query with this identifier",
+    help="⚙   Treat all sequences as single query with this identifier.",
 )
 @click.option(
     "--batch-query",
     "-b",
     is_flag=True,
-    help="Treat all sequences across all query files as a single batched query instead of querying each sequence individually",
+    default=False,
+    show_default=True,
+    help="🚩  Treat all sequences across all query files as a single batched query instead of querying each sequence individually.",
 )
 @click.option(
     "--aggregate",
     "-a",
     is_flag=True,
-    help="Aggregate batch results into one file",
+    default=False,
+    show_default=True,
+    help="🚩  Aggregate batch results into one file.",
 )
 @click.option(
     "--compressed",
     "-c",
     is_flag=True,
-    help="Index is compressed",
+    default=False,
+    show_default=True,
+    help="🚩  Index is compressed.",
 )
 @click.option(
     "--format",
     "-f",
     type=click.Choice(["json", "yaml", "md", "html", "csv"]),
     default="json",
-    help="Output format for results (default: json)",
+    show_default=True,
+    help="⚙   Output format for results.",
 )
 @click.option(
     "--print",
     "-p",
     "print_output",
     is_flag=True,
-    help="Print result to console (stdout)",
+    default=False,
+    show_default=True,
+    help="🚩  Print result to console (stdout).",
 )
 @click.option(
     "--timestamp",
     "-T",
     is_flag=True,
-    help="Append a timestamp suffix to the output directory name to avoid overwriting previous results",
+    default=False,
+    show_default=True,
+    help="🚩  Append a timestamp suffix to the output directory name to avoid overwriting previous results.",
 )
 @click.option(
     "--existing",
     "-e",
     type=click.Choice(["skip", "fail", "delete", "new-name"]),
     default="skip",
-    help="Action when result directory already exists: skip (default), fail, delete, new-name",
+    show_default=True,
+    help="⚙   Action when result directory already exists: skip, fail, delete, new-name.",
 )
 @click.option(
     "--parallel",
     "-P",
     type=click.Choice(["seq", "sub"]),
     default="seq",
-    help="Parallelization strategy: seq (across sequences, default) or sub (across sub-indices). Forced to sub when --compressed is set.",
+    show_default=True,
+    help="⚙   Parallelization strategy: seq (across sequences) or sub (across sub-indices). Forced to sub when --compressed is set.",
 )
 @click.argument(
     "query_files",
@@ -136,6 +153,10 @@ def query(
     query_files,
 ):
     """Query indices with FASTA/FASTQ sequences.
+
+    \b
+    Input:  FASTA/FASTQ file(s), kmindex registry (-r)
+    Output: result files in output directory (-o)
 
     QUERY_FILES: Query file(s) or directory/ies in FASTA/FASTQ format. Directories are
     scanned recursively. Use '-' to read from stdin.

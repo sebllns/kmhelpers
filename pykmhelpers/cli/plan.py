@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
     "-w",
     required=False,
     default=".",
+    show_default=True,
     type=click.Path(file_okay=False, dir_okay=True),
     help="📁  Working directory path.",
 )
@@ -120,6 +121,10 @@ def plan(
     fail_on_error,
 ):
     """Validate paths and preview the build plan from an index definition file.
+
+    \b
+    Input:  index definition file (.json/.yaml) from `compose`
+    Output: shell script in WORK_DIR/assets/, validation report in WORK_DIR/logs/
 
     📄 INPUT_FILE is an index definition file (.json/.yaml). If it is an index
     definition, indices are previewed directly; if it is a span registry, sub-index

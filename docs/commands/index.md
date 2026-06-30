@@ -7,6 +7,7 @@
 | [`list`](list.md) | Recursively scan a directory and produce a YAML sample manifest |
 | [`profile`](profile.md) | Analyse a sample YAML file and output a Bloom-filter span profile |
 | [`compose`](compose.md) | Compose index definition files from sample lists |
+| [`lpc`](lpc.md) | Run the full list → profile → compose pipeline in a single command |
 | [`plan`](plan.md) | Preview build plan from index definition files (dry-run with path validation) |
 | [`apply`](apply.md) | Build k-mer indices from index definition files |
 | [`query`](query.md) | Query indices with FASTA/FASTQ sequences |
