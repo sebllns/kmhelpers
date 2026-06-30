@@ -8,5 +8,7 @@
       "editor.defaultFormatter": "ms-python.black-formatter"
     },
     "python.defaultInterpreterPath": "${workspaceFolder}/.env/bin/python",
-    "python.terminal.activateEnvironment": true
+    "python.terminal.activateEnvironment": true,
+    "python-envs.defaultEnvManager": "ms-python.python:conda",
+    "python-envs.defaultPackageManager": "ms-python.python:conda"
   }
