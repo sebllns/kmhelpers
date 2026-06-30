@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
     "-g",
     "n_groups",
     metavar="N_GROUPS",
-    default=0,
+    default=20,
     type=int,
     help="⚙   Partition index into N storage-balanced groups and overlay the result on the plot (default: 20). ",
 )
@@ -50,9 +50,9 @@ logger = logging.getLogger(__name__)
     "--base",
     "-b",
     type=click.FloatRange(min=1.0, min_open=True),
-    default=2.0,
-    help="⚙   Base for bucket boundaries (default: 2.0). "
-    "Use values like 1.1 or 10 to widen or narrow bucket granularity.",
+    default=1.1,
+    help="⚙   Base for bucket boundaries (default: 1.1). "
+    "Use values like 1.1 or 2 to widen or narrow bucket granularity.",
 )
 def profile(list_output, output_dir, n_groups, base, false_positive_rate):
     """Analyse a JSONL sample index and output a Bloom-filter profile.

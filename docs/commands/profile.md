@@ -13,8 +13,8 @@ Analyse a JSONL sample manifest produced by `list` and produce a Bloom-filter sp
     |----------|-------------|
     | `LIST_OUTPUT` | JSONL sample manifest produced by `list` (required) |
     | `-o, --output DIR` | Output directory for results (required) |
-    | `-g, --group N` | Partition Bloom Filters into `N` storage-balanced groups and overlay on plot (default: 0) |
-    | `-b, --base FLOAT` | Base for span bucket boundaries (default: 2.0); use values like 1.1 to narrow granularity |
+    | `-g, --group N` | Partition Bloom Filters into `N` storage-balanced groups and overlay on plot (default: 20) |
+    | `-b, --base FLOAT` | Base for span bucket boundaries (default: 1.1); use values like 1.1 or 2.0 to widen or narrow bucket granularity |
 
 !!! abstract "I/O"
     **Input:** JSONL sample manifest produced by `list`  
@@ -39,6 +39,13 @@ A *span* is an integer `s = floor(log_base(n))`, where `n` is the number of dist
 $k$-mers in a sample and `base` controls bucket granularity (default: 2). It identifies
 the Bloom-filter size class required to index that sample at the target false-positive
 rate.
+
+![Span assignment diagram](images/fig_span_def.svg)
+
+The figure above illustrates span assignment for five samples: each sample is placed on
+the k-mer count axis and falls into the bucket delimited by consecutive powers of the
+base. Here, samples whose k-mer count falls between $2^{15}$ and $2^{16}$ are assigned
+to **Span 15**.
 
 A *span profile* is the distribution of samples across spans, together with candidate
 groupings of those spans into sub-indices. Fewer spans means fewer index files opened
