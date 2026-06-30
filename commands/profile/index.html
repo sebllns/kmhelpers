@@ -296,7 +296,7 @@
   
     
   
-  Tutorials
+  Tutorial
 
         </a>
       </li>
@@ -530,7 +530,7 @@
   <span class="md-ellipsis">
     
   
-    Tutorials
+    Tutorial
   
 
     
@@ -546,7 +546,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Tutorials
+    Tutorial
   
 
           </label>
@@ -1540,11 +1540,11 @@
 </tr>
 <tr>
 <td><code>-g, --group N</code></td>
-<td>Partition Bloom Filters into <code>N</code> storage-balanced groups and overlay on plot (default: 0)</td>
+<td>Partition Bloom Filters into <code>N</code> storage-balanced groups and overlay on plot (default: 20)</td>
 </tr>
 <tr>
 <td><code>-b, --base FLOAT</code></td>
-<td>Base for span bucket boundaries (default: 2.0); use values like 1.1 to narrow granularity</td>
+<td>Base for span bucket boundaries (default: 1.1); use values like 1.1 or 2.0 to widen or narrow bucket granularity</td>
 </tr>
 </tbody>
 </table>
@@ -1593,6 +1593,11 @@
 <span class="arithmatex">\(k\)</span>-mers in a sample and <code>base</code> controls bucket granularity (default: 2). It identifies
 the Bloom-filter size class required to index that sample at the target false-positive
 rate.</p>
+<p><img alt="Span assignment diagram" src="../images/fig_span_def.svg" /></p>
+<p>The figure above illustrates span assignment for five samples: each sample is placed on
+the k-mer count axis and falls into the bucket delimited by consecutive powers of the
+base. Here, samples whose k-mer count falls between <span class="arithmatex">\(2^{15}\)</span> and <span class="arithmatex">\(2^{16}\)</span> are assigned
+to <strong>Span 15</strong>.</p>
 <p>A <em>span profile</em> is the distribution of samples across spans, together with candidate
 groupings of those spans into sub-indices. Fewer spans means fewer index files opened
 at query time, which improves query performance on I/O-bound storage.</p>
