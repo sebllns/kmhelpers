@@ -65,7 +65,7 @@ nav:
   - Home: index.md
   - Installation: installation.md
   - Getting Started: getting-started.md
-  - Tutorials:
+  - Tutorial:
       - E. coli Dataset: tutorials/ecoli.md
   - Commands:
       - Overview: commands/index.md
