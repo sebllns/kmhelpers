@@ -16,7 +16,7 @@ from pykmhelpers.pipeline.span_profiler import SpanProfiler
 logger = logging.getLogger(__name__)
 
 
-@click.command(name="lpc")
+@click.command(name="design")
 @click.argument(
     "input",
     nargs=1,
