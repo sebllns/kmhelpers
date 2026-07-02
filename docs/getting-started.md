@@ -8,6 +8,9 @@ This guide walks through a typical workflow: discovering samples, profiling them
 list → profile → compose → plan → apply → query
 ```
 
+![Pipeline diagram](diagrams/fig_pipeline.svg)
+
+
 ## Step 1 — Discover samples
 
 Scan a directory of sequence files and produce a YAML sample manifest with k-mer counts:
