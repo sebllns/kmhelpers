@@ -18,6 +18,7 @@ from pykmhelpers import Bin, Main, __version__
 from pykmhelpers._commit import GIT_COMMIT
 from pykmhelpers.cli.about import about
 from pykmhelpers.cli.apply import apply
+from pykmhelpers.cli.build import build
 from pykmhelpers.cli.build_subindex import build_subindex
 from pykmhelpers.cli.compose import compose
 from pykmhelpers.cli.compress import kmindex_compress
@@ -107,7 +108,7 @@ class SectionedGroup(click.Group):
             sections[section].append((subcommand, help_text))
 
         # Define section order
-        section_order = ["Main commands", "Utilities", "Advanced", "Other"]
+        section_order = ["Super commands", "Main commands", "Utilities", "Advanced", "Other"]
 
         # Write sections in defined order
         for section in section_order:
@@ -329,13 +330,15 @@ profile.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(profile)
 compose.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(compose)
-lpc.section = "Main commands"  # type: ignore[assignment]
+lpc.section = "Super commands"  # type: ignore[assignment]
 cli.add_command(lpc)
 plan.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(plan)
 apply.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(apply)
-query.section = "Main commands"  # type: ignore[assignment]
+build.section = "Super commands"  # type: ignore[assignment]
+cli.add_command(build)
+query.section = "Super commands"  # type: ignore[assignment]
 cli.add_command(query)
 kmindex_compress.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(kmindex_compress)
