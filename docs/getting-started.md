@@ -2,6 +2,8 @@
 
 This guide walks through a typical workflow: discovering samples, profiling them, composing index definitions, building indices, and querying them.
 
+> **Tip:** `kh` is available as a short alias for `kmhelpers` — both commands are identical.
+
 ## Typical Workflow
 
 ```

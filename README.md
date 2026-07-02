@@ -125,6 +125,11 @@ kmhelpers --version
 
 # View available commands
 kmhelpers --help
+```
+
+> **Tip:** `kh` is available as a short alias for `kmhelpers` (e.g. `kh --help`).
+
+```bash
 
 # Check ntcard
 ntcard --version

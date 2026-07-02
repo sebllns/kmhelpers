@@ -43,6 +43,7 @@ docs = ["mkdocs-material>=9.0"]
 
 [project.scripts]
 kmhelpers = "pykmhelpers.cli.kmhelpers:cli"
+kh = "pykmhelpers.cli.kmhelpers:cli"
 
 [project.urls]
 Repository = "https://github.com/sebllns/kmhelpers"
