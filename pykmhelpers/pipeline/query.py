@@ -189,21 +189,20 @@ class KmindexQuery:
         is_compressed: bool = False,
         method: str = "seq",
     ):
-        """
-        Run a query against the kmindex registry.
+        """Run a query against the kmindex registry.
 
-        :param registry_path: Path to the kmindex registry
-        :type registry_path: str
-        :param output_dir: Output directory for query results
-        :type output_dir: str
-        :param index_ids: List of index IDs to query against (empty for all)
-        :type index_ids: list[str]
-        :param single_query: Query identifier. If provided, all sequences are considered as a unique query.
-        :type single_query: Optional[str]
-        :param aggregate: Whether to aggregate results from batches into one file.
-        :type aggregate: bool
-        :param threads: Number of threads to use for the query.
-        :type threads: int
+        Args:
+            registry_path (str): Path to the kmindex registry.
+            output_dir (str): Output directory for query results.
+            index_ids (list[str]): Index IDs to query against; empty list queries all.
+            z (int): Z-value (error rate parameter) for kmindex.
+            threshold (float): Minimum score threshold for reported hits.
+            single_query (str, optional): Query identifier; treats all sequences as one query.
+            aggregate (bool): Whether to aggregate batch results into a single file.
+            threads (int): Number of threads to use.
+            fast (bool): Enable fast mode (disabled automatically when `is_compressed` is True).
+            is_compressed (bool): Whether the index is stored in compressed form.
+            method (str): Query method passed to kmindex (e.g. ``"seq"``).
         """
         result_dir = os.path.join(output_dir, "result")
         os.makedirs(output_dir, exist_ok=True)

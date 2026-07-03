@@ -84,13 +84,14 @@ class IndexBuilder:
     def assets_folder(self) -> str:
         return os.path.join(self.path, self._assets_folder)
 
-    def load_metadata(self, file: str):
-        """
-        Docstring for load_metadata
+    def load_metadata(self, file: str) -> dict:
+        """Load sample metadata from a YAML file.
 
-        :param self: Description
-        :param file: Description
-        :type file: str
+        Args:
+            file (str): Path to the YAML metadata file containing a `samples` list.
+
+        Returns:
+            dict: Mapping of sample ID → sample metadata dict.
         """
         with open(file, "r") as f:
             tmp = yaml.safe_load(f)
@@ -115,13 +116,13 @@ class IndexBuilder:
             logger.warning(f"Could not add sample in FOF: {e}")
 
     def create_fof(self, samples) -> pykmhelpers.pipeline.fof.FofManager:
-        """
-        Docstring for create_fof
+        """Build a FofManager from a list of sample dicts.
 
-        :param self: Description
-        :param samples: Description
-        :return: Description
-        :rtype: FofManager
+        Args:
+            samples (list): List of sample dicts, each with `sample_id` and `file_path` keys.
+
+        Returns:
+            FofManager: Populated file-of-files manager.
         """
         fof = pykmhelpers.pipeline.fof.FofManager()
         for s in samples:
@@ -361,13 +362,13 @@ class IndexBuilder:
     def create_random_test_dataset(
         self, output_dir: str, n_samples: int = 5, average_size=1000, min_size=100
     ):
-        """
-        Create random sequences FASTA files for testing.
+        """Create random FASTA files for testing.
 
-        :param output_dir: Output directory for test FASTA files
-        :type output_dir: str
-        :param n_samples: Number of random sequences to generate
-        :type n_samples: int
+        Args:
+            output_dir (str): Directory where test FASTA files are written.
+            n_samples (int): Number of random sequences to generate.
+            average_size (int): Average sequence length in bp.
+            min_size (int): Minimum sequence length in bp.
         """
         os.makedirs(output_dir, exist_ok=True)
         fasta = pykmhelpers.core.fasta.Fasta()
@@ -380,18 +381,15 @@ class IndexBuilder:
                 f.write(sequence.to_fasta())
 
     def query_test_dataset(self, dataset: str, output_dir: str, z: int):
-        """
-        Query a whole directory (recursive) containing FASTA files.
+        """Query a directory of FASTA files against the index.
 
-        Recursively searches the dataset directory for FASTA files and queries them
-        against the index, recreating the same structure in the output directory.
+        Recursively searches `dataset` for FASTA files and queries each against
+        the index, recreating the same directory structure under `output_dir`.
 
-        :param idx: The kmtricks index to query against
-        :type idx: KmtricksIndex
-        :param dataset: Path to directory containing FASTA files
-        :type dataset: str
-        :param output_dir: Output directory to store query results
-        :type output_dir: str
+        Args:
+            dataset (str): Path to directory containing FASTA files.
+            output_dir (str): Directory where query results are written.
+            z (int): Z-value (error rate parameter) passed to kmindex.
         """
         os.makedirs(output_dir, exist_ok=True)
         for root, dirs, files in os.walk(dataset):
@@ -417,14 +415,15 @@ class IndexBuilder:
                         except Exception as e:
                             logger.error(f"Failed to query {input_path}: {str(e)}")
 
-    def check_presence(self, results: str, samples: list[str]):
-        """
-        Check presence of samples in query results.
+    def check_presence(self, results: str, samples: list[str]) -> bool:
+        """Check that all samples have a 100% query score in results.
 
-        :param results: Path to query results directory
-        :type results: str
-        :param samples: List of sample names to check
-        :type samples: list[str]
+        Args:
+            results (str): Path to query results directory.
+            samples (list[str]): Sample names that must be fully present.
+
+        Returns:
+            bool: True if all samples score 1.0, False if any fall below that.
         """
         r = pykmhelpers.pipeline.query.KmindexQueryResult(results)
         ok = True
@@ -435,14 +434,15 @@ class IndexBuilder:
                 ok = False
         return ok
 
-    def compare_results(self, results: str, ground_truth: str):
-        """
-        Compare query results against ground truth.
+    def compare_results(self, results: str, ground_truth: str) -> bool:
+        """Compare query results against a ground truth result set.
 
-        :param results: Path to query results directory
-        :type results: str
-        :param ground_truth: Path to ground truth results directory
-        :type ground_truth: str
+        Args:
+            results (str): Path to query results directory.
+            ground_truth (str): Path to ground truth results directory.
+
+        Returns:
+            bool: True if both result sets are equal.
         """
         return pykmhelpers.pipeline.query.KmindexQueryResult(
             results

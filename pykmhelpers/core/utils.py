@@ -17,12 +17,14 @@ class Main:
 
     ####################################################
     @staticmethod
-    def init(default_bin_path: str = "./bin", check_all=True, chdir="") -> None:
+    def init(default_bin_path: str = "./bin", check_all: bool = True, chdir: str = "") -> None:
         """
         Initialize kmhelpers by setting up binary paths and checking dependencies.
 
         Args:
-            default_bin_path: Default path for binary executables (default: "./bin")
+            default_bin_path: Default path for binary executables (default: "./bin").
+            check_all: If True, verify all required binaries are available (default: True).
+            chdir: If non-empty, change the working directory to this path before initialization.
         """
         if chdir:
             print(f"cd {chdir}")
@@ -352,20 +354,17 @@ class Toolbox:
     def monitor_cmd(
         cmd: List[str], print_trace: bool = True, log_file: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
-        """
-        Run a command and monitor its resource usage.
+        """Run a command and monitor its resource usage.
+
         Args:
-            cmd: Command and arguments as a list
-            log_file: Optional path to write stdout/stderr to
+            cmd: Command and arguments as a list.
+            print_trace: If True, print command output to stdout in real time (default: True).
+            log_file: Optional path to write stdout/stderr to.
+
         Returns:
-            Tuple of (stdout, resource_stats) where resource_stats contains:
-                - start_time: Command start timestamp
-                - execution_time_ms: Execution time in milliseconds
-                - max_cpu_percent: Maximum CPU usage percentage
-                - max_memory_mb: Maximum memory usage in MB
-                - return_code: Command exit code
-                - error: Error message if command failed
-            Returns None if process cannot be started
+            dict: Resource stats with keys `start_time`, `execution_time_ms`,
+            `max_cpu_percent`, `max_memory_mb`, `return_code`, and `error`.
+            Returns None if the process cannot be started.
         """
 
         max_cpu = 0.0
@@ -558,13 +557,15 @@ class Kmindex:
     def compare_matrices_size(
         folders: List[str], type: List[str], index: str
     ) -> Dict[str, Any]:
-        """
-        Compare matrix sizes across folders and partitions.
+        """Compare matrix sizes across folders and partitions.
+
         Args:
-            folders: List of folder paths to analyze
-            partition_count: Number of partitions to check
+            folders: List of folder paths to analyze.
+            type: List of matrix types to include in the comparison.
+            index: Index identifier used to locate partitions within each folder.
+
         Returns:
-            Dictionary containing analysis results with folder sizes and matrix sizes
+            Dictionary containing analysis results with folder sizes and matrix sizes.
         """
 
         partition_count = 0
@@ -1055,8 +1056,8 @@ class Kmindex:
     ####################################################
     @staticmethod
     def register_index_in_json(input_dir, output_dir, index_id):
-        """
-        Register a new index in the index.json file located in the output directory.
+        """Register a new index in the index.json file located in the output directory.
+
         Args:
             input_dir (str): Path to the input directory containing the index to register.
             output_dir (str): Path to the output directory where index.json is located.
@@ -1109,13 +1110,15 @@ class Kmindex:
 
     ####################################################
     @staticmethod
-    def get_row_count_per_block(sample_count, bytes_per_block=8388608):
-        """
-        Calculate the number of rows (bitvectors per block) based on the number of samples.
+    def get_row_count_per_block(sample_count: int, bytes_per_block: int = 8388608) -> int:
+        """Calculate the number of rows (bitvectors per block) based on sample count.
+
         Args:
-            sample_count (int): Number of samples
+            sample_count (int): Number of samples.
+            bytes_per_block (int): Block size in bytes (default: 8388608 = 8 MB).
+
         Returns:
-            int: Number of rows (bitvectors per block)
+            int: Number of rows (bitvectors per block).
         """
         return bytes_per_block // Kmindex.get_bytes_per_row(sample_count)
 
@@ -1130,20 +1133,21 @@ class Kmindex:
         zvalue=0,
         threshold=0.0,
         is_compressed=False,
-    ):
-        """
-        Run the kmindex query command with the specified parameters.
+    ) -> dict:
+        """Run the kmindex query command with the specified parameters.
+
         Args:
-            names (list): List of indexes to query from.
+            names (list): List of index IDs to query.
             index_path (str): Path to the index directory.
             output_dir (str): Path to the output directory.
-            format (str): Output format (e.g., "json").
-            fastx (bool): Whether to use FASTX format.
+            format (str): Output format (e.g., ``"json"``).
+            fastx (bool): Whether to use FASTX format for the query file.
             zvalue (int): Z-value parameter for the query.
             threshold (float): Threshold parameter for the query.
-            monitor (bool): Whether to monitor resource usage.
+            is_compressed (bool): Whether the index is stored in compressed form.
+
         Returns:
-            Output of the kmindex query command.
+            dict: Output of the kmindex query command.
         Raises:
             IsADirectoryError: If index_path is not a directory.
             FileNotFoundError: If index.json is missing.
@@ -1353,13 +1357,24 @@ class BlockCompressorZSTD:
         subsample_size: int = 0,
         threshold: int = 0,
         disable_reorder: bool = False,
-    ):
-        """
-        Run the BlockCompressorZSTD compression script with the specified arguments.
+    ) -> dict:
+        """Run the BlockCompressorZSTD compression script.
+
         Args:
-            args: Arguments to pass to the compression script
+            input_matrix_path (str): Path to the input matrix file.
+            matrix_columns_count (int): Number of columns in the matrix.
+            permutation_path (str): Path to the permutation file.
+            output_compressed_path (str): Path for the compressed output.
+            config_path (str): Path to write the compression config.
+            output_metric_path (str): Optional path to write compression metrics.
+            block_size (int): Block size in bytes (default: 8388608 = 8 MB).
+            group_size (int): Group size for compression (0 = auto).
+            subsample_size (int): Subsample size for reordering (0 = disabled).
+            threshold (int): Threshold for reordering (0 = disabled).
+            disable_reorder (bool): If True, skip the reordering step.
+
         Returns:
-            Output of the compression script.
+            dict: Output of the compression script.
         """
 
         # Check input_matrix_path exists

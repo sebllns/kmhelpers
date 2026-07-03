@@ -99,7 +99,7 @@ nav:
   - API Reference:
       - Overview: api/index.md
       - Core:
-          - index: api/core/index.md
+          - index: api/core/_index.md
           - kmer: api/core/kmer.md
           - log: api/core/log.md
           - system: api/core/system.md

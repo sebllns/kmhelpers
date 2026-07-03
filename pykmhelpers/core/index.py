@@ -65,12 +65,13 @@ class KmtricksIndex:
         Initialize a KmtricksIndex object.
 
         Args:
-            parent_dir: Parent directory containing the index
-            index_id: The ID of the specific index to work with
-            compressed_state: Compression state of the index (default: UNKNOWN)
+            parent_dir: Parent directory containing the index.
+            index_id: The ID of the specific index to work with.
+            compressed_state: Compression state of the index (default: UNKNOWN).
+            auto_load: If True, automatically load index properties from disk (default: True).
 
         Raises:
-            NotADirectoryError: If the index directory doesn't exist
+            NotADirectoryError: If the index directory doesn't exist.
         """
         self._parent_dir = Toolbox.get_canonical_path(parent_dir)
         self._index_id = index_id
@@ -592,10 +593,11 @@ class KmindexRegistry:
         Initialize an IndexRegistry.
 
         Args:
-            root_path (str): Path to directory containing index.json
+            root_path (str): Path to directory containing index.json.
+            auto_create (bool): If True, create an empty index.json when none exists; if False, raise NotAnIndexError (default: True).
 
         Raises:
-            FileNotFoundError: If index.json doesn't exist
+            NotAnIndexError: If index.json doesn't exist and auto_create is False.
         """
         self._root_path = Toolbox.get_canonical_path(root_path)
 

@@ -251,6 +251,7 @@ class IndexOps:
         Args:
             path: Path to a YAML or JSON file containing either an
                 ``IndexDefinition`` or a span registry.
+            mode: Execution mode — controls whether to dry-run, plan, or apply.
 
         Returns:
             An ``ApplyResult`` with the overall status and a per-index details
