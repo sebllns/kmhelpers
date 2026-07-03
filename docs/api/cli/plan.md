@@ -1,3 +1,0 @@
-# plan
-
-::: pykmhelpers.cli.plan

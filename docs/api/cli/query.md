@@ -1,3 +1,0 @@
-# query
-
-::: pykmhelpers.cli.query

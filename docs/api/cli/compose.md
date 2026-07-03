@@ -1,3 +1,0 @@
-# compose
-
-::: pykmhelpers.cli.compose

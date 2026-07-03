@@ -1,3 +1,0 @@
-# apply
-
-::: pykmhelpers.cli.apply

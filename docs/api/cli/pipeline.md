@@ -1,3 +1,0 @@
-# pipeline
-
-::: pykmhelpers.cli.pipeline

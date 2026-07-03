@@ -1,3 +1,0 @@
-# compress
-
-::: pykmhelpers.cli.compress

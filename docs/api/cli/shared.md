@@ -1,3 +1,0 @@
-# shared
-
-::: pykmhelpers.cli.shared

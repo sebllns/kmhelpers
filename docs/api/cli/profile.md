@@ -1,3 +1,0 @@
-# profile
-
-::: pykmhelpers.cli.profile
