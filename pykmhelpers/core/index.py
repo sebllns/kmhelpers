@@ -20,7 +20,7 @@ class NotAnIndexError(Exception):
     """Exception raised when an existing index is required and is not found in the current context.
 
     Attributes:
-        message -- explanation of the error
+        message: Explanation of the error.
     """
 
     def __init__(self, index_id):
@@ -523,7 +523,7 @@ class KmtricksIndex:
             print(f"Error moving index: {e}")
             return False
 
-    def rename(self, new_id) -> bool:
+    def rename(self, new_id: str) -> bool:
         """
         Rename this index to a new ID.
 
@@ -730,10 +730,12 @@ class KmindexRegistry:
         Remove an index from the registry.
 
         Args:
-            _index_id: The index ID to remove from the registry
+            index_id: The index ID to remove from the registry.
+            delete_files: If True, also delete the index files from disk.
+            skip_unregistered: If True, silently skip unregistered indices.
 
         Returns:
-            True if index was removed, False if it doesn't exist
+            True if index was removed, False if it doesn't exist.
         """
         if not self.has_index(index_id) and skip_unregistered:
             return False

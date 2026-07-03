@@ -1,0 +1,3 @@
+# registry
+
+::: pykmhelpers.cli.registry

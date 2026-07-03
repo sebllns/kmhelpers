@@ -4,6 +4,9 @@ site_author: Sébastien Bellenous
 repo_url: https://github.com/sebllns/kmhelpers
 repo_name: sebllns/kmhelpers
 
+watch:
+  - pykmhelpers
+
 theme:
   name: material
   logo: assets/kmhelpers-logo-v1.png
@@ -38,6 +41,18 @@ theme:
     - search.highlight
     - search.share
     - content.tabs.link
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_submodules: false
+            members_order: source
 
 markdown_extensions:
   - admonition
@@ -81,6 +96,33 @@ nav:
       - Utilities:
           - registry: commands/registry.md
           - pipeline: commands/pipeline.md
+  - API Reference:
+      - Overview: api/index.md
+      - CLI:
+          - apply: api/cli/apply.md
+          - compose: api/cli/compose.md
+          - compress: api/cli/compress.md
+          - list: api/cli/list.md
+          - plan: api/cli/plan.md
+          - profile: api/cli/profile.md
+          - query: api/cli/query.md
+          - registry: api/cli/registry.md
+          - pipeline: api/cli/pipeline.md
+          - shared: api/cli/shared.md
+      - Core:
+          - index: api/core/index.md
+          - kmer: api/core/kmer.md
+          - log: api/core/log.md
+          - system: api/core/system.md
+          - utils: api/core/utils.md
+      - Pipeline:
+          - composer: api/pipeline/composer.md
+          - index_ops: api/pipeline/index_ops.md
+          - query: api/pipeline/query.md
+          - span_profiler: api/pipeline/span_profiler.md
+      - Operations:
+          - builder: api/operations/builder.md
+          - compressor: api/operations/compressor.md
   - Changelog: changelog.md
   - Contributing:
       - Development: contributing/dev.md

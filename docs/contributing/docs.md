@@ -16,21 +16,16 @@ For docs only:
 pip install -e ".[docs]"
 ```
 
-Or install only the docs dependencies directly:
-
-```bash
-pip install mkdocs-material
-```
-
 ## Live preview
 
 Starts a local server with hot-reload on file changes:
 
 ```bash
-mkdocs serve
+mkdocs serve --dirtyreload --livereload
 ```
 
 Then open <http://127.0.0.1:8000> in your browser.
+
 
 ## Build static site
 

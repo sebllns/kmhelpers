@@ -682,7 +682,7 @@ class Kmindex:
 
     ####################################################
     @staticmethod
-    def check_index_structure(directory_path, partition_count=256):
+    def check_index_structure(directory_path, partition_count=256) -> bool:
         """
         Check if the given directory contains the expected structure and print missing files.
 
@@ -1304,7 +1304,7 @@ class BlockCompressorZSTD:
     # rows = calculate_rows(samples, "output.txt")
     # print(f"Configuration written to output.txt")
     @staticmethod
-    def create_config_file(samples, output_file="config.cfg"):
+    def create_config_file(samples, output_file="config.cfg") -> int:
         """
         Calculate rows and write configuration to output file.
 
