@@ -9,24 +9,24 @@ re-run a specific part of the pipeline.
 
 ## design
 
-The three steps below are equivalent to running
-[`kmhelpers design`](ecoli.md#step-3--design-the-index-design) in a single command.
+The three steps below are equivalent to [Step 3](ecoli.md#step-3-design-the-index-design) of the tutorial.
 
 ---
 
 ### Step 3.1 — Scan samples and count k-mers ([`list`](../commands/list.md))
 
 ```bash
-kmhelpers list coli_10.txt -o coli.jsonl -k 25
+mkdir -p coli_db/list
+kmhelpers list coli_10.txt -o coli_db/list/coli.jsonl -k 25
 ```
 
 ??? abstract "I/O"
     **Input:** `coli_10.txt`  
-    **Output:** `coli.jsonl`
+    **Output:** `coli_db/list/coli.jsonl`
 
 ??? info "INFO"
     `list` reads each path, counts k-mers with ntcard (k = 25), and writes one
-    JSONL record per sample to `coli.jsonl`.
+    JSONL record per sample to `coli_db/list/coli.jsonl`.
 
 ??? success "RESULT"
     The header line records the shared parameters; every subsequent line is one
@@ -44,12 +44,12 @@ kmhelpers list coli_10.txt -o coli.jsonl -k 25
 ### Step 3.2 — Profile the k-mer distribution ([`profile`](../commands/profile.md))
 
 ```bash
-kmhelpers profile coli.jsonl -o coli_profile/ -b 1.1 -g 2
+kmhelpers profile coli_db/list/coli.jsonl -o coli_db/profile/ -b 1.1 -g 2
 ```
 
 ??? abstract "I/O"
-    **Input:** `coli.jsonl`  
-    **Output:** `coli_profile/profile.yaml`, `coli_profile/groups.png`
+    **Input:** `coli_db/list/coli.jsonl`  
+    **Output:** `coli_db/profile/profile.yaml`, `coli_db/profile/groups.png`
 
 ??? info "INFO"
     A *span* is an integer bucket that summarises a sample's k-mer count:
@@ -167,40 +167,39 @@ kmhelpers profile coli.jsonl -o coli_profile/ -b 1.1 -g 2
 ### Step 3.3 — Compose index definitions ([`compose`](../commands/compose.md))
 
 ```bash
-kmhelpers compose coli.jsonl \
-    -o coli_db/ \
+kmhelpers compose coli_db/list/coli.jsonl \
+    -o coli_db/compose/ \
     -n coli \
     -S initial \
-    -pf coli_profile/profile.yaml
+    -pf coli_db/profile/profile.yaml
 ```
 
 ??? abstract "I/O"
-    **Input:** `coli.jsonl`, `coli_profile/profile.yaml`  
-    **Output:** `coli_db/`
+    **Input:** `coli_db/list/coli.jsonl`, `coli_db/profile/profile.yaml`  
+    **Output:** `coli_db/compose/`
 
 ??? info "INFO"
     `compose` reads the sample list and the profile, then writes index definition
-    files into `coli_db/`. The sample-to-sub-index repartition is driven by
+    files into `coli_db/compose/`. The sample-to-sub-index repartition is driven by
     the selected profile — here `2_groups`, the default set by `profile` — whose
-    Bloom-filter sizes are read from `coli_profile/profile.yaml`.
+    Bloom-filter sizes are read from `coli_db/profile/profile.yaml`.
 
 ---
 
 ## build
 
-The two steps below are equivalent to running
-[`kmhelpers build`](ecoli.md#step-4--build-the-index-build) in a single command.
+The two steps below are equivalent to [Step 4](ecoli.md#step-4-build-the-index-build) of the tutorial.
 
 ---
 
 ### Step 4.1 — Preview the build plan ([`plan`](../commands/plan.md))
 
 ```bash
-kmhelpers plan coli_db/coli/initial/coli.yaml -w coli_build/
+kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build/
 ```
 
 ??? abstract "I/O"
-    **Input:** `coli_db/coli/initial/coli.yaml`  
+    **Input:** `coli_db/compose/coli/initial/coli.yaml`  
     **Output:** `coli_build/assets/kmhelpers_apply.sh` + validation report in `coli_build/logs/`
 
 ??? info "INFO"
@@ -221,13 +220,17 @@ kmhelpers plan coli_db/coli/initial/coli.yaml -w coli_build/
 
 ---
 
-### Step 4.2 — Build the index ([`apply`](../commands/apply.md))
+### Step 4.2 — Build the index ([`apply`](../commands/apply.md) or `bash`)
 
 === "apply"
 
     ```bash
-    kmhelpers apply coli_db/coli/initial/coli.yaml -o coli_build/
+    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build/
     ```
+
+    ??? abstract "I/O"
+        **Input:** `coli_db/compose/coli/initial/coli.yaml`  
+        **Output:** `coli_build/index.json` + sub-index data files in `coli_build/kmindex_data/` — ready-to-query index (~50 MB)
 
 === "bash"
 
@@ -235,9 +238,12 @@ kmhelpers plan coli_db/coli/initial/coli.yaml -w coli_build/
     bash coli_build/assets/kmhelpers_apply.sh
     ```
 
-??? abstract "I/O"
-    **Input:** `coli_build/assets/kmhelpers_apply.sh` (bash) or `coli_db/coli/initial/coli.yaml` (apply)  
-    **Output:** `coli_build/index.json` + sub-index data files in `coli_build/kmindex_data/` — ready-to-query index (~50 MB)
+    ??? abstract "I/O"
+        **Input:** `coli_build/assets/kmhelpers_apply.sh`   
+        **Output:** `coli_build/index.json` + sub-index data files in `coli_build/kmindex_data/` — ready-to-query index 
+
 
 ??? success "RESULT"
     Once complete, the index is registered in `coli_build/index.json` and ready to query.
+
+
