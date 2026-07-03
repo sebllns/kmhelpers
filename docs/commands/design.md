@@ -1,4 +1,4 @@
-# lpc
+# design
 
 ## Synopsis
 
@@ -6,7 +6,7 @@ Scan a directory or import a sample list, then run the full [`list`](list.md) �
 
 !!! abstract "USAGE"
     ```
-    kmhelpers lpc -o OUTPUT_DIR -n NAME [OPTIONS] INPUT
+    kmhelpers design -o OUTPUT_DIR -n NAME [OPTIONS] INPUT
     ```
 
     | Argument | Description |
@@ -55,7 +55,7 @@ OUTPUT_DIR/
 
 ## Description
 
-`lpc` chains [`list`](list.md), [`profile`](profile.md), and [`compose`](compose.md) into a single invocation. It is equivalent to running the three commands in sequence with the intermediate files automatically routed between steps.
+`design` chains [`list`](list.md), [`profile`](profile.md), and [`compose`](compose.md) into a single invocation. It is equivalent to running the three commands in sequence with the intermediate files automatically routed between steps.
 
 **Step 1 — list:** scans `INPUT` recursively for sequence files (or imports a sample list), counts k-mers with ntcard, and writes a JSONL manifest to `OUTPUT_DIR/list/`.
 
@@ -63,7 +63,7 @@ OUTPUT_DIR/
 
 **Step 3 — compose:** reads the manifest and the profile to generate index definition files in `OUTPUT_DIR/compose/`.
 
-**Updates** — if the compose layout file already exists from a previous run, the profile step is skipped and the existing layout is used directly. This allows re-running `lpc` to add new samples to an existing index without re-profiling.
+**Updates** — if the compose layout file already exists from a previous run, the profile step is skipped and the existing layout is used directly. This allows re-running `design` to add new samples to an existing index without re-profiling.
 
 **False-positive rate** — a higher rate reduces Bloom-filter size and disk footprint. At query time the [findere](https://doi.org/10.1007/978-3-030-86692-1_13) algorithm compensates by querying $(k+z)$-mers, reducing the effective FP rate to $p^z$. Recommended: build with `--fp 0.25` (default), query with `-z 6`, giving $0.25^6 \approx 0.024\,\%$ effective FP rate.
 
@@ -71,25 +71,25 @@ OUTPUT_DIR/
 
 ```bash
 # Full pipeline from a directory
-kmhelpers lpc /data/sequences -o ./run -n my_index
+kmhelpers design /data/sequences -o ./run -n my_index
 
 # Skip k-mer counting (if counts are already in the sample list)
-kmhelpers lpc /data/sequences -o ./run -n my_index --no-count
+kmhelpers design /data/sequences -o ./run -n my_index --no-count
 
 # Group files by leaf folder
-kmhelpers lpc /data/sequences -o ./run -n my_index --leaf-grouping
+kmhelpers design /data/sequences -o ./run -n my_index --leaf-grouping
 
 # Custom k-mer size and false-positive rate
-kmhelpers lpc /data/sequences -o ./run -n my_index -k 31 -fp 0.1
+kmhelpers design /data/sequences -o ./run -n my_index -k 31 -fp 0.1
 
 # Tag the session
-kmhelpers lpc /data/sequences -o ./run -n my_index -S v2
+kmhelpers design /data/sequences -o ./run -n my_index -S v2
 
 # Force a specific partition count
-kmhelpers lpc /data/sequences -o ./run -n my_index -p 4
+kmhelpers design /data/sequences -o ./run -n my_index -p 4
 
 # Import from a plain-text file list
-kmhelpers lpc my_files.txt -o ./run -n my_index
+kmhelpers design my_files.txt -o ./run -n my_index
 ```
 
 ## See Also
@@ -97,4 +97,4 @@ kmhelpers lpc my_files.txt -o ./run -n my_index
 - [`list`](list.md) — list step only
 - [`profile`](profile.md) — profile step only
 - [`compose`](compose.md) — compose step only
-- [`apply`](apply.md) — build indices from the generated definition files
+- [`build`](build.md) — validate and build indices from the generated definition files

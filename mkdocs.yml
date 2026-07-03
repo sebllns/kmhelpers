@@ -82,17 +82,21 @@ nav:
   - Getting Started: getting-started.md
   - Tutorial:
       - E. coli Dataset: tutorials/ecoli.md
+      - Step-by-step breakdown: tutorials/ecoli_steps.md
   - Commands:
       - Overview: commands/index.md
-      - Main Commands:
-          - lpc: commands/lpc.md
+      - Main pipeline:
+          - design: commands/design.md
+          - build: commands/build.md
+          - query: commands/query.md
+          - compress: commands/compress.md
+      - Design pipeline:
           - list: commands/list.md
           - profile: commands/profile.md
           - compose: commands/compose.md
+      - Build pipeline:
           - plan: commands/plan.md
           - apply: commands/apply.md
-          - query: commands/query.md
-          - compress: commands/compress.md
       - Utilities:
           - registry: commands/registry.md
           - pipeline: commands/pipeline.md

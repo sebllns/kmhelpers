@@ -2,14 +2,27 @@
 
 ## Main Commands
 
+### Design pipeline
+
 | Command | Description |
 |---------|-------------|
-| [`list`](list.md) | Recursively scan a directory and produce a YAML sample manifest |
-| [`profile`](profile.md) | Analyse a sample YAML file and output a Bloom-filter span profile |
-| [`compose`](compose.md) | Compose index definition files from sample lists |
-| [`lpc`](lpc.md) | Run the full list → profile → compose pipeline in a single command |
-| [`plan`](plan.md) | Preview build plan from index definition files (dry-run with path validation) |
-| [`apply`](apply.md) | Build k-mer indices from index definition files |
+| [`design`](design.md) | Run the full list → profile → compose pipeline in a single command |
+| &nbsp;&nbsp;↳ [`list`](list.md) | Step 1 — scan a directory and count k-mers |
+| &nbsp;&nbsp;↳ [`profile`](profile.md) | Step 2 — compute Bloom-filter span distribution |
+| &nbsp;&nbsp;↳ [`compose`](compose.md) | Step 3 — generate index definition files |
+
+### Build pipeline
+
+| Command | Description |
+|---------|-------------|
+| [`build`](build.md) | Validate paths then build indices from definition files (plan → apply) |
+| &nbsp;&nbsp;↳ [`plan`](plan.md) | Step 1 — validate paths and preview the build plan |
+| &nbsp;&nbsp;↳ [`apply`](apply.md) | Step 2 — build k-mer indices |
+
+### Query & compress
+
+| Command | Description |
+|---------|-------------|
 | [`query`](query.md) | Query indices with FASTA/FASTQ sequences |
 | [`compress`](compress.md) | Compress an index managed in a registry |
 
