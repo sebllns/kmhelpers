@@ -4,6 +4,7 @@ import json
 import logging
 from typing import Any
 
+import click
 import yaml
 
 from pykmhelpers.core.byte import ByteCounter, SizeFormat
@@ -59,6 +60,111 @@ def parse_multiple_ranges(values: tuple[str]):
     for item in values:
         result.extend(parse_range(item))
     return result
+
+
+output_dir_option = click.option(
+    "--output-dir",
+    "-o",
+    "work_dir",
+    required=True,
+    type=click.Path(file_okay=False, dir_okay=True),
+    help="📁  Output (working) directory path.",
+)
+
+_base_path_option = click.option(
+    "--base-path",
+    "-b",
+    required=False,
+    type=click.Path(file_okay=False, dir_okay=True),
+    help="📁  Base path to resolve relative sample paths. By default, relative "
+    "paths are resolved from the run directory; use this option if you "
+    "need to resolve them from a different location.",
+)
+_span_option = click.option(
+    "--span",
+    "-s",
+    multiple=True,
+    required=False,
+    help="⚙   Build only selected span (e.g., --span 28, --span 27,28,29, --span 27-30, --span [27-30]).",
+)
+_index_ids_option = click.option(
+    "--name",
+    "-n",
+    "index_ids",
+    multiple=True,
+    required=False,
+    help="⚙   Index IDs to build. Can be specified multiple times (-n id1 -n id2) or comma-separated (-n id1,id2).",
+)
+_minim_size_option = click.option(
+    "--minim-size",
+    type=int,
+    required=False,
+    help="⚙   Minimizer size (4-15, default: 10).",
+)
+_threads_option = click.option(
+    "--threads",
+    "-t",
+    type=int,
+    required=False,
+    help="⚙   Number of threads (default: 1).",
+)
+_partition_count_option = click.option(
+    "--partition-count",
+    "-p",
+    type=int,
+    required=False,
+    help="⚙   Override number of partitions.",
+)
+_skip_compression_option = click.option(
+    "--skip-compression",
+    "-NC",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="🚩  Skip compression of intermediate files during index building.",
+)
+_show_progress_option = click.option(
+    "--show-progress",
+    "-SP",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="🚩  Show a progress bar with elapsed time and estimated remaining time during index building.",
+)
+_fail_fast_option = click.option(
+    "--fail-fast",
+    "-X",
+    "fail_on_error",
+    is_flag=True,
+    help="🚩  Abort the entire run if any index fails to build, instead of skipping it and continuing.",
+)
+_notify_option = click.option(
+    "--notify",
+    required=False,
+    metavar="EMAIL",
+    help="📧  Send an email notification on exit (success, failure, or timeout).",
+)
+
+_INDEX_BUILD_OPTIONS = [
+    output_dir_option,
+    _base_path_option,
+    _span_option,
+    _index_ids_option,
+    _minim_size_option,
+    _threads_option,
+    _partition_count_option,
+    _skip_compression_option,
+    _show_progress_option,
+    _fail_fast_option,
+    _notify_option,
+]
+
+
+def index_build_options(f):
+    """Shared options for commands that build k-mer indices (apply, build)."""
+    for opt in reversed(_INDEX_BUILD_OPTIONS):
+        f = opt(f)
+    return f
 
 
 def estimate_build_size(

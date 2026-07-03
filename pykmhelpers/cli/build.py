@@ -19,135 +19,15 @@ logger = logging.getLogger(__name__)
 
 @click.command(name="build")
 @click.argument("input_file", nargs=1, required=True, type=click.Path(exists=True))
-@click.option(
-    "--work-dir",
-    "-w",
-    required=False,
-    default=".",
-    show_default=True,
-    type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Working directory path.",
-)
-@click.option(
-    "--base-path",
-    "-b",
-    required=False,
-    type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Base path to resolve relative sample paths.",
-)
-@click.option(
-    "--registry",
-    "-r",
-    required=False,
-    type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Custom base path to kmindex registry (created if doesn't exist).",
-)
-@click.option(
-    "--bloom-dir",
-    "-o",
-    required=False,
-    type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Custom base path to kmindex Bloom filters directory (created if doesn't exist).",
-)
-@click.option(
-    "--span",
-    "-s",
-    multiple=True,
-    required=False,
-    help="⚙   Build only selected span (e.g., --span 28, --span 27,28,29, --span 27-30).",
-)
-@click.option(
-    "--name",
-    "-n",
-    "index_ids",
-    multiple=True,
-    required=False,
-    help="⚙   Index IDs to build. Can be repeated (-n id1 -n id2) or comma-separated (-n id1,id2).",
-)
-@click.option(
-    "--from",
-    "reuse_from",
-    required=False,
-    help="⚙   Parent index ID to reuse parameters from.",
-)
-@click.option(
-    "--on-conflict",
-    "existing",
-    required=False,
-    type=click.Choice(
-        [
-            "fail",
-            "register",
-            "rename",
-            "replace",
-            "register_or_replace",
-            "register_or_rename",
-        ],
-        case_sensitive=False,
-    ),
-    default="fail",
-    show_default=True,
-    help="⚙   Action when an existing unregistered index folder is found.",
-)
-@click.option(
-    "--minim-size",
-    type=int,
-    required=False,
-    help="⚙   Minimizer size (4-15, default: 10).",
-)
-@click.option(
-    "--threads",
-    "-t",
-    type=int,
-    required=False,
-    help="⚙   Number of threads (default: 1).",
-)
-@click.option(
-    "--partition-count",
-    "-p",
-    type=int,
-    required=False,
-    help="⚙   Override number of partitions.",
-)
-@click.option(
-    "--skip-compression",
-    is_flag=True,
-    default=False,
-    show_default=True,
-    help="🚩  Skip compression of intermediate files during index building.",
-)
-@click.option(
-    "--show-progress",
-    is_flag=True,
-    default=False,
-    show_default=True,
-    help="🚩  Show a progress bar during index building.",
-)
-@click.option(
-    "--fail-fast",
-    "-X",
-    "fail_on_error",
-    is_flag=True,
-    help="🚩  Abort the entire run if any index fails to build.",
-)
-@click.option(
-    "--notify",
-    required=False,
-    metavar="EMAIL",
-    help="📧  Send an email notification on exit (success, failure, or timeout).",
-)
+@shared.index_build_options
 @click.pass_context
 def build(
     ctx,
     input_file,
     work_dir,
     base_path,
-    registry,
-    bloom_dir,
     span,
     index_ids,
-    reuse_from,
-    existing,
     minim_size,
     threads,
     partition_count,
@@ -173,18 +53,17 @@ def build(
 
     \b
     # Plan then build all indices in a definition file
-    kmhelpers build index.yaml -w /output
+    kmhelpers build index.yaml -o build
 
     \b
     # Filter by name or span
-    kmhelpers build index.yaml -w /output -n idx1,idx2
-    kmhelpers build registry.yaml -w /output -s 28
+    kmhelpers build index.yaml -o build -n idx1,idx2
+    kmhelpers build registry.yaml -o build -s 28
 
     \b
     # Set threads and show progress
-    kmhelpers build index.yaml -w /output -t 8 --show-progress
+    kmhelpers build index.yaml -w build -t 8 --show-progress
     """
-    force = (ctx.obj or {}).get("yes", False)
 
     abort_msg = "Command 'build' aborted."
     attachments = []
@@ -237,15 +116,8 @@ def build(
 
     work_dir = os.path.realpath(work_dir)
 
-    if not registry:
-        registry = work_dir
-    else:
-        registry = os.path.realpath(registry)
-
-    if not bloom_dir:
-        bloom_dir = os.path.join(work_dir, "kmindex_data")
-    else:
-        bloom_dir = os.path.realpath(bloom_dir)
+    registry = work_dir
+    bloom_dir = os.path.join(work_dir, "kmindex_data")
 
     if not base_path:
         base_path = os.getcwd()
@@ -256,14 +128,6 @@ def build(
             raise click.ClickException(f"Data root directory not found at {base_path}")
         else:
             logger.warning(f"Data root directory not found at {base_path}")
-
-    if (
-        existing in ("replace", "register_or_replace")
-        and not force
-        and not click.confirm(f"Proceed build with '{existing}' option?", default=True)
-    ):
-        logger.warning("Build cancelled")
-        return
 
     logger.info(f"Working directory: {work_dir}")
 
@@ -276,10 +140,10 @@ def build(
             sample_rootpath=base_path,
             kmindex_threads=threads or 1,
             kmindex_skip_compression=skip_compression,
-            kmindex_build_from=reuse_from,
+            kmindex_build_from=None,
             filter_names=selected_ids,
             filter_spans=selected_spans,
-            on_existing=existing,
+            on_existing="register_or_rename",
             fail_on_error=fail_on_error,
             partition_count=partition_count,
         )

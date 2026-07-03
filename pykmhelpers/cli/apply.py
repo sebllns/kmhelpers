@@ -44,29 +44,7 @@ def _parse_spans(spans):
 
 @click.command(name="apply")
 @click.argument("input_files", nargs=-1, required=True, type=click.Path(exists=True))
-@click.option(
-    "--config",
-    "-c",
-    required=False,
-    type=click.Path(file_okay=True, dir_okay=False, exists=True),
-    help="📄  Input configuration file (command line arguments take precedence when both are provided).",
-)
-@click.option(
-    "--work-dir",
-    "-w",
-    required=False,
-    type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Working directory path.",
-)
-@click.option(
-    "--base-path",
-    "-b",
-    required=False,
-    type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Base path to resolve relative sample paths. By default, relative \
-paths are resolved from the run directory; use this option if you \
-need to resolve them from a different location.",
-)
+@shared.index_build_options
 @click.option(
     "--registry",
     "-r",
@@ -76,25 +54,10 @@ need to resolve them from a different location.",
 )
 @click.option(
     "--bloom-dir",
-    "-o",
+    "-bl",
     required=False,
     type=click.Path(file_okay=False, dir_okay=True),
     help="📁  Custom base path to kmindex Bloom filters directory (created if doesn't exist).",
-)
-@click.option(
-    "--span",
-    "-s",
-    multiple=True,
-    required=False,
-    help="⚙   Build only selected span (e.g., --span 28, --span 27,28,29, --span 27-30, --span [27-30]).",
-)
-@click.option(
-    "--name",
-    "-n",
-    "index_ids",
-    multiple=True,
-    required=False,
-    help="⚙   Index IDs to build. Can be specified multiple times (-n id1 -n id2) or comma-separated (-n id1,id2).",
 )
 @click.option(
     "--from",
@@ -103,62 +66,14 @@ need to resolve them from a different location.",
     help="⚙   Parent index ID to reuse parameters from. Takes precedence over parent_index that can be specified in definition file.",
 )
 @click.option(
-    "--minim-size",
-    type=int,
-    required=False,
-    help="⚙   Minimizer size (4-15, default: 10).",
-)
-@click.option(
-    "--threads",
-    "-t",
-    type=int,
-    required=False,
-    help="⚙   Number of threads (default: 1).",
-)
-@click.option(
-    "--partition-count",
-    "-p",
-    type=int,
-    required=False,
-    help="⚙   Override number of partitions.",
-)
-@click.option(
     "--existing",
     required=False,
-    help="⚙   Action when an existing unregistered index folder is found: fail, register, rename,  replace, register_or_replace, register_or_rename (default: fail).",
-)
-@click.option(
-    "--skip-compression",
-    is_flag=True,
-    default=False,
-    show_default=True,
-    help="🚩  Skip compression of intermediate files during index building. Can improve performance on fast drives where I/O is not a bottleneck.",
-)
-@click.option(
-    "--show-progress",
-    is_flag=True,
-    default=False,
-    show_default=True,
-    help="🚩  Show a progress bar with elapsed time and estimated remaining time during index building.",
-)
-@click.option(
-    "--fail-on-error",
-    is_flag=True,
-    default=False,
-    show_default=True,
-    help="🚩  Abort the entire run if any index fails to build, instead of skipping it and continuing.",
-)
-@click.option(
-    "--notify",
-    required=False,
-    metavar="EMAIL",
-    help="📧  Send an email notification on exit (success, failure, or timeout).",
+    help="⚙   Action when an existing unregistered index folder is found: fail, register, rename, replace, register_or_replace, register_or_rename (default: fail).",
 )
 @click.pass_context
 def apply(
     ctx,
     input_files,
-    config,
     work_dir,
     base_path,
     registry,
@@ -192,49 +107,46 @@ def apply(
 
     \b
     # Build all indices declared in a definition file
-    kmhelpers apply index.yaml -w /output
+    kmhelpers apply index.yaml -o /output
 
     \b
     # Build only selected indices by name (comma-separated or repeated flags)
-    kmhelpers apply index.yaml -w /output -n idx1,idx2
-    kmhelpers apply index.yaml -w /output -n idx1 -n idx2
+    kmhelpers apply index.yaml -o /output -n idx1,idx2
+    kmhelpers apply index.yaml -o /output -n idx1 -n idx2
 
     \b
     # Build only selected k-mer spans from a span registry
-    kmhelpers apply registry.yaml -w /output -s 28
-    kmhelpers apply registry.yaml -w /output -s 27,28,29
+    kmhelpers apply registry.yaml -o /output -s 28
+    kmhelpers apply registry.yaml -o /output -s 27,28,29
 
     \b
     # Dry run: print build commands without executing
-    kmhelpers apply index.yaml -w /output --dry-run
+    kmhelpers apply index.yaml -o /output --dry-run
 
     \b
     # Reuse parameters from an existing parent index
-    kmhelpers apply index.yaml -w /output -n my_index --from parent_index
+    kmhelpers apply index.yaml -o /output -n my_index --from parent_index
 
     \b
     # Show progress bar during building
-    kmhelpers apply index.yaml -w /output --show-progress
+    kmhelpers apply index.yaml -o /output --show-progress
 
     \b
     # Plan: check paths and preview build without executing
-    kmhelpers apply index.yaml -w /output --plan
+    kmhelpers apply index.yaml -o /output --plan
 
     \b
     # Skip compression of intermediate files
-    kmhelpers apply index.yaml -w /output --skip-compression
+    kmhelpers apply index.yaml -o /output --skip-compression
 
     \b
     # Resolve sample paths from a base directory
-    kmhelpers apply index.yaml -w /output -b /data/samples
+    kmhelpers apply index.yaml -o /output -b /data/samples
 
     \b
     # Set number of threads and minimizer size
-    kmhelpers apply index.yaml -w /output -t 8 --minim-size 12
+    kmhelpers apply index.yaml -o /output -t 8 --minim-size 12
 
-    \b
-    # Load options from a config file (CLI flags take precedence)
-    kmhelpers apply index.yaml -c config.yaml
     """
 
     force = (ctx.obj or {}).get("yes", False)
@@ -291,57 +203,15 @@ def apply(
         atexit.register(_send_notification)
         signal.signal(signal.SIGTERM, _handle_sigterm)
 
-    config_map = {}
-    if config:
-        try:
-            config_map = shared.deserialize(config)
-        except Exception as e:
-            pykmhelpers.core.log.Log.handle_exception(
-                logger, e, f"Could not deserialize config from {config}"
-            )
-            raise click.ClickException(abort_msg)
-
     try:
         selected_ids = [id for entry in index_ids for id in entry.split(",") if id]
         selected_spans = _parse_spans(span)
-
-        if not work_dir:
-            work_dir = config_map.get("work_dir", "kmhelpers_workdir")
-        assert work_dir, "Required parameter 'work_dir' was not provided."
-
-        if not registry:
-            registry = config_map.get("registry", "")
-
-        if not base_path:
-            base_path = config_map.get("base_path", ".")
-
-        if not bloom_dir:
-            bloom_dir = config_map.get("bloom_dir")
-
         if not existing:
-            existing = config_map.get("existing", "fail")
-
+            existing = "fail"
         if not threads:
-            threads = config_map.get("threads", 1)
-
+            threads = 1
         if not minim_size:
-            minim_size = config_map.get("minim_size", 10)
-
-        if not show_progress:
-            show_progress = config_map.get("show_progress", False)
-
-        if not reuse_from:
-            reuse_from = config_map.get("reuse_from", "")
-
-        if not skip_compression:
-            skip_compression = config_map.get("skip_compression", False)
-
-        if not partition_count:
-            partition_count = config_map.get("partition_count", None)
-
-        if not fail_on_error:
-            fail_on_error = config_map.get("fail_on_error", False)
-
+            minim_size = 10
     except Exception as e:
         pykmhelpers.core.log.Log.handle_exception(logger, e, f"Invalid argument.")
         raise click.ClickException(abort_msg)
