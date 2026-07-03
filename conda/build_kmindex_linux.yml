@@ -5,7 +5,7 @@ channels:
   - nodefaults
 dependencies:
   # kmindex build dependencies
-  - cmake=3.24.0
+  - cmake>=3.26,<4
   - make
   - git
   - gcc_linux-64=12.2.0
