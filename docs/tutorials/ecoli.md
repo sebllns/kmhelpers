@@ -87,25 +87,25 @@ kmhelpers design coli_10.txt \
 ??? info "INFO"
     `design` runs [`list`](../commands/list.md) → [`profile`](../commands/profile.md) → [`compose`](../commands/compose.md) in a single command.  
     For a detailed walkthrough of each sub-command, see
-    [Step-by-step: list → profile → compose](ecoli_steps.md#list).
+    [Step-by-step: list → profile → compose](ecoli_steps.md#step-31--scan-samples-and-count-k-mers-list).
 
 ---
 
 ## Step 4 — Build the index (`build`)
 
 ```bash
-kmhelpers build coli_db/compose/coli/initial/coli.yaml -w coli_build/
+kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build/ --show-progress
 ```
 
 ??? abstract "I/O"
     **Input:** `coli_db/compose/coli/initial/coli.yaml`  
-    **Output:** `coli_build/index.json` + sub-index data files in `coli_build/kmindex_data/` — ready-to-query index (~50 MB)
+    **Output:** `coli_build/index.json` + sub-index data files in `coli_build/kmindex_data/` — ready-to-query index
 
 ??? info "INFO"
     `build` runs [`plan`](../commands/plan.md) → [`apply`](../commands/apply.md) in a single command, validating all paths before
     starting the build.  
     For a detailed walkthrough, or to run `plan` first and apply later with `bash`
-    or `apply`, see [Step-by-step: plan → apply](ecoli_steps.md#plan).
+    or `apply`, see [Step-by-step: plan → apply](ecoli_steps.md#step-41--preview-the-build-plan-plan).
 
 ---
 

@@ -20,24 +20,7 @@ logger = logging.getLogger(__name__)
     required=True,
     type=click.Path(dir_okay=False, file_okay=True, exists=True),
 )
-@click.option(
-    "--work-dir",
-    "-w",
-    required=False,
-    default=".",
-    show_default=True,
-    type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Working directory path.",
-)
-@click.option(
-    "--base-path",
-    "-b",
-    required=False,
-    type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Base path to resolve relative sample paths. By default, relative \
-paths are resolved from the run directory; use this option if you \
-need to resolve them from a different location.",
-)
+@shared.index_build_options
 @click.option(
     "--registry",
     "-r",
@@ -47,25 +30,10 @@ need to resolve them from a different location.",
 )
 @click.option(
     "--bloom-dir",
-    "-o",
+    "-bl",
     required=False,
     type=click.Path(file_okay=False, dir_okay=True),
     help="📁  Custom base path to kmindex Bloom filters directory (created if doesn't exist).",
-)
-@click.option(
-    "--span",
-    "-s",
-    multiple=True,
-    required=False,
-    help="⚙   Build only selected span (e.g., --span 28, --span 27,28,29, --span 27-30, --span [27-30]).",
-)
-@click.option(
-    "--name",
-    "-n",
-    "index_ids",
-    multiple=True,
-    required=False,
-    help="⚙   Index IDs to build. Can be specified multiple times (-n id1 -n id2) or comma-separated (-n id1,id2).",
 )
 @click.option(
     "--from",
@@ -98,27 +66,26 @@ need to resolve them from a different location.",
     is_flag=True,
     help="🚩  Skip local path validation (useful when exporting scripts for another machine).",
 )
-@click.option(
-    "--fail-fast",
-    "-X",
-    "fail_on_error",
-    is_flag=True,
-    help="🚩  Abort the entire run if any index fails to build, instead of skipping it and continuing.",
-)
 @click.pass_context
 def plan(
     ctx,
     input_file,
     work_dir,
     base_path,
-    registry,
-    bloom_dir,
     span,
     index_ids,
+    minim_size,
+    threads,
+    partition_count,
+    skip_compression,
+    show_progress,
+    fail_on_error,
+    notify,
+    registry,
+    bloom_dir,
     reuse_from,
     existing,
     offline,
-    fail_on_error,
 ):
     """Validate paths and preview the build plan from an index definition file.
 

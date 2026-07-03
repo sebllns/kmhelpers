@@ -12,11 +12,11 @@ Validate paths then build k-mer indices from index definition files in a single 
     | Argument | Description |
     |----------|-------------|
     | `INPUT_FILE` | Index definition file (`.json`/`.yaml`) from `compose` (required) |
-    | `-w, --work-dir DIR` | Working directory for output |
+    | `-o, --output-dir DIR` | Working directory for output (required) |
 
 !!! abstract "I/O"
     **Input:** index definition file (`.json`/`.yaml`) from `compose`  
-    **Output:** built k-mer index in `WORK_DIR/`, registered in `WORK_DIR/index.json`
+    **Output:** built k-mer index in `OUTPUT_DIR/`, registered in `OUTPUT_DIR/index.json`
 
 ## Advanced Options
 
@@ -28,18 +28,18 @@ Validate paths then build k-mer indices from index definition files in a single 
 | `--minim-size INT` | Minimizer size (default: 10) |
 | `-t, --threads INT` | Number of threads (default: 1) |
 | `-p, --partition-count INT` | Override number of partitions |
-| `--skip-compression` | Skip compression of intermediate files during build |
-| `--show-progress` | Show progress bar with elapsed and estimated remaining time |
-| `--fail-on-error` | Abort on first failure instead of continuing |
+| `-NC, --skip-compression` | Skip compression of intermediate files during build |
+| `-SP, --show-progress` | Show progress bar with elapsed and estimated remaining time |
+| `-X, --fail-fast` | Abort on first failure instead of continuing |
 | `--notify EMAIL` | Send email notification on exit (requires sendmail) |
 
 ## Description
 
 `build` chains [`plan`](plan.md) and [`apply`](apply.md) into a single invocation. It is equivalent to running the two commands in sequence.
 
-**Step 1 — plan:** validates all sample paths upfront and writes the equivalent `kmindex` shell script to `WORK_DIR/assets/` and a validation report to `WORK_DIR/logs/`. Fix any path errors before the build starts rather than discovering them mid-run.
+**Step 1 — plan:** validates all sample paths upfront and writes the equivalent `kmindex` shell script to `OUTPUT_DIR/assets/` and a validation report to `OUTPUT_DIR/logs/`. Fix any path errors before the build starts rather than discovering them mid-run.
 
-**Step 2 — apply:** executes the build and registers all completed indices in `WORK_DIR/index.json`.
+**Step 2 — apply:** executes the build and registers all completed indices in `OUTPUT_DIR/index.json`.
 
 **Filtering** — use `--name` or `--span` to build only a subset of the declared indices.
 
@@ -49,20 +49,20 @@ Validate paths then build k-mer indices from index definition files in a single 
 
 ```bash
 # Plan then build all indices in a definition file
-kmhelpers build index.yaml -w build/
+kmhelpers build index.yaml -o build/
 
 # Filter by name or span
-kmhelpers build index.yaml -w build/ -n idx1,idx2
-kmhelpers build index.yaml -w build/ -s 28
+kmhelpers build index.yaml -o build/ -n idx1,idx2
+kmhelpers build index.yaml -o build/ -s 28
 
 # Set threads and show progress
-kmhelpers build index.yaml -w build/ -t 8 --show-progress
+kmhelpers build index.yaml -o build/ -t 8 -SP
 
 # Abort on first error
-kmhelpers build index.yaml -w build/ --fail-on-error
+kmhelpers build index.yaml -o build/ -X
 
 # Notify by email when done
-kmhelpers build index.yaml -w build/ --notify user@example.com
+kmhelpers build index.yaml -o build/ --notify user@example.com
 ```
 
 ## See Also

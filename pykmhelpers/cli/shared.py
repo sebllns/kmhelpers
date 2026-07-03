@@ -161,7 +161,7 @@ _INDEX_BUILD_OPTIONS = [
 
 
 def index_build_options(f):
-    """Shared options for commands that build k-mer indices (apply, build)."""
+    """Shared options for commands that build k-mer indices (plan, apply, build)."""
     for opt in reversed(_INDEX_BUILD_OPTIONS):
         f = opt(f)
     return f

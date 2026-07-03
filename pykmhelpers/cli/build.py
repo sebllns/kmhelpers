@@ -62,7 +62,7 @@ def build(
 
     \b
     # Set threads and show progress
-    kmhelpers build index.yaml -w build -t 8 --show-progress
+    kmhelpers build index.yaml -o build -t 8 --show-progress
     """
 
     abort_msg = "Command 'build' aborted."

@@ -14,7 +14,7 @@ The three steps below are equivalent to running
 
 ---
 
-### list
+### Step 3.1 — Scan samples and count k-mers ([`list`](../commands/list.md))
 
 ```bash
 kmhelpers list coli_10.txt -o coli.jsonl -k 25
@@ -41,7 +41,7 @@ kmhelpers list coli_10.txt -o coli.jsonl -k 25
 
 ---
 
-### profile
+### Step 3.2 — Profile the k-mer distribution ([`profile`](../commands/profile.md))
 
 ```bash
 kmhelpers profile coli.jsonl -o coli_profile/ -b 1.1 -g 2
@@ -164,7 +164,7 @@ kmhelpers profile coli.jsonl -o coli_profile/ -b 1.1 -g 2
 
 ---
 
-### compose
+### Step 3.3 — Compose index definitions ([`compose`](../commands/compose.md))
 
 ```bash
 kmhelpers compose coli.jsonl \
@@ -193,7 +193,7 @@ The two steps below are equivalent to running
 
 ---
 
-### plan
+### Step 4.1 — Preview the build plan ([`plan`](../commands/plan.md))
 
 ```bash
 kmhelpers plan coli_db/coli/initial/coli.yaml -w coli_build/
@@ -221,12 +221,12 @@ kmhelpers plan coli_db/coli/initial/coli.yaml -w coli_build/
 
 ---
 
-### apply
+### Step 4.2 — Build the index ([`apply`](../commands/apply.md))
 
 === "apply"
 
     ```bash
-    kmhelpers apply coli_db/coli/initial/coli.yaml -w coli_build/
+    kmhelpers apply coli_db/coli/initial/coli.yaml -o coli_build/
     ```
 
 === "bash"
