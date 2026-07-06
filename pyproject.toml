@@ -39,7 +39,7 @@ dev = [
     "flake8>=4.0",
     "mypy>=0.950",
 ]
-docs = ["mkdocs-material>=9.0", "mkdocstrings[python]>=0.25"]
+docs = ["mkdocs-material>=9.0", "mkdocstrings[python]>=0.25", "mike>=2.0", "termynal>=0.12"]
 
 [project.scripts]
 kmhelpers = "pykmhelpers.cli.kmhelpers:cli"

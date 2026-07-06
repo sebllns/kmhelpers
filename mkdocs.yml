@@ -45,6 +45,10 @@ theme:
 
 plugins:
   - search
+  - termynal
+  - mike:
+      alias_type: symlink
+      canonical_version: latest
   - mkdocstrings:
       handlers:
         python:
@@ -70,6 +74,11 @@ markdown_extensions:
   - attr_list
   - pymdownx.arithmatex:
       generic: true
+
+extra:
+  version:
+    provider: mike
+    default: latest
 
 extra_css:
   - stylesheets/extra.css

@@ -6,6 +6,9 @@ This guide walks through a typical workflow: discovering samples, profiling them
 
 ## Typical Workflow
 
+![Pipeline diagram](diagrams/fig_pipeline_mini_animation.svg)
+
+
 ```
 list → profile → compose → plan → apply → query
 ```

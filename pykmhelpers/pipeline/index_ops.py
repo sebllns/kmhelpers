@@ -12,7 +12,6 @@ from time import sleep
 from typing import Optional
 
 import pykmhelpers
-
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
 from pykmhelpers.core.log import Log
@@ -644,7 +643,11 @@ class IndexOps:
             if s.name != "_":
                 sample_files = (
                     [
-                        os.path.join(self.config.sample_rootpath, f) if not os.path.isabs(f) else f
+                        (
+                            os.path.join(self.config.sample_rootpath, f)
+                            if not os.path.isabs(f)
+                            else f
+                        )
                         for f in s.files
                     ]
                     if self.config.sample_rootpath
@@ -713,10 +716,31 @@ class IndexOps:
             assert parts, f"Span registry is missing field 'indices'"
             indices = dict[str, list[str]](parts)
             for name, subindices in indices.items():
-                if len(subindices) == 1:
-                    # Single sub-index: build directly under the merge target name
-                    if not self.config.filter_names or name in self.config.filter_names:
-                        subindex = subindices[0]
+                # if len(subindices) == 1:
+                #     # Single sub-index: build directly under the merge target name
+                #     if not self.config.filter_names or name in self.config.filter_names:
+                #         subindex = subindices[0]
+                #         db_path = os.path.join(
+                #             os.path.dirname(path),
+                #             subindex + os.path.splitext(path)[1],
+                #         )
+                #         assert os.path.isfile(
+                #             db_path
+                #         ), f"Could not find required data file at {db_path}"
+                #         loaded_dbs = self._get_dbs(db_path, idt)
+                #         for db in loaded_dbs:
+                #             if subindex in db.index_table:
+                #                 db.index_table[subindex].name = name
+                #         dbs.extend(loaded_dbs)
+                # else:
+                if not self.config.filter_names or name in self.config.filter_names:
+                    merges[name] = subindices
+
+                for subindex in subindices:
+                    if name in merges or (
+                        self.config.filter_names
+                        and subindex in self.config.filter_names
+                    ):
                         db_path = os.path.join(
                             os.path.dirname(path),
                             subindex + os.path.splitext(path)[1],
@@ -724,28 +748,7 @@ class IndexOps:
                         assert os.path.isfile(
                             db_path
                         ), f"Could not find required data file at {db_path}"
-                        loaded_dbs = self._get_dbs(db_path, idt)
-                        for db in loaded_dbs:
-                            if subindex in db.index_table:
-                                db.index_table[subindex].name = name
-                        dbs.extend(loaded_dbs)
-                else:
-                    if not self.config.filter_names or name in self.config.filter_names:
-                        merges[name] = subindices
-
-                    for subindex in subindices:
-                        if name in merges or (
-                            self.config.filter_names
-                            and subindex in self.config.filter_names
-                        ):
-                            db_path = os.path.join(
-                                os.path.dirname(path),
-                                subindex + os.path.splitext(path)[1],
-                            )
-                            assert os.path.isfile(
-                                db_path
-                            ), f"Could not find required data file at {db_path}"
-                            dbs.extend(self._get_dbs(db_path, idt))
+                        dbs.extend(self._get_dbs(db_path, idt))
         return dbs, merges
 
     def _build(
