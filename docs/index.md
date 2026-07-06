@@ -33,7 +33,7 @@ A Python toolkit for managing, compressing, and querying [kmindex](https://githu
 | Tool | Version |
 |---|---|
 | [kmindex](https://github.com/tlemane/kmindex) | > 0.6.0 or built from [`next-dev`](https://github.com/tlemane/kmindex/tree/next-dev) branch |
-| [kmtricks](https://github.com/tlemane/kmtricks) | > 0.6.0 or built from [`static_repart`](https://github.com/tlemane/kmtricks/tree/static_repart) branch |
+| [kmtricks](https://github.com/tlemane/kmtricks) | ≥ 1.6.0 |
 | [ntCard](https://github.com/bcgsc/ntCard) | ≥ 1.2.2 |
 
 See [Installation](installation.md) for build instructions.
