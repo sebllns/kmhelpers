@@ -117,5 +117,6 @@ nav:
           - builder: api/operations/builder.md
   - Changelog: changelog.md
   - Contributing:
+      - Overview: contributing/index.md
       - Development: contributing/dev.md
       - Building the Docs: contributing/docs.md
