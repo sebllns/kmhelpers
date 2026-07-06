@@ -36,7 +36,7 @@ If you then still feel the need to ask a question and need clarification, we rec
 
 - Open an [Issue](https://github.com/sebllns/kmhelpers/issues/new).
 - Provide as much context as you can about what you're running into.
-- Provide your OS, Python version, conda version, and kmindex version, depending on what seems relevant.
+- Provide your OS, Python version, conda version, kmhelpers version, and kmindex version, depending on what seems relevant.
 
 We will then take care of the issue as soon as possible.
 
