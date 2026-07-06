@@ -160,3 +160,4 @@ results/
 /.build/
 /nogit/
 *.dump
+/linux-packages/
