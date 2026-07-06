@@ -509,7 +509,8 @@ class KmtricksIndex:
         """
         try:
             destination = Toolbox.get_canonical_path(destination)
-            self.copy_to(destination)
+            if not self.copy_to(destination):
+                return False
 
             # Remove old index
             self.destroy_entire_index()

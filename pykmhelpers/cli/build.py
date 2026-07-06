@@ -171,6 +171,7 @@ def build(
     iops.write_script()
     if result.status is ops.ApplyStatus.FAILED:
         logger.error("FAILED ('plan')")
+        raise click.ClickException("FAILED ('plan')")
     elif result.status is ops.ApplyStatus.PARTIAL:
         logger.warning("PARTIAL ('plan')")
     elif result.status is ops.ApplyStatus.NONE:
@@ -197,6 +198,7 @@ def build(
             logger.info(f"Apply details written to {details_path}")
         if result.status is ops.ApplyStatus.FAILED:
             logger.error("FAILED ('apply')")
+            raise click.ClickException("FAILED ('apply')")
         elif result.status is ops.ApplyStatus.PARTIAL:
             logger.warning("PARTIAL ('apply')")
         elif result.status is ops.ApplyStatus.NONE:
@@ -208,3 +210,4 @@ def build(
         pykmhelpers.core.log.Log.handle_exception(
             logger, e, f"Could not apply {os.path.basename(input_file)}"
         )
+        raise click.ClickException("FAILED ('apply')")
