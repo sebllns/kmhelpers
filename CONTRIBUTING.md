@@ -59,8 +59,10 @@ A good bug report shouldn't leave others needing to chase you up for more inform
   - Stack trace (Traceback)
   - OS, platform and version (Linux x86_64, macOS Intel, macOS Apple Silicon)
   - Python version and conda environment details (`conda info`, `pip show pykmhelpers`)
-  - Version of `kmindex` and `kmtricks` (`kmindex --version`, `kmtricks --version`)
+  - kmhelpers version (`kh --version`)
+  - Version of `kmindex`, `kmtricks`, and `ntCard` (`kmindex --version`, `kmtricks --version`, `ntcard --version`)
   - Possibly your input (JSONL sample list, YAML config) and the output
+  - If kmhelpers crashed, attach the dump file (`kmhelpers_<timestamp>.dump`) written to your working directory
   - Can you reliably reproduce the issue? And can you also reproduce it with older versions?
 
 
