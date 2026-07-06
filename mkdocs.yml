@@ -3,6 +3,7 @@ site_description: A Python toolkit for managing, compressing, and querying kmind
 site_author: Sébastien Bellenous
 repo_url: https://github.com/sebllns/kmhelpers
 repo_name: sebllns/kmhelpers
+copyright: Copyright &copy; 2026 Sébastien Bellenous &nbsp;&middot;&nbsp; v0.6.3
 
 watch:
   - pykmhelpers
@@ -81,7 +82,7 @@ nav:
   - Installation: installation.md
   - Getting Started: getting-started.md
   - Tutorial:
-      - E. coli Dataset: tutorials/ecoli.md
+      - Main tutorial: tutorials/ecoli.md
       - Step-by-step breakdown: tutorials/ecoli_steps.md
   - Commands:
       - Overview: commands/index.md
