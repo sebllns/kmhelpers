@@ -334,7 +334,8 @@ class IndexOps:
                 ):
                     return result
 
-        result.status = ApplyStatus.SUCCESS
+        if result.status not in (ApplyStatus.PARTIAL, ApplyStatus.FAILED):
+            result.status = ApplyStatus.SUCCESS
         return result
 
     # ---
@@ -848,10 +849,16 @@ class IndexOps:
                 sub_results = [
                     v.get("result") for v in merge_entry.values() if isinstance(v, dict)
                 ]
-                if all(r == ApplyStatus.FAILED.value for r in sub_results):
+                if sub_results and all(
+                    r == ApplyStatus.FAILED.value for r in sub_results
+                ):
                     merge_entry["result"] = ApplyStatus.FAILED.value
                 elif any(r == ApplyStatus.FAILED.value for r in sub_results):
                     merge_entry["result"] = ApplyStatus.PARTIAL.value
+                elif sub_results and all(
+                    r == ApplyStatus.NONE.value for r in sub_results
+                ):
+                    merge_entry["result"] = ApplyStatus.NONE.value
                 else:
                     merge_entry["result"] = ApplyStatus.SUCCESS.value
                 result.details["run"][to_index] = merge_entry

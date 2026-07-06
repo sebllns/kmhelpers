@@ -32,3 +32,10 @@ class Log:
     @staticmethod
     def print_trace(e: Exception):
         traceback.print_exception(type(e), e, e.__traceback__)
+
+    @staticmethod
+    def step(logger: logging.Logger, title: str, width: int = 60):
+        """Log a visually separated step header."""
+        logger.info("=" * width)
+        logger.info(title)
+        logger.info("=" * width)

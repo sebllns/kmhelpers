@@ -153,7 +153,7 @@ def build(
 
     # --- Step 1: plan ---
     try:
-        logger.info(f"Plan {input_file}...")
+        pykmhelpers.core.log.Log.step(logger, f"STEP 1: Plan {input_file}")
         result = iops.run(input_file, mode=ops.ApplyMode.PLAN)
         if result.details:
             details_path = os.path.join(
@@ -169,7 +169,12 @@ def build(
         raise click.ClickException("FAILED ('plan')")
 
     iops.write_script()
-    logger.info("SUCCESS ('plan')")
+    if result.status is ops.ApplyStatus.FAILED:
+        logger.error("FAILED ('plan')")
+    elif result.status is ops.ApplyStatus.PARTIAL:
+        logger.warning("PARTIAL ('plan')")
+    else:
+        logger.info("SUCCESS ('plan')")
 
     # --- Step 2: apply ---
     apply_mode = (
@@ -177,7 +182,7 @@ def build(
     )
 
     try:
-        logger.info(f"Apply {input_file}...")
+        pykmhelpers.core.log.Log.step(logger, f"STEP 2: Apply {input_file}")
         result = iops.run(input_file, apply_mode)
         _notify_state["status"] = result.status.value
         if result.details:
@@ -188,7 +193,12 @@ def build(
                 yaml.dump(result.details, f, default_flow_style=False, sort_keys=False)
             attachments.append(details_path)
             logger.info(f"Apply details written to {details_path}")
-        logger.info("SUCCESS ('apply')")
+        if result.status is ops.ApplyStatus.FAILED:
+            logger.error("FAILED ('apply')")
+        elif result.status is ops.ApplyStatus.PARTIAL:
+            logger.warning("PARTIAL ('apply')")
+        else:
+            logger.info("SUCCESS ('apply')")
     except Exception as e:
         _notify_state["status"] = ops.ApplyStatus.FAILED.value
         pykmhelpers.core.log.Log.handle_exception(

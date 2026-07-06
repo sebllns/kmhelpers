@@ -321,6 +321,7 @@ class IndexBuilder:
         new_name: str,
         to_merge: list[str],
         rename: typing.Optional[str] = None,
+        is_update: bool = True,
         delete_old: bool = True,
         threads: int = 14,
         dry_run: bool = False,
@@ -332,6 +333,27 @@ class IndexBuilder:
             missing = [name for name in to_merge if not self.index.has_index(name)]
             if missing:
                 raise ValueError(f"Sub-indexes not found in registry: {missing}")
+
+        # old_name = f"{new_name}_old"
+
+        # if self.index.has_index(new_name):
+        #     if not is_update:
+        #         raise ValueError(
+        #             f"Index '{new_name}' already exists in registry; "
+        #             f"pass is_update=True to merge into it"
+        #         )
+        #     logger.info(
+        #         f"Renaming existing index '{new_name}' to '{old_name}' (required for update)"
+        #     )
+        #     if not self.index.rename_index(new_name, old_name):
+        #         raise RuntimeError(
+        #             f"Failed to rename existing index '{new_name}' to '{old_name}'"
+        #         )
+
+        # if is_update and self.index.has_index(old_name):
+        #     to_merge.append(old_name)
+
+        logger.info(f"Merging {to_merge} into '{new_name}'")
 
         wrapper = pykmhelpers.core.KmindexWrapper(dry_run=dry_run)
         result = wrapper.merge(

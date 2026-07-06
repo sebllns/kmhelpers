@@ -252,7 +252,8 @@ class KmindexWrapper(Wrapper):
         maximize_nofile()
         result = self._monitor_cmd(cmd, log_file=log_file, log_errors_only=True)
 
-        assert result, "Failed to build index"
+        if not result or result.get("return_code", 0 if self.dry_run else -1) != 0:
+            raise RuntimeError("Build failed.")
 
         if output_log_dir:
             with open(
@@ -510,7 +511,7 @@ class KmindexWrapper(Wrapper):
         # Execute command
         result = self._monitor_cmd(cmd, log_errors_only=True)
 
-        if not result:
+        if not result or result.get("return_code", 0 if self.dry_run else -1) != 0:
             raise RuntimeError("Compression failed.")
 
         return result
@@ -625,7 +626,7 @@ class KmindexWrapper(Wrapper):
         # Execute command
         result = self._monitor_cmd(cmd, log_errors_only=True)
 
-        if not result:
+        if not result or result.get("return_code", 0 if self.dry_run else -1) != 0:
             raise RuntimeError("Merge failed.")
 
         return result
