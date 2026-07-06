@@ -173,6 +173,8 @@ def build(
         logger.error("FAILED ('plan')")
     elif result.status is ops.ApplyStatus.PARTIAL:
         logger.warning("PARTIAL ('plan')")
+    elif result.status is ops.ApplyStatus.NONE:
+        logger.info("NOTHING TO DO ('plan')")
     else:
         logger.info("SUCCESS ('plan')")
 
@@ -197,6 +199,8 @@ def build(
             logger.error("FAILED ('apply')")
         elif result.status is ops.ApplyStatus.PARTIAL:
             logger.warning("PARTIAL ('apply')")
+        elif result.status is ops.ApplyStatus.NONE:
+            logger.info("NOTHING TO DO ('apply')")
         else:
             logger.info("SUCCESS ('apply')")
     except Exception as e:

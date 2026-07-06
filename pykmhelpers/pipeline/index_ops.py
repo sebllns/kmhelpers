@@ -334,8 +334,7 @@ class IndexOps:
                 ):
                     return result
 
-        if result.status not in (ApplyStatus.PARTIAL, ApplyStatus.FAILED):
-            result.status = ApplyStatus.SUCCESS
+        result.status = self._aggregate_status(result)
         return result
 
     # ---
@@ -455,6 +454,26 @@ class IndexOps:
             result.status = ApplyStatus.FAILED
             return True
         return False
+
+    def _aggregate_status(self, result: ApplyResult) -> ApplyStatus:
+        """Derive the overall status from the per-item run results."""
+        entries = [
+            v.get("result")
+            for v in result.details["run"].values()
+            if isinstance(v, dict)
+        ]
+        if not entries:
+            return ApplyStatus.NONE
+        has_failed = any(r == ApplyStatus.FAILED.value for r in entries)
+        has_ok = any(r == ApplyStatus.SUCCESS.value for r in entries)
+        has_partial = any(r == ApplyStatus.PARTIAL.value for r in entries)
+        if has_partial or (has_failed and has_ok):
+            return ApplyStatus.PARTIAL
+        if has_failed:
+            return ApplyStatus.FAILED
+        if has_ok:
+            return ApplyStatus.SUCCESS
+        return ApplyStatus.NONE  # all NONE
 
     def _indent_prefix(self) -> str:
         return "  └── " if logger.isEnabledFor(logging.INFO) else ""
