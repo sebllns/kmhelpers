@@ -62,19 +62,28 @@ A Python toolkit for managing, compressing, and querying [kmindex](https://githu
     ```
     $ kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build/ --show-progress
 
-    Plan coli_db/compose/coli/initial/coli.yaml...
-    ► Processing index definition 'coli_g0'...
+    ============================================================
+    STEP 1: Plan coli_db/compose/coli/initial/coli.yaml
+    ============================================================
+    ► Processing index definition 'coli_g161_initial_p0'...
       └── Sample count: 5
       └── Estimated build size: 14.6MB
-    ► Processing index definition 'coli_g1'...
+    ► Processing index definition 'coli_g170_initial_p0'...
       └── Sample count: 5
       └── Estimated build size: 34.5MB
+    Merging ['coli_g161_initial_p0'] into 'coli_g0'
+    Merging ['coli_g170_initial_p0'] into 'coli_g1'
     SUCCESS ('plan')
-    Apply coli_db/compose/coli/initial/coli.yaml...
-    Building index 'coli_g0'...
-    Building index 'coli_g1'...
+
+    ============================================================
+    STEP 2: Apply coli_db/compose/coli/initial/coli.yaml
+    ============================================================
+    Building index 'coli_g161_initial_p0'...
+    Building index 'coli_g170_initial_p0'...
+    Merging ['coli_g161_initial_p0'] into 'coli_g0'
+    Merging ['coli_g170_initial_p0'] into 'coli_g1'
     SUCCESS ('apply')
-    Done in 20.38s
+    Done in 18.22s
     ```
 
 === "3 - QUERY"
@@ -125,7 +134,43 @@ A Python toolkit for managing, compressing, and querying [kmindex](https://githu
     ```
     $ kmhelpers build coli_db/compose/coli/update/coli.yaml -o coli_build/ --show-progress
 
+    ============================================================
+    STEP 1: Plan coli_db/compose/coli/update/coli.yaml
+    ============================================================
+    ► Processing index definition 'coli_g161_update_p0'...
+      └── Sample count: 4
+      └── Estimated build size: 14.6MB
+    ► Processing index definition 'coli_g170_update_p0'...
+      └── Sample count: 1
+      └── Estimated build size: 34.5MB
+    Renaming existing index 'coli_g0' to 'coli_g0_20260707_200039' (required for update)
+    Merging ['coli_g161_update_p0', 'coli_g0_20260707_200039'] into 'coli_g0'
+    Renaming existing index 'coli_g1' to 'coli_g1_20260707_200039' (required for update)
+    Merging ['coli_g170_update_p0', 'coli_g1_20260707_200039'] into 'coli_g1'
+    SUCCESS ('plan')
+
+    ============================================================
+    STEP 2: Apply coli_db/compose/coli/update/coli.yaml
+    ============================================================
+    Building index 'coli_g161_update_p0'...
+    Building index 'coli_g170_update_p0'...
+    Found backup version of 'coli_g0': ['coli_g0_20260707_200039']
+    Merging ['coli_g161_update_p0', 'coli_g0_20260707_200039'] into 'coli_g0'
+    Checking index structure in: coli_build/kmindex_data/update/coli_g0
+    Delete coli_g161_update_p0...
+    Delete coli_g0_20260707_200039..
+    Found backup version of 'coli_g1': ['coli_g1_20260707_200039']
+    Merging ['coli_g170_update_p0', 'coli_g1_20260707_200039'] into 'coli_g1'
+    Checking index structure in: coli_build/kmindex_data/update/coli_g1
+    Delete coli_g170_update_p0...
+    Delete coli_g1_20260707_200039..
+    SUCCESS ('apply')
+    Done in 7.61s
     ```
+
+## Performance
+
+Most `kmhelpers` commands (`design`, `plan`, `query`, `compose`, ...) complete in a few seconds, since they mainly manipulate metadata and small files. The exception is **`build`** (and the underlying `apply` build/merge steps): actual k-mer counting and Bloom-filter construction are CPU- and I/O-bound, so runtime scales with sample count and data size — expect build/merge steps to take anywhere from seconds to hours depending on dataset size, `--threads`, and storage speed.
 
 ## Quick links
 
