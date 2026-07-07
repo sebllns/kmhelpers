@@ -45,6 +45,7 @@ def _parse_spans(spans):
 @click.command(name="apply")
 @click.argument("input_files", nargs=-1, required=True, type=click.Path(exists=True))
 @shared.index_build_options
+@shared.fail_fast_option
 @click.option(
     "--registry",
     "-r",
@@ -235,7 +236,7 @@ def apply(
 
     if not os.path.isdir(base_path):
         if fail_on_error:
-            click.ClickException(f"Data root directory not found at {base_path}")
+            raise click.ClickException(f"Data root directory not found at {base_path}")
         else:
             logger.warning(f"Data root directory not found at {base_path}")
 
@@ -274,6 +275,7 @@ def apply(
     )
 
     i = 0
+    failed = False
     for input_file in input_files:
         try:
             logger.info(f"Apply {input_file}...")
@@ -290,9 +292,17 @@ def apply(
                 attachements.append(details_path)
                 logger.info(f"Result details written to {details_path}")
                 i += 1
+            if result.status is ops.ApplyStatus.FAILED:
+                failed = True
+                logger.error("FAILED ('apply')")
+            else:
                 logger.info("SUCCESS ('apply')")
         except Exception as e:
+            failed = True
             _notify_state["status"] = ops.ApplyStatus.FAILED.value
             pykmhelpers.core.log.Log.handle_exception(
                 logger, e, f"Could not apply {os.path.basename(input_file)}"
             )
+
+    if failed:
+        raise click.ClickException("FAILED ('apply')")

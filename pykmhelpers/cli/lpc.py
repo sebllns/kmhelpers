@@ -247,4 +247,5 @@ def lpc(
         logger.info("SUCCESS ('compose')")
     except Exception as e:
         Log.handle_exception(logger, e, "FAILED ('compose')")
+        raise click.ClickException("FAILED ('compose')")
         raise

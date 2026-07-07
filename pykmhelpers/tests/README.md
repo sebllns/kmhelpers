@@ -4,10 +4,20 @@ This directory contains comprehensive unit tests for the kmhelpers package.
 
 ## Test Structure
 
+### Unit tests (no external binaries)
 - `test_index.py` - Unit tests for `KmtricksIndex` and `KmindexRegistry` classes
 - `test_imports.py` - Smoke tests that every public class imports correctly
 - `test_bf_sizes.py` - Unit tests for `SpanManager` and `BloomFilterSpecs` sizing helpers
 - `test_byte.py` - Unit tests for `ByteCounter` and the `SizeFormat`/`SizeUnit` enums
+
+### Integration tests (require external binaries)
+- `test_pipeline_e2e.py` - End-to-end CLI pipeline tests. Each command runs in a
+  fresh subprocess (`python -m pykmhelpers.cli.kmhelpers`) and shells out to
+  `kmindex` and `ntcard`, which **must be installed and reachable** (guaranteed
+  in CI — there are no skip guards). Two flows are covered:
+  `design → build → query → update → query` and the decomposed
+  `list → profile → compose` / `plan → apply`, plus negative tests asserting
+  that failure paths exit non-zero.
 
 ## Running Tests
 

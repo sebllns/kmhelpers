@@ -36,6 +36,7 @@ class Log:
     @staticmethod
     def step(logger: logging.Logger, title: str, width: int = 60):
         """Log a visually separated step header."""
+        logger.info("\n\n")
         logger.info("=" * width)
         logger.info(title)
         logger.info("=" * width)

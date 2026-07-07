@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
     type=click.Path(dir_okay=False, file_okay=True, exists=True),
 )
 @shared.index_build_options
+@shared.fail_fast_option
 @click.option(
     "--registry",
     "-r",
@@ -165,7 +166,7 @@ def plan(
             base_path = os.path.realpath(base_path)
             if not os.path.isdir(base_path):
                 if fail_on_error:
-                    click.ClickException(
+                    raise click.ClickException(
                         f"Data root directory not found at {base_path}"
                     )
                 else:
@@ -201,6 +202,7 @@ def plan(
         log_dir = iops.log_dir
 
         i = 0
+        failed = False
         input_files = [input_file]
         for input_file in input_files:
             try:
@@ -220,13 +222,19 @@ def plan(
                     logger.info(f"Result details written to {details_path}")
                     i += 1
             except Exception as e:
+                failed = True
                 pykmhelpers.core.log.Log.handle_exception(
                     logger, e, f"Could not plan {os.path.basename(input_file)}"
                 )
 
         iops.write_script()
+        if failed:
+            raise click.ClickException("FAILED ('plan')")
         logger.info("SUCCESS ('plan')")
+    except click.ClickException:
+        raise
     except (ValueError, FileNotFoundError) as e:
         raise click.ClickException(str(e))
     except Exception as e:
-        pykmhelpers.core.log.Log.handle_exception(logger, e, "FAILED ('profile')")
+        pykmhelpers.core.log.Log.handle_exception(logger, e, "FAILED ('plan')")
+        raise click.ClickException("FAILED ('plan')")

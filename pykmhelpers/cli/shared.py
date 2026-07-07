@@ -131,7 +131,9 @@ _show_progress_option = click.option(
     show_default=True,
     help="🚩  Show a progress bar with elapsed time and estimated remaining time during index building.",
 )
-_fail_fast_option = click.option(
+# Not part of _INDEX_BUILD_OPTIONS: `build` hardcodes fail-on-error, while
+# `plan`/`apply` expose this flag individually via @shared.fail_fast_option.
+fail_fast_option = click.option(
     "--fail-fast",
     "-X",
     "fail_on_error",
@@ -155,7 +157,6 @@ _INDEX_BUILD_OPTIONS = [
     _partition_count_option,
     _skip_compression_option,
     _show_progress_option,
-    _fail_fast_option,
     _notify_option,
 ]
 

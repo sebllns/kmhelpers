@@ -331,6 +331,7 @@ class QueryRunner:
         all_results: list[list[KmindexQueryResult]] = []
 
         resolved, temp_files = self._resolve_files(query_files)
+        errors: list[str] = []
         try:
 
             if self._config.batch:
@@ -351,12 +352,18 @@ class QueryRunner:
                         all_results.append(result)
                     except Exception as e:
                         logger.error(f"Error querying {os.path.basename(qfile)}: {e}")
+                        errors.append(f"{os.path.basename(qfile)}: {e}")
         finally:
             for tmp in temp_files:
                 try:
                     os.unlink(tmp)
                 except OSError:
                     pass
+
+        if errors:
+            raise RuntimeError(
+                f"{len(errors)} query file(s) failed: " + "; ".join(errors)
+            )
 
         return all_results
 

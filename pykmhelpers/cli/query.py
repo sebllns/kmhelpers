@@ -220,7 +220,7 @@ def query(
     start = time.time()
     try:
         runner.run(query_files)
-    except (FileNotFoundError, FileExistsError) as e:
+    except (FileNotFoundError, FileExistsError, RuntimeError) as e:
         raise click.ClickException(str(e))
 
     logger.info(f"Completed in {time.time() - start:.2f}s")

@@ -17,6 +17,17 @@ import pykmhelpers.pipeline.mail_notifier
 logger = logging.getLogger(__name__)
 
 
+class PartialError(click.ClickException):
+    """A build that only partially succeeded.
+
+    Exits with code 2 to distinguish a partial build (some sub-index
+    operations failed while others succeeded) from a total failure
+    (``click.ClickException`` -> exit 1) and from success (exit 0).
+    """
+
+    exit_code = 2
+
+
 @click.command(name="build")
 @click.argument("input_file", nargs=1, required=True, type=click.Path(exists=True))
 @shared.index_build_options
@@ -33,7 +44,6 @@ def build(
     partition_count,
     skip_compression,
     show_progress,
-    fail_on_error,
     notify,
 ):
     """Validate paths then build indices from definition files.
@@ -64,6 +74,10 @@ def build(
     # Set threads and show progress
     kmhelpers build index.yaml -o build -t 8 --show-progress
     """
+
+    # 'build' is the high-level command: always fail loudly rather than
+    # skipping a failed index and exiting 0.
+    fail_on_error = True
 
     abort_msg = "Command 'build' aborted."
     attachments = []
@@ -173,7 +187,11 @@ def build(
         logger.error("FAILED ('plan')")
         raise click.ClickException("FAILED ('plan')")
     elif result.status is ops.ApplyStatus.PARTIAL:
-        logger.warning("PARTIAL ('plan')")
+        # A partial plan means some operations were dropped; do not proceed
+        # to apply a build we already know is incomplete -- fail directly.
+        _notify_state["status"] = ops.ApplyStatus.PARTIAL.value
+        logger.error("PARTIAL ('plan')")
+        raise PartialError("PARTIAL ('plan')")
     elif result.status is ops.ApplyStatus.NONE:
         logger.info("NOTHING TO DO ('plan')")
     else:
@@ -201,10 +219,13 @@ def build(
             raise click.ClickException("FAILED ('apply')")
         elif result.status is ops.ApplyStatus.PARTIAL:
             logger.warning("PARTIAL ('apply')")
+            raise PartialError("PARTIAL ('apply')")
         elif result.status is ops.ApplyStatus.NONE:
             logger.info("NOTHING TO DO ('apply')")
         else:
             logger.info("SUCCESS ('apply')")
+    except click.ClickException:
+        raise
     except Exception as e:
         _notify_state["status"] = ops.ApplyStatus.FAILED.value
         pykmhelpers.core.log.Log.handle_exception(

@@ -171,7 +171,9 @@ def compose(
             run_id=session_id,
         )
         logger.info("SUCCESS ('compose')")
-    except click.BadParameter as e:
-        Log.handle_exception(logger=logger, e=e, msg="Compose failed")
+    except (click.UsageError, click.BadParameter):
+        # click renders these with their own message and non-zero exit code.
+        raise
     except Exception as e:
         Log.handle_exception(logger=logger, e=e, msg="Compose failed")
+        raise click.ClickException("FAILED ('compose')")

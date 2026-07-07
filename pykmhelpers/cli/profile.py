@@ -100,3 +100,4 @@ def profile(list_output, output_dir, n_groups, base, false_positive_rate):
         raise click.ClickException(str(e))
     except Exception as e:
         Log.handle_exception(logger, e, "FAILED ('profile')")
+        raise click.ClickException("FAILED ('profile')")
