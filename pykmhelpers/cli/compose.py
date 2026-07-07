@@ -79,7 +79,9 @@ logger = logging.getLogger(__name__)
     show_default=True,
     help="⚙️  Partition count limit for auto-partitioning.",
 )
+@click.pass_context
 def compose(
+    ctx,
     input_file,
     output_dir,
     profiles_file,
@@ -132,6 +134,15 @@ def compose(
                     f"No layout file found at {auto_layout}. "
                     "Use --profiles-file to build a new index."
                 )
+        else:
+            auto_layout = os.path.join(output_dir, f"{name}_layout.yaml")
+            force = (ctx.obj or {}).get("yes", False)
+            if os.path.isfile(auto_layout) and not force:
+                if not click.confirm(
+                    f"Layout file already exists at {auto_layout}. Overwrite it?",
+                    default=False,
+                ):
+                    raise click.Abort()
 
         if partition_count < 0:
             raise click.BadParameter(
