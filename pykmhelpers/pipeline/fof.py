@@ -11,8 +11,8 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
-from ..core.index import get_fof_path
-from ..core.utils import Toolbox
+from pykmhelpers.core.index import get_fof_path
+from pykmhelpers.core.utils import Toolbox
 
 
 class FofManager:
