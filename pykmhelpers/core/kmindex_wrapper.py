@@ -403,7 +403,7 @@ class KmindexWrapper(Wrapper):
         rc, msg = self._check_result(result)
 
         if rc != 0:
-            raise RuntimeError(f"Build failed: <{msg}> ({rc})")
+            raise RuntimeError(f"Query failed: <{msg}> ({rc})")
 
         if not os.path.isdir(output_dir):
             raise NotADirectoryError(f"Result directory not found: {output_dir}")
@@ -530,7 +530,7 @@ class KmindexWrapper(Wrapper):
         rc, msg = self._check_result(result)
 
         if rc != 0:
-            raise RuntimeError(f"Build failed: <{msg}> ({rc})")
+            raise RuntimeError(f"Compress failed: <{msg}> ({rc})")
 
         return result or {}
 
@@ -647,7 +647,7 @@ class KmindexWrapper(Wrapper):
         rc, msg = self._check_result(result)
 
         if rc != 0:
-            raise RuntimeError(f"Build failed: <{msg}> ({rc})")
+            raise RuntimeError(f"Merge failed: <{msg}> ({rc})")
 
         return result or {}
 
