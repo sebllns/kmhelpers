@@ -42,12 +42,6 @@ class TestDirectImports(unittest.TestCase):
         from pykmhelpers.operations.builder import IndexBuilder
         self.assertIsNotNone(IndexBuilder)
 
-    def test_operations_compressor_imports(self):
-        """Test importing from pykmhelpers.operations.compressor"""
-        from pykmhelpers.operations.compressor import Compressor, CompressionParams
-        self.assertIsNotNone(Compressor)
-        self.assertIsNotNone(CompressionParams)
-
     def test_pipeline_fof_imports(self):
         """Test importing from pykmhelpers.pipeline.fof"""
         from pykmhelpers.pipeline.fof import FofManager
@@ -116,15 +110,12 @@ class TestOperationsPackageImports(unittest.TestCase):
         """Test importing all classes from pykmhelpers.operations"""
         from pykmhelpers.operations import (
             IndexBuilder,
-            Compressor, CompressionParams,
             Fasta, FASTAReader,
             FofManager,
             KmindexQuery, KmindexQueryResult,
             ByteCounter, SizeFormat, SizeUnit
         )
         self.assertIsNotNone(IndexBuilder)
-        self.assertIsNotNone(Compressor)
-        self.assertIsNotNone(CompressionParams)
         self.assertIsNotNone(Fasta)
         self.assertIsNotNone(FASTAReader)
         self.assertIsNotNone(FofManager)
@@ -147,7 +138,6 @@ class TestTopLevelImports(unittest.TestCase):
             BloomFilterSpecs,
             # Operations
             IndexBuilder,
-            Compressor, CompressionParams,
             Fasta, FASTAReader,
             FofManager,
             KmindexQuery, KmindexQueryResult,
@@ -166,8 +156,6 @@ class TestTopLevelImports(unittest.TestCase):
         self.assertIsNotNone(KmindexWrapper)
         self.assertIsNotNone(BloomFilterSpecs)
         self.assertIsNotNone(IndexBuilder)
-        self.assertIsNotNone(Compressor)
-        self.assertIsNotNone(CompressionParams)
         self.assertIsNotNone(Fasta)
         self.assertIsNotNone(FASTAReader)
         self.assertIsNotNone(FofManager)

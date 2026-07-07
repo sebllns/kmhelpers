@@ -17,7 +17,9 @@ class Main:
 
     ####################################################
     @staticmethod
-    def init(default_bin_path: str = "./bin", check_all: bool = True, chdir: str = "") -> None:
+    def init(
+        default_bin_path: str = "./bin", check_all: bool = True, chdir: str = ""
+    ) -> None:
         """
         Initialize kmhelpers by setting up binary paths and checking dependencies.
 
@@ -122,24 +124,6 @@ class Bin:
 
     ####################################################
     @staticmethod
-    def compressor() -> str:
-        """Get the compressor binary name."""
-        return "block_compressor_bin"
-
-    ####################################################
-    @staticmethod
-    def decompressor() -> str:
-        """Get the decompressor binary name."""
-        return "block_decompressor_bin"
-
-    ####################################################
-    @staticmethod
-    def reorderer() -> str:
-        """Get the reorderer binary name."""
-        return "main_bitmatrixshuffle"
-
-    ####################################################
-    @staticmethod
     def check_bin(binary_name: str) -> None:
         """
         Check if a binary exists in PATH and print a warning if not found.
@@ -180,9 +164,6 @@ class Bin:
         """Check all required binaries are available in PATH."""
         binaries = [
             Bin.kmindex(),
-            Bin.reorderer(),
-            Bin.compressor(),
-            Bin.decompressor(),
         ]
 
         for binary in binaries:
@@ -952,133 +933,3 @@ class BlockCompressorZSTD:
             if is_compressed
             else 0
         )
-
-    ####################################################
-    @staticmethod
-    def compress(
-        input_matrix_path: str,
-        matrix_columns_count: int,
-        permutation_path: str,
-        output_compressed_path: str,
-        config_path: str,
-        output_metric_path: str = "",
-        block_size: int = 8388608,
-        group_size: int = 0,
-        subsample_size: int = 0,
-        threshold: int = 0,
-        disable_reorder: bool = False,
-    ) -> dict:
-        """Run the BlockCompressorZSTD compression script.
-
-        Args:
-            input_matrix_path (str): Path to the input matrix file.
-            matrix_columns_count (int): Number of columns in the matrix.
-            permutation_path (str): Path to the permutation file.
-            output_compressed_path (str): Path for the compressed output.
-            config_path (str): Path to write the compression config.
-            output_metric_path (str): Optional path to write compression metrics.
-            block_size (int): Block size in bytes (default: 8388608 = 8 MB).
-            group_size (int): Group size for compression (0 = auto).
-            subsample_size (int): Subsample size for reordering (0 = disabled).
-            threshold (int): Threshold for reordering (0 = disabled).
-            disable_reorder (bool): If True, skip the reordering step.
-
-        Returns:
-            dict: Output of the compression script.
-        """
-
-        # Check input_matrix_path exists
-        if not os.path.exists(input_matrix_path):
-            raise FileNotFoundError(f"Input matrix file not found: {input_matrix_path}")
-
-        if matrix_columns_count <= 0:
-            raise ValueError("Matrix columns count must be greater than zero")
-
-        cmd = [
-            Bin.reorderer(),
-            "-i",
-            input_matrix_path,
-            "-c",
-            str(matrix_columns_count),
-            "--header",
-            "49",
-        ]
-
-        if group_size > 0:
-            cmd.extend(["-g", str(group_size)])
-
-        if subsample_size > 0:
-            cmd.extend(["-s", str(subsample_size)])
-
-        if block_size > 0:
-            cmd.extend(["-b", str(block_size)])
-
-        if disable_reorder:
-            cmd.append("-n")
-
-        if permutation_path:
-            cmd.extend(
-                ["-f" if os.path.isfile(permutation_path) else "-t", permutation_path]
-            )
-
-        if output_compressed_path:
-            cmd.extend(["-z", output_compressed_path])
-
-        if output_metric_path:
-            cmd.extend(["-j", output_metric_path])
-
-        if config_path:
-            cmd.extend(["--config-path", config_path])
-
-        if threshold > 0:
-            cmd.extend(["--threshold", str(threshold)])
-
-        return Toolbox.run_cmd(cmd)
-
-    ####################################################
-    @staticmethod
-    def decompress(
-        input: str,
-        matrix_columns_count: int,
-        output: str,
-        config_path: str,
-    ):
-        # Check input_matrix_path exists
-        if not os.path.exists(input):
-            raise FileNotFoundError(f"Input matrix file not found: {input}")
-
-        if matrix_columns_count <= 0:
-            raise ValueError("Matrix columns count must be greater than zero")
-
-        cmd = [
-            Bin.decompressor(),
-            config_path,
-            input,
-            BlockCompressorZSTD.get_ef_path(input),
-            "49",
-            output,
-        ]
-
-        return Toolbox.run_cmd(cmd)
-
-    ####################################################
-    @staticmethod
-    def reverse_permutation(
-        input_matrix_path: str,
-        matrix_columns_count: int,
-        permutation_path: str,
-    ):
-        cmd = [
-            Bin.reorderer(),
-            "-i",
-            input_matrix_path,
-            "-f",
-            permutation_path,
-            "-c",
-            str(matrix_columns_count),
-            "--header",
-            "49",
-            "-r",
-        ]
-
-        return Toolbox.run_cmd(cmd)
