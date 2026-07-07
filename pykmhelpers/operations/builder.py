@@ -17,17 +17,33 @@ logger = logging.getLogger(__name__)
 
 class IndexBuilder:
     class Progress:
+        """Polls build progress on a timer and reports changes via a callback.
+
+        Used by `create_subindex` to periodically estimate build progress
+        from the on-disk matrix file sizes and notify a caller-supplied
+        callback whenever the estimate changes.
+        """
+
         def __init__(self, on_change, delay: int = 30):
+            """Initialize the progress tracker.
+
+            Args:
+                on_change (Callable[[float], None]): Called with the new
+                    progress value (0.0-1.0) whenever it changes.
+                delay (int): Seconds between progress checks.
+            """
             self._delay: int = delay
             self._progress: float = 0
             self._on_change = on_change
 
         @property
         def delay(self) -> int:
+            """int: Seconds between progress checks."""
             return self._delay
 
         @property
         def progress(self) -> float:
+            """float: Last known progress, in [0.0, 1.0]."""
             return self._progress
 
         @progress.setter
@@ -46,7 +62,23 @@ class IndexBuilder:
         assets_folder="assets",
         script_out: typing.Optional[typing.IO[str]] = None,
     ) -> None:
-        """Initialize the IndexBuilder."""
+        """Initialize the IndexBuilder.
+
+        Args:
+            workdir (str): Working directory holding the registry, sub-index
+                data, logs, and assets. Created if it does not already exist.
+            registry_name (str): Filename of the kmindex registry, relative
+                to `workdir`.
+            data_folder (str): Subdirectory of `workdir` where sub-index data
+                is stored.
+            log_folder (str): Subdirectory of `workdir` where build logs are
+                written.
+            assets_folder (str): Subdirectory of `workdir` where generated
+                assets (FOF and parameter files) are written.
+            script_out (typing.Optional[typing.IO[str]]): Optional stream to
+                write the underlying kmindex shell commands to, for debugging
+                or replay.
+        """
         self._path = pykmhelpers.core.Toolbox.get_canonical_path(workdir)
         os.makedirs(self.path, exist_ok=True)
         self._registry_name = registry_name
@@ -58,30 +90,37 @@ class IndexBuilder:
 
     @property
     def index(self) -> pykmhelpers.core.KmindexRegistry:
+        """KmindexRegistry: Registry of indexes managed by this builder."""
         return self._registry
 
     @property
     def path(self) -> str:
+        """str: Canonical working directory of this builder."""
         return self._path
 
     @property
     def registry_name(self) -> str:
+        """str: Filename of the kmindex registry, relative to `path`."""
         return self._registry_name
 
     @property
     def registry_path(self) -> str:
+        """str: Absolute path to the kmindex registry."""
         return os.path.join(self.path, self.registry_name)
 
     @property
     def data_folder(self) -> str:
+        """str: Absolute path to the sub-index data directory."""
         return os.path.join(self.path, self._data_folder)
 
     @property
     def log_folder(self) -> str:
+        """str: Absolute path to the build log directory."""
         return os.path.join(self.path, self._log_folder)
 
     @property
     def assets_folder(self) -> str:
+        """str: Absolute path to the generated assets directory."""
         return os.path.join(self.path, self._assets_folder)
 
     def load_metadata(self, file: str) -> dict:
@@ -99,11 +138,25 @@ class IndexBuilder:
         return None
 
     def has_subindex(self, name: str):
+        """Check whether a sub-index is present in the registry.
+
+        Args:
+            name (str): Sub-index name to look up.
+
+        Returns:
+            bool: True if the registry contains a sub-index with this name.
+        """
         return self.index.has_index(name)
 
     def add_sample_to_fof(
         self, sample, fof: pykmhelpers.pipeline.fof.FofManager
     ) -> None:
+        """Add a single sample to a FofManager, logging failures instead of raising.
+
+        Args:
+            sample (dict): Sample dict with `sample_id` and `file_path` keys.
+            fof (FofManager): File-of-files manager to add the sample to.
+        """
         try:
             sample_id = sample["sample_id"]
             sample_path = sample["file_path"]
@@ -132,6 +185,17 @@ class IndexBuilder:
     def get_bf_specs(
         self, n_samples: int, bloom_size: int, n_partitions: int
     ) -> pykmhelpers.core.BloomFilterSpecs:
+        """Build the Bloom filter specs for a would-be index.
+
+        Args:
+            n_samples (int): Number of samples (Bloom filter columns).
+            bloom_size (int): Bloom filter size, in rows (bits per sample).
+            n_partitions (int): Number of partitions the Bloom filter matrix
+                is split into.
+
+        Returns:
+            BloomFilterSpecs: Specs describing the resulting Bloom filter matrix.
+        """
         return pykmhelpers.core.BloomFilterSpecs(
             n_cols=n_samples, n_rows=bloom_size, n_partitions=n_partitions
         )
@@ -140,6 +204,14 @@ class IndexBuilder:
         self,
         bf_specs: pykmhelpers.core.BloomFilterSpecs,
     ) -> pykmhelpers.core.byte.ByteCounter:
+        """Compute the on-disk storage size implied by a set of Bloom filter specs.
+
+        Args:
+            bf_specs (BloomFilterSpecs): Bloom filter specs, e.g. from `get_bf_specs`.
+
+        Returns:
+            ByteCounter: Total storage size, auto-scaled to a human-readable unit.
+        """
         return pykmhelpers.core.byte.ByteCounter.auto(
             bf_specs.total_storage_size(), pykmhelpers.core.byte.SizeFormat.BYTE
         )
@@ -162,7 +234,53 @@ class IndexBuilder:
         on_existing: str = "fail",
         progress: typing.Optional[Progress] = None,
     ) -> dict:
+        """Build a new sub-index from a set of samples via KmindexWrapper.build.
 
+        Args:
+            name (str): Name of the sub-index to create. Must not already
+                exist in the registry.
+            samples (FofManager): Samples to include, e.g. from `create_fof`.
+                Must be non-empty.
+            bloom_size (int): Bloom filter size, in rows (bits per sample).
+                Must be greater than 0.
+            kmer_size (int): K-mer size used by kmindex.
+            abundance_min (int): Minimum k-mer abundance (hard min) to keep.
+            n_partitions (int): Number of partitions to split the Bloom
+                filter matrix into. `0` lets kmindex choose.
+            n_threads (int): Number of threads to use. `0` uses all available
+                CPUs (`os.cpu_count()`).
+            n_max_threads (int): Upper bound on `n_threads` when it is
+                auto-detected. `0` means no cap.
+            build_from (typing.Optional[str]): Name of an existing index to
+                reuse build parameters from. Ignored (with a warning) if it
+                is not found in the registry and differs from `name`.
+            auto_check (bool): After a successful, non-dry-run build, verify
+                that the resulting index's partition count and k-mer size
+                match what was requested, and check its on-disk structure.
+            minim_size (int): Minimizer size passed to kmindex.
+            compress_intermediate (bool): Compress intermediate build files.
+            dry_run (bool): Skip filesystem checks and mutations, and invoke
+                `KmindexWrapper` in dry-run mode; only log what would be done.
+            on_existing (str): What to do if `output_indexdir` already exists
+                on disk:
+                - `"fail"`: raise `FileExistsError`.
+                - `"rename"`: move it aside with a timestamp suffix and build.
+                - `"replace"`: delete it and build.
+                - `"register"`: try to register the existing directory as
+                  `name` in the registry instead of building.
+                - `"register_or_replace"`: try `"register"`, falling back to
+                  `"replace"` if registration fails.
+                - `"register_or_rename"`: try `"register"`, falling back to
+                  `"rename"` if registration fails.
+            progress (typing.Optional[Progress]): Optional progress tracker;
+                if given (and not a dry run), polled in a background thread
+                that estimates completion from partial matrix file sizes.
+
+        Returns:
+            dict: Result returned by `KmindexWrapper.build`, or
+                `{"return_code": 0, "register": True}` if an existing
+                directory was registered instead of built.
+        """
         assert (
             samples and samples.get_sample_count()
         ), "Samples dictionary cannot be empty"
@@ -326,7 +444,36 @@ class IndexBuilder:
         threads: int = 14,
         dry_run: bool = False,
     ):
-        """Merge sub-indexes into a single index via KmindexWrapper.merge."""
+        """Merge sub-indexes into a single index via KmindexWrapper.merge.
+
+        Args:
+            new_name (str): Name of the resulting merged index.
+            to_merge (list[str]): Names of sub-indexes (already present in the
+                registry) to merge together.
+            rename (typing.Optional[str]): How to rename sample identifiers to
+                avoid collisions between merged sub-indexes. A sub-index cannot
+                contain samples with duplicate identifiers, so sub-indexes
+                sharing identifiers must be renamed before merging. Passed
+                through to `kmindex merge -r/--rename`, which accepts:
+                - identifier files, one per sub-index, comma separated
+                  (e.g. `"f:id1.txt,id2.txt,id3.txt"`);
+                - a format string with `{}` substituted by an integer in
+                  `[0, nb_samples)` (e.g. `"s:id_{}"`).
+                `None` leaves identifiers unchanged.
+            is_update (bool): If `new_name` already exists in the registry,
+                rename it to `{new_name}_old` and include it in the merge so
+                the existing index is updated in place rather than replaced.
+                Raises `ValueError` if `False` and `new_name` already exists.
+            delete_old (bool): Delete the original sub-index files (including
+                the renamed `{new_name}_old` index, if any) after a successful
+                merge.
+            threads (int): Number of threads to use for the merge.
+            dry_run (bool): If `True`, skip registry validation and actually
+                invoking kmindex; only log what would be done.
+
+        Returns:
+            dict: Result returned by `KmindexWrapper.merge`.
+        """
         self.index.load_json()
 
         if not dry_run:
@@ -334,24 +481,24 @@ class IndexBuilder:
             if missing:
                 raise ValueError(f"Sub-indexes not found in registry: {missing}")
 
-        # old_name = f"{new_name}_old"
+        old_name = f"{new_name}_old"
 
-        # if self.index.has_index(new_name):
-        #     if not is_update:
-        #         raise ValueError(
-        #             f"Index '{new_name}' already exists in registry; "
-        #             f"pass is_update=True to merge into it"
-        #         )
-        #     logger.info(
-        #         f"Renaming existing index '{new_name}' to '{old_name}' (required for update)"
-        #     )
-        #     if not self.index.rename_index(new_name, old_name):
-        #         raise RuntimeError(
-        #             f"Failed to rename existing index '{new_name}' to '{old_name}'"
-        #         )
+        if self.index.has_index(new_name):
+            if not is_update:
+                raise ValueError(
+                    f"Index '{new_name}' already exists in registry; "
+                    f"pass is_update=True to merge into it"
+                )
+            logger.info(
+                f"Renaming existing index '{new_name}' to '{old_name}' (required for update)"
+            )
+            if not self.index.rename_index(new_name, old_name):
+                raise RuntimeError(
+                    f"Failed to rename existing index '{new_name}' to '{old_name}'"
+                )
 
-        # if is_update and self.index.has_index(old_name):
-        #     to_merge.append(old_name)
+        if is_update and self.index.has_index(old_name):
+            to_merge.append(old_name)
 
         logger.info(f"Merging {to_merge} into '{new_name}'")
 
@@ -378,6 +525,14 @@ class IndexBuilder:
         self,
         name: str,
     ):
+        """Check that an index's on-disk layout is well-formed.
+
+        Args:
+            name (str): Name of the index to check, as registered in the registry.
+
+        Returns:
+            The result of `KmtricksIndex.check_structure()` for this index.
+        """
         idx = self.index.get_index(name)
         return idx.check_structure()
 
