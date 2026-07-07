@@ -3,15 +3,13 @@
 # TODO: update to use new index definition format
 
 import logging
-import os
 
 import click
 
 from pykmhelpers.cli.shared import force_verbose_mode
-from pykmhelpers.core.constants import KMHELPERS_VERSION
 from pykmhelpers.operations.builder import IndexBuilder
 from pykmhelpers.pipeline.fof import FofManager
-from pykmhelpers.pipeline.index_db import DbFields, IndexDefinitionTools
+from pykmhelpers.pipeline.index_db import IndexDefinitionTools
 
 logger = logging.getLogger(__name__)
 

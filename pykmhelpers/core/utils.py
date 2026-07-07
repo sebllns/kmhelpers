@@ -1,8 +1,7 @@
 import datetime
 import json
+import logging
 import os
-import queue
-import re
 import shutil
 import subprocess
 import threading
@@ -10,6 +9,8 @@ import time
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import psutil
+
+logger = logging.getLogger(__name__)
 
 
 class Main:
@@ -27,11 +28,11 @@ class Main:
             chdir: If non-empty, change the working directory to this path before initialization.
         """
         if chdir:
-            print(f"cd {chdir}")
+            logger.info(f"cd {chdir}")
             os.chdir(chdir)
         Bin.set_default_bin_path(default_bin_path)
         Bin.add_bin_dir_to_syspath()
-        print(f"KMHELPERS_BIN_PATH={Bin.get_bin_dir()}")
+        logger.info(f"KMHELPERS_BIN_PATH={Bin.get_bin_dir()}")
         os.makedirs(Bin.get_bin_dir(), exist_ok=True)
         if check_all:
             Bin.check_all()
@@ -71,7 +72,7 @@ class Bin:
         bin_path = Bin.get_bin_path(binary)
         if not os.path.isfile(bin_path):
             assert os.path.isfile(path), f"Binary not found: {path}"
-            print(f"Linking {path} to {bin_path}")
+            logger.info(f"Linking {path} to {bin_path}")
             os.symlink(path, bin_path)
 
     ####################################################
@@ -148,7 +149,7 @@ class Bin:
             binary_name: Name of the binary to check
         """
         if not shutil.which(binary_name):
-            print(f"Warning: {binary_name} command not found in PATH")
+            logger.warning(f"{binary_name} command not found in PATH")
 
     ####################################################
     @staticmethod
@@ -218,7 +219,7 @@ class Toolbox:
             else:
                 json.dump(data, f)
 
-        print(f"JSON data saved to: {filename}")
+        logger.info(f"JSON data saved to: {filename}")
 
     ####################################################
     @staticmethod
@@ -287,7 +288,7 @@ class Toolbox:
             prefix: Prefix to add to each line
         """
         for line in stream:
-            print(f"{prefix}: {line.rstrip()}")
+            logger.info(f"{prefix}: {line.rstrip()}")
 
     ####################################################
     @staticmethod
@@ -328,7 +329,7 @@ class Toolbox:
             subprocess.SubprocessError: If command returns non-zero exit code
         """
         if trace:
-            print("Running command:", *cmd)
+            logger.info("Running command: " + " ".join(str(arg) for arg in cmd))
 
         result = subprocess.run(
             [str(arg) for arg in cmd], capture_output=True, text=True
@@ -337,10 +338,10 @@ class Toolbox:
         if trace:
             for line in result.stdout.strip().split("\n"):
                 if line:
-                    print(f"1: {line}")
+                    logger.info(f"1: {line}")
             for line in result.stderr.strip().split("\n"):
                 if line:
-                    print(f"2: {line}")
+                    logger.info(f"2: {line}")
 
         if result.returncode != 0:
             raise subprocess.SubprocessError(
@@ -373,7 +374,7 @@ class Toolbox:
         monitor_lock = threading.Lock()
 
         def monitor_resources(process):
-            nonlocal max_cpu, max_memory, monitoring
+            nonlocal max_cpu, max_memory
             try:
                 psutil_process = psutil.Process(process.pid)
                 psutil_process.cpu_percent(interval=0.1)
@@ -396,7 +397,7 @@ class Toolbox:
                     except (psutil.NoSuchProcess, psutil.AccessDenied):
                         break
             except Exception as e:
-                print(f"Resource monitoring error: {e}")
+                logger.error(f"Resource monitoring error: {e}")
 
         try:
             start_time = time.time()
@@ -443,20 +444,20 @@ class Toolbox:
 
             output_content = "\n".join(output_lines) if log_file or print_trace else ""
 
-            # Print to console if print_trace is enabled
+            # Log output if print_trace is enabled
             if print_trace:
-                print(output_content)
+                logger.info(output_content)
 
             # Write to log file if specified
             if log_file:
-                print(f"Logging output to: {log_file}")
+                logger.info(f"Logging output to: {log_file}")
                 with open(log_file, "w") as f:
                     f.write(output_content)
 
             return output
 
         except Exception as e:
-            print(f"Failed to start process: {e}")
+            logger.error(f"Failed to start process: {e}")
             return None
 
 
@@ -598,7 +599,7 @@ class Kmindex:
                 if os.path.isfile(matrix_path):
                     matrix_size = os.path.getsize(matrix_path)
                 else:
-                    print(f"ERROR: Matrix file {matrix_path} does not exist.")
+                    logger.error(f"Matrix file {matrix_path} does not exist.")
                     matrix_size = 0
 
                 if type[j] == "reordered_compressed" or type[j] == "compressed":
@@ -621,8 +622,8 @@ class Kmindex:
                         type[j] == "reordered"
                         and results["matrix_sizes_bytes"][i][j] != 0
                     ):
-                        print(
-                            f"ERROR: Reordered index {folders[j]} has different size for partition {i} compared to original."
+                        logger.error(
+                            f"Reordered index {folders[j]} has different size for partition {i} compared to original."
                         )
 
                 results["folder_sizes_bytes"][j] += matrix_size
@@ -678,7 +679,7 @@ class Kmindex:
         with open(output_file, "w") as f:
             json.dump(index_data, f, indent=4)
 
-        print(f"Created empty index.json at: {output_file}")
+        logger.info(f"Created empty index.json at: {output_file}")
         return output_file
 
     ####################################################
@@ -722,10 +723,10 @@ class Kmindex:
 
         # Check if directory exists
         if not os.path.exists(directory_path):
-            print(f"ERROR: Directory '{directory_path}' does not exist!")
+            logger.error(f"Directory '{directory_path}' does not exist!")
             return False
 
-        print(f"Checking index structure in: {directory_path}")
+        logger.info(f"Checking index structure in: {directory_path}")
 
         # Check each expected item
         for item in sorted(all_expected):
@@ -737,8 +738,8 @@ class Kmindex:
 
         # Report results
         if missing_items:
-            print(f"MISSING ITEMS ({len(missing_items)}):")
-            print("-" * 30)
+            logger.warning(f"MISSING ITEMS ({len(missing_items)}):")
+            logger.warning("-" * 30)
 
             # Group missing items by category for better readability
             missing_root_files = [
@@ -758,42 +759,37 @@ class Kmindex:
             ]
 
             if missing_root_files:
-                print("Root files:")
+                logger.warning("Root files:")
                 for item in missing_root_files:
-                    print(f"  - {item}")
-                print()
+                    logger.warning(f"  - {item}")
 
             if missing_dirs:
-                print("Directories:")
+                logger.warning("Directories:")
                 for item in missing_dirs:
-                    print(f"  - {item}/")
-                print()
+                    logger.warning(f"  - {item}/")
 
             if missing_config:
-                print("Config files:")
+                logger.warning("Config files:")
                 for item in missing_config:
-                    print(f"  - {item}")
-                print()
+                    logger.warning(f"  - {item}")
 
             if missing_repartition:
-                print("Repartition files:")
+                logger.warning("Repartition files:")
                 for item in missing_repartition:
-                    print(f"  - {item}")
-                print()
+                    logger.warning(f"  - {item}")
 
             if missing_matrices:
-                print(f"Matrix files ({len(missing_matrices)}):")
+                logger.warning(f"Matrix files ({len(missing_matrices)}):")
                 # Show first few and last few if many are missing
                 if len(missing_matrices) > 10:
                     for item in missing_matrices[:5]:
-                        print(f"  - {item}")
-                    print(f"  ... ({len(missing_matrices) - 10} more)")
+                        logger.warning(f"  - {item}")
+                    logger.warning(f"  ... ({len(missing_matrices) - 10} more)")
                     for item in missing_matrices[-5:]:
-                        print(f"  - {item}")
+                        logger.warning(f"  - {item}")
                 else:
                     for item in missing_matrices:
-                        print(f"  - {item}")
-                print()
+                        logger.warning(f"  - {item}")
 
         return all_present
 
@@ -1090,7 +1086,7 @@ class Kmindex:
             index_id = Toolbox.get_basename(input_dir)
 
         if Kmindex.index_exists_in_json(Kmindex.get_json_path(output_dir), index_id):
-            print(
+            logger.info(
                 f"Index ID {index_id} already exists in index.json, skipping registration."
             )
             return
@@ -1245,24 +1241,24 @@ class Kmindex:
 
             # Check if the key exists in both files
             if key not in data1:
-                print(f"Error: Key '{key}' not found in {file1_path}")
+                logger.error(f"Key '{key}' not found in {file1_path}")
                 return False
 
             if key not in data2:
-                print(f"Error: Key '{key}' not found in {file2_path}")
+                logger.error(f"Key '{key}' not found in {file2_path}")
                 return False
 
             # Compare only the specified sections
             return Kmindex.compare_nested_dicts(data1[key], data2[key], tolerance)
 
         except FileNotFoundError as e:
-            print(f"Error: File not found - {e}")
+            logger.error(f"File not found - {e}")
             return False
         except json.JSONDecodeError as e:
-            print(f"Error: Invalid JSON format - {e}")
+            logger.error(f"Invalid JSON format - {e}")
             return False
         except Exception as e:
-            print(f"Error: {e}")
+            logger.error(f"{e}")
             return False
 
     @staticmethod

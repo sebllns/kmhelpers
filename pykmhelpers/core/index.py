@@ -7,6 +7,7 @@ data structures and their associated properties from index.json files.
 """
 
 import json
+import logging
 import os
 import shutil
 from enum import Enum
@@ -14,6 +15,8 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from pykmhelpers.core.utils import Kmindex, Toolbox
+
+logger = logging.getLogger(__name__)
 
 
 class NotAnIndexError(Exception):
@@ -308,31 +311,31 @@ class KmtricksIndex:
         ok = True
 
         if self.bloom_size <= 0:
-            print("Bloom size cannot be null")
+            logger.warning("Bloom size cannot be null")
             ok = False
 
         if self.nb_samples <= 0:
-            print("Number of samples cannot be null")
+            logger.warning("Number of samples cannot be null")
             ok = False
 
         if self.nb_partitions <= 0:
-            print("Number of partitions cannot be null")
+            logger.warning("Number of partitions cannot be null")
             ok = False
 
         if self.kmer_size <= 0:
-            print("K-mer size cannot be null")
+            logger.warning("K-mer size cannot be null")
             ok = False
 
         if self.minim_size <= 0:
-            print("Minimizer size cannot be null")
+            logger.warning("Minimizer size cannot be null")
             ok = False
 
-        if len(self.samples) == 0:
-            print("Samples list cannot be empty")
+        if not self.samples:
+            logger.warning("Samples list cannot be empty")
             ok = False
 
         if len(self.samples) != self.nb_samples:
-            print("Samples list length must match nb_samples")
+            logger.warning("Samples list length must match nb_samples")
             ok = False
 
         if not Kmindex.check_index_structure(self.dir_path, self.nb_partitions):
@@ -347,13 +350,13 @@ class KmtricksIndex:
                 p, self.compress_state == IndexCompressionState.COMPRESSED
             )
             if size != ref_size:
-                print(
+                logger.warning(
                     f"Partition {p} size ({size} bytes) does not match reference partition size ({ref_size} bytes)"
                 )
                 ok = False
 
         if not ok:
-            print(f"[Warning] Index {self._index_id} has incorrect structure")
+            logger.warning(f"Index {self._index_id} has incorrect structure")
 
         return ok
 
@@ -371,8 +374,8 @@ class KmtricksIndex:
         try:
             self._properties[key] = value
             return True
-        except:
-            print(f"Error setting property: {key}")
+        except Exception as e:
+            logger.error(f"Error setting property {key}: {e}")
             return False
 
     def get_property(self, key: str) -> Any:
@@ -413,7 +416,7 @@ class KmtricksIndex:
         try:
             self._properties.update(props)
         except TypeError as e:
-            print(f"An error occurred: {e}")
+            logger.error(f"An error occurred: {e}")
 
     def load_kmtricks_index(self, force: bool = False) -> None:
         """
@@ -450,12 +453,14 @@ class KmtricksIndex:
         try:
             import shutil
 
-            print(f"Destroying index: {self._index_id}")
-            shutil.rmtree(self.dir_path, onexc=lambda _f, p, _e: print(f"Error: {p}"))
+            logger.info(f"Destroying index: {self._index_id}")
+            shutil.rmtree(
+                self.dir_path, onexc=lambda _f, p, _e: logger.error(f"Error: {p}")
+            )
             self._parent_dir = ""
             return True
         except Exception as e:
-            print(f"Error removing index: {e}")
+            logger.error(f"Error removing index: {e}")
             return False
 
     def copy_to(self, destination: str) -> bool:
@@ -482,23 +487,23 @@ class KmtricksIndex:
 
             # Check if source exists
             if not os.path.exists(source_path):
-                print(f"Error: Source index directory does not exist: {source_path}")
+                logger.error(f"Source index directory does not exist: {source_path}")
                 return False
 
             # Check if destination already exists
             if os.path.exists(dest_path):
-                print(f"Error: Destination already exists: {dest_path}")
+                logger.error(f"Destination already exists: {dest_path}")
                 return False
 
             # Copy the entire index directory
             shutil.copytree(source_path, dest_path)
 
-            print(f"Successfully copied index '{self._index_id}' to {destination}")
+            logger.info(f"Successfully copied index '{self._index_id}' to {destination}")
 
             return True
 
         except Exception as e:
-            print(f"Error copying index: {e}")
+            logger.error(f"Error copying index: {e}")
             return False
 
     def move_to(self, destination: str) -> bool:
@@ -522,11 +527,11 @@ class KmtricksIndex:
             # Update the _parent_dir property to reflect the new location
             self._parent_dir = destination
 
-            print(f"Successfully moved index '{self._index_id}' to {destination}")
+            logger.info(f"Successfully moved index '{self._index_id}' to {destination}")
             return True
 
         except Exception as e:
-            print(f"Error moving index: {e}")
+            logger.error(f"Error moving index: {e}")
             return False
 
     def rename(self, new_id: str) -> bool:
@@ -542,11 +547,11 @@ class KmtricksIndex:
         try:
             # Validate new_id
             if not new_id or not isinstance(new_id, str):
-                print(f"Error: Invalid new index ID: {new_id}")
+                logger.error(f"Invalid new index ID: {new_id}")
                 return False
 
             if new_id == self._index_id:
-                print(f"Error: New ID is the same as current ID: {new_id}")
+                logger.error(f"New ID is the same as current ID: {new_id}")
                 return False
 
             # Get current and new paths
@@ -555,7 +560,7 @@ class KmtricksIndex:
 
             # Check if new path already exists
             if os.path.exists(new_path):
-                print(f"Error: Index with ID '{new_id}' already exists at {new_path}")
+                logger.error(f"Index with ID '{new_id}' already exists at {new_path}")
                 return False
 
             # Rename the directory
@@ -564,11 +569,11 @@ class KmtricksIndex:
             # Update the index ID
             self._index_id = new_id
 
-            print(f"Successfully renamed index to '{new_id}'")
+            logger.info(f"Successfully renamed index to '{new_id}'")
             return True
 
         except Exception as e:
-            print(f"Error renaming index: {e}")
+            logger.error(f"Error renaming index: {e}")
             return False
 
     def __str__(self) -> str:
@@ -757,15 +762,15 @@ class KmindexRegistry:
                     os.path.realpath(index_path),
                     ignore_errors=True,
                 )
-                print(f"✓ Deleted index files from disk")
+                logger.info("Deleted index files from disk")
             except Exception as e:
-                print(f"⚠ Failed to delete some files: {e}")
+                logger.warning(f"Failed to delete some files: {e}")
 
         try:
             if os.path.islink(index_path):
                 os.unlink(index_path)
         except Exception as e:
-            print(f"Error deleting link {index_path}: {e}")
+            logger.error(f"Error deleting link {index_path}: {e}")
 
         # Remove the index from the JSON data
         del self._json_data["index"][index_id]
@@ -803,7 +808,7 @@ class KmindexRegistry:
         for i in ids:
             index_link = self.get_index_path(i)
             index_path = os.path.join(path, i)
-            print(f"Relink {i}...")
+            logger.info(f"Relink {i}...")
             try:
                 if os.path.isdir(index_path):
                     KmtricksIndex(path, i)
@@ -811,7 +816,7 @@ class KmindexRegistry:
                         os.unlink(index_link)
                     os.symlink(index_path, index_link, target_is_directory=True)
             except Exception as e:
-                print(f"Error linking {i}: {e}")
+                logger.error(f"Error linking {i}: {e}")
 
     def rename_index(self, old_index_id: str, new_index_id: str) -> bool:
         """
@@ -848,16 +853,16 @@ class KmindexRegistry:
         return True
 
     def import_directory(self, path):
-        print(f"Import indexes from {path}:")
+        logger.info(f"Import indexes from {path}:")
         count = 0
         for f in Path(path).iterdir():
             if f.is_dir():
                 try:
                     if self.add_index(KmtricksIndex(path, f.name)):
                         count += 1
-                        print(f" - {f.name}")
-                except:
-                    pass
+                        logger.info(f" - {f.name}")
+                except Exception as e:
+                    logger.debug(f"Skipping {f.name}: {e}")
 
     def check_dirs(self) -> None:
         assert (

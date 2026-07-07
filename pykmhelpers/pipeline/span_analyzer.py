@@ -123,10 +123,10 @@ class SpanAnalyzer:
         return str(ByteCounter.auto(self.get_total_stored_size(), SizeFormat.BYTE))
 
     def waste_pct(self, s):
-        l = self.lk[s]
-        if l == 0:
+        size = self.lk[s]
+        if size == 0:
             return None
-        return (l - self.nc[s]) / l * 100
+        return (size - self.nc[s]) / size * 100
 
     def delta_cumulative(self, j):
         m = self.spans[j]
@@ -269,7 +269,7 @@ class SpanAnalyzer:
 
     def plot(self, n_groups=None):
         spans = self.spans
-        adj_costs = [(k, m, self.delta_adjacent(k, m)) for k, m in self.adj_pairs]
+        # adj_costs = [(k, m, self.delta_adjacent(k, m)) for k, m in self.adj_pairs]
         cumul_points = [
             (spans[j], self.delta_cumulative(j)) for j in range(1, len(spans))
         ]

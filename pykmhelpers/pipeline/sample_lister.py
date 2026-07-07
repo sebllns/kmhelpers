@@ -90,7 +90,7 @@ class SampleLister:
 
         if self.do_count:
             self._counter = KmerCounter(
-                k=self.kmer_size, threadCount=self.ntcard_threads
+                k=self.kmer_size, thread_count=self.ntcard_threads
             )
 
         backup_parsed = False

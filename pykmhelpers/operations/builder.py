@@ -348,9 +348,10 @@ class IndexBuilder:
                     r = self.index.add_index(
                         pykmhelpers.core.KmtricksIndex(output_basedir, name)
                     )
-                except:
+                except Exception as e:
+                    logger.debug(f"Could not add index {name}: {e}")
                     r = False
-                if r == False:
+                if not r:
                     if on_existing == "register_or_replace":
                         logger.info(f"Delete {output_indexdir}")
                         shutil.rmtree(output_indexdir)

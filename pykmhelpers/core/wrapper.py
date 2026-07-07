@@ -184,7 +184,7 @@ class Wrapper:
         monitor_lock = threading.Lock()
 
         def monitor_resources(process):
-            nonlocal max_cpu, max_memory, monitoring
+            nonlocal max_cpu, max_memory
             try:
                 psutil_process = psutil.Process(process.pid)
                 psutil_process.cpu_percent(interval=0.1)

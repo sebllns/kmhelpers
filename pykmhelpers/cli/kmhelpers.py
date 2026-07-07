@@ -14,7 +14,7 @@ import traceback
 import click
 import yaml
 
-from pykmhelpers import Bin, Main, __version__
+from pykmhelpers import Bin, __version__
 from pykmhelpers._commit import GIT_COMMIT
 from pykmhelpers.cli.about import about
 from pykmhelpers.cli.apply import apply
@@ -325,7 +325,7 @@ def cli(
 
     try:
         Bin.check_kmindex()
-    except RuntimeError as e:
+    except RuntimeError:
         root_logger.warning("Could not find kmindex command in path.")
 
 

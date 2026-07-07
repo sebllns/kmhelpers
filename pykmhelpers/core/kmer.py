@@ -44,19 +44,19 @@ class KmerCounter(Wrapper):
 
     Args:
         k: K-mer length.
-        threadCount: Number of threads passed to ntcard.
+        thread_count: Number of threads passed to ntcard.
         dry_run: If True, commands are built but not executed.
     """
 
     def __init__(
         self,
         k: int = 31,
-        threadCount: int = 8,
+        thread_count: int = 8,
         dry_run: bool = False,
     ):
         super().__init__(main_cmd="ntcard", dry_run=dry_run)
         self._k = k
-        self._threadCount = threadCount
+        self._thread_count = thread_count
 
     @property
     def k(self):
@@ -64,9 +64,9 @@ class KmerCounter(Wrapper):
         return self._k
 
     @property
-    def threadCount(self):
+    def thread_count(self):
         """Number of threads used by ntcard."""
-        return self._threadCount
+        return self._thread_count
 
     def count(
         self, filename: str, mode: KmerCountMode = KmerCountMode.DISTINCT, verbose: bool = False
@@ -129,7 +129,7 @@ class KmerCounter(Wrapper):
             cmd = [
                 "ntcard",
                 "-t",
-                str(self._threadCount),
+                str(self._thread_count),
                 "-k",
                 str(self._k),
                 "-o",

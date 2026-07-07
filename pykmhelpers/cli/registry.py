@@ -2,11 +2,10 @@
 
 import json
 import os
-import shutil
 
 import click
 
-from pykmhelpers import Kmindex, KmindexRegistry, KmtricksIndex
+from pykmhelpers import KmindexRegistry, KmtricksIndex
 
 
 @click.group()
@@ -383,9 +382,6 @@ def registry_rename(obj, index_id, new_index_id):
 
         if not registry.has_index(index_id):
             raise click.ClickException(f"Index '{index_id}' not found in registry")
-
-        # Get index before removal (needed to delete files)
-        index = registry.get_index(index_id)
 
         if not registry.rename_index(index_id, new_index_id):
             raise click.ClickException(

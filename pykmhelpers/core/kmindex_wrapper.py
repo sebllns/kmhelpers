@@ -326,8 +326,6 @@ class KmindexWrapper(Wrapper):
             FileNotFoundError: If query_file not found.
         """
 
-        registry = None
-
         input_registry = Toolbox.get_canonical_path(input_registry)
         output_dir = Toolbox.get_canonical_path(output_dir)
 
@@ -596,7 +594,7 @@ class KmindexWrapper(Wrapper):
                 f"index.json not found in registry {input_registry}"
             )
 
-        if not to_merge or len(to_merge) == 0:
+        if not to_merge:
             raise ValueError("to_merge list cannot be empty")
 
         if not new_name:

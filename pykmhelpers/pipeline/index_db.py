@@ -376,9 +376,6 @@ class IndexDefinitionTools:
                         self.get_field_name(DbFields.ORIGINAL_ID)
                     ] = sample.get_link(DbFields.ORIGINAL_ID)
 
-            stored_size = index.get_stored_size()
-            partition_stored_size = index.get_stored_size_per_partition()
-
             infos = {
                 self.get_field_name(DbFields.SPAN): index.span,
                 self.get_field_name(DbFields.INFO_SAMPLE_COUNT): index.sample_count,

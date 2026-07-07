@@ -2,7 +2,7 @@ import logging
 
 import click
 
-from pykmhelpers import KmindexRegistry, KmindexWrapper
+from pykmhelpers import KmindexRegistry
 from pykmhelpers.core.log import Log
 
 logger = logging.getLogger(__name__)
