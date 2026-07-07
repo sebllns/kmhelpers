@@ -225,9 +225,9 @@ def apply(
         registry = os.path.realpath(registry)
 
     if not bloom_dir:
-        bloom_dir = os.path.join(work_dir, "kmindex_data")
+        base_bloom_dir = os.path.join(work_dir, "kmindex_data")
     else:
-        bloom_dir = os.path.realpath(bloom_dir)
+        base_bloom_dir = os.path.realpath(bloom_dir)
 
     if not base_path:
         base_path = os.getcwd()
@@ -250,26 +250,6 @@ def apply(
 
     logger.info(f"Working directory: {work_dir}")
 
-    iops = ops.IndexOps(
-        config=ops.IndexOpsConfig(
-            workdir=work_dir,
-            index_data_folder=bloom_dir,
-            registry_dir=os.path.join(work_dir, registry),
-            minimizer_length=int(minim_size),
-            sample_rootpath=base_path,
-            kmindex_threads=threads,
-            kmindex_skip_compression=skip_compression,
-            kmindex_build_from=reuse_from,
-            filter_names=selected_ids,
-            filter_spans=selected_spans,
-            on_existing=existing,
-            fail_on_error=fail_on_error,
-            partition_count=partition_count,
-        )
-    )
-
-    log_dir = iops.log_dir
-
     apply_mode = (
         ops.ApplyMode.APPLY_SHOW_PROGRESS if show_progress else ops.ApplyMode.APPLY
     )
@@ -277,7 +257,37 @@ def apply(
     i = 0
     failed = False
     for input_file in input_files:
+        input_file_dir = os.path.basename(
+            os.path.dirname(os.path.realpath(input_file))
+        )
+        index_data_folder = os.path.join(base_bloom_dir, input_file_dir)
+
+        if os.path.isdir(index_data_folder) and not force:
+            click.confirm(
+                f"Bloom filter directory already exists at {index_data_folder}. Continue?",
+                abort=True,
+            )
+
         try:
+            iops = ops.IndexOps(
+                config=ops.IndexOpsConfig(
+                    workdir=work_dir,
+                    index_data_folder=index_data_folder,
+                    registry_dir=os.path.join(work_dir, registry),
+                    minimizer_length=int(minim_size),
+                    sample_rootpath=base_path,
+                    kmindex_threads=threads,
+                    kmindex_skip_compression=skip_compression,
+                    kmindex_build_from=reuse_from,
+                    filter_names=selected_ids,
+                    filter_spans=selected_spans,
+                    on_existing=existing,
+                    fail_on_error=fail_on_error,
+                    partition_count=partition_count,
+                )
+            )
+            log_dir = iops.log_dir
+
             logger.info(f"Apply {input_file}...")
             result = iops.run(input_file, apply_mode)
             _notify_state["status"] = result.status.value

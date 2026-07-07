@@ -131,7 +131,13 @@ def build(
     work_dir = os.path.realpath(work_dir)
 
     registry = work_dir
-    bloom_dir = os.path.join(work_dir, "kmindex_data")
+    input_file_dir = os.path.basename(os.path.dirname(os.path.realpath(input_file)))
+    bloom_dir = os.path.join(work_dir, "kmindex_data", input_file_dir)
+
+    if os.path.isdir(bloom_dir):
+        raise click.ClickException(
+            f"Bloom filter directory already exists at {bloom_dir}"
+        )
 
     if not base_path:
         base_path = os.getcwd()
