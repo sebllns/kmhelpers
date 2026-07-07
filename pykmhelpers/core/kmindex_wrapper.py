@@ -258,11 +258,9 @@ class KmindexWrapper(Wrapper):
             ) as f:
                 yaml.safe_dump(result or "", f)
 
-        if not result or result.get("return_code", 0 if self.dry_run else -1) != 0:
-            stderr = (result or {}).get("stderr") or ""
-            lines = [line.strip() for line in stderr.splitlines() if line.strip()]
-            msg = lines[-1] if lines else "..."
-            rc = (result or {}).get("return_code", -1)
+        rc, msg = self._check_result(result)
+
+        if rc != 0:
             if output_log_dir:
                 logger.error(f"Build failed: consult logs in {output_log_dir}")
             raise RuntimeError(f"Build failed: <{msg}> ({rc})")
@@ -275,7 +273,17 @@ class KmindexWrapper(Wrapper):
                 os.path.join(output_registry_path, register_as)
             ), f"Could not find index in registry {output_registry_path}"
 
-        return result
+        return result or {}
+
+    def _check_result(self, result):
+        rc = 0
+        msg = ""
+        if not result or result.get("return_code", 0 if self.dry_run else -1) != 0:
+            stderr = (result or {}).get("stderr") or ""
+            lines = [line.strip() for line in stderr.splitlines() if line.strip()]
+            msg = lines[-1] if lines else "..."
+            rc = (result or {}).get("return_code", -1)
+        return rc, msg
 
     def query(
         self,
@@ -392,13 +400,15 @@ class KmindexWrapper(Wrapper):
 
         result = self._monitor_cmd(cmd, log_errors_only=True)
 
-        if not result:
-            raise RuntimeError("Query failed.")
+        rc, msg = self._check_result(result)
+
+        if rc != 0:
+            raise RuntimeError(f"Build failed: <{msg}> ({rc})")
 
         if not os.path.isdir(output_dir):
             raise NotADirectoryError(f"Result directory not found: {output_dir}")
 
-        return result
+        return result or {}
 
     def compress(
         self,
@@ -517,10 +527,12 @@ class KmindexWrapper(Wrapper):
         # Execute command
         result = self._monitor_cmd(cmd, log_errors_only=True)
 
-        if not result or result.get("return_code", 0 if self.dry_run else -1) != 0:
-            raise RuntimeError("Compression failed.")
+        rc, msg = self._check_result(result)
 
-        return result
+        if rc != 0:
+            raise RuntimeError(f"Build failed: <{msg}> ({rc})")
+
+        return result or {}
 
     def merge(
         self,
@@ -632,10 +644,12 @@ class KmindexWrapper(Wrapper):
         # Execute command
         result = self._monitor_cmd(cmd, log_errors_only=True)
 
-        if not result or result.get("return_code", 0 if self.dry_run else -1) != 0:
-            raise RuntimeError("Merge failed.")
+        rc, msg = self._check_result(result)
 
-        return result
+        if rc != 0:
+            raise RuntimeError(f"Build failed: <{msg}> ({rc})")
+
+        return result or {}
 
     def kmindex_version(self) -> Optional[str]:
         try:
