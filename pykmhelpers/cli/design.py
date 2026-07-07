@@ -210,7 +210,7 @@ def lpc(
     if os.path.isfile(auto_layout):
         layout_file = auto_layout
         profiles_file = None
-        logger.info("Found existing layout file, skipping 'profile'")
+        logger.info("Found existing layout file, updating existing index")
     else:
         try:
             SpanProfiler(
