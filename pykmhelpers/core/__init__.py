@@ -5,14 +5,12 @@ from pykmhelpers.core.index import KmindexRegistry, KmtricksIndex
 from pykmhelpers.core.kmer import Kmer
 from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
 from pykmhelpers.core.sequence import Sequence
-from pykmhelpers.core.utils import Bin, BlockCompressorZSTD, Kmindex, Main, Toolbox
+from pykmhelpers.core.utils import Bin, Main, Toolbox
 
 __all__ = [
     "Main",
     "Bin",
     "Toolbox",
-    "Kmindex",
-    "BlockCompressorZSTD",
     "KmtricksIndex",
     "KmindexRegistry",
     "KmindexWrapper",

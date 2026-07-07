@@ -305,8 +305,6 @@ class KmindexWrapper(Wrapper):
         """
         Query a kmindex index.
 
-        This method wraps the existing Kmindex.query_index() functionality.
-
         Args:
             input_registry: Path to the registry directory (index.json parent directory).
             query_file: Path to query FASTA/FASTQ file (supports gz/bzip2 compression).

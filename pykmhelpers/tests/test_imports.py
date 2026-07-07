@@ -8,12 +8,10 @@ class TestDirectImports(unittest.TestCase):
 
     def test_core_utils_imports(self):
         """Test importing from pykmhelpers.core.utils"""
-        from pykmhelpers.core.utils import Main, Bin, Toolbox, Kmindex, BlockCompressorZSTD
+        from pykmhelpers.core.utils import Main, Bin, Toolbox
         self.assertIsNotNone(Main)
         self.assertIsNotNone(Bin)
         self.assertIsNotNone(Toolbox)
-        self.assertIsNotNone(Kmindex)
-        self.assertIsNotNone(BlockCompressorZSTD)
 
     def test_core_index_imports(self):
         """Test importing from pykmhelpers.core.index"""
@@ -85,15 +83,13 @@ class TestCorePackageImports(unittest.TestCase):
     def test_all_core_imports(self):
         """Test importing all classes from pykmhelpers.core"""
         from pykmhelpers.core import (
-            Main, Bin, Toolbox, Kmindex, BlockCompressorZSTD,
+            Main, Bin, Toolbox,
             KmtricksIndex, KmindexRegistry, KmindexWrapper,
             BloomFilterSpecs, SpanManager, Kmer, Sequence
         )
         self.assertIsNotNone(Main)
         self.assertIsNotNone(Bin)
         self.assertIsNotNone(Toolbox)
-        self.assertIsNotNone(Kmindex)
-        self.assertIsNotNone(BlockCompressorZSTD)
         self.assertIsNotNone(KmtricksIndex)
         self.assertIsNotNone(KmindexRegistry)
         self.assertIsNotNone(KmindexWrapper)
@@ -133,7 +129,7 @@ class TestTopLevelImports(unittest.TestCase):
         """Test importing all classes from pykmhelpers"""
         from pykmhelpers import (
             # Core
-            Main, Bin, Toolbox, Kmindex, BlockCompressorZSTD,
+            Main, Bin, Toolbox,
             KmtricksIndex, KmindexRegistry, KmindexWrapper,
             BloomFilterSpecs,
             # Operations
@@ -149,8 +145,6 @@ class TestTopLevelImports(unittest.TestCase):
         self.assertIsNotNone(Main)
         self.assertIsNotNone(Bin)
         self.assertIsNotNone(Toolbox)
-        self.assertIsNotNone(Kmindex)
-        self.assertIsNotNone(BlockCompressorZSTD)
         self.assertIsNotNone(KmtricksIndex)
         self.assertIsNotNone(KmindexRegistry)
         self.assertIsNotNone(KmindexWrapper)
