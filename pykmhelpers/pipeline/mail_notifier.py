@@ -3,6 +3,7 @@ from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from typing import Optional
 
 from pykmhelpers.core.wrapper import Wrapper
 
@@ -11,7 +12,14 @@ class MailNotifier(Wrapper):
     def __init__(self, dry_run: bool = False) -> None:
         super().__init__("/usr/sbin/sendmail", dry_run)
 
-    def send(self, to: str, subject: str, body: str, sender: str = "", attachments: list[str] = []) -> None:
+    def send(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        sender: str = "",
+        attachments: Optional[list[str]] = None,
+    ) -> None:
         msg = MIMEMultipart()
         msg["To"] = to
         msg["Subject"] = subject
@@ -20,7 +28,7 @@ class MailNotifier(Wrapper):
 
         msg.attach(MIMEText(body))
 
-        for path in attachments:
+        for path in attachments or []:
             part = MIMEBase("application", "octet-stream")
             with open(path, "rb") as f:
                 part.set_payload(f.read())

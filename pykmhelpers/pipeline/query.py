@@ -179,7 +179,7 @@ class KmindexQuery:
         self,
         registry_path: str,
         output_dir="query",
-        index_ids: list[str] = [],
+        index_ids: Optional[list[str]] = None,
         z: int = 6,
         threshold=0.01,
         single_query: Optional[str] = None,
@@ -204,6 +204,7 @@ class KmindexQuery:
             is_compressed (bool): Whether the index is stored in compressed form.
             method (str): Query method passed to kmindex (e.g. ``"seq"``).
         """
+        index_ids = index_ids if index_ids is not None else []
         result_dir = os.path.join(output_dir, "result")
         os.makedirs(output_dir, exist_ok=True)
 
