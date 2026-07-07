@@ -23,12 +23,12 @@ from pykmhelpers.cli.build_subindex import build_subindex
 from pykmhelpers.cli.compose import compose
 from pykmhelpers.cli.compress import kmindex_compress
 from pykmhelpers.cli.count_kmers import count_kmers
+from pykmhelpers.cli.design import lpc
 from pykmhelpers.cli.exp_compression import exp_compress
 from pykmhelpers.cli.experimental import experimental
 from pykmhelpers.cli.fof import fof
 from pykmhelpers.cli.kmindex import kmindex
 from pykmhelpers.cli.list import list_samples
-from pykmhelpers.cli.lpc import lpc
 from pykmhelpers.cli.pipeline import pipeline
 from pykmhelpers.cli.plan import plan
 from pykmhelpers.cli.profile import profile
@@ -108,7 +108,13 @@ class SectionedGroup(click.Group):
             sections[section].append((subcommand, help_text))
 
         # Define section order
-        section_order = ["Super commands", "Main commands", "Utilities", "Advanced", "Other"]
+        section_order = [
+            "Super commands",
+            "Main commands",
+            "Utilities",
+            "Advanced",
+            "Other",
+        ]
 
         # Write sections in defined order
         for section in section_order:
