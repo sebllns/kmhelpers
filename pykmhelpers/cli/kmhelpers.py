@@ -130,7 +130,7 @@ class SectionedGroup(click.Group):
             elapsed = time.monotonic() - _start
             print(f"Done in {elapsed:.2f}s")
             return result
-        except (click.ClickException, click.exceptions.Exit, SystemExit):
+        except (click.ClickException, click.exceptions.Exit, click.Abort, SystemExit):
             # Let Click exceptions and sys.exit pass through
             raise
         except Exception as e:
