@@ -114,6 +114,10 @@ class KmtricksIndex:
         return self._index_id
 
     @property
+    def actual_location(self) -> str:
+        return os.path.dirname(self.dir_path)
+
+    @property
     def dir_path(self) -> str:
         """Get the full path to this index directory."""
         return Kmindex.get_index_path(self._parent_dir, self._index_id)
@@ -546,8 +550,8 @@ class KmtricksIndex:
                 return False
 
             # Get current and new paths
-            old_path = self.dir_path
-            new_path = Kmindex.get_index_path(self._parent_dir, new_id)
+            old_path = os.path.join(self._parent_dir, self.id)
+            new_path = os.path.join(self._parent_dir, new_id)
 
             # Check if new path already exists
             if os.path.exists(new_path):
@@ -832,9 +836,9 @@ class KmindexRegistry:
         self._backup_json()
 
         idx = self.get_index(old_index_id)
+        idx.rename(new_index_id)
 
         self.remove_index(old_index_id, delete_files=False)
-        idx.rename(new_index_id)
         self.add_index(idx)
 
         # Write the updated JSON back to file
