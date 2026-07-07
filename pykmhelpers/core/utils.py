@@ -1,4 +1,3 @@
-import datetime
 import json
 import logging
 import os
@@ -6,7 +5,7 @@ import shutil
 import subprocess
 import threading
 import time
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 import psutil
 
@@ -204,53 +203,6 @@ class Toolbox:
 
     ####################################################
     @staticmethod
-    def json_serialize(data: Any, filename: str, pretty: bool = True) -> None:
-        """
-        Save JSON data directly to a file.
-
-        Args:
-            data: The JSON-serializable data to save
-            filename: Path where to save the JSON file
-            pretty: Whether to format JSON with indentation (default: True)
-        """
-        with open(filename, "w") as f:
-            if pretty:
-                json.dump(data, f, indent=2)
-            else:
-                json.dump(data, f)
-
-        logger.info(f"JSON data saved to: {filename}")
-
-    ####################################################
-    @staticmethod
-    def json_diff(file1_path: str, file2_path: str) -> Dict[str, Any]:
-        """
-        Calculate the difference between two JSON files.
-
-        Args:
-            file1_path: Path to the first JSON file
-            file2_path: Path to the second JSON file
-
-        Returns:
-            Dictionary containing the differences between the two JSON files
-        """
-        with open(file1_path, "r") as f1:
-            report1 = json.load(f1)
-
-        with open(file2_path, "r") as f2:
-            report2 = json.load(f2)
-
-        differences = {}
-
-        for key in report1.keys():
-            if key in report2:
-                diff = report2[key] - report1[key]
-                differences[key] = diff
-
-        return differences
-
-    ####################################################
-    @staticmethod
     def get_canonical_path(path: str) -> str:
         """
         Get the canonical absolute path of a given path.
@@ -276,41 +228,6 @@ class Toolbox:
             str: The base name of the path.
         """
         return os.path.basename(Toolbox.get_canonical_path(path))
-
-    ####################################################
-    @staticmethod
-    def read_stream(stream: Any, prefix: str) -> None:
-        """
-        Read and print lines from a stream with a prefix.
-
-        Args:
-            stream: Input stream to read from
-            prefix: Prefix to add to each line
-        """
-        for line in stream:
-            logger.info(f"{prefix}: {line.rstrip()}")
-
-    ####################################################
-    @staticmethod
-    def get_posix_timestamp() -> int:
-        """
-        Get the current POSIX timestamp.
-
-        Returns:
-            Current timestamp in seconds since Unix epoch
-        """
-        return int(time.time())
-
-    ####################################################
-    @staticmethod
-    def get_human_readable_timestamp() -> str:
-        """
-        Get the current timestamp in human-readable format.
-
-        Returns:
-            Timestamp formatted as "YYYY-MM-DD HH:MM:SS"
-        """
-        return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     ####################################################
     @staticmethod
@@ -555,108 +472,6 @@ class Kmindex:
 
     ####################################################
     @staticmethod
-    def compare_matrices_size(
-        folders: List[str], type: List[str], index: str
-    ) -> Dict[str, Any]:
-        """Compare matrix sizes across folders and partitions.
-
-        Args:
-            folders: List of folder paths to analyze.
-            type: List of matrix types to include in the comparison.
-            index: Index identifier used to locate partitions within each folder.
-
-        Returns:
-            Dictionary containing analysis results with folder sizes and matrix sizes.
-        """
-
-        partition_count = 0
-
-        for folder in folders:
-            p = Kmindex.get_partition_count(folder, index)
-            if partition_count == 0:
-                partition_count = p
-            elif partition_count != p:
-                raise RuntimeError(
-                    f"Partition count differs between original and {folder}"
-                )
-
-        results = {
-            "folders": folders,
-            "partition_count": partition_count,
-            "folder_sizes_bytes": [0] * len(folders),
-            "matrix_sizes_bytes": [
-                [0 for _ in range(len(folders) + 1)] for _ in range(partition_count)
-            ],
-        }
-
-        # Calculate matrix sizes for each partition and folder
-        for i in range(partition_count):
-            for j, folder in enumerate(folders):
-                is_compressed = "compressed" in type[j]
-                matrix_path = Kmindex.get_matrix_path(
-                    Kmindex.get_index_path(folder, index), i, is_compressed
-                )
-                if os.path.isfile(matrix_path):
-                    matrix_size = os.path.getsize(matrix_path)
-                else:
-                    logger.error(f"Matrix file {matrix_path} does not exist.")
-                    matrix_size = 0
-
-                if type[j] == "reordered_compressed" or type[j] == "compressed":
-                    matrix_size += os.path.getsize(f"{matrix_path}_ef")
-
-                if j == 0:
-                    results["matrix_sizes_bytes"][i][j] = matrix_size
-                else:
-                    results["matrix_sizes_bytes"][i][j] = (
-                        round(
-                            (matrix_size - results["matrix_sizes_bytes"][i][0])
-                            / results["matrix_sizes_bytes"][i][0],
-                            4,
-                        )
-                        if results["matrix_sizes_bytes"][i][0] > 0
-                        else 0
-                    )
-
-                    if (
-                        type[j] == "reordered"
-                        and results["matrix_sizes_bytes"][i][j] != 0
-                    ):
-                        logger.error(
-                            f"Reordered index {folders[j]} has different size for partition {i} compared to original."
-                        )
-
-                results["folder_sizes_bytes"][j] += matrix_size
-            results["matrix_sizes_bytes"][i][-1] = i
-
-        for j in range(1, len(folders)):
-            results["folder_sizes_bytes"][j] = (
-                (results["folder_sizes_bytes"][j] - results["folder_sizes_bytes"][0])
-                / results["folder_sizes_bytes"][0]
-                if results["folder_sizes_bytes"][0] > 0
-                else 0
-            )
-        return results
-
-    ####################################################
-    @staticmethod
-    def validate_index_ids(requested_ids: list, available_ids: list) -> None:
-        """
-        Validate that all requested IDs exist in the available IDs list.
-
-        Raises AssertionError if any requested ID is not found.
-        """
-        missing_ids = [
-            req_id for req_id in requested_ids if req_id not in available_ids
-        ]
-
-        if missing_ids:
-            raise AssertionError(
-                f"Index IDs {missing_ids} not found. " f"Available: {available_ids}"
-            )
-
-    ####################################################
-    @staticmethod
     def create_empty_index_json(output_dir) -> str:
         """
         Create an empty index.json file in the specified output directory.
@@ -795,19 +610,6 @@ class Kmindex:
 
     ####################################################
     @staticmethod
-    def version():
-        return Toolbox.run_cmd([Bin.kmindex(), "--version"])
-
-    ####################################################
-    @staticmethod
-    def read_index_ids_from_json(json_file_path):
-        with open(json_file_path, "r") as file:
-            data = json.load(file)
-        index_ids = list(data["index"].keys())
-        return index_ids
-
-    ####################################################
-    @staticmethod
     def index_exists_in_json(json_file_path, index_id):
         with open(json_file_path, "r") as file:
             data = json.load(file)
@@ -847,54 +649,6 @@ class Kmindex:
             Number of bytes per row
         """
         return (sample_count + 7) // 8
-
-    ####################################################
-    @staticmethod
-    def get_partition_count(input_dir: str, index_id: str) -> int:
-        """
-        Get the number of partitions for an index.
-
-        Args:
-            input_dir: Directory containing the index.json file
-            index_id: The index ID to query
-
-        Returns:
-            Number of partitions in the index
-        """
-        return Kmindex.read_index_value(input_dir, index_id, "nb_partitions")
-
-    ####################################################
-    @staticmethod
-    def get_sample_count(input_dir: str, index_id: str) -> int:
-        """
-        Get the number of samples for an index.
-
-        Args:
-            input_dir: Directory containing the index.json file
-            index_id: The index ID to query
-
-        Returns:
-            Number of samples in the index
-        """
-        return Kmindex.read_index_value(input_dir, index_id, "nb_samples")
-
-    ####################################################
-    @staticmethod
-    def read_index_value(input_dir: str, index_id: str, key: str) -> Any:
-        index_json_path = Kmindex.get_json_path(input_dir)
-        if not Kmindex.b_json_exists(input_dir):
-            raise FileNotFoundError(f"index.json not found in {input_dir}")
-
-        with open(index_json_path, "r") as file:
-            data = json.load(file)
-
-        if index_id not in data["index"]:
-            raise KeyError(f"Index ID {index_id} not found in index.json")
-
-        if key not in data["index"][index_id]:
-            raise KeyError(f"Key {key} not found for index ID {index_id}")
-
-        return data["index"][index_id][key]
 
     ####################################################
 
@@ -995,12 +749,6 @@ class Kmindex:
             Canonical path to the file
         """
         return Toolbox.get_canonical_path(os.path.join(root, file))
-
-    ####################################################
-    @staticmethod
-    def get_build_info_path(root: str) -> str:
-        """Get the path to build_infos.txt within an index directory."""
-        return Kmindex.get_path_inside_index(root, "build_infos.txt")
 
     ####################################################
     @staticmethod
@@ -1106,20 +854,6 @@ class Kmindex:
 
     ####################################################
     @staticmethod
-    def get_row_count_per_block(sample_count: int, bytes_per_block: int = 8388608) -> int:
-        """Calculate the number of rows (bitvectors per block) based on sample count.
-
-        Args:
-            sample_count (int): Number of samples.
-            bytes_per_block (int): Block size in bytes (default: 8388608 = 8 MB).
-
-        Returns:
-            int: Number of rows (bitvectors per block).
-        """
-        return bytes_per_block // Kmindex.get_bytes_per_row(sample_count)
-
-    ####################################################
-    @staticmethod
     def query_index(
         names,
         index_path,
@@ -1197,99 +931,6 @@ class Kmindex:
 
         return result
 
-    @staticmethod
-    def compare_query_result_dir(query1: str, query2: str, index: str):
-        f1 = os.path.join(query1, f"{index}.json")
-        f2 = os.path.join(query2, f"{index}.json")
-
-        if not os.path.isfile(f1):
-            raise NotADirectoryError(f"Result file not found: {f1}")
-
-        if not os.path.isfile(f2):
-            raise NotADirectoryError(f"Result file not found: {f2}")
-
-        query_res = Kmindex.compare_query_results(f1, f2, index, 1e-9)
-        report_diff = Toolbox.json_diff(
-            os.path.join(query1, "report.json"), os.path.join(query2, "report.json")
-        )
-        report_diff.pop("return_code", None)
-        return query_res, report_diff
-
-    @staticmethod
-    def compare_query_results(
-        file1_path: str, file2_path: str, key: str, tolerance: float = 1e-9
-    ) -> bool:
-        """
-        Compare a specific section of two JSON files.
-
-        Args:
-            file1_path (str): Path to the first JSON file
-            file2_path (str): Path to the second JSON file
-            key (str): The first-level key to compare (e.g., "GENOMIC_HUMAN_19")
-            tolerance (float): Tolerance for floating point comparisons (default: 1e-9)
-
-        Returns:
-            bool: True if the specified sections are equal, False otherwise
-        """
-        try:
-            # Read both JSON files
-            with open(file1_path, "r") as f1:
-                data1 = json.load(f1)
-
-            with open(file2_path, "r") as f2:
-                data2 = json.load(f2)
-
-            # Check if the key exists in both files
-            if key not in data1:
-                logger.error(f"Key '{key}' not found in {file1_path}")
-                return False
-
-            if key not in data2:
-                logger.error(f"Key '{key}' not found in {file2_path}")
-                return False
-
-            # Compare only the specified sections
-            return Kmindex.compare_nested_dicts(data1[key], data2[key], tolerance)
-
-        except FileNotFoundError as e:
-            logger.error(f"File not found - {e}")
-            return False
-        except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON format - {e}")
-            return False
-        except Exception as e:
-            logger.error(f"{e}")
-            return False
-
-    @staticmethod
-    def compare_nested_dicts(dict1: dict, dict2: dict, tolerance: float = 1e-9) -> bool:
-        """
-        Recursively compare two nested dictionaries.
-        """
-        if not isinstance(dict1, dict) or not isinstance(dict2, dict):
-            return Kmindex.compare_values(dict1, dict2, tolerance)
-
-        if set(dict1.keys()) != set(dict2.keys()):
-            return False
-
-        for key in dict1.keys():
-            if not Kmindex.compare_nested_dicts(dict1[key], dict2[key], tolerance):
-                return False
-
-        return True
-
-    @staticmethod
-    def compare_values(
-        val1: Union[int, float, str], val2: Union[int, float, str], tolerance: float
-    ) -> bool:
-        """
-        Compare two values with floating point tolerance.
-        """
-        if isinstance(val1, (int, float)) and isinstance(val2, (int, float)):
-            return abs(val1 - val2) <= tolerance
-
-        return val1 == val2
-
 
 ##########################################################
 # BlockCompressorZSTD class
@@ -1297,33 +938,6 @@ class Kmindex:
 ##########################################################
 class BlockCompressorZSTD:
     """Helper class for BlockCompressorZSTD (compression) operations."""
-
-    ####################################################
-    # Example usage:
-    # samples = 1000
-    # rows = calculate_rows(samples, "output.txt")
-    # print(f"Configuration written to output.txt")
-    @staticmethod
-    def create_config_file(samples, output_file="config.cfg") -> int:
-        """
-        Calculate rows and write configuration to output file.
-
-        Args:
-            samples (int): Number of samples
-            output_file (str): Path to output file
-
-        Returns:
-            int: Number of rows (bitvectors per block)
-        """
-        rows = Kmindex.get_row_count_per_block(samples)
-
-        # Write to output file
-        with open(output_file, "w") as f:
-            f.write(f"samples = {samples}\n")
-            f.write(f"bitvectorsperblock = {rows}\n")
-            f.write("preset = 3\n")  # Default Zstd preset
-
-        return rows
 
     ####################################################
     @staticmethod
