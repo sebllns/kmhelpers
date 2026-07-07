@@ -252,14 +252,20 @@ class KmindexWrapper(Wrapper):
         maximize_nofile()
         result = self._monitor_cmd(cmd, log_file=log_file, log_errors_only=True)
 
-        if not result or result.get("return_code", 0 if self.dry_run else -1) != 0:
-            raise RuntimeError("Build failed.")
-
         if output_log_dir:
             with open(
                 os.path.join(output_log_dir, "kmindex_monitoring.yaml"), "w"
             ) as f:
-                yaml.safe_dump(result, f)
+                yaml.safe_dump(result or "", f)
+
+        if not result or result.get("return_code", 0 if self.dry_run else -1) != 0:
+            stderr = (result or {}).get("stderr") or ""
+            lines = [line.strip() for line in stderr.splitlines() if line.strip()]
+            msg = lines[-1] if lines else "..."
+            rc = (result or {}).get("return_code", -1)
+            if output_log_dir:
+                logger.error(f"Build failed: consult logs in {output_log_dir}")
+            raise RuntimeError(f"Build failed: <{msg}> ({rc})")
 
         if not self.dry_run:
             assert os.path.isdir(
