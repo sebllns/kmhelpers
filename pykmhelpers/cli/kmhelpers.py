@@ -23,8 +23,7 @@ from pykmhelpers.cli.build_subindex import build_subindex
 from pykmhelpers.cli.compose import compose
 from pykmhelpers.cli.compress import kmindex_compress
 from pykmhelpers.cli.count_kmers import count_kmers
-from pykmhelpers.cli.design import lpc
-from pykmhelpers.cli.exp_compression import exp_compress
+from pykmhelpers.cli.design import design
 from pykmhelpers.cli.experimental import experimental
 from pykmhelpers.cli.fof import fof
 from pykmhelpers.cli.kmindex import kmindex
@@ -336,8 +335,8 @@ profile.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(profile)
 compose.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(compose)
-lpc.section = "Super commands"  # type: ignore[assignment]
-cli.add_command(lpc)
+design.section = "Super commands"  # type: ignore[assignment]
+cli.add_command(design)
 plan.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(plan)
 apply.section = "Main commands"  # type: ignore[assignment]

@@ -134,7 +134,9 @@ logger = logging.getLogger(__name__)
     show_default=True,
     help="💾  Desired number of partitions per index, 0 for automatic count.",
 )
-def lpc(
+@click.pass_context
+def design(
+    ctx,
     input,
     output_dir,
     name,
@@ -189,7 +191,9 @@ def lpc(
 
     session_file = os.path.join(compose_dir, name, session_id, f"{name}.yaml")
 
-    if os.path.isfile(session_file):
+    force = (ctx.obj or {}).get("yes", False)
+
+    if os.path.isfile(session_file) and not force:
         if not click.confirm(
             f"Session file already exists at {session_file}. Overwrite it?",
             default=False,
