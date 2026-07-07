@@ -19,7 +19,6 @@ from pykmhelpers._commit import GIT_COMMIT
 from pykmhelpers.cli.about import about
 from pykmhelpers.cli.apply import apply
 from pykmhelpers.cli.build import build
-from pykmhelpers.cli.build_subindex import build_subindex
 from pykmhelpers.cli.compose import compose
 from pykmhelpers.cli.compress import kmindex_compress
 from pykmhelpers.cli.count_kmers import count_kmers
@@ -353,9 +352,6 @@ cli.add_command(kmindex_compress)
 # cli.add_command(count_kmers)
 # fof.section = "Utilities"  # type: ignore[assignment]
 # cli.add_command(fof)
-# ! DEPRECATED
-# build_subindex.section = "Utilities"  # type: ignore[assignment]
-# cli.add_command(build_subindex)
 registry.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(registry)
 # kmindex.section = "Utilities"  # type: ignore[assignment]
