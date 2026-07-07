@@ -187,6 +187,15 @@ def lpc(
     profiles_file = os.path.join(profile_dir, "profile.yaml")
     auto_layout = os.path.join(compose_dir, f"{name}_layout.yaml")
 
+    session_file = os.path.join(compose_dir, name, session_id, f"{name}.yaml")
+
+    if os.path.isfile(session_file):
+        if not click.confirm(
+            f"Session file already exists at {session_file}. Overwrite it?",
+            default=False,
+        ):
+            raise click.Abort()
+
     try:
         SampleLister(
             output_file=jsonl_path,
