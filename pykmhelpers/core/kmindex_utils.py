@@ -104,6 +104,14 @@ def get_best_params(
     as possible without exceeding ``n_threads`` OR the resource ceilings, and
     for that thread count take the fewest partitions.
 
+    ``samples`` is the TOTAL sample count of the dataset, which may exceed
+    what a single kmtricks build can fit under ``ulimit``. When it does, the
+    returned params describe one CHUNK sized at most ``ulimit`` samples,
+    intended for a split build/merge workflow: build one sub-index per chunk
+    of ``ceil(samples / p.samples)`` samples, then merge the sub-indexes.
+    ``p.samples`` on the returned params is the per-chunk count, not the
+    original ``samples`` argument.
+
     The objective is lexicographic but conflict-free:
       * threads is capped by n_threads, by RAM (via the partitions needed),
         and by ulimit (merge stage = threads*(samples+1), superk stage =
@@ -114,11 +122,12 @@ def get_best_params(
     So this returns the largest feasible thread count with its minimum
     partitions. Raises ValueError if not even one thread fits ``ulimit``.
     """
+    max_s = min(ulimit, samples) - 1  # per-chunk sample cap for the split build
     # hard ceiling on threads: user cap and the merge-stage file limit
-    max_t = min(n_threads, ulimit // (samples + 1))
+    max_t = min(n_threads, ulimit // (max_s + 1))
     if max_t < 1:
         raise ValueError(
-            f"ulimit {ulimit} too low: merge stage needs {samples + 1} "
+            f"ulimit {ulimit} too low: merge stage needs {max_s + 1} "
             f"open files for a single thread"
         )
 
@@ -126,7 +135,7 @@ def get_best_params(
     # RAM-minimum partitions is the minimum partition count for that t
     for t in range(max_t, 0, -1):
         p = kmparams.kmtricks_params(
-            kmers=kmers, memory=ram, threads=t, samples=samples, focus=focus
+            kmers=kmers, memory=ram, threads=t, samples=max_s, focus=focus
         )
         p.nb_partitions()  # minimum partitions for t threads (RAM floor)
         p.nb_open_files()
