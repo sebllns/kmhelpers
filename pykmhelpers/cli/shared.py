@@ -168,6 +168,8 @@ _INDEX_BUILD_OPTIONS = [
     _minim_size_option,
     _threads_option,
     _partition_count_option,
+    _limits_option,
+    _safety_margin_option,
     _skip_compression_option,
 ]
 

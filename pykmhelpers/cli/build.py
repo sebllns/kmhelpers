@@ -41,6 +41,8 @@ def build(
     minim_size,
     threads,
     partition_count,
+    limits,
+    safety_margin,
     skip_compression,
     show_progress,
     notify,
