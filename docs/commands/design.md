@@ -11,7 +11,7 @@ Scan a directory or import a sample list, then run the full [`list`](list.md) �
 
     | Argument | Description |
     |----------|-------------|
-    | `INPUT` | Directory to scan, or a plain-text / YAML sample list (required) |
+    | `INPUT` | Directory to scan, a plain-text / YAML sample list, or an existing JSONL sample index (required) |
     | `-o, --output-dir DIR` | Output directory (required) |
     | `-n, --name TEXT` | Name of the created index (required) |
     | `-S, --session-id TEXT` | Session tag appended to index names (default: current timestamp) |
@@ -19,7 +19,7 @@ Scan a directory or import a sample list, then run the full [`list`](list.md) �
     | `-dt, --data-type TEXT` | Data type: `a`/`assembled` (default) or `u`/`unassembled` (raw reads) |
 
 !!! abstract "I/O"
-    **Input:** directory to scan, or a plain-text / YAML sample list  
+    **Input:** directory to scan, a plain-text / YAML sample list, or a JSONL sample index (`.jsonl`, in which case the `list` step is skipped and INPUT is used as-is)  
     **Output:**  
 
     - `OUTPUT_DIR/list/NAME_samples_TIMESTAMP.jsonl` — sample manifest
@@ -44,7 +44,7 @@ Scan a directory or import a sample list, then run the full [`list`](list.md) �
 ```
 OUTPUT_DIR/
 ├── list/
-│   └── NAME_samples_TIMESTAMP.jsonl   ← sample manifest
+│   └── NAME_samples_TIMESTAMP.jsonl   ← sample manifest (omitted if INPUT is already a JSONL index)
 ├── profile/
 │   ├── profile.yaml                   ← span profile (input for compose)
 │   ├── baseline.csv                   ← natural distribution
@@ -57,7 +57,7 @@ OUTPUT_DIR/
 
 `design` chains [`list`](list.md), [`profile`](profile.md), and [`compose`](compose.md) into a single invocation. It is equivalent to running the three commands in sequence with the intermediate files automatically routed between steps.
 
-**Step 1 — list:** scans `INPUT` recursively for sequence files (or imports a sample list), counts k-mers with ntcard, and writes a JSONL manifest to `OUTPUT_DIR/list/`.
+**Step 1 — list:** scans `INPUT` recursively for sequence files (or imports a sample list), counts k-mers with ntcard, and writes a JSONL manifest to `OUTPUT_DIR/list/`. This step is **skipped** if `INPUT` is already a JSONL sample index (`.jsonl`); it is used directly as the manifest for the remaining steps.
 
 **Step 2 — profile:** reads k-mer counts from the manifest, assigns each sample to a Bloom-filter span, computes a storage-balanced grouping, and writes `profile.yaml`, `baseline.csv`, and `groups.png` to `OUTPUT_DIR/profile/`. This step is **skipped automatically** if a layout file already exists at `OUTPUT_DIR/compose/NAME_layout.yaml` (re-run scenario).
 
@@ -90,6 +90,9 @@ kmhelpers design /data/sequences -o ./run -n my_index -p 4
 
 # Import from a plain-text file list
 kmhelpers design my_files.txt -o ./run -n my_index
+
+# Re-use an existing JSONL sample index, skipping the list step
+kmhelpers design ./run/list/my_index_samples_20260101_120000.jsonl -o ./run -n my_index
 ```
 
 ## See Also

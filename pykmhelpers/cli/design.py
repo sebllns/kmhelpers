@@ -155,16 +155,19 @@ def design(
     """Scan a directory, profile k-mer spans, and compose index definition files.
 
     Runs the pipeline [list → profile → compose] in a single command.
-    INPUT can be a directory (scanned recursively) or a sample list file.
+    INPUT can be a directory (scanned recursively), a plain-text / YAML sample
+    list, or an existing JSONL sample index (in which case the 'list' step is
+    skipped and INPUT is used as-is).
 
     \b
-    Input:  directory to scan, or a plain-text / YAML sample list
+    Input:  directory to scan, a plain-text / YAML sample list, or a JSONL sample index
     Output: OUTPUT_DIR/list/ (JSONL), OUTPUT_DIR/profile/ (profile.yaml, groups.png),
             OUTPUT_DIR/compose/ (index definitions)
 
     \b
     Steps:
       1. list    - scan INPUT, count k-mers, write JSONL output file to OUTPUT_DIR/list/
+                   (skipped if INPUT is already a JSONL sample index)
       2. profile - compute Bloom-filter span distribution, write profile.yaml to OUTPUT_DIR/profile/
       3. compose - build index definition files to OUTPUT_DIR/compose/
 
@@ -177,15 +180,25 @@ def design(
     is_assembled = data_type.lower() in ("a", "assembled")
     input_dir = input if os.path.isdir(input) else None
     input_list = input if os.path.isfile(input) else None
+    input_is_jsonl = input_list is not None and input.lower().endswith(".jsonl")
 
     list_dir = os.path.join(output_dir, "list")
     profile_dir = os.path.join(output_dir, "profile")
     compose_dir = os.path.join(output_dir, "compose")
-    for d in (list_dir, profile_dir, compose_dir):
+    dirs_to_make = (
+        (profile_dir, compose_dir)
+        if input_is_jsonl
+        else (list_dir, profile_dir, compose_dir)
+    )
+    for d in dirs_to_make:
         os.makedirs(d, exist_ok=True)
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    jsonl_path = os.path.join(list_dir, f"{name}_samples_{timestamp}.jsonl")
+    jsonl_path = (
+        Toolbox.get_canonical_path(input)
+        if input_is_jsonl
+        else os.path.join(list_dir, f"{name}_samples_{timestamp}.jsonl")
+    )
     profiles_file = os.path.join(profile_dir, "profile.yaml")
     auto_layout = os.path.join(compose_dir, f"{name}_layout.yaml")
 
@@ -200,24 +213,29 @@ def design(
         ):
             raise click.Abort()
 
-    try:
-        SampleLister(
-            output_file=jsonl_path,
-            input_dir=input_dir,
-            input_list=input_list,
-            kmer_size=kmer_size,
-            is_assembled=is_assembled,
-            do_count=not no_count,
-            do_grouping=leaf_grouping,
-            autorename=autorename,
-            ntcard_threads=ntcard_threads,
-        ).run()
-        logger.info("SUCCESS ('list')")
-    except (FileNotFoundError, NotADirectoryError, ValueError) as e:
-        raise click.ClickException(f"FAILED ('list'): {e}")
-    except Exception as e:
-        Log.handle_exception(logger, e, "FAILED ('list')")
-        raise
+    if input_is_jsonl:
+        logger.debug(
+            f"Input is already a JSONL sample index, skipping 'list': {jsonl_path}"
+        )
+    else:
+        try:
+            SampleLister(
+                output_file=jsonl_path,
+                input_dir=input_dir,
+                input_list=input_list,
+                kmer_size=kmer_size,
+                is_assembled=is_assembled,
+                do_count=not no_count,
+                do_grouping=leaf_grouping,
+                autorename=autorename,
+                ntcard_threads=ntcard_threads,
+            ).run()
+            logger.info("SUCCESS ('list')")
+        except (FileNotFoundError, NotADirectoryError, ValueError) as e:
+            raise click.ClickException(f"FAILED ('list'): {e}")
+        except Exception as e:
+            Log.handle_exception(logger, e, "FAILED ('list')")
+            raise
 
     layout_file = None
     if os.path.isfile(auto_layout):
