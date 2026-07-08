@@ -6,128 +6,128 @@ repo_name: sebllns/kmhelpers
 copyright: Copyright &copy; 2026 Sébastien Bellenous &nbsp;&middot;&nbsp; v0.6.3
 
 watch:
-  - pykmhelpers
+    - pykmhelpers
 
 theme:
-  name: material
-  logo: assets/kmhelpers-logo-v1.png
-  favicon: assets/kmhelpers-logo-v1.png
-  palette:
-    - scheme: default
-      primary: teal
-      accent: teal
-      toggle:
-        icon: material/brightness-7
-        name: Switch to dark mode
-    - scheme: slate
-      primary: teal
-      accent: teal
-      toggle:
-        icon: material/brightness-4
-        name: Switch to light mode
-  navigation_depth: 3
-  features:
-    - navigation.tabs
-    - navigation.tracking
-    - navigation.sections
-    - navigation.path
-    - navigation.top
-    - navigation.expand
-    - navigation.footer
-    - navigation.indexes
-    - content.code.copy
-    - content.code.select
-    - content.code.annotate
-    - search.suggest
-    - search.highlight
-    - search.share
-    - content.tabs.link
+    name: material
+    logo: assets/kmhelpers-logo-v1.png
+    favicon: assets/kmhelpers-logo-v1.png
+    palette:
+        - scheme: default
+          primary: teal
+          accent: teal
+          toggle:
+              icon: material/brightness-7
+              name: Switch to dark mode
+        - scheme: slate
+          primary: teal
+          accent: teal
+          toggle:
+              icon: material/brightness-4
+              name: Switch to light mode
+    navigation_depth: 3
+    features:
+        - navigation.tabs
+        - navigation.tracking
+        - navigation.sections
+        - navigation.path
+        - navigation.top
+        - navigation.expand
+        - navigation.footer
+        - navigation.indexes
+        - content.code.copy
+        - content.code.select
+        - content.code.annotate
+        - search.suggest
+        - search.highlight
+        - search.share
+        - content.tabs.link
 
 plugins:
-  - search
-  - termynal
-  - mike:
-      alias_type: redirect
-      canonical_version: latest
-  - mkdocstrings:
-      handlers:
-        python:
-          options:
-            docstring_style: google
-            show_source: true
-            show_root_heading: true
-            show_submodules: false
-            members_order: source
+    - search
+    - termynal
+    - mike:
+          alias_type: redirect
+          canonical_version: latest
+    - mkdocstrings:
+          handlers:
+              python:
+                  options:
+                      docstring_style: google
+                      show_source: true
+                      show_root_heading: true
+                      show_submodules: false
+                      members_order: source
 
 markdown_extensions:
-  - admonition
-  - pymdownx.details
-  - pymdownx.superfences
-  - pymdownx.highlight:
-      anchor_linenums: true
-  - pymdownx.inlinehilite
-  - pymdownx.tabbed:
-      alternate_style: true
-  - pymdownx.snippets:
-      base_path: .
-  - tables
-  - attr_list
-  - pymdownx.arithmatex:
-      generic: true
+    - admonition
+    - pymdownx.details
+    - pymdownx.superfences
+    - pymdownx.highlight:
+          anchor_linenums: true
+    - pymdownx.inlinehilite
+    - pymdownx.tabbed:
+          alternate_style: true
+    - pymdownx.snippets:
+          base_path: .
+    - tables
+    - attr_list
+    - pymdownx.arithmatex:
+          generic: true
 
 extra:
-  version:
-    provider: mike
-    default: latest
+    version:
+        provider: mike
+        default: latest
 
 extra_css:
-  - stylesheets/extra.css
+    - stylesheets/extra.css
 
 extra_javascript:
-  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+    - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
 
 nav:
-  - Home: index.md
-  - Getting Started:
-      - Installation: installation.md
-      - Quick Start: getting-started.md
-  - Tutorial:
-      - Main tutorial: tutorials/ecoli.md
-      - Step-by-step breakdown: tutorials/ecoli_steps.md
-  - Commands:
-      - Overview: commands/index.md
-      - Main pipeline:
-          - design: commands/design.md
-          - build: commands/build.md
-          - query: commands/query.md
-          - compress: commands/compress.md
-      - Design pipeline:
-          - list: commands/list.md
-          - profile: commands/profile.md
-          - compose: commands/compose.md
-      - Build pipeline:
-          - plan: commands/plan.md
-          - apply: commands/apply.md
-      - Utilities:
-          - registry: commands/registry.md
-          - pipeline: commands/pipeline.md
-  - API Reference:
-      - Overview: api/index.md
-      - Core:
-          - index: api/core/_index.md
-          - kmer: api/core/kmer.md
-          - log: api/core/log.md
-          - system: api/core/system.md
-          - utils: api/core/utils.md
-      - Pipeline:
-          - composer: api/pipeline/composer.md
-          - index_ops: api/pipeline/index_ops.md
-          - query: api/pipeline/query.md
-          - span_profiler: api/pipeline/span_profiler.md
-      - Operations:
-          - builder: api/operations/builder.md
-  - Changelog: changelog.md
-  - Contributing:
-      - Overview: contributing/index.md
-      - Development: contributing/dev.md
-      - Building the Docs: contributing/docs.md
+    - Home: index.md
+    - Getting Started:
+          - Installation: installation.md
+          - Quick Start: getting-started.md
+    - Tutorial:
+          - Main tutorial: tutorials/ecoli.md
+          - Step-by-step breakdown: tutorials/ecoli_steps.md
+    - Commands:
+          - Overview: commands/index.md
+          - Main pipeline:
+                - design: commands/design.md
+                - build: commands/build.md
+                - query: commands/query.md
+                - compress: commands/compress.md
+          - Design (manual steps):
+                - list: commands/list.md
+                - profile: commands/profile.md
+                - compose: commands/compose.md
+          - Build (manual steps):
+                - plan: commands/plan.md
+                - apply: commands/apply.md
+          - Utilities:
+                - registry: commands/registry.md
+                - pipeline: commands/pipeline.md
+    - API Reference:
+          - Overview: api/index.md
+          - Core:
+                - index: api/core/_index.md
+                - kmer: api/core/kmer.md
+                - log: api/core/log.md
+                - system: api/core/system.md
+                - utils: api/core/utils.md
+          - Pipeline:
+                - composer: api/pipeline/composer.md
+                - index_ops: api/pipeline/index_ops.md
+                - query: api/pipeline/query.md
+                - span_profiler: api/pipeline/span_profiler.md
+          - Operations:
+                - builder: api/operations/builder.md
+    - Changelog: changelog.md
+    - Contributing:
+          - Overview: contributing/index.md
+          - Development: contributing/dev.md
+          - Building the Docs: contributing/docs.md
