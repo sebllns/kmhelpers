@@ -1,30 +1,34 @@
 # Command Reference
 
-## Main Commands
+kmhelpers commands cover the full k-mer index lifecycle: build indices from raw sequences, then query them. Most workflows only need three top-level commands — `design`, `build`, and `query`.
 
-### Design pipeline
-
-| Command | Description |
-|---------|-------------|
-| [`design`](design.md) | Run the full list → profile → compose pipeline in a single command |
-| &nbsp;&nbsp;↳ [`list`](list.md) | Step 1 — scan a directory and count k-mers |
-| &nbsp;&nbsp;↳ [`profile`](profile.md) | Step 2 — compute Bloom-filter span distribution |
-| &nbsp;&nbsp;↳ [`compose`](compose.md) | Step 3 — generate index definition files |
-
-### Build pipeline
+## Main Pipeline
 
 | Command | Description |
 |---------|-------------|
-| [`build`](build.md) | Validate paths then build indices from definition files (plan → apply) |
-| &nbsp;&nbsp;↳ [`plan`](plan.md) | Step 1 — validate paths and preview the build plan |
-| &nbsp;&nbsp;↳ [`apply`](apply.md) | Step 2 — build k-mer indices |
-
-### Query & compress
-
-| Command | Description |
-|---------|-------------|
+| [`design`](design.md) | Discover samples, profile them, and compose index definitions (steps: `list` → `profile` → `compose`) |
+| [`build`](build.md) | Validate paths and build indices (steps: `plan` → `apply`) |
 | [`query`](query.md) | Query indices with FASTA/FASTQ sequences |
-| [`compress`](compress.md) | Compress an index managed in a registry |
+| [`compress`](compress.md) | Compress an index managed in a registry *(under development)* |
+
+## Design Pipeline (steps)
+
+Steps run internally by [`design`](design.md):
+
+| Command | Description |
+|---------|-------------|
+| [`list`](list.md) | Step 1 — scan a directory and count k-mers |
+| [`profile`](profile.md) | Step 2 — compute Bloom-filter span distribution |
+| [`compose`](compose.md) | Step 3 — generate index definition files |
+
+## Build Pipeline (steps)
+
+Steps run internally by [`build`](build.md):
+
+| Command | Description |
+|---------|-------------|
+| [`plan`](plan.md) | Step 1 — validate paths and preview the build plan |
+| [`apply`](apply.md) | Step 2 — build k-mer indices |
 
 ## Utilities
 
