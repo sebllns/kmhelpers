@@ -88,8 +88,9 @@ extra_javascript:
 
 nav:
   - Home: index.md
-  - Installation: installation.md
-  - Getting Started: getting-started.md
+  - Getting Started:
+      - Installation: installation.md
+      - Quick Start: getting-started.md
   - Tutorial:
       - Main tutorial: tutorials/ecoli.md
       - Step-by-step breakdown: tutorials/ecoli_steps.md

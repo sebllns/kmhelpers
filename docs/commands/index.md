@@ -43,8 +43,8 @@ These options are available on the root `kmhelpers` command and apply to all sub
 
 ```
 -C, --config FILE       YAML config file for default values
--v, --verbose           Increase verbosity (-v INFO, -vv DEBUG)
--q, --quiet             Decrease verbosity (-q ERROR, -qq CRITICAL)
+-v, --verbose           Increase verbosity (-v DEBUG)
+-q, --quiet             Decrease verbosity (-q WARNING, -qq ERROR, -qqq CRITICAL)
 -L, --log-file FILE     Write logs to a file
 -y, --yes               Skip confirmation prompts
 --chdir DIR             Change to directory before initialization

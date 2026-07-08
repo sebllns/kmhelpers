@@ -177,7 +177,7 @@ Most `kmhelpers` commands (`design`, `plan`, `query`, `compose`, ...) complete i
 ## Quick links
 
 - [Installation](installation.md)
-- [Getting Started](getting-started.md)
+- [Quick Start](getting-started.md)
 - [Command Reference](commands/index.md)
 - [Changelog](changelog.md)
 - [Repository](https://github.com/sebllns/kmhelpers)

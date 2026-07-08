@@ -1,110 +1,27 @@
-# Getting Started
+# Quick Start
 
-This guide walks through a typical workflow: discovering samples, profiling them, composing index definitions, building indices, and querying them.
+Once kmhelpers is [installed](installation.md), the fastest way to get hands-on is the [E. coli tutorial](tutorials/ecoli.md) — it builds a queryable index from real data in three commands. For syntax and options on any command, see the [Command Reference](commands/index.md).
 
 > **Tip:** `kh` is available as a short alias for `kmhelpers` — both commands are identical.
 
-## Typical Workflow
+## The Pipeline
 
-![Pipeline diagram](diagrams/fig_pipeline_mini_animation.svg)
-
+Indices are built and queried in three steps:
 
 ```
-list → profile → compose → plan → apply → query
+design → build → query
 ```
 
 ![Pipeline diagram](diagrams/fig_pipeline.svg)
 
+| Command | Purpose |
+|---------|---------|
+| [`design`](commands/design.md) | Discover samples and generate index definitions |
+| [`build`](commands/build.md) | Build k-mer indices from those definitions |
+| [`query`](commands/query.md) | Search the indices with FASTA/FASTQ sequences |
 
-## Step 1 — Discover samples
+## Next Steps
 
-Scan a directory of sequence files and produce a YAML sample manifest with k-mer counts:
-
-```bash
-kmhelpers list samples.jsonl -i /path/to/sequences -k 25
-```
-
-This generates `samples.jsonl` with one entry per sample.
-
-## Step 2 — Profile the samples
-
-Analyse k-mer counts to determine the optimal Bloom-filter span configuration:
-
-```bash
-kmhelpers profile -i samples.jsonl -o ./profile_output -p 0.25
-```
-
-Outputs `./profile_output/profile.yaml` and a plot showing span groups.
-
-## Step 3 — Compose index definitions
-
-Generate index definition files from the sample manifest:
-
-```bash
-kmhelpers compose samples.jsonl -o ./db
-```
-
-## Step 4 — Preview the build plan
-
-Dry-run to validate paths and see what will be built:
-
-```bash
-kmhelpers plan index.yaml -w /output
-```
-
-## Step 5 — Build indices
-
-```bash
-kmhelpers apply index.yaml -w /output
-```
-
-Build only specific spans or index names:
-
-```bash
-kmhelpers apply index.yaml -w /output --span 28,31 --name my_index
-```
-
-## Step 6 — Query
-
-```bash
-kmhelpers query -r ./registry -n my_index -o results query.fa
-```
-
-Pipe from stdin:
-
-```bash
-cat query.fa | kmhelpers query -r ./registry -n my_index -o results -
-```
-
-## Global Options
-
-These options apply to every command:
-
-| Option | Description |
-|--------|-------------|
-| `-v` / `-vv` | Increase verbosity (INFO / DEBUG) |
-| `-q` / `-qq` | Decrease verbosity (ERROR / CRITICAL) |
-| `-C FILE` | Load default values from a YAML config file |
-| `-L FILE` | Write logs to a file |
-| `-y` | Skip all confirmation prompts |
-| `--chdir DIR` | Change working directory before running |
-
-
-## Automating with a Pipeline (advanced)
-
-Combine multiple steps into a single YAML pipeline file:
-
-```yaml
-compose:
-  workdir: /path/to/db
-  input_files: [samples.jsonl]
-apply:
-  workdir: /path/to/db
-  threads: 8
-```
-
-Run it:
-
-```bash
-kmhelpers pipeline my_pipeline.yaml
-```
+- **[Tutorial](tutorials/ecoli.md)** — a full hands-on walkthrough indexing 10 *E. coli* assemblies
+- **[Command Reference](commands/index.md)** — detailed syntax and options for every command
+- **[Step-by-step breakdown](tutorials/ecoli_steps.md)** — run the internal steps (`list`, `profile`, `compose`, `plan`, `apply`) individually for finer control
