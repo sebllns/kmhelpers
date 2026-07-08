@@ -24,4 +24,3 @@ design → build → query
 
 - **[Tutorial](tutorials/ecoli.md)** — a full hands-on walkthrough indexing 10 *E. coli* assemblies
 - **[Command Reference](commands/index.md)** — detailed syntax and options for every command
-- **[Step-by-step breakdown](tutorials/ecoli_steps.md)** — run the internal steps (`list`, `profile`, `compose`, `plan`, `apply`) individually for finer control
