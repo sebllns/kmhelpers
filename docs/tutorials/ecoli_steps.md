@@ -230,7 +230,7 @@ kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build/
 
     ??? abstract "I/O"
         **Input:** `coli_db/compose/coli/initial/coli.yaml`  
-        **Output:** `coli_build/index.json` + sub-index data files in `coli_build/kmindex_data/` — ready-to-query index (~50 MB)
+        **Output:** `coli_build/index.json` + sub-index data files in `coli_build/kmindex_data/` — ready-to-query index  
 
 === "bash"
 
