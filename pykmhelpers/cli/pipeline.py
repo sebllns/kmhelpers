@@ -5,6 +5,8 @@ import logging
 import click
 import yaml
 
+from pykmhelpers.core.log import Log
+
 logger = logging.getLogger(__name__)
 
 
@@ -57,7 +59,7 @@ def pipeline(ctx, pipeline_file, extra):
     Dict format (simple, no repeated commands):
         compose:
           workdir: /path/to/workdir
-          input_files: [samples.yaml]
+          input_file: samples.yaml
         apply:
           workdir: /path/to/workdir
           threads: 8
@@ -66,10 +68,10 @@ def pipeline(ctx, pipeline_file, extra):
     List format (allows repeating the same command):
         - apply:
             workdir: /path/a
-            input_files: [a.yaml]
+            input_file: a.yaml
         - apply:
             workdir: /path/b
-            input_files: [b.yaml]
+            input_file: b.yaml
     """
     with open(pipeline_file) as f:
         steps = yaml.safe_load(f)
@@ -104,4 +106,10 @@ def pipeline(ctx, pipeline_file, extra):
                 kwargs[param.name] = tuple(val) if isinstance(val, list) else (val,)
 
         logger.info(f"Pipeline step: {cmd_name}")
-        ctx.invoke(cmd, **kwargs)
+        try:
+            ctx.invoke(cmd, **kwargs)
+        except click.ClickException:
+            raise
+        except Exception as e:
+            Log.handle_exception(logger, e, f"FAILED (pipeline step: '{cmd_name}')")
+            raise click.ClickException(f"FAILED (pipeline step: '{cmd_name}')")

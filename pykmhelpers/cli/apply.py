@@ -43,7 +43,7 @@ def _parse_spans(spans):
 
 
 @click.command(name="apply")
-@click.argument("input_files", nargs=-1, required=True, type=click.Path(exists=True))
+@click.argument("input_file", nargs=1, required=True, type=click.Path(exists=True))
 @shared.index_build_options
 @shared.fail_fast_option
 @click.option(
@@ -74,7 +74,7 @@ def _parse_spans(spans):
 @click.pass_context
 def apply(
     ctx,
-    input_files,
+    input_file,
     work_dir,
     base_path,
     registry,
@@ -97,7 +97,7 @@ def apply(
     Input:  index definition file(s) (.json/.yaml) from `compose`
     Output: built k-mer index in WORK_DIR/, registered in WORK_DIR/index.json
 
-    📄 INPUT_FILES are one or more index definition files (.json/.yaml). For each file,
+    📄 input_file are one or more index definition files (.json/.yaml). For each file,
     the declared indices are built and registered. If the file type is an index definition,
     indices are built directly; if it is a span registry, sub-index definition files are
     resolved from the same directory and merged into the named indices after building.
@@ -217,7 +217,7 @@ def apply(
         pykmhelpers.core.log.Log.handle_exception(logger, e, f"Invalid argument.")
         raise click.ClickException(abort_msg)
 
-    work_dir = os.path.realpath(work_dir)
+    work_dir = os.path.realpath(work_dir or "build")
 
     if not registry:
         registry = work_dir
@@ -256,10 +256,16 @@ def apply(
 
     i = 0
     failed = False
+
+    if not input_file:
+        raise ValueError(f"Definition file not provided")
+
+    if not os.path.isfile(input_file):
+        raise FileNotFoundError(f"Definition file {input_file} not found")
+
+    input_files = [input_file]
     for input_file in input_files:
-        input_file_dir = os.path.basename(
-            os.path.dirname(os.path.realpath(input_file))
-        )
+        input_file_dir = os.path.basename(os.path.dirname(os.path.realpath(input_file)))
         index_data_folder = os.path.join(base_bloom_dir, input_file_dir)
 
         if os.path.isdir(index_data_folder) and not force:

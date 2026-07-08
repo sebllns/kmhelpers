@@ -41,7 +41,7 @@ class IndexComposer:
         self.profiles_file = profiles_file
         self.layout_file = layout_file
         self.selected_profile = selected_profile
-        self.name = name
+        self.name = name or "index"
         self.abundance_min = abundance_min
         self.partition_count = partition_count
         self.bf_max_size = bf_max_size
