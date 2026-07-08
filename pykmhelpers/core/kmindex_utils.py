@@ -1,7 +1,13 @@
-"""Path helpers for kmindex index/registry directory layout."""
+"""Path helpers for kmindex index/registry directory layout, and kmtricks parameter selection."""
 
+import json
 import os
 
+from pykmhelpers.core.system import (
+    get_available_ram,
+    get_available_threads,
+    get_max_open_files,
+)
 from pykmhelpers.core.utils import Toolbox
 from pykmhelpers.vendor import kmparams
 
@@ -145,3 +151,47 @@ def get_best_params(
             return p
 
     raise ValueError("no feasible configuration under the given ulimit")
+
+
+def auto_params(
+    kmers: int, samples: int, limits: str, safety_margin: float = 0.9
+) -> kmparams.kmtricks_params:
+    """Resolve system limits and delegate to `get_best_params`.
+
+    Args:
+        kmers: Max number of k-mers across samples.
+        samples: Total sample count of the dataset (see `get_best_params`).
+        limits: One line of JSON with optional "ram" (bytes), "files"
+            (max open files, i.e. ulimit -n), "threads", and "focus" keys.
+            Any key that is missing or null falls back to the current
+            system limit, scaled down by ``safety_margin``.
+        safety_margin: Fraction of a detected system limit to use when the
+            corresponding key is absent from ``limits`` (default: 0.9).
+
+    Returns:
+        kmparams.kmtricks_params: best configuration for the given limits.
+    """
+    parsed = json.loads(limits)
+
+    ram = parsed.get("ram")
+    if ram is None:
+        ram = get_available_ram(safety_margin)
+
+    ulimit = parsed.get("files")
+    if ulimit is None:
+        ulimit = get_max_open_files(safety_margin)
+
+    n_threads = parsed.get("threads")
+    if n_threads is None:
+        n_threads = get_available_threads(safety_margin)
+
+    focus = parsed.get("focus", 0.5)
+
+    return get_best_params(
+        kmers=kmers,
+        ram=ram,
+        samples=samples,
+        ulimit=ulimit,
+        n_threads=n_threads,
+        focus=focus,
+    )
