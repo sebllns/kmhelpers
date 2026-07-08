@@ -78,6 +78,8 @@ def plan(
     minim_size,
     threads,
     partition_count,
+    limits,
+    safety_margin,
     skip_compression,
     show_progress,
     fail_on_error,
@@ -190,12 +192,16 @@ def plan(
                 index_data_folder=bloom_dir,
                 registry_dir=os.path.join(work_dir, registry),
                 sample_rootpath=base_path,
+                kmindex_threads=threads,
                 kmindex_skip_compression=False,
                 kmindex_build_from=reuse_from,
                 filter_names=selected_ids,
                 filter_spans=selected_spans,
                 on_existing=existing,
                 fail_on_error=fail_on_error,
+                partition_count=partition_count,
+                limits=limits,
+                safety_margin=safety_margin,
             )
         )
 

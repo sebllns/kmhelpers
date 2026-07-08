@@ -106,7 +106,7 @@ _threads_option = click.option(
     "-t",
     type=int,
     required=False,
-    help="⚙   Number of threads (default: 1).",
+    help="⚙   Number of threads (default: auto-sized from system RAM/ulimit, see --limits).",
 )
 _partition_count_option = click.option(
     "--partition-count",
@@ -114,6 +114,21 @@ _partition_count_option = click.option(
     type=int,
     required=False,
     help="⚙   Override number of partitions.",
+)
+_limits_option = click.option(
+    "--limits",
+    metavar="JSON",
+    required=False,
+    help="⚙   JSON line of resource limits used to auto-size threads/partitions "
+    'when --threads is not set, e.g. \'{"ram": 8000000000, "files": 4096}\'. '
+    "Keys omitted from the JSON are auto-detected from the system.",
+)
+_safety_margin_option = click.option(
+    "--safety-margin",
+    type=float,
+    default=0.9,
+    show_default=True,
+    help="⚙   Fraction of a detected system limit to use for any key missing from --limits.",
 )
 _skip_compression_option = click.option(
     "--skip-compression",
@@ -155,6 +170,8 @@ _INDEX_BUILD_OPTIONS = [
     _minim_size_option,
     _threads_option,
     _partition_count_option,
+    _limits_option,
+    _safety_margin_option,
     _skip_compression_option,
     _show_progress_option,
     _notify_option,

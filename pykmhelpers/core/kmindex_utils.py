@@ -128,7 +128,7 @@ def get_best_params(
     So this returns the largest feasible thread count with its minimum
     partitions. Raises ValueError if not even one thread fits ``ulimit``.
     """
-    max_s = min(ulimit, samples) - 1  # per-chunk sample cap for the split build
+    max_s = min(ulimit - 1, samples)  # per-chunk sample cap for the split build
     # hard ceiling on threads: user cap and the merge-stage file limit
     max_t = min(n_threads, ulimit // (max_s + 1))
     if max_t < 1:

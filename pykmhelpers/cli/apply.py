@@ -85,6 +85,8 @@ def apply(
     minim_size,
     threads,
     partition_count,
+    limits,
+    safety_margin,
     existing,
     skip_compression,
     show_progress,
@@ -209,8 +211,6 @@ def apply(
         selected_spans = _parse_spans(span)
         if not existing:
             existing = "fail"
-        if not threads:
-            threads = 1
         if not minim_size:
             minim_size = 10
     except Exception as e:
@@ -290,6 +290,8 @@ def apply(
                     on_existing=existing,
                     fail_on_error=fail_on_error,
                     partition_count=partition_count,
+                    limits=limits,
+                    safety_margin=safety_margin,
                 )
             )
             log_dir = iops.log_dir

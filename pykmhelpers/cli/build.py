@@ -42,6 +42,8 @@ def build(
     minim_size,
     threads,
     partition_count,
+    limits,
+    safety_margin,
     skip_compression,
     show_progress,
     notify,
@@ -158,7 +160,7 @@ def build(
             registry_dir=os.path.join(work_dir, registry),
             minimizer_length=int(minim_size) if minim_size else 10,
             sample_rootpath=base_path,
-            kmindex_threads=threads or 1,
+            kmindex_threads=threads,
             kmindex_skip_compression=skip_compression,
             kmindex_build_from=None,
             filter_names=selected_ids,
@@ -166,6 +168,8 @@ def build(
             on_existing="register_or_rename",
             fail_on_error=fail_on_error,
             partition_count=partition_count,
+            limits=limits,
+            safety_margin=safety_margin,
         )
     )
 
