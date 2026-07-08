@@ -67,7 +67,7 @@ EOF
 
 ---
 
-## Step 3 — Design the index (`design`)
+## Step 3 — Design the index ([`design`](../commands/design.md))
 
 ```bash
 kmhelpers design coli_10.txt \
@@ -91,7 +91,7 @@ kmhelpers design coli_10.txt \
 
 ---
 
-## Step 4 — Build the index (`build`)
+## Step 4 — Build the index ([`build`](../commands/build.md))
 
 ```bash
 kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build/ --show-progress
@@ -109,7 +109,7 @@ kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build/ --show-pro
 
 ---
 
-## Step 5 — Query the index (`query`)
+## Step 5 — Query the index ([`query`](../commands/query.md))
 
 Extract the first contig of the first sample as a query sequence:
 

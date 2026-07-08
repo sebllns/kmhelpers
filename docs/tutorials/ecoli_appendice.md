@@ -1,7 +1,7 @@
 
 ## Going Further
 
-### Build an index with `apply`
+### Build an index with [`apply`](../commands/apply.md)
 
 ```bash
 kmhelpers apply coli3682_db/index.yaml -w coli3682_db/ -t 8
@@ -26,7 +26,7 @@ kmhelpers apply coli3682_db/index.yaml -w coli3682_db/ -t 8 \
 
 Once complete, the index is registered in `coli3682_db/` and ready to query.
 
-### Query the index with advanced options (`query`)
+### Query the index with advanced options ([`query`](../commands/query.md))
 
 Results are written in JSON by default. Use `-f` to change the format:
 

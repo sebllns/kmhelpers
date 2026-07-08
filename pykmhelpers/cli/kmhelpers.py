@@ -167,12 +167,15 @@ class SectionedGroup(click.Group):
 @click.command(
     cls=SectionedGroup,
     context_settings={"help_option_names": ["-h", "--help"]},
+    epilog="Also honors KMHELPERS_LOG_LEVEL: default log level 0-4 "
+    "(0=CRITICAL, 4=DEBUG) before -v/-q adjustments. Default: 3 (INFO).",
 )
 @click.version_option(version=__version__, prog_name="kmhelpers")
 @click.option(
     "--config",
     "-C",
     envvar="KMHELPERS_CONFIG",
+    show_envvar=True,
     type=click.Path(file_okay=True, dir_okay=False, exists=True, readable=True),
     default=None,
     help="YAML config file for default values",
@@ -193,6 +196,7 @@ class SectionedGroup(click.Group):
     "--no-log-formatting",
     "no_formatting",
     envvar="KMHELPERS_NO_LOG_FORMATTING",
+    show_envvar=True,
     is_flag=True,
     help="Disable log formatter",
 )
@@ -200,6 +204,7 @@ class SectionedGroup(click.Group):
     "--log-file",
     "-L",
     envvar="KMHELPERS_LOG_FILE",
+    show_envvar=True,
     type=click.Path(file_okay=True, dir_okay=False, exists=False, writable=True),
     default=None,
     help="Path to log file (logs will be written in addition to console output)",
@@ -207,6 +212,7 @@ class SectionedGroup(click.Group):
 @click.option(
     "--chdir",
     envvar="KMHELPERS_RUN_DIR",
+    show_envvar=True,
     type=click.Path(file_okay=False, dir_okay=True),
     required=False,
     help="Change to directory before initialization",
@@ -215,6 +221,7 @@ class SectionedGroup(click.Group):
     "--yes",
     "-y",
     envvar="KMHELPERS_SKIP_CONFIRMATION",
+    show_envvar=True,
     is_flag=True,
     help="Automatically answer yes to all confirmation prompts.",
 )
