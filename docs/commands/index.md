@@ -1,6 +1,6 @@
 # Command Reference
 
-kmhelpers commands cover the full k-mer index lifecycle: build indices from raw sequences, then query them. Most workflows only need three top-level commands — `design`, `build`, and `query`.
+kmhelpers commands cover the full k-mer index lifecycle: build indices from raw sequences, then query them. Most workflows only need three top-level commands — `design`, `build`, and `query`. Click on any command below to see its full options, inputs/outputs, examples, and additional information.
 
 ## Main Pipeline
 
@@ -18,7 +18,7 @@ Steps run internally by [`design`](design.md):
 | Command | Description |
 |---------|-------------|
 | [`list`](list.md) | Step 1 — scan a directory and count k-mers |
-| [`profile`](profile.md) | Step 2 — compute Bloom-filter span distribution |
+| [`profile`](profile.md) | Step 2 — compute Bloom-filter distribution |
 | [`compose`](compose.md) | Step 3 — generate index definition files |
 
 ## Build Pipeline (steps)
