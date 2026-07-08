@@ -10,6 +10,7 @@ import yaml
 
 import pykmhelpers.core.byte
 import pykmhelpers.core.fasta
+import pykmhelpers.core.kmindex_utils
 import pykmhelpers.pipeline.fof
 import pykmhelpers.pipeline.query
 
@@ -379,7 +380,9 @@ class IndexBuilder:
                 while not stop_event.wait(timeout=progress.delay):
                     total_size = 0
                     for p in range(n_partitions):
-                        m_path = wrapper.get_matrix_path(output_indexdir, p, False)
+                        m_path = pykmhelpers.core.kmindex_utils.get_matrix_path(
+                            output_indexdir, p, False
+                        )
                         if os.path.isfile(m_path):
                             try:
                                 total_size += os.stat(m_path).st_size
