@@ -101,7 +101,8 @@ A Python toolkit for managing, compressing, and querying [kmindex](https://githu
     ```
 
 === "4 - UPDATE"
-    ### 4.1 - Design
+    **4.1 - Design**  
+
     <!-- termynal -->
 
     ```
@@ -128,7 +129,8 @@ A Python toolkit for managing, compressing, and querying [kmindex](https://githu
     Done in 12.04s
     ```
 
-    ### 4.2 - Build
+    **4.2 - Build**  
+    
     <!-- termynal -->
 
     ```

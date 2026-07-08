@@ -47,7 +47,7 @@ plugins:
   - search
   - termynal
   - mike:
-      alias_type: symlink
+      alias_type: redirect
       canonical_version: latest
   - mkdocstrings:
       handlers:

@@ -127,7 +127,9 @@ class PipelineE2EBase(unittest.TestCase):
         base = self.tmp / results_dir
         self.assertTrue(base.is_dir(), f"query output dir not found: {base}")
         merged = {}
-        json_files = sorted(p for p in base.rglob("*.json") if p.parent.name == "result")
+        json_files = sorted(
+            p for p in base.rglob("*.json") if p.parent.name == "result"
+        )
         self.assertTrue(json_files, f"no result JSON files under {base}")
         for jf in json_files:
             data = json.loads(jf.read_text())
@@ -153,9 +155,20 @@ class TestDesignBuildQueryUpdateQuery(PipelineE2EBase):
     def test_design_build_query_update_query(self):
         # 1. design (list -> profile -> compose)
         self.run_cli(
-            "design", self.samples_txt,
-            "-o", "db", "-n", "idx", "-S", "initial",
-            "-k", KMER_SIZE, "-b", "1.1", "-g", "1",
+            "design",
+            self.samples_txt,
+            "-o",
+            "db",
+            "-n",
+            "idx",
+            "-S",
+            "initial",
+            "-k",
+            KMER_SIZE,
+            "-b",
+            "1.1",
+            "-g",
+            "1",
         )
         layout = self.tmp / "db" / "compose" / "idx_layout.yaml"
         span_reg = self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml"
@@ -198,13 +211,6 @@ class TestDesignBuildQueryUpdateQuery(PipelineE2EBase):
         self.run_cli("build", upd_reg, "-o", "build")
 
         # 5. the new sample is now queryable, and the original still matches.
-        #    NOTE: this depends on kmindex being able to merge a new sample into
-        #    an already-built sub-index. That merge currently fails (RuntimeError),
-        #    leaving sample_new in an orphan sub-index and the query empty. Because
-        #    `build` runs with fail-on-error, the failed merge surfaces as FAILED
-        #    (exit 1), so the build step above (expect_success) fails until the
-        #    merge is fixed; the query assertions below are the acceptance gate
-        #    confirming the merge actually landed once the fix is in.
         qn, qn_header = self.write_query("snew", sample_idx=N_SAMPLES)
         self.run_cli("query", qn, "-r", "build", "-o", "results_upd", "-f", "json")
         self.assert_query_hit("results_upd", qn_header, "sample_new")
@@ -219,7 +225,9 @@ class TestStepByStepDesignAndBuild(PipelineE2EBase):
     def test_step_by_step_design_and_build(self):
         # design, decomposed (list does not create its output parent dir)
         self.mkdirs("db", "list")
-        self.run_cli("list", self.samples_txt, "-o", "db/list/idx.jsonl", "-k", KMER_SIZE)
+        self.run_cli(
+            "list", self.samples_txt, "-o", "db/list/idx.jsonl", "-k", KMER_SIZE
+        )
         jsonl = self.tmp / "db" / "list" / "idx.jsonl"
         self.assertTrue(jsonl.is_file(), "list did not produce the jsonl")
         # one record per sample (plus a header line)
@@ -233,8 +241,16 @@ class TestStepByStepDesignAndBuild(PipelineE2EBase):
         )
 
         self.run_cli(
-            "compose", jsonl, "-o", "db/compose", "-n", "idx", "-S", "initial",
-            "-pf", "db/profile/profile.yaml",
+            "compose",
+            jsonl,
+            "-o",
+            "db/compose",
+            "-n",
+            "idx",
+            "-S",
+            "initial",
+            "-pf",
+            "db/profile/profile.yaml",
         )
         span_reg = self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml"
         self.assertTrue(span_reg.is_file(), f"missing span registry: {span_reg}")
@@ -263,16 +279,28 @@ class TestPipelineFailuresExitNonzero(PipelineE2EBase):
     def test_compose_update_without_layout_fails(self):
         # First produce a jsonl to feed compose.
         self.mkdirs("db", "list")
-        self.run_cli("list", self.samples_txt, "-o", "db/list/idx.jsonl", "-k", KMER_SIZE)
+        self.run_cli(
+            "list", self.samples_txt, "-o", "db/list/idx.jsonl", "-k", KMER_SIZE
+        )
         # Update mode (no -pf) with no existing <name>_layout.yaml -> non-zero.
         self.run_cli(
-            "compose", "db/list/idx.jsonl", "-o", "db/compose", "-n", "idx",
+            "compose",
+            "db/list/idx.jsonl",
+            "-o",
+            "db/compose",
+            "-n",
+            "idx",
             expect_success=False,
         )
 
     def test_list_nonexistent_input_fails(self):
         self.run_cli(
-            "list", "does/not/exist.txt", "-o", "out.jsonl", "-k", KMER_SIZE,
+            "list",
+            "does/not/exist.txt",
+            "-o",
+            "out.jsonl",
+            "-k",
+            KMER_SIZE,
             expect_success=False,
         )
 
