@@ -2550,13 +2550,8 @@
 </code></pre></div></p>
 </li>
 <li>
-<p><strong>Build kmindex from source</strong> (required — the <code>static_repart</code> index type is not yet in the conda release):
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>bash<span class="w"> </span>scripts/setup.sh
-</code></pre></div></p>
-</li>
-<li>
 <p><strong>Run the test suite</strong> to verify everything is working:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pytest
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pytest
 </code></pre></div></p>
 </li>
 </ol>
@@ -2565,18 +2560,18 @@
 <li>Create a feature branch from <code>main</code>: <code>git checkout -b feature/my-feature</code></li>
 <li>Make your changes and add tests under <code>pykmhelpers/tests/</code></li>
 <li>Ensure all checks pass before opening a pull request:
-  <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>black<span class="w"> </span>pykmhelpers<span class="w">          </span><span class="c1"># format</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>flake8<span class="w"> </span>pykmhelpers<span class="w">         </span><span class="c1"># lint</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>mypy<span class="w"> </span>pykmhelpers<span class="w">           </span><span class="c1"># type-check</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>pytest<span class="w">                     </span><span class="c1"># tests</span>
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>black<span class="w"> </span>pykmhelpers<span class="w">          </span><span class="c1"># format</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>flake8<span class="w"> </span>pykmhelpers<span class="w">         </span><span class="c1"># lint</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>mypy<span class="w"> </span>pykmhelpers<span class="w">           </span><span class="c1"># type-check</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>pytest<span class="w">                     </span><span class="c1"># tests</span>
 </code></pre></div></li>
 <li>Open a pull request against the <code>main</code> branch.</li>
 </ul>
 <h3 id="improving-the-documentation">Improving The Documentation</h3>
 <p>The documentation is built with <a href="https://squidfunk.github.io/mkdocs-material/">MkDocs Material</a> and hosted at <a href="https://sebllns.github.io/kmhelpers/">https://sebllns.github.io/kmhelpers/</a>.</p>
 <p>To preview the docs locally:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[docs]&quot;</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>mkdocs<span class="w"> </span>serve
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[docs]&quot;</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mkdocs<span class="w"> </span>serve
 </code></pre></div>
 <p>Source files live under <code>docs/</code>. Please keep the documentation consistent with any code changes you make.</p>
 <h2 id="styleguides">Styleguides</h2>

@@ -7897,13 +7897,7 @@ multiple indices from a single index.json file.</p>
 <span class="normal"><a href="#__codelineno-0-970">970</a></span>
 <span class="normal"><a href="#__codelineno-0-971">971</a></span>
 <span class="normal"><a href="#__codelineno-0-972">972</a></span>
-<span class="normal"><a href="#__codelineno-0-973">973</a></span>
-<span class="normal"><a href="#__codelineno-0-974">974</a></span>
-<span class="normal"><a href="#__codelineno-0-975">975</a></span>
-<span class="normal"><a href="#__codelineno-0-976">976</a></span>
-<span class="normal"><a href="#__codelineno-0-977">977</a></span>
-<span class="normal"><a href="#__codelineno-0-978">978</a></span>
-<span class="normal"><a href="#__codelineno-0-979">979</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-593" name="__codelineno-0-593"></a><span class="k">class</span><span class="w"> </span><span class="nc">KmindexRegistry</span><span class="p">:</span>
+<span class="normal"><a href="#__codelineno-0-973">973</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-593" name="__codelineno-0-593"></a><span class="k">class</span><span class="w"> </span><span class="nc">KmindexRegistry</span><span class="p">:</span>
 <a id="__codelineno-0-594" name="__codelineno-0-594"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <a id="__codelineno-0-595" name="__codelineno-0-595"></a><span class="sd">    Manager class for working with multiple indices in a directory.</span>
 <a id="__codelineno-0-596" name="__codelineno-0-596"></a>
@@ -8037,259 +8031,253 @@ multiple indices from a single index.json file.</p>
 <a id="__codelineno-0-724" name="__codelineno-0-724"></a><span class="sd">            index: KmtricksIndex object to add</span>
 <a id="__codelineno-0-725" name="__codelineno-0-725"></a>
 <a id="__codelineno-0-726" name="__codelineno-0-726"></a><span class="sd">        Returns:</span>
-<a id="__codelineno-0-727" name="__codelineno-0-727"></a><span class="sd">            True if index was added, False if it already exists or its</span>
-<a id="__codelineno-0-728" name="__codelineno-0-728"></a><span class="sd">            on-disk structure is invalid.</span>
-<a id="__codelineno-0-729" name="__codelineno-0-729"></a><span class="sd">        &quot;&quot;&quot;</span>
-<a id="__codelineno-0-730" name="__codelineno-0-730"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">index</span><span class="o">.</span><span class="n">_index_id</span><span class="p">):</span>
-<a id="__codelineno-0-731" name="__codelineno-0-731"></a>            <span class="k">return</span> <span class="kc">False</span>
-<a id="__codelineno-0-732" name="__codelineno-0-732"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">check_structure</span><span class="p">():</span>
-<a id="__codelineno-0-733" name="__codelineno-0-733"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-<a id="__codelineno-0-734" name="__codelineno-0-734"></a>                <span class="sa">f</span><span class="s2">&quot;Refusing to register &#39;</span><span class="si">{</span><span class="n">index</span><span class="o">.</span><span class="n">_index_id</span><span class="si">}</span><span class="s2">&#39;: invalid index structure&quot;</span>
-<a id="__codelineno-0-735" name="__codelineno-0-735"></a>            <span class="p">)</span>
-<a id="__codelineno-0-736" name="__codelineno-0-736"></a>            <span class="k">return</span> <span class="kc">False</span>
-<a id="__codelineno-0-737" name="__codelineno-0-737"></a>        <span class="n">Kmindex</span><span class="o">.</span><span class="n">register_index_in_json</span><span class="p">(</span>
-<a id="__codelineno-0-738" name="__codelineno-0-738"></a>            <span class="n">index</span><span class="o">.</span><span class="n">_parent_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root_path</span><span class="p">,</span> <span class="n">index</span><span class="o">.</span><span class="n">_index_id</span>
-<a id="__codelineno-0-739" name="__codelineno-0-739"></a>        <span class="p">)</span>
-<a id="__codelineno-0-740" name="__codelineno-0-740"></a>        <span class="c1"># Reload json after kmindex modified it</span>
-<a id="__codelineno-0-741" name="__codelineno-0-741"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">load_json</span><span class="p">()</span>
-<a id="__codelineno-0-742" name="__codelineno-0-742"></a>        <span class="k">return</span> <span class="kc">True</span>
+<a id="__codelineno-0-727" name="__codelineno-0-727"></a><span class="sd">            True if index was added, False if it already exists</span>
+<a id="__codelineno-0-728" name="__codelineno-0-728"></a><span class="sd">        &quot;&quot;&quot;</span>
+<a id="__codelineno-0-729" name="__codelineno-0-729"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">index</span><span class="o">.</span><span class="n">_index_id</span><span class="p">):</span>
+<a id="__codelineno-0-730" name="__codelineno-0-730"></a>            <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-0-731" name="__codelineno-0-731"></a>        <span class="n">Kmindex</span><span class="o">.</span><span class="n">register_index_in_json</span><span class="p">(</span>
+<a id="__codelineno-0-732" name="__codelineno-0-732"></a>            <span class="n">index</span><span class="o">.</span><span class="n">_parent_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root_path</span><span class="p">,</span> <span class="n">index</span><span class="o">.</span><span class="n">_index_id</span>
+<a id="__codelineno-0-733" name="__codelineno-0-733"></a>        <span class="p">)</span>
+<a id="__codelineno-0-734" name="__codelineno-0-734"></a>        <span class="c1"># Reload json after kmindex modified it</span>
+<a id="__codelineno-0-735" name="__codelineno-0-735"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">load_json</span><span class="p">()</span>
+<a id="__codelineno-0-736" name="__codelineno-0-736"></a>        <span class="k">return</span> <span class="kc">True</span>
+<a id="__codelineno-0-737" name="__codelineno-0-737"></a>
+<a id="__codelineno-0-738" name="__codelineno-0-738"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">remove_index</span><span class="p">(</span>
+<a id="__codelineno-0-739" name="__codelineno-0-739"></a>        <span class="bp">self</span><span class="p">,</span> <span class="n">index_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">delete_files</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">skip_unregistered</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<a id="__codelineno-0-740" name="__codelineno-0-740"></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<a id="__codelineno-0-741" name="__codelineno-0-741"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-742" name="__codelineno-0-742"></a><span class="sd">        Remove an index from the registry.</span>
 <a id="__codelineno-0-743" name="__codelineno-0-743"></a>
-<a id="__codelineno-0-744" name="__codelineno-0-744"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">remove_index</span><span class="p">(</span>
-<a id="__codelineno-0-745" name="__codelineno-0-745"></a>        <span class="bp">self</span><span class="p">,</span> <span class="n">index_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">delete_files</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">skip_unregistered</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
-<a id="__codelineno-0-746" name="__codelineno-0-746"></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<a id="__codelineno-0-747" name="__codelineno-0-747"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<a id="__codelineno-0-748" name="__codelineno-0-748"></a><span class="sd">        Remove an index from the registry.</span>
-<a id="__codelineno-0-749" name="__codelineno-0-749"></a>
-<a id="__codelineno-0-750" name="__codelineno-0-750"></a><span class="sd">        Args:</span>
-<a id="__codelineno-0-751" name="__codelineno-0-751"></a><span class="sd">            index_id: The index ID to remove from the registry.</span>
-<a id="__codelineno-0-752" name="__codelineno-0-752"></a><span class="sd">            delete_files: If True, also delete the index files from disk.</span>
-<a id="__codelineno-0-753" name="__codelineno-0-753"></a><span class="sd">            skip_unregistered: If True, silently skip unregistered indices.</span>
+<a id="__codelineno-0-744" name="__codelineno-0-744"></a><span class="sd">        Args:</span>
+<a id="__codelineno-0-745" name="__codelineno-0-745"></a><span class="sd">            index_id: The index ID to remove from the registry.</span>
+<a id="__codelineno-0-746" name="__codelineno-0-746"></a><span class="sd">            delete_files: If True, also delete the index files from disk.</span>
+<a id="__codelineno-0-747" name="__codelineno-0-747"></a><span class="sd">            skip_unregistered: If True, silently skip unregistered indices.</span>
+<a id="__codelineno-0-748" name="__codelineno-0-748"></a>
+<a id="__codelineno-0-749" name="__codelineno-0-749"></a><span class="sd">        Returns:</span>
+<a id="__codelineno-0-750" name="__codelineno-0-750"></a><span class="sd">            True if index was removed, False if it doesn&#39;t exist.</span>
+<a id="__codelineno-0-751" name="__codelineno-0-751"></a><span class="sd">        &quot;&quot;&quot;</span>
+<a id="__codelineno-0-752" name="__codelineno-0-752"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">index_id</span><span class="p">)</span> <span class="ow">and</span> <span class="n">skip_unregistered</span><span class="p">:</span>
+<a id="__codelineno-0-753" name="__codelineno-0-753"></a>            <span class="k">return</span> <span class="kc">False</span>
 <a id="__codelineno-0-754" name="__codelineno-0-754"></a>
-<a id="__codelineno-0-755" name="__codelineno-0-755"></a><span class="sd">        Returns:</span>
-<a id="__codelineno-0-756" name="__codelineno-0-756"></a><span class="sd">            True if index was removed, False if it doesn&#39;t exist.</span>
-<a id="__codelineno-0-757" name="__codelineno-0-757"></a><span class="sd">        &quot;&quot;&quot;</span>
-<a id="__codelineno-0-758" name="__codelineno-0-758"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">index_id</span><span class="p">)</span> <span class="ow">and</span> <span class="n">skip_unregistered</span><span class="p">:</span>
-<a id="__codelineno-0-759" name="__codelineno-0-759"></a>            <span class="k">return</span> <span class="kc">False</span>
-<a id="__codelineno-0-760" name="__codelineno-0-760"></a>
-<a id="__codelineno-0-761" name="__codelineno-0-761"></a>        <span class="n">index_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_index_path</span><span class="p">(</span><span class="n">index_id</span><span class="p">)</span>
-<a id="__codelineno-0-762" name="__codelineno-0-762"></a>
-<a id="__codelineno-0-763" name="__codelineno-0-763"></a>        <span class="c1"># Delete files if requested</span>
-<a id="__codelineno-0-764" name="__codelineno-0-764"></a>        <span class="k">if</span> <span class="n">delete_files</span><span class="p">:</span>
-<a id="__codelineno-0-765" name="__codelineno-0-765"></a>            <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-766" name="__codelineno-0-766"></a>                <span class="c1"># Get index before removal (needed to delete files)</span>
-<a id="__codelineno-0-767" name="__codelineno-0-767"></a>                <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span>
-<a id="__codelineno-0-768" name="__codelineno-0-768"></a>                    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">index_path</span><span class="p">),</span>
-<a id="__codelineno-0-769" name="__codelineno-0-769"></a>                    <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-0-770" name="__codelineno-0-770"></a>                <span class="p">)</span>
-<a id="__codelineno-0-771" name="__codelineno-0-771"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deleted index files from disk&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-772" name="__codelineno-0-772"></a>            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-773" name="__codelineno-0-773"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to delete some files: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-755" name="__codelineno-0-755"></a>        <span class="n">index_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_index_path</span><span class="p">(</span><span class="n">index_id</span><span class="p">)</span>
+<a id="__codelineno-0-756" name="__codelineno-0-756"></a>
+<a id="__codelineno-0-757" name="__codelineno-0-757"></a>        <span class="c1"># Delete files if requested</span>
+<a id="__codelineno-0-758" name="__codelineno-0-758"></a>        <span class="k">if</span> <span class="n">delete_files</span><span class="p">:</span>
+<a id="__codelineno-0-759" name="__codelineno-0-759"></a>            <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-760" name="__codelineno-0-760"></a>                <span class="c1"># Get index before removal (needed to delete files)</span>
+<a id="__codelineno-0-761" name="__codelineno-0-761"></a>                <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span>
+<a id="__codelineno-0-762" name="__codelineno-0-762"></a>                    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">index_path</span><span class="p">),</span>
+<a id="__codelineno-0-763" name="__codelineno-0-763"></a>                    <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-764" name="__codelineno-0-764"></a>                <span class="p">)</span>
+<a id="__codelineno-0-765" name="__codelineno-0-765"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deleted index files from disk&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-766" name="__codelineno-0-766"></a>            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-767" name="__codelineno-0-767"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to delete some files: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-768" name="__codelineno-0-768"></a>
+<a id="__codelineno-0-769" name="__codelineno-0-769"></a>        <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-770" name="__codelineno-0-770"></a>            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">islink</span><span class="p">(</span><span class="n">index_path</span><span class="p">):</span>
+<a id="__codelineno-0-771" name="__codelineno-0-771"></a>                <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">index_path</span><span class="p">)</span>
+<a id="__codelineno-0-772" name="__codelineno-0-772"></a>        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-773" name="__codelineno-0-773"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error deleting link </span><span class="si">{</span><span class="n">index_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-774" name="__codelineno-0-774"></a>
-<a id="__codelineno-0-775" name="__codelineno-0-775"></a>        <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-776" name="__codelineno-0-776"></a>            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">islink</span><span class="p">(</span><span class="n">index_path</span><span class="p">):</span>
-<a id="__codelineno-0-777" name="__codelineno-0-777"></a>                <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">index_path</span><span class="p">)</span>
-<a id="__codelineno-0-778" name="__codelineno-0-778"></a>        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-779" name="__codelineno-0-779"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error deleting link </span><span class="si">{</span><span class="n">index_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-775" name="__codelineno-0-775"></a>        <span class="c1"># Remove the index from the JSON data</span>
+<a id="__codelineno-0-776" name="__codelineno-0-776"></a>        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_json_data</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">][</span><span class="n">index_id</span><span class="p">]</span>
+<a id="__codelineno-0-777" name="__codelineno-0-777"></a>
+<a id="__codelineno-0-778" name="__codelineno-0-778"></a>        <span class="c1"># Create backup before writing</span>
+<a id="__codelineno-0-779" name="__codelineno-0-779"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_backup_json</span><span class="p">()</span>
 <a id="__codelineno-0-780" name="__codelineno-0-780"></a>
-<a id="__codelineno-0-781" name="__codelineno-0-781"></a>        <span class="c1"># Remove the index from the JSON data</span>
-<a id="__codelineno-0-782" name="__codelineno-0-782"></a>        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_json_data</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">][</span><span class="n">index_id</span><span class="p">]</span>
-<a id="__codelineno-0-783" name="__codelineno-0-783"></a>
-<a id="__codelineno-0-784" name="__codelineno-0-784"></a>        <span class="c1"># Create backup before writing</span>
-<a id="__codelineno-0-785" name="__codelineno-0-785"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_backup_json</span><span class="p">()</span>
+<a id="__codelineno-0-781" name="__codelineno-0-781"></a>        <span class="c1"># Write the updated JSON back to file</span>
+<a id="__codelineno-0-782" name="__codelineno-0-782"></a>        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">json_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<a id="__codelineno-0-783" name="__codelineno-0-783"></a>            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_json_data</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<a id="__codelineno-0-784" name="__codelineno-0-784"></a>
+<a id="__codelineno-0-785" name="__codelineno-0-785"></a>        <span class="k">return</span> <span class="kc">True</span>
 <a id="__codelineno-0-786" name="__codelineno-0-786"></a>
-<a id="__codelineno-0-787" name="__codelineno-0-787"></a>        <span class="c1"># Write the updated JSON back to file</span>
-<a id="__codelineno-0-788" name="__codelineno-0-788"></a>        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">json_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-<a id="__codelineno-0-789" name="__codelineno-0-789"></a>            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_json_data</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
-<a id="__codelineno-0-790" name="__codelineno-0-790"></a>
-<a id="__codelineno-0-791" name="__codelineno-0-791"></a>        <span class="k">return</span> <span class="kc">True</span>
-<a id="__codelineno-0-792" name="__codelineno-0-792"></a>
-<a id="__codelineno-0-793" name="__codelineno-0-793"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">set_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="n">KmtricksIndex</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-794" name="__codelineno-0-794"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_standby</span> <span class="o">=</span> <span class="kc">True</span>
-<a id="__codelineno-0-795" name="__codelineno-0-795"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">index</span><span class="o">.</span><span class="n">_index_id</span><span class="p">):</span>
-<a id="__codelineno-0-796" name="__codelineno-0-796"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">remove_index</span><span class="p">(</span><span class="n">index</span><span class="o">.</span><span class="n">_index_id</span><span class="p">)</span>
-<a id="__codelineno-0-797" name="__codelineno-0-797"></a>        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_index</span><span class="p">(</span><span class="n">index</span><span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Could not add index </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-798" name="__codelineno-0-798"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_standby</span> <span class="o">=</span> <span class="kc">False</span>
-<a id="__codelineno-0-799" name="__codelineno-0-799"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">load_json</span><span class="p">()</span>
+<a id="__codelineno-0-787" name="__codelineno-0-787"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">set_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="n">KmtricksIndex</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-788" name="__codelineno-0-788"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_standby</span> <span class="o">=</span> <span class="kc">True</span>
+<a id="__codelineno-0-789" name="__codelineno-0-789"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">index</span><span class="o">.</span><span class="n">_index_id</span><span class="p">):</span>
+<a id="__codelineno-0-790" name="__codelineno-0-790"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">remove_index</span><span class="p">(</span><span class="n">index</span><span class="o">.</span><span class="n">_index_id</span><span class="p">)</span>
+<a id="__codelineno-0-791" name="__codelineno-0-791"></a>        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_index</span><span class="p">(</span><span class="n">index</span><span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Could not add index </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-792" name="__codelineno-0-792"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_standby</span> <span class="o">=</span> <span class="kc">False</span>
+<a id="__codelineno-0-793" name="__codelineno-0-793"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">load_json</span><span class="p">()</span>
+<a id="__codelineno-0-794" name="__codelineno-0-794"></a>
+<a id="__codelineno-0-795" name="__codelineno-0-795"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">relink</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<a id="__codelineno-0-796" name="__codelineno-0-796"></a>        <span class="n">path</span> <span class="o">=</span> <span class="n">Toolbox</span><span class="o">.</span><span class="n">get_canonical_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+<a id="__codelineno-0-797" name="__codelineno-0-797"></a>
+<a id="__codelineno-0-798" name="__codelineno-0-798"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+<a id="__codelineno-0-799" name="__codelineno-0-799"></a>            <span class="k">raise</span> <span class="ne">NotADirectoryError</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
 <a id="__codelineno-0-800" name="__codelineno-0-800"></a>
-<a id="__codelineno-0-801" name="__codelineno-0-801"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">relink</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-<a id="__codelineno-0-802" name="__codelineno-0-802"></a>        <span class="n">path</span> <span class="o">=</span> <span class="n">Toolbox</span><span class="o">.</span><span class="n">get_canonical_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
-<a id="__codelineno-0-803" name="__codelineno-0-803"></a>
-<a id="__codelineno-0-804" name="__codelineno-0-804"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
-<a id="__codelineno-0-805" name="__codelineno-0-805"></a>            <span class="k">raise</span> <span class="ne">NotADirectoryError</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
-<a id="__codelineno-0-806" name="__codelineno-0-806"></a>
-<a id="__codelineno-0-807" name="__codelineno-0-807"></a>        <span class="k">if</span> <span class="n">index_id</span><span class="p">:</span>
-<a id="__codelineno-0-808" name="__codelineno-0-808"></a>            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">index_id</span><span class="p">):</span>
-<a id="__codelineno-0-809" name="__codelineno-0-809"></a>                <span class="k">raise</span> <span class="n">NotAnIndexError</span><span class="p">(</span><span class="n">index_id</span><span class="p">)</span>
-<a id="__codelineno-0-810" name="__codelineno-0-810"></a>            <span class="n">ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">index_id</span><span class="p">]</span>
-<a id="__codelineno-0-811" name="__codelineno-0-811"></a>        <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-812" name="__codelineno-0-812"></a>            <span class="n">ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_indices</span><span class="p">()</span>
-<a id="__codelineno-0-813" name="__codelineno-0-813"></a>
-<a id="__codelineno-0-814" name="__codelineno-0-814"></a>        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">ids</span><span class="p">:</span>
-<a id="__codelineno-0-815" name="__codelineno-0-815"></a>            <span class="n">index_link</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_index_path</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
-<a id="__codelineno-0-816" name="__codelineno-0-816"></a>            <span class="n">index_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
-<a id="__codelineno-0-817" name="__codelineno-0-817"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Relink </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-818" name="__codelineno-0-818"></a>            <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-819" name="__codelineno-0-819"></a>                <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">index_path</span><span class="p">):</span>
-<a id="__codelineno-0-820" name="__codelineno-0-820"></a>                    <span class="n">KmtricksIndex</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
-<a id="__codelineno-0-821" name="__codelineno-0-821"></a>                    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">islink</span><span class="p">(</span><span class="n">index_link</span><span class="p">):</span>
-<a id="__codelineno-0-822" name="__codelineno-0-822"></a>                        <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">index_link</span><span class="p">)</span>
-<a id="__codelineno-0-823" name="__codelineno-0-823"></a>                    <span class="n">os</span><span class="o">.</span><span class="n">symlink</span><span class="p">(</span><span class="n">index_path</span><span class="p">,</span> <span class="n">index_link</span><span class="p">,</span> <span class="n">target_is_directory</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<a id="__codelineno-0-824" name="__codelineno-0-824"></a>            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-825" name="__codelineno-0-825"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error linking </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-826" name="__codelineno-0-826"></a>
-<a id="__codelineno-0-827" name="__codelineno-0-827"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">rename_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">old_index_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">new_index_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<a id="__codelineno-0-828" name="__codelineno-0-828"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<a id="__codelineno-0-829" name="__codelineno-0-829"></a><span class="sd">        Rename an index in the registry.</span>
-<a id="__codelineno-0-830" name="__codelineno-0-830"></a>
-<a id="__codelineno-0-831" name="__codelineno-0-831"></a><span class="sd">        Args:</span>
-<a id="__codelineno-0-832" name="__codelineno-0-832"></a><span class="sd">            old_index_id: The current index ID</span>
-<a id="__codelineno-0-833" name="__codelineno-0-833"></a><span class="sd">            new_index_id: The new index ID</span>
-<a id="__codelineno-0-834" name="__codelineno-0-834"></a>
-<a id="__codelineno-0-835" name="__codelineno-0-835"></a><span class="sd">        Returns:</span>
-<a id="__codelineno-0-836" name="__codelineno-0-836"></a><span class="sd">            True if index was renamed, False if operation failed</span>
-<a id="__codelineno-0-837" name="__codelineno-0-837"></a><span class="sd">        &quot;&quot;&quot;</span>
-<a id="__codelineno-0-838" name="__codelineno-0-838"></a>        <span class="c1"># Check if old index exists</span>
-<a id="__codelineno-0-839" name="__codelineno-0-839"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">old_index_id</span><span class="p">):</span>
-<a id="__codelineno-0-840" name="__codelineno-0-840"></a>            <span class="k">return</span> <span class="kc">False</span>
-<a id="__codelineno-0-841" name="__codelineno-0-841"></a>
-<a id="__codelineno-0-842" name="__codelineno-0-842"></a>        <span class="c1"># Check if new index ID already exists</span>
-<a id="__codelineno-0-843" name="__codelineno-0-843"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">new_index_id</span><span class="p">):</span>
-<a id="__codelineno-0-844" name="__codelineno-0-844"></a>            <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-0-801" name="__codelineno-0-801"></a>        <span class="k">if</span> <span class="n">index_id</span><span class="p">:</span>
+<a id="__codelineno-0-802" name="__codelineno-0-802"></a>            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">index_id</span><span class="p">):</span>
+<a id="__codelineno-0-803" name="__codelineno-0-803"></a>                <span class="k">raise</span> <span class="n">NotAnIndexError</span><span class="p">(</span><span class="n">index_id</span><span class="p">)</span>
+<a id="__codelineno-0-804" name="__codelineno-0-804"></a>            <span class="n">ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">index_id</span><span class="p">]</span>
+<a id="__codelineno-0-805" name="__codelineno-0-805"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-806" name="__codelineno-0-806"></a>            <span class="n">ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_indices</span><span class="p">()</span>
+<a id="__codelineno-0-807" name="__codelineno-0-807"></a>
+<a id="__codelineno-0-808" name="__codelineno-0-808"></a>        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">ids</span><span class="p">:</span>
+<a id="__codelineno-0-809" name="__codelineno-0-809"></a>            <span class="n">index_link</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_index_path</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+<a id="__codelineno-0-810" name="__codelineno-0-810"></a>            <span class="n">index_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+<a id="__codelineno-0-811" name="__codelineno-0-811"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Relink </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-812" name="__codelineno-0-812"></a>            <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-813" name="__codelineno-0-813"></a>                <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">index_path</span><span class="p">):</span>
+<a id="__codelineno-0-814" name="__codelineno-0-814"></a>                    <span class="n">KmtricksIndex</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+<a id="__codelineno-0-815" name="__codelineno-0-815"></a>                    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">islink</span><span class="p">(</span><span class="n">index_link</span><span class="p">):</span>
+<a id="__codelineno-0-816" name="__codelineno-0-816"></a>                        <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">index_link</span><span class="p">)</span>
+<a id="__codelineno-0-817" name="__codelineno-0-817"></a>                    <span class="n">os</span><span class="o">.</span><span class="n">symlink</span><span class="p">(</span><span class="n">index_path</span><span class="p">,</span> <span class="n">index_link</span><span class="p">,</span> <span class="n">target_is_directory</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-0-818" name="__codelineno-0-818"></a>            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-819" name="__codelineno-0-819"></a>                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error linking </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-820" name="__codelineno-0-820"></a>
+<a id="__codelineno-0-821" name="__codelineno-0-821"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">rename_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">old_index_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">new_index_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<a id="__codelineno-0-822" name="__codelineno-0-822"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-823" name="__codelineno-0-823"></a><span class="sd">        Rename an index in the registry.</span>
+<a id="__codelineno-0-824" name="__codelineno-0-824"></a>
+<a id="__codelineno-0-825" name="__codelineno-0-825"></a><span class="sd">        Args:</span>
+<a id="__codelineno-0-826" name="__codelineno-0-826"></a><span class="sd">            old_index_id: The current index ID</span>
+<a id="__codelineno-0-827" name="__codelineno-0-827"></a><span class="sd">            new_index_id: The new index ID</span>
+<a id="__codelineno-0-828" name="__codelineno-0-828"></a>
+<a id="__codelineno-0-829" name="__codelineno-0-829"></a><span class="sd">        Returns:</span>
+<a id="__codelineno-0-830" name="__codelineno-0-830"></a><span class="sd">            True if index was renamed, False if operation failed</span>
+<a id="__codelineno-0-831" name="__codelineno-0-831"></a><span class="sd">        &quot;&quot;&quot;</span>
+<a id="__codelineno-0-832" name="__codelineno-0-832"></a>        <span class="c1"># Check if old index exists</span>
+<a id="__codelineno-0-833" name="__codelineno-0-833"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">old_index_id</span><span class="p">):</span>
+<a id="__codelineno-0-834" name="__codelineno-0-834"></a>            <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-0-835" name="__codelineno-0-835"></a>
+<a id="__codelineno-0-836" name="__codelineno-0-836"></a>        <span class="c1"># Check if new index ID already exists</span>
+<a id="__codelineno-0-837" name="__codelineno-0-837"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">new_index_id</span><span class="p">):</span>
+<a id="__codelineno-0-838" name="__codelineno-0-838"></a>            <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-0-839" name="__codelineno-0-839"></a>
+<a id="__codelineno-0-840" name="__codelineno-0-840"></a>        <span class="c1"># Create backup before writing</span>
+<a id="__codelineno-0-841" name="__codelineno-0-841"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_backup_json</span><span class="p">()</span>
+<a id="__codelineno-0-842" name="__codelineno-0-842"></a>
+<a id="__codelineno-0-843" name="__codelineno-0-843"></a>        <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_index</span><span class="p">(</span><span class="n">old_index_id</span><span class="p">)</span>
+<a id="__codelineno-0-844" name="__codelineno-0-844"></a>        <span class="n">idx</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">new_index_id</span><span class="p">)</span>
 <a id="__codelineno-0-845" name="__codelineno-0-845"></a>
-<a id="__codelineno-0-846" name="__codelineno-0-846"></a>        <span class="c1"># Create backup before writing</span>
-<a id="__codelineno-0-847" name="__codelineno-0-847"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_backup_json</span><span class="p">()</span>
+<a id="__codelineno-0-846" name="__codelineno-0-846"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">remove_index</span><span class="p">(</span><span class="n">old_index_id</span><span class="p">,</span> <span class="n">delete_files</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-0-847" name="__codelineno-0-847"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">add_index</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
 <a id="__codelineno-0-848" name="__codelineno-0-848"></a>
-<a id="__codelineno-0-849" name="__codelineno-0-849"></a>        <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_index</span><span class="p">(</span><span class="n">old_index_id</span><span class="p">)</span>
-<a id="__codelineno-0-850" name="__codelineno-0-850"></a>        <span class="n">idx</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">new_index_id</span><span class="p">)</span>
-<a id="__codelineno-0-851" name="__codelineno-0-851"></a>
-<a id="__codelineno-0-852" name="__codelineno-0-852"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">remove_index</span><span class="p">(</span><span class="n">old_index_id</span><span class="p">,</span> <span class="n">delete_files</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<a id="__codelineno-0-853" name="__codelineno-0-853"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">add_index</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
+<a id="__codelineno-0-849" name="__codelineno-0-849"></a>        <span class="c1"># Write the updated JSON back to file</span>
+<a id="__codelineno-0-850" name="__codelineno-0-850"></a>        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">json_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<a id="__codelineno-0-851" name="__codelineno-0-851"></a>            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_json_data</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<a id="__codelineno-0-852" name="__codelineno-0-852"></a>
+<a id="__codelineno-0-853" name="__codelineno-0-853"></a>        <span class="k">return</span> <span class="kc">True</span>
 <a id="__codelineno-0-854" name="__codelineno-0-854"></a>
-<a id="__codelineno-0-855" name="__codelineno-0-855"></a>        <span class="c1"># Write the updated JSON back to file</span>
-<a id="__codelineno-0-856" name="__codelineno-0-856"></a>        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">json_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-<a id="__codelineno-0-857" name="__codelineno-0-857"></a>            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_json_data</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
-<a id="__codelineno-0-858" name="__codelineno-0-858"></a>
-<a id="__codelineno-0-859" name="__codelineno-0-859"></a>        <span class="k">return</span> <span class="kc">True</span>
-<a id="__codelineno-0-860" name="__codelineno-0-860"></a>
-<a id="__codelineno-0-861" name="__codelineno-0-861"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">import_directory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
-<a id="__codelineno-0-862" name="__codelineno-0-862"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Import indexes from </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">:&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-863" name="__codelineno-0-863"></a>        <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
-<a id="__codelineno-0-864" name="__codelineno-0-864"></a>        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">iterdir</span><span class="p">():</span>
-<a id="__codelineno-0-865" name="__codelineno-0-865"></a>            <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
-<a id="__codelineno-0-866" name="__codelineno-0-866"></a>                <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-867" name="__codelineno-0-867"></a>                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_index</span><span class="p">(</span><span class="n">KmtricksIndex</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">)):</span>
-<a id="__codelineno-0-868" name="__codelineno-0-868"></a>                        <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
-<a id="__codelineno-0-869" name="__codelineno-0-869"></a>                        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; - </span><span class="si">{</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-870" name="__codelineno-0-870"></a>                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-871" name="__codelineno-0-871"></a>                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping </span><span class="si">{</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-872" name="__codelineno-0-872"></a>
-<a id="__codelineno-0-873" name="__codelineno-0-873"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">check_dirs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-874" name="__codelineno-0-874"></a>        <span class="k">assert</span> <span class="p">(</span>
-<a id="__codelineno-0-875" name="__codelineno-0-875"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_json_data</span><span class="p">[</span><span class="s2">&quot;path&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root_path</span>
-<a id="__codelineno-0-876" name="__codelineno-0-876"></a>        <span class="p">),</span> <span class="s2">&quot;Index root paths do not match&quot;</span>
-<a id="__codelineno-0-877" name="__codelineno-0-877"></a>        <span class="n">indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_indices</span><span class="p">()</span>
-<a id="__codelineno-0-878" name="__codelineno-0-878"></a>        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">:</span>
-<a id="__codelineno-0-879" name="__codelineno-0-879"></a>            <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_index_dir</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Index not found: </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-880" name="__codelineno-0-880"></a>
-<a id="__codelineno-0-881" name="__codelineno-0-881"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">compress</span><span class="p">(</span>
-<a id="__codelineno-0-882" name="__codelineno-0-882"></a>        <span class="bp">self</span><span class="p">,</span>
-<a id="__codelineno-0-883" name="__codelineno-0-883"></a>        <span class="n">index_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-<a id="__codelineno-0-884" name="__codelineno-0-884"></a>        <span class="n">block_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
-<a id="__codelineno-0-885" name="__codelineno-0-885"></a>        <span class="n">sampling</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20000</span><span class="p">,</span>
-<a id="__codelineno-0-886" name="__codelineno-0-886"></a>        <span class="n">column_per_block</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
-<a id="__codelineno-0-887" name="__codelineno-0-887"></a>        <span class="n">cpr_level</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
-<a id="__codelineno-0-888" name="__codelineno-0-888"></a>        <span class="n">threads</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">14</span><span class="p">,</span>
-<a id="__codelineno-0-889" name="__codelineno-0-889"></a>        <span class="n">reorder</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-890" name="__codelineno-0-890"></a>        <span class="n">delete_uncompressed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-891" name="__codelineno-0-891"></a>        <span class="n">check_results</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-892" name="__codelineno-0-892"></a>        <span class="n">verbose</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;info&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-893" name="__codelineno-0-893"></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
-<a id="__codelineno-0-894" name="__codelineno-0-894"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<a id="__codelineno-0-895" name="__codelineno-0-895"></a><span class="sd">        Compress an index using kmindex compress command.</span>
-<a id="__codelineno-0-896" name="__codelineno-0-896"></a>
-<a id="__codelineno-0-897" name="__codelineno-0-897"></a><span class="sd">        This method is a convenience wrapper that uses KmindexWrapper to compress</span>
-<a id="__codelineno-0-898" name="__codelineno-0-898"></a><span class="sd">        an index registered in this registry.</span>
-<a id="__codelineno-0-899" name="__codelineno-0-899"></a>
-<a id="__codelineno-0-900" name="__codelineno-0-900"></a><span class="sd">        Args:</span>
-<a id="__codelineno-0-901" name="__codelineno-0-901"></a><span class="sd">            index_name: Name of the index to compress (must exist in registry).</span>
-<a id="__codelineno-0-902" name="__codelineno-0-902"></a><span class="sd">            block_size: Size of uncompressed blocks in MB (default: 8).</span>
-<a id="__codelineno-0-903" name="__codelineno-0-903"></a><span class="sd">            sampling: Number of rows to sample for reordering (default: 20000).</span>
-<a id="__codelineno-0-904" name="__codelineno-0-904"></a><span class="sd">            column_per_block: Reorder columns by group of N (0=all columns together).</span>
-<a id="__codelineno-0-905" name="__codelineno-0-905"></a><span class="sd">                             Must be a multiple of 8 (default: 0).</span>
-<a id="__codelineno-0-906" name="__codelineno-0-906"></a><span class="sd">            cpr_level: Compression level in range [1-22] (default: 3).</span>
-<a id="__codelineno-0-907" name="__codelineno-0-907"></a><span class="sd">            threads: Number of threads to use (default: 14).</span>
-<a id="__codelineno-0-908" name="__codelineno-0-908"></a><span class="sd">            reorder: Whether to reorder columns before compressing (default: False).</span>
-<a id="__codelineno-0-909" name="__codelineno-0-909"></a><span class="sd">            delete_uncompressed: Delete uncompressed index after successful compression (default: False).</span>
-<a id="__codelineno-0-910" name="__codelineno-0-910"></a><span class="sd">            check_results: Check query results after compressing (default: False).</span>
-<a id="__codelineno-0-911" name="__codelineno-0-911"></a><span class="sd">            verbose: Verbosity level (debug|info|warning|error) (default: info).</span>
-<a id="__codelineno-0-912" name="__codelineno-0-912"></a>
-<a id="__codelineno-0-913" name="__codelineno-0-913"></a><span class="sd">        Returns:</span>
-<a id="__codelineno-0-914" name="__codelineno-0-914"></a><span class="sd">            Dictionary containing compression results from KmindexWrapper.</span>
-<a id="__codelineno-0-915" name="__codelineno-0-915"></a>
-<a id="__codelineno-0-916" name="__codelineno-0-916"></a><span class="sd">        Raises:</span>
-<a id="__codelineno-0-917" name="__codelineno-0-917"></a><span class="sd">            ValueError: If index_name not found in registry.</span>
-<a id="__codelineno-0-918" name="__codelineno-0-918"></a><span class="sd">            subprocess.CalledProcessError: If kmindex compress command fails.</span>
-<a id="__codelineno-0-919" name="__codelineno-0-919"></a>
-<a id="__codelineno-0-920" name="__codelineno-0-920"></a><span class="sd">        Example:</span>
-<a id="__codelineno-0-921" name="__codelineno-0-921"></a><span class="sd">            &gt;&gt;&gt; registry = KmindexRegistry(&quot;/path/to/registry&quot;)</span>
-<a id="__codelineno-0-922" name="__codelineno-0-922"></a><span class="sd">            &gt;&gt;&gt; result = registry.compress(</span>
-<a id="__codelineno-0-923" name="__codelineno-0-923"></a><span class="sd">            ...     index_name=&quot;my_index&quot;,</span>
-<a id="__codelineno-0-924" name="__codelineno-0-924"></a><span class="sd">            ...     reorder=True,</span>
-<a id="__codelineno-0-925" name="__codelineno-0-925"></a><span class="sd">            ...     block_size=8,</span>
-<a id="__codelineno-0-926" name="__codelineno-0-926"></a><span class="sd">            ...     threads=8</span>
-<a id="__codelineno-0-927" name="__codelineno-0-927"></a><span class="sd">            ... )</span>
-<a id="__codelineno-0-928" name="__codelineno-0-928"></a><span class="sd">        &quot;&quot;&quot;</span>
-<a id="__codelineno-0-929" name="__codelineno-0-929"></a>        <span class="c1"># Validate index exists in registry</span>
-<a id="__codelineno-0-930" name="__codelineno-0-930"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">index_name</span><span class="p">):</span>
-<a id="__codelineno-0-931" name="__codelineno-0-931"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-<a id="__codelineno-0-932" name="__codelineno-0-932"></a>                <span class="sa">f</span><span class="s2">&quot;Index &#39;</span><span class="si">{</span><span class="n">index_name</span><span class="si">}</span><span class="s2">&#39; not found in registry. &quot;</span>
-<a id="__codelineno-0-933" name="__codelineno-0-933"></a>                <span class="sa">f</span><span class="s2">&quot;Available indices: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">list_indices</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-934" name="__codelineno-0-934"></a>            <span class="p">)</span>
-<a id="__codelineno-0-935" name="__codelineno-0-935"></a>
-<a id="__codelineno-0-936" name="__codelineno-0-936"></a>        <span class="c1"># Import here to avoid circular imports</span>
-<a id="__codelineno-0-937" name="__codelineno-0-937"></a>        <span class="kn">from</span><span class="w"> </span><span class="nn">pykmhelpers.core.kmindex_wrapper</span><span class="w"> </span><span class="kn">import</span> <span class="n">KmindexWrapper</span>
-<a id="__codelineno-0-938" name="__codelineno-0-938"></a>
-<a id="__codelineno-0-939" name="__codelineno-0-939"></a>        <span class="c1"># Use KmindexWrapper to compress the index</span>
-<a id="__codelineno-0-940" name="__codelineno-0-940"></a>        <span class="n">wrapper</span> <span class="o">=</span> <span class="n">KmindexWrapper</span><span class="p">()</span>
-<a id="__codelineno-0-941" name="__codelineno-0-941"></a>        <span class="n">result</span> <span class="o">=</span> <span class="n">wrapper</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span>
-<a id="__codelineno-0-942" name="__codelineno-0-942"></a>            <span class="n">input_registry</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_root_path</span><span class="p">,</span>
-<a id="__codelineno-0-943" name="__codelineno-0-943"></a>            <span class="n">index_name</span><span class="o">=</span><span class="n">index_name</span><span class="p">,</span>
-<a id="__codelineno-0-944" name="__codelineno-0-944"></a>            <span class="n">block_size</span><span class="o">=</span><span class="n">block_size</span><span class="p">,</span>
-<a id="__codelineno-0-945" name="__codelineno-0-945"></a>            <span class="n">sampling</span><span class="o">=</span><span class="n">sampling</span><span class="p">,</span>
-<a id="__codelineno-0-946" name="__codelineno-0-946"></a>            <span class="n">column_per_block</span><span class="o">=</span><span class="n">column_per_block</span><span class="p">,</span>
-<a id="__codelineno-0-947" name="__codelineno-0-947"></a>            <span class="n">cpr_level</span><span class="o">=</span><span class="n">cpr_level</span><span class="p">,</span>
-<a id="__codelineno-0-948" name="__codelineno-0-948"></a>            <span class="n">threads</span><span class="o">=</span><span class="n">threads</span><span class="p">,</span>
-<a id="__codelineno-0-949" name="__codelineno-0-949"></a>            <span class="n">reorder</span><span class="o">=</span><span class="n">reorder</span><span class="p">,</span>
-<a id="__codelineno-0-950" name="__codelineno-0-950"></a>            <span class="n">delete_uncompressed</span><span class="o">=</span><span class="n">delete_uncompressed</span><span class="p">,</span>
-<a id="__codelineno-0-951" name="__codelineno-0-951"></a>            <span class="n">check_results</span><span class="o">=</span><span class="n">check_results</span><span class="p">,</span>
-<a id="__codelineno-0-952" name="__codelineno-0-952"></a>        <span class="p">)</span>
-<a id="__codelineno-0-953" name="__codelineno-0-953"></a>
-<a id="__codelineno-0-954" name="__codelineno-0-954"></a>        <span class="k">return</span> <span class="n">result</span>
-<a id="__codelineno-0-955" name="__codelineno-0-955"></a>
-<a id="__codelineno-0-956" name="__codelineno-0-956"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<a id="__codelineno-0-957" name="__codelineno-0-957"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Iterate over all Index objects.&quot;&quot;&quot;</span>
-<a id="__codelineno-0-958" name="__codelineno-0-958"></a>        <span class="k">for</span> <span class="n">_index_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_indices</span><span class="p">():</span>
-<a id="__codelineno-0-959" name="__codelineno-0-959"></a>            <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_index</span><span class="p">(</span><span class="n">_index_id</span><span class="p">)</span>
-<a id="__codelineno-0-960" name="__codelineno-0-960"></a>
-<a id="__codelineno-0-961" name="__codelineno-0-961"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-<a id="__codelineno-0-962" name="__codelineno-0-962"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Get number of indices.&quot;&quot;&quot;</span>
-<a id="__codelineno-0-963" name="__codelineno-0-963"></a>        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_json_data</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">])</span>
-<a id="__codelineno-0-964" name="__codelineno-0-964"></a>
-<a id="__codelineno-0-965" name="__codelineno-0-965"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<a id="__codelineno-0-966" name="__codelineno-0-966"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;String representation.&quot;&quot;&quot;</span>
-<a id="__codelineno-0-967" name="__codelineno-0-967"></a>        <span class="n">indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_indices</span><span class="p">()</span>
-<a id="__codelineno-0-968" name="__codelineno-0-968"></a>        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;IndexRegistry(path=&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_root_path</span><span class="si">}</span><span class="s2">&#39;, indices=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">indices</span><span class="si">}</span><span class="s2">)&quot;</span>
-<a id="__codelineno-0-969" name="__codelineno-0-969"></a>
-<a id="__codelineno-0-970" name="__codelineno-0-970"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_index_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">KmtricksIndex</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-971" name="__codelineno-0-971"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">_index_id</span><span class="p">):</span>
-<a id="__codelineno-0-972" name="__codelineno-0-972"></a>            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_index</span><span class="p">(</span><span class="n">_index_id</span><span class="p">)</span>
-<a id="__codelineno-0-973" name="__codelineno-0-973"></a>        <span class="k">return</span> <span class="kc">None</span>
-<a id="__codelineno-0-974" name="__codelineno-0-974"></a>
-<a id="__codelineno-0-975" name="__codelineno-0-975"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="n">KmtricksIndex</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-976" name="__codelineno-0-976"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
-<a id="__codelineno-0-977" name="__codelineno-0-977"></a>
-<a id="__codelineno-0-978" name="__codelineno-0-978"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<a id="__codelineno-0-979" name="__codelineno-0-979"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">index_id</span><span class="p">)</span>
+<a id="__codelineno-0-855" name="__codelineno-0-855"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">import_directory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+<a id="__codelineno-0-856" name="__codelineno-0-856"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Import indexes from </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">:&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-857" name="__codelineno-0-857"></a>        <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+<a id="__codelineno-0-858" name="__codelineno-0-858"></a>        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">iterdir</span><span class="p">():</span>
+<a id="__codelineno-0-859" name="__codelineno-0-859"></a>            <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+<a id="__codelineno-0-860" name="__codelineno-0-860"></a>                <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-861" name="__codelineno-0-861"></a>                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_index</span><span class="p">(</span><span class="n">KmtricksIndex</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">)):</span>
+<a id="__codelineno-0-862" name="__codelineno-0-862"></a>                        <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+<a id="__codelineno-0-863" name="__codelineno-0-863"></a>                        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; - </span><span class="si">{</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-864" name="__codelineno-0-864"></a>                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-865" name="__codelineno-0-865"></a>                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping </span><span class="si">{</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-866" name="__codelineno-0-866"></a>
+<a id="__codelineno-0-867" name="__codelineno-0-867"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">check_dirs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-868" name="__codelineno-0-868"></a>        <span class="k">assert</span> <span class="p">(</span>
+<a id="__codelineno-0-869" name="__codelineno-0-869"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_json_data</span><span class="p">[</span><span class="s2">&quot;path&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root_path</span>
+<a id="__codelineno-0-870" name="__codelineno-0-870"></a>        <span class="p">),</span> <span class="s2">&quot;Index root paths do not match&quot;</span>
+<a id="__codelineno-0-871" name="__codelineno-0-871"></a>        <span class="n">indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_indices</span><span class="p">()</span>
+<a id="__codelineno-0-872" name="__codelineno-0-872"></a>        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">:</span>
+<a id="__codelineno-0-873" name="__codelineno-0-873"></a>            <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_index_dir</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Index not found: </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-874" name="__codelineno-0-874"></a>
+<a id="__codelineno-0-875" name="__codelineno-0-875"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">compress</span><span class="p">(</span>
+<a id="__codelineno-0-876" name="__codelineno-0-876"></a>        <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-877" name="__codelineno-0-877"></a>        <span class="n">index_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-878" name="__codelineno-0-878"></a>        <span class="n">block_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
+<a id="__codelineno-0-879" name="__codelineno-0-879"></a>        <span class="n">sampling</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20000</span><span class="p">,</span>
+<a id="__codelineno-0-880" name="__codelineno-0-880"></a>        <span class="n">column_per_block</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-0-881" name="__codelineno-0-881"></a>        <span class="n">cpr_level</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+<a id="__codelineno-0-882" name="__codelineno-0-882"></a>        <span class="n">threads</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">14</span><span class="p">,</span>
+<a id="__codelineno-0-883" name="__codelineno-0-883"></a>        <span class="n">reorder</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-884" name="__codelineno-0-884"></a>        <span class="n">delete_uncompressed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-885" name="__codelineno-0-885"></a>        <span class="n">check_results</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-886" name="__codelineno-0-886"></a>        <span class="n">verbose</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;info&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-887" name="__codelineno-0-887"></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<a id="__codelineno-0-888" name="__codelineno-0-888"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-889" name="__codelineno-0-889"></a><span class="sd">        Compress an index using kmindex compress command.</span>
+<a id="__codelineno-0-890" name="__codelineno-0-890"></a>
+<a id="__codelineno-0-891" name="__codelineno-0-891"></a><span class="sd">        This method is a convenience wrapper that uses KmindexWrapper to compress</span>
+<a id="__codelineno-0-892" name="__codelineno-0-892"></a><span class="sd">        an index registered in this registry.</span>
+<a id="__codelineno-0-893" name="__codelineno-0-893"></a>
+<a id="__codelineno-0-894" name="__codelineno-0-894"></a><span class="sd">        Args:</span>
+<a id="__codelineno-0-895" name="__codelineno-0-895"></a><span class="sd">            index_name: Name of the index to compress (must exist in registry).</span>
+<a id="__codelineno-0-896" name="__codelineno-0-896"></a><span class="sd">            block_size: Size of uncompressed blocks in MB (default: 8).</span>
+<a id="__codelineno-0-897" name="__codelineno-0-897"></a><span class="sd">            sampling: Number of rows to sample for reordering (default: 20000).</span>
+<a id="__codelineno-0-898" name="__codelineno-0-898"></a><span class="sd">            column_per_block: Reorder columns by group of N (0=all columns together).</span>
+<a id="__codelineno-0-899" name="__codelineno-0-899"></a><span class="sd">                             Must be a multiple of 8 (default: 0).</span>
+<a id="__codelineno-0-900" name="__codelineno-0-900"></a><span class="sd">            cpr_level: Compression level in range [1-22] (default: 3).</span>
+<a id="__codelineno-0-901" name="__codelineno-0-901"></a><span class="sd">            threads: Number of threads to use (default: 14).</span>
+<a id="__codelineno-0-902" name="__codelineno-0-902"></a><span class="sd">            reorder: Whether to reorder columns before compressing (default: False).</span>
+<a id="__codelineno-0-903" name="__codelineno-0-903"></a><span class="sd">            delete_uncompressed: Delete uncompressed index after successful compression (default: False).</span>
+<a id="__codelineno-0-904" name="__codelineno-0-904"></a><span class="sd">            check_results: Check query results after compressing (default: False).</span>
+<a id="__codelineno-0-905" name="__codelineno-0-905"></a><span class="sd">            verbose: Verbosity level (debug|info|warning|error) (default: info).</span>
+<a id="__codelineno-0-906" name="__codelineno-0-906"></a>
+<a id="__codelineno-0-907" name="__codelineno-0-907"></a><span class="sd">        Returns:</span>
+<a id="__codelineno-0-908" name="__codelineno-0-908"></a><span class="sd">            Dictionary containing compression results from KmindexWrapper.</span>
+<a id="__codelineno-0-909" name="__codelineno-0-909"></a>
+<a id="__codelineno-0-910" name="__codelineno-0-910"></a><span class="sd">        Raises:</span>
+<a id="__codelineno-0-911" name="__codelineno-0-911"></a><span class="sd">            ValueError: If index_name not found in registry.</span>
+<a id="__codelineno-0-912" name="__codelineno-0-912"></a><span class="sd">            subprocess.CalledProcessError: If kmindex compress command fails.</span>
+<a id="__codelineno-0-913" name="__codelineno-0-913"></a>
+<a id="__codelineno-0-914" name="__codelineno-0-914"></a><span class="sd">        Example:</span>
+<a id="__codelineno-0-915" name="__codelineno-0-915"></a><span class="sd">            &gt;&gt;&gt; registry = KmindexRegistry(&quot;/path/to/registry&quot;)</span>
+<a id="__codelineno-0-916" name="__codelineno-0-916"></a><span class="sd">            &gt;&gt;&gt; result = registry.compress(</span>
+<a id="__codelineno-0-917" name="__codelineno-0-917"></a><span class="sd">            ...     index_name=&quot;my_index&quot;,</span>
+<a id="__codelineno-0-918" name="__codelineno-0-918"></a><span class="sd">            ...     reorder=True,</span>
+<a id="__codelineno-0-919" name="__codelineno-0-919"></a><span class="sd">            ...     block_size=8,</span>
+<a id="__codelineno-0-920" name="__codelineno-0-920"></a><span class="sd">            ...     threads=8</span>
+<a id="__codelineno-0-921" name="__codelineno-0-921"></a><span class="sd">            ... )</span>
+<a id="__codelineno-0-922" name="__codelineno-0-922"></a><span class="sd">        &quot;&quot;&quot;</span>
+<a id="__codelineno-0-923" name="__codelineno-0-923"></a>        <span class="c1"># Validate index exists in registry</span>
+<a id="__codelineno-0-924" name="__codelineno-0-924"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">index_name</span><span class="p">):</span>
+<a id="__codelineno-0-925" name="__codelineno-0-925"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<a id="__codelineno-0-926" name="__codelineno-0-926"></a>                <span class="sa">f</span><span class="s2">&quot;Index &#39;</span><span class="si">{</span><span class="n">index_name</span><span class="si">}</span><span class="s2">&#39; not found in registry. &quot;</span>
+<a id="__codelineno-0-927" name="__codelineno-0-927"></a>                <span class="sa">f</span><span class="s2">&quot;Available indices: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">list_indices</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-928" name="__codelineno-0-928"></a>            <span class="p">)</span>
+<a id="__codelineno-0-929" name="__codelineno-0-929"></a>
+<a id="__codelineno-0-930" name="__codelineno-0-930"></a>        <span class="c1"># Import here to avoid circular imports</span>
+<a id="__codelineno-0-931" name="__codelineno-0-931"></a>        <span class="kn">from</span><span class="w"> </span><span class="nn">pykmhelpers.core.kmindex_wrapper</span><span class="w"> </span><span class="kn">import</span> <span class="n">KmindexWrapper</span>
+<a id="__codelineno-0-932" name="__codelineno-0-932"></a>
+<a id="__codelineno-0-933" name="__codelineno-0-933"></a>        <span class="c1"># Use KmindexWrapper to compress the index</span>
+<a id="__codelineno-0-934" name="__codelineno-0-934"></a>        <span class="n">wrapper</span> <span class="o">=</span> <span class="n">KmindexWrapper</span><span class="p">()</span>
+<a id="__codelineno-0-935" name="__codelineno-0-935"></a>        <span class="n">result</span> <span class="o">=</span> <span class="n">wrapper</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span>
+<a id="__codelineno-0-936" name="__codelineno-0-936"></a>            <span class="n">input_registry</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_root_path</span><span class="p">,</span>
+<a id="__codelineno-0-937" name="__codelineno-0-937"></a>            <span class="n">index_name</span><span class="o">=</span><span class="n">index_name</span><span class="p">,</span>
+<a id="__codelineno-0-938" name="__codelineno-0-938"></a>            <span class="n">block_size</span><span class="o">=</span><span class="n">block_size</span><span class="p">,</span>
+<a id="__codelineno-0-939" name="__codelineno-0-939"></a>            <span class="n">sampling</span><span class="o">=</span><span class="n">sampling</span><span class="p">,</span>
+<a id="__codelineno-0-940" name="__codelineno-0-940"></a>            <span class="n">column_per_block</span><span class="o">=</span><span class="n">column_per_block</span><span class="p">,</span>
+<a id="__codelineno-0-941" name="__codelineno-0-941"></a>            <span class="n">cpr_level</span><span class="o">=</span><span class="n">cpr_level</span><span class="p">,</span>
+<a id="__codelineno-0-942" name="__codelineno-0-942"></a>            <span class="n">threads</span><span class="o">=</span><span class="n">threads</span><span class="p">,</span>
+<a id="__codelineno-0-943" name="__codelineno-0-943"></a>            <span class="n">reorder</span><span class="o">=</span><span class="n">reorder</span><span class="p">,</span>
+<a id="__codelineno-0-944" name="__codelineno-0-944"></a>            <span class="n">delete_uncompressed</span><span class="o">=</span><span class="n">delete_uncompressed</span><span class="p">,</span>
+<a id="__codelineno-0-945" name="__codelineno-0-945"></a>            <span class="n">check_results</span><span class="o">=</span><span class="n">check_results</span><span class="p">,</span>
+<a id="__codelineno-0-946" name="__codelineno-0-946"></a>        <span class="p">)</span>
+<a id="__codelineno-0-947" name="__codelineno-0-947"></a>
+<a id="__codelineno-0-948" name="__codelineno-0-948"></a>        <span class="k">return</span> <span class="n">result</span>
+<a id="__codelineno-0-949" name="__codelineno-0-949"></a>
+<a id="__codelineno-0-950" name="__codelineno-0-950"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-0-951" name="__codelineno-0-951"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Iterate over all Index objects.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-952" name="__codelineno-0-952"></a>        <span class="k">for</span> <span class="n">_index_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_indices</span><span class="p">():</span>
+<a id="__codelineno-0-953" name="__codelineno-0-953"></a>            <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_index</span><span class="p">(</span><span class="n">_index_id</span><span class="p">)</span>
+<a id="__codelineno-0-954" name="__codelineno-0-954"></a>
+<a id="__codelineno-0-955" name="__codelineno-0-955"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<a id="__codelineno-0-956" name="__codelineno-0-956"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Get number of indices.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-957" name="__codelineno-0-957"></a>        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_json_data</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">])</span>
+<a id="__codelineno-0-958" name="__codelineno-0-958"></a>
+<a id="__codelineno-0-959" name="__codelineno-0-959"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<a id="__codelineno-0-960" name="__codelineno-0-960"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;String representation.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-961" name="__codelineno-0-961"></a>        <span class="n">indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_indices</span><span class="p">()</span>
+<a id="__codelineno-0-962" name="__codelineno-0-962"></a>        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;IndexRegistry(path=&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_root_path</span><span class="si">}</span><span class="s2">&#39;, indices=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">indices</span><span class="si">}</span><span class="s2">)&quot;</span>
+<a id="__codelineno-0-963" name="__codelineno-0-963"></a>
+<a id="__codelineno-0-964" name="__codelineno-0-964"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_index_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">KmtricksIndex</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-965" name="__codelineno-0-965"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">_index_id</span><span class="p">):</span>
+<a id="__codelineno-0-966" name="__codelineno-0-966"></a>            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_index</span><span class="p">(</span><span class="n">_index_id</span><span class="p">)</span>
+<a id="__codelineno-0-967" name="__codelineno-0-967"></a>        <span class="k">return</span> <span class="kc">None</span>
+<a id="__codelineno-0-968" name="__codelineno-0-968"></a>
+<a id="__codelineno-0-969" name="__codelineno-0-969"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="n">KmtricksIndex</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-970" name="__codelineno-0-970"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+<a id="__codelineno-0-971" name="__codelineno-0-971"></a>
+<a id="__codelineno-0-972" name="__codelineno-0-972"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<a id="__codelineno-0-973" name="__codelineno-0-973"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">index_id</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
               </details>
 
@@ -8956,17 +8944,7 @@ multiple indices from a single index.json file.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>True if index was added, False if it already exists or its</p>
-              </div>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                  <code><span title="bool">bool</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>on-disk structure is invalid.</p>
+                <p>True if index was added, False if it already exists</p>
               </div>
             </td>
           </tr>
@@ -8993,13 +8971,7 @@ multiple indices from a single index.json file.</p>
 <span class="normal"><a href="#__codelineno-0-733">733</a></span>
 <span class="normal"><a href="#__codelineno-0-734">734</a></span>
 <span class="normal"><a href="#__codelineno-0-735">735</a></span>
-<span class="normal"><a href="#__codelineno-0-736">736</a></span>
-<span class="normal"><a href="#__codelineno-0-737">737</a></span>
-<span class="normal"><a href="#__codelineno-0-738">738</a></span>
-<span class="normal"><a href="#__codelineno-0-739">739</a></span>
-<span class="normal"><a href="#__codelineno-0-740">740</a></span>
-<span class="normal"><a href="#__codelineno-0-741">741</a></span>
-<span class="normal"><a href="#__codelineno-0-742">742</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-719" name="__codelineno-0-719"></a><span class="k">def</span><span class="w"> </span><span class="nf">add_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="n">KmtricksIndex</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="normal"><a href="#__codelineno-0-736">736</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-719" name="__codelineno-0-719"></a><span class="k">def</span><span class="w"> </span><span class="nf">add_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="n">KmtricksIndex</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <a id="__codelineno-0-720" name="__codelineno-0-720"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <a id="__codelineno-0-721" name="__codelineno-0-721"></a><span class="sd">    Add a new index to the registry.</span>
 <a id="__codelineno-0-722" name="__codelineno-0-722"></a>
@@ -9007,22 +8979,16 @@ multiple indices from a single index.json file.</p>
 <a id="__codelineno-0-724" name="__codelineno-0-724"></a><span class="sd">        index: KmtricksIndex object to add</span>
 <a id="__codelineno-0-725" name="__codelineno-0-725"></a>
 <a id="__codelineno-0-726" name="__codelineno-0-726"></a><span class="sd">    Returns:</span>
-<a id="__codelineno-0-727" name="__codelineno-0-727"></a><span class="sd">        True if index was added, False if it already exists or its</span>
-<a id="__codelineno-0-728" name="__codelineno-0-728"></a><span class="sd">        on-disk structure is invalid.</span>
-<a id="__codelineno-0-729" name="__codelineno-0-729"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-730" name="__codelineno-0-730"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">index</span><span class="o">.</span><span class="n">_index_id</span><span class="p">):</span>
-<a id="__codelineno-0-731" name="__codelineno-0-731"></a>        <span class="k">return</span> <span class="kc">False</span>
-<a id="__codelineno-0-732" name="__codelineno-0-732"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">check_structure</span><span class="p">():</span>
-<a id="__codelineno-0-733" name="__codelineno-0-733"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-<a id="__codelineno-0-734" name="__codelineno-0-734"></a>            <span class="sa">f</span><span class="s2">&quot;Refusing to register &#39;</span><span class="si">{</span><span class="n">index</span><span class="o">.</span><span class="n">_index_id</span><span class="si">}</span><span class="s2">&#39;: invalid index structure&quot;</span>
-<a id="__codelineno-0-735" name="__codelineno-0-735"></a>        <span class="p">)</span>
-<a id="__codelineno-0-736" name="__codelineno-0-736"></a>        <span class="k">return</span> <span class="kc">False</span>
-<a id="__codelineno-0-737" name="__codelineno-0-737"></a>    <span class="n">Kmindex</span><span class="o">.</span><span class="n">register_index_in_json</span><span class="p">(</span>
-<a id="__codelineno-0-738" name="__codelineno-0-738"></a>        <span class="n">index</span><span class="o">.</span><span class="n">_parent_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root_path</span><span class="p">,</span> <span class="n">index</span><span class="o">.</span><span class="n">_index_id</span>
-<a id="__codelineno-0-739" name="__codelineno-0-739"></a>    <span class="p">)</span>
-<a id="__codelineno-0-740" name="__codelineno-0-740"></a>    <span class="c1"># Reload json after kmindex modified it</span>
-<a id="__codelineno-0-741" name="__codelineno-0-741"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">load_json</span><span class="p">()</span>
-<a id="__codelineno-0-742" name="__codelineno-0-742"></a>    <span class="k">return</span> <span class="kc">True</span>
+<a id="__codelineno-0-727" name="__codelineno-0-727"></a><span class="sd">        True if index was added, False if it already exists</span>
+<a id="__codelineno-0-728" name="__codelineno-0-728"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-729" name="__codelineno-0-729"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">index</span><span class="o">.</span><span class="n">_index_id</span><span class="p">):</span>
+<a id="__codelineno-0-730" name="__codelineno-0-730"></a>        <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-0-731" name="__codelineno-0-731"></a>    <span class="n">Kmindex</span><span class="o">.</span><span class="n">register_index_in_json</span><span class="p">(</span>
+<a id="__codelineno-0-732" name="__codelineno-0-732"></a>        <span class="n">index</span><span class="o">.</span><span class="n">_parent_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root_path</span><span class="p">,</span> <span class="n">index</span><span class="o">.</span><span class="n">_index_id</span>
+<a id="__codelineno-0-733" name="__codelineno-0-733"></a>    <span class="p">)</span>
+<a id="__codelineno-0-734" name="__codelineno-0-734"></a>    <span class="c1"># Reload json after kmindex modified it</span>
+<a id="__codelineno-0-735" name="__codelineno-0-735"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">load_json</span><span class="p">()</span>
+<a id="__codelineno-0-736" name="__codelineno-0-736"></a>    <span class="k">return</span> <span class="kc">True</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -9131,7 +9097,13 @@ multiple indices from a single index.json file.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pykmhelpers/core/index.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-744">744</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-738">738</a></span>
+<span class="normal"><a href="#__codelineno-0-739">739</a></span>
+<span class="normal"><a href="#__codelineno-0-740">740</a></span>
+<span class="normal"><a href="#__codelineno-0-741">741</a></span>
+<span class="normal"><a href="#__codelineno-0-742">742</a></span>
+<span class="normal"><a href="#__codelineno-0-743">743</a></span>
+<span class="normal"><a href="#__codelineno-0-744">744</a></span>
 <span class="normal"><a href="#__codelineno-0-745">745</a></span>
 <span class="normal"><a href="#__codelineno-0-746">746</a></span>
 <span class="normal"><a href="#__codelineno-0-747">747</a></span>
@@ -9172,60 +9144,54 @@ multiple indices from a single index.json file.</p>
 <span class="normal"><a href="#__codelineno-0-782">782</a></span>
 <span class="normal"><a href="#__codelineno-0-783">783</a></span>
 <span class="normal"><a href="#__codelineno-0-784">784</a></span>
-<span class="normal"><a href="#__codelineno-0-785">785</a></span>
-<span class="normal"><a href="#__codelineno-0-786">786</a></span>
-<span class="normal"><a href="#__codelineno-0-787">787</a></span>
-<span class="normal"><a href="#__codelineno-0-788">788</a></span>
-<span class="normal"><a href="#__codelineno-0-789">789</a></span>
-<span class="normal"><a href="#__codelineno-0-790">790</a></span>
-<span class="normal"><a href="#__codelineno-0-791">791</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-744" name="__codelineno-0-744"></a><span class="k">def</span><span class="w"> </span><span class="nf">remove_index</span><span class="p">(</span>
-<a id="__codelineno-0-745" name="__codelineno-0-745"></a>    <span class="bp">self</span><span class="p">,</span> <span class="n">index_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">delete_files</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">skip_unregistered</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
-<a id="__codelineno-0-746" name="__codelineno-0-746"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<a id="__codelineno-0-747" name="__codelineno-0-747"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<a id="__codelineno-0-748" name="__codelineno-0-748"></a><span class="sd">    Remove an index from the registry.</span>
-<a id="__codelineno-0-749" name="__codelineno-0-749"></a>
-<a id="__codelineno-0-750" name="__codelineno-0-750"></a><span class="sd">    Args:</span>
-<a id="__codelineno-0-751" name="__codelineno-0-751"></a><span class="sd">        index_id: The index ID to remove from the registry.</span>
-<a id="__codelineno-0-752" name="__codelineno-0-752"></a><span class="sd">        delete_files: If True, also delete the index files from disk.</span>
-<a id="__codelineno-0-753" name="__codelineno-0-753"></a><span class="sd">        skip_unregistered: If True, silently skip unregistered indices.</span>
+<span class="normal"><a href="#__codelineno-0-785">785</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-738" name="__codelineno-0-738"></a><span class="k">def</span><span class="w"> </span><span class="nf">remove_index</span><span class="p">(</span>
+<a id="__codelineno-0-739" name="__codelineno-0-739"></a>    <span class="bp">self</span><span class="p">,</span> <span class="n">index_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">delete_files</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">skip_unregistered</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<a id="__codelineno-0-740" name="__codelineno-0-740"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<a id="__codelineno-0-741" name="__codelineno-0-741"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-742" name="__codelineno-0-742"></a><span class="sd">    Remove an index from the registry.</span>
+<a id="__codelineno-0-743" name="__codelineno-0-743"></a>
+<a id="__codelineno-0-744" name="__codelineno-0-744"></a><span class="sd">    Args:</span>
+<a id="__codelineno-0-745" name="__codelineno-0-745"></a><span class="sd">        index_id: The index ID to remove from the registry.</span>
+<a id="__codelineno-0-746" name="__codelineno-0-746"></a><span class="sd">        delete_files: If True, also delete the index files from disk.</span>
+<a id="__codelineno-0-747" name="__codelineno-0-747"></a><span class="sd">        skip_unregistered: If True, silently skip unregistered indices.</span>
+<a id="__codelineno-0-748" name="__codelineno-0-748"></a>
+<a id="__codelineno-0-749" name="__codelineno-0-749"></a><span class="sd">    Returns:</span>
+<a id="__codelineno-0-750" name="__codelineno-0-750"></a><span class="sd">        True if index was removed, False if it doesn&#39;t exist.</span>
+<a id="__codelineno-0-751" name="__codelineno-0-751"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-752" name="__codelineno-0-752"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">index_id</span><span class="p">)</span> <span class="ow">and</span> <span class="n">skip_unregistered</span><span class="p">:</span>
+<a id="__codelineno-0-753" name="__codelineno-0-753"></a>        <span class="k">return</span> <span class="kc">False</span>
 <a id="__codelineno-0-754" name="__codelineno-0-754"></a>
-<a id="__codelineno-0-755" name="__codelineno-0-755"></a><span class="sd">    Returns:</span>
-<a id="__codelineno-0-756" name="__codelineno-0-756"></a><span class="sd">        True if index was removed, False if it doesn&#39;t exist.</span>
-<a id="__codelineno-0-757" name="__codelineno-0-757"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-758" name="__codelineno-0-758"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">index_id</span><span class="p">)</span> <span class="ow">and</span> <span class="n">skip_unregistered</span><span class="p">:</span>
-<a id="__codelineno-0-759" name="__codelineno-0-759"></a>        <span class="k">return</span> <span class="kc">False</span>
-<a id="__codelineno-0-760" name="__codelineno-0-760"></a>
-<a id="__codelineno-0-761" name="__codelineno-0-761"></a>    <span class="n">index_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_index_path</span><span class="p">(</span><span class="n">index_id</span><span class="p">)</span>
-<a id="__codelineno-0-762" name="__codelineno-0-762"></a>
-<a id="__codelineno-0-763" name="__codelineno-0-763"></a>    <span class="c1"># Delete files if requested</span>
-<a id="__codelineno-0-764" name="__codelineno-0-764"></a>    <span class="k">if</span> <span class="n">delete_files</span><span class="p">:</span>
-<a id="__codelineno-0-765" name="__codelineno-0-765"></a>        <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-766" name="__codelineno-0-766"></a>            <span class="c1"># Get index before removal (needed to delete files)</span>
-<a id="__codelineno-0-767" name="__codelineno-0-767"></a>            <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span>
-<a id="__codelineno-0-768" name="__codelineno-0-768"></a>                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">index_path</span><span class="p">),</span>
-<a id="__codelineno-0-769" name="__codelineno-0-769"></a>                <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-0-770" name="__codelineno-0-770"></a>            <span class="p">)</span>
-<a id="__codelineno-0-771" name="__codelineno-0-771"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deleted index files from disk&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-772" name="__codelineno-0-772"></a>        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-773" name="__codelineno-0-773"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to delete some files: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-755" name="__codelineno-0-755"></a>    <span class="n">index_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_index_path</span><span class="p">(</span><span class="n">index_id</span><span class="p">)</span>
+<a id="__codelineno-0-756" name="__codelineno-0-756"></a>
+<a id="__codelineno-0-757" name="__codelineno-0-757"></a>    <span class="c1"># Delete files if requested</span>
+<a id="__codelineno-0-758" name="__codelineno-0-758"></a>    <span class="k">if</span> <span class="n">delete_files</span><span class="p">:</span>
+<a id="__codelineno-0-759" name="__codelineno-0-759"></a>        <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-760" name="__codelineno-0-760"></a>            <span class="c1"># Get index before removal (needed to delete files)</span>
+<a id="__codelineno-0-761" name="__codelineno-0-761"></a>            <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span>
+<a id="__codelineno-0-762" name="__codelineno-0-762"></a>                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">index_path</span><span class="p">),</span>
+<a id="__codelineno-0-763" name="__codelineno-0-763"></a>                <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-764" name="__codelineno-0-764"></a>            <span class="p">)</span>
+<a id="__codelineno-0-765" name="__codelineno-0-765"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deleted index files from disk&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-766" name="__codelineno-0-766"></a>        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-767" name="__codelineno-0-767"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to delete some files: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-768" name="__codelineno-0-768"></a>
+<a id="__codelineno-0-769" name="__codelineno-0-769"></a>    <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-770" name="__codelineno-0-770"></a>        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">islink</span><span class="p">(</span><span class="n">index_path</span><span class="p">):</span>
+<a id="__codelineno-0-771" name="__codelineno-0-771"></a>            <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">index_path</span><span class="p">)</span>
+<a id="__codelineno-0-772" name="__codelineno-0-772"></a>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-773" name="__codelineno-0-773"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error deleting link </span><span class="si">{</span><span class="n">index_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-774" name="__codelineno-0-774"></a>
-<a id="__codelineno-0-775" name="__codelineno-0-775"></a>    <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-776" name="__codelineno-0-776"></a>        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">islink</span><span class="p">(</span><span class="n">index_path</span><span class="p">):</span>
-<a id="__codelineno-0-777" name="__codelineno-0-777"></a>            <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">index_path</span><span class="p">)</span>
-<a id="__codelineno-0-778" name="__codelineno-0-778"></a>    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-0-779" name="__codelineno-0-779"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error deleting link </span><span class="si">{</span><span class="n">index_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-775" name="__codelineno-0-775"></a>    <span class="c1"># Remove the index from the JSON data</span>
+<a id="__codelineno-0-776" name="__codelineno-0-776"></a>    <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_json_data</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">][</span><span class="n">index_id</span><span class="p">]</span>
+<a id="__codelineno-0-777" name="__codelineno-0-777"></a>
+<a id="__codelineno-0-778" name="__codelineno-0-778"></a>    <span class="c1"># Create backup before writing</span>
+<a id="__codelineno-0-779" name="__codelineno-0-779"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_backup_json</span><span class="p">()</span>
 <a id="__codelineno-0-780" name="__codelineno-0-780"></a>
-<a id="__codelineno-0-781" name="__codelineno-0-781"></a>    <span class="c1"># Remove the index from the JSON data</span>
-<a id="__codelineno-0-782" name="__codelineno-0-782"></a>    <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_json_data</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">][</span><span class="n">index_id</span><span class="p">]</span>
-<a id="__codelineno-0-783" name="__codelineno-0-783"></a>
-<a id="__codelineno-0-784" name="__codelineno-0-784"></a>    <span class="c1"># Create backup before writing</span>
-<a id="__codelineno-0-785" name="__codelineno-0-785"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_backup_json</span><span class="p">()</span>
-<a id="__codelineno-0-786" name="__codelineno-0-786"></a>
-<a id="__codelineno-0-787" name="__codelineno-0-787"></a>    <span class="c1"># Write the updated JSON back to file</span>
-<a id="__codelineno-0-788" name="__codelineno-0-788"></a>    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">json_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-<a id="__codelineno-0-789" name="__codelineno-0-789"></a>        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_json_data</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
-<a id="__codelineno-0-790" name="__codelineno-0-790"></a>
-<a id="__codelineno-0-791" name="__codelineno-0-791"></a>    <span class="k">return</span> <span class="kc">True</span>
+<a id="__codelineno-0-781" name="__codelineno-0-781"></a>    <span class="c1"># Write the updated JSON back to file</span>
+<a id="__codelineno-0-782" name="__codelineno-0-782"></a>    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">json_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<a id="__codelineno-0-783" name="__codelineno-0-783"></a>        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_json_data</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<a id="__codelineno-0-784" name="__codelineno-0-784"></a>
+<a id="__codelineno-0-785" name="__codelineno-0-785"></a>    <span class="k">return</span> <span class="kc">True</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -9318,7 +9284,13 @@ multiple indices from a single index.json file.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pykmhelpers/core/index.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-827">827</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-821">821</a></span>
+<span class="normal"><a href="#__codelineno-0-822">822</a></span>
+<span class="normal"><a href="#__codelineno-0-823">823</a></span>
+<span class="normal"><a href="#__codelineno-0-824">824</a></span>
+<span class="normal"><a href="#__codelineno-0-825">825</a></span>
+<span class="normal"><a href="#__codelineno-0-826">826</a></span>
+<span class="normal"><a href="#__codelineno-0-827">827</a></span>
 <span class="normal"><a href="#__codelineno-0-828">828</a></span>
 <span class="normal"><a href="#__codelineno-0-829">829</a></span>
 <span class="normal"><a href="#__codelineno-0-830">830</a></span>
@@ -9344,45 +9316,39 @@ multiple indices from a single index.json file.</p>
 <span class="normal"><a href="#__codelineno-0-850">850</a></span>
 <span class="normal"><a href="#__codelineno-0-851">851</a></span>
 <span class="normal"><a href="#__codelineno-0-852">852</a></span>
-<span class="normal"><a href="#__codelineno-0-853">853</a></span>
-<span class="normal"><a href="#__codelineno-0-854">854</a></span>
-<span class="normal"><a href="#__codelineno-0-855">855</a></span>
-<span class="normal"><a href="#__codelineno-0-856">856</a></span>
-<span class="normal"><a href="#__codelineno-0-857">857</a></span>
-<span class="normal"><a href="#__codelineno-0-858">858</a></span>
-<span class="normal"><a href="#__codelineno-0-859">859</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-827" name="__codelineno-0-827"></a><span class="k">def</span><span class="w"> </span><span class="nf">rename_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">old_index_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">new_index_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<a id="__codelineno-0-828" name="__codelineno-0-828"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<a id="__codelineno-0-829" name="__codelineno-0-829"></a><span class="sd">    Rename an index in the registry.</span>
-<a id="__codelineno-0-830" name="__codelineno-0-830"></a>
-<a id="__codelineno-0-831" name="__codelineno-0-831"></a><span class="sd">    Args:</span>
-<a id="__codelineno-0-832" name="__codelineno-0-832"></a><span class="sd">        old_index_id: The current index ID</span>
-<a id="__codelineno-0-833" name="__codelineno-0-833"></a><span class="sd">        new_index_id: The new index ID</span>
-<a id="__codelineno-0-834" name="__codelineno-0-834"></a>
-<a id="__codelineno-0-835" name="__codelineno-0-835"></a><span class="sd">    Returns:</span>
-<a id="__codelineno-0-836" name="__codelineno-0-836"></a><span class="sd">        True if index was renamed, False if operation failed</span>
-<a id="__codelineno-0-837" name="__codelineno-0-837"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-838" name="__codelineno-0-838"></a>    <span class="c1"># Check if old index exists</span>
-<a id="__codelineno-0-839" name="__codelineno-0-839"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">old_index_id</span><span class="p">):</span>
-<a id="__codelineno-0-840" name="__codelineno-0-840"></a>        <span class="k">return</span> <span class="kc">False</span>
-<a id="__codelineno-0-841" name="__codelineno-0-841"></a>
-<a id="__codelineno-0-842" name="__codelineno-0-842"></a>    <span class="c1"># Check if new index ID already exists</span>
-<a id="__codelineno-0-843" name="__codelineno-0-843"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">new_index_id</span><span class="p">):</span>
-<a id="__codelineno-0-844" name="__codelineno-0-844"></a>        <span class="k">return</span> <span class="kc">False</span>
+<span class="normal"><a href="#__codelineno-0-853">853</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-821" name="__codelineno-0-821"></a><span class="k">def</span><span class="w"> </span><span class="nf">rename_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">old_index_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">new_index_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<a id="__codelineno-0-822" name="__codelineno-0-822"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-823" name="__codelineno-0-823"></a><span class="sd">    Rename an index in the registry.</span>
+<a id="__codelineno-0-824" name="__codelineno-0-824"></a>
+<a id="__codelineno-0-825" name="__codelineno-0-825"></a><span class="sd">    Args:</span>
+<a id="__codelineno-0-826" name="__codelineno-0-826"></a><span class="sd">        old_index_id: The current index ID</span>
+<a id="__codelineno-0-827" name="__codelineno-0-827"></a><span class="sd">        new_index_id: The new index ID</span>
+<a id="__codelineno-0-828" name="__codelineno-0-828"></a>
+<a id="__codelineno-0-829" name="__codelineno-0-829"></a><span class="sd">    Returns:</span>
+<a id="__codelineno-0-830" name="__codelineno-0-830"></a><span class="sd">        True if index was renamed, False if operation failed</span>
+<a id="__codelineno-0-831" name="__codelineno-0-831"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-832" name="__codelineno-0-832"></a>    <span class="c1"># Check if old index exists</span>
+<a id="__codelineno-0-833" name="__codelineno-0-833"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">old_index_id</span><span class="p">):</span>
+<a id="__codelineno-0-834" name="__codelineno-0-834"></a>        <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-0-835" name="__codelineno-0-835"></a>
+<a id="__codelineno-0-836" name="__codelineno-0-836"></a>    <span class="c1"># Check if new index ID already exists</span>
+<a id="__codelineno-0-837" name="__codelineno-0-837"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">new_index_id</span><span class="p">):</span>
+<a id="__codelineno-0-838" name="__codelineno-0-838"></a>        <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-0-839" name="__codelineno-0-839"></a>
+<a id="__codelineno-0-840" name="__codelineno-0-840"></a>    <span class="c1"># Create backup before writing</span>
+<a id="__codelineno-0-841" name="__codelineno-0-841"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_backup_json</span><span class="p">()</span>
+<a id="__codelineno-0-842" name="__codelineno-0-842"></a>
+<a id="__codelineno-0-843" name="__codelineno-0-843"></a>    <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_index</span><span class="p">(</span><span class="n">old_index_id</span><span class="p">)</span>
+<a id="__codelineno-0-844" name="__codelineno-0-844"></a>    <span class="n">idx</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">new_index_id</span><span class="p">)</span>
 <a id="__codelineno-0-845" name="__codelineno-0-845"></a>
-<a id="__codelineno-0-846" name="__codelineno-0-846"></a>    <span class="c1"># Create backup before writing</span>
-<a id="__codelineno-0-847" name="__codelineno-0-847"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_backup_json</span><span class="p">()</span>
+<a id="__codelineno-0-846" name="__codelineno-0-846"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">remove_index</span><span class="p">(</span><span class="n">old_index_id</span><span class="p">,</span> <span class="n">delete_files</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-0-847" name="__codelineno-0-847"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">add_index</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
 <a id="__codelineno-0-848" name="__codelineno-0-848"></a>
-<a id="__codelineno-0-849" name="__codelineno-0-849"></a>    <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_index</span><span class="p">(</span><span class="n">old_index_id</span><span class="p">)</span>
-<a id="__codelineno-0-850" name="__codelineno-0-850"></a>    <span class="n">idx</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">new_index_id</span><span class="p">)</span>
-<a id="__codelineno-0-851" name="__codelineno-0-851"></a>
-<a id="__codelineno-0-852" name="__codelineno-0-852"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">remove_index</span><span class="p">(</span><span class="n">old_index_id</span><span class="p">,</span> <span class="n">delete_files</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<a id="__codelineno-0-853" name="__codelineno-0-853"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">add_index</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
-<a id="__codelineno-0-854" name="__codelineno-0-854"></a>
-<a id="__codelineno-0-855" name="__codelineno-0-855"></a>    <span class="c1"># Write the updated JSON back to file</span>
-<a id="__codelineno-0-856" name="__codelineno-0-856"></a>    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">json_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-<a id="__codelineno-0-857" name="__codelineno-0-857"></a>        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_json_data</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
-<a id="__codelineno-0-858" name="__codelineno-0-858"></a>
-<a id="__codelineno-0-859" name="__codelineno-0-859"></a>    <span class="k">return</span> <span class="kc">True</span>
+<a id="__codelineno-0-849" name="__codelineno-0-849"></a>    <span class="c1"># Write the updated JSON back to file</span>
+<a id="__codelineno-0-850" name="__codelineno-0-850"></a>    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">json_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<a id="__codelineno-0-851" name="__codelineno-0-851"></a>        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_json_data</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<a id="__codelineno-0-852" name="__codelineno-0-852"></a>
+<a id="__codelineno-0-853" name="__codelineno-0-853"></a>    <span class="k">return</span> <span class="kc">True</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -9656,7 +9622,13 @@ result = registry.compress(
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pykmhelpers/core/index.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-881">881</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-875">875</a></span>
+<span class="normal"><a href="#__codelineno-0-876">876</a></span>
+<span class="normal"><a href="#__codelineno-0-877">877</a></span>
+<span class="normal"><a href="#__codelineno-0-878">878</a></span>
+<span class="normal"><a href="#__codelineno-0-879">879</a></span>
+<span class="normal"><a href="#__codelineno-0-880">880</a></span>
+<span class="normal"><a href="#__codelineno-0-881">881</a></span>
 <span class="normal"><a href="#__codelineno-0-882">882</a></span>
 <span class="normal"><a href="#__codelineno-0-883">883</a></span>
 <span class="normal"><a href="#__codelineno-0-884">884</a></span>
@@ -9723,86 +9695,80 @@ result = registry.compress(
 <span class="normal"><a href="#__codelineno-0-945">945</a></span>
 <span class="normal"><a href="#__codelineno-0-946">946</a></span>
 <span class="normal"><a href="#__codelineno-0-947">947</a></span>
-<span class="normal"><a href="#__codelineno-0-948">948</a></span>
-<span class="normal"><a href="#__codelineno-0-949">949</a></span>
-<span class="normal"><a href="#__codelineno-0-950">950</a></span>
-<span class="normal"><a href="#__codelineno-0-951">951</a></span>
-<span class="normal"><a href="#__codelineno-0-952">952</a></span>
-<span class="normal"><a href="#__codelineno-0-953">953</a></span>
-<span class="normal"><a href="#__codelineno-0-954">954</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-881" name="__codelineno-0-881"></a><span class="k">def</span><span class="w"> </span><span class="nf">compress</span><span class="p">(</span>
-<a id="__codelineno-0-882" name="__codelineno-0-882"></a>    <span class="bp">self</span><span class="p">,</span>
-<a id="__codelineno-0-883" name="__codelineno-0-883"></a>    <span class="n">index_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-<a id="__codelineno-0-884" name="__codelineno-0-884"></a>    <span class="n">block_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
-<a id="__codelineno-0-885" name="__codelineno-0-885"></a>    <span class="n">sampling</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20000</span><span class="p">,</span>
-<a id="__codelineno-0-886" name="__codelineno-0-886"></a>    <span class="n">column_per_block</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
-<a id="__codelineno-0-887" name="__codelineno-0-887"></a>    <span class="n">cpr_level</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
-<a id="__codelineno-0-888" name="__codelineno-0-888"></a>    <span class="n">threads</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">14</span><span class="p">,</span>
-<a id="__codelineno-0-889" name="__codelineno-0-889"></a>    <span class="n">reorder</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-890" name="__codelineno-0-890"></a>    <span class="n">delete_uncompressed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-891" name="__codelineno-0-891"></a>    <span class="n">check_results</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-0-892" name="__codelineno-0-892"></a>    <span class="n">verbose</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;info&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-893" name="__codelineno-0-893"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
-<a id="__codelineno-0-894" name="__codelineno-0-894"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<a id="__codelineno-0-895" name="__codelineno-0-895"></a><span class="sd">    Compress an index using kmindex compress command.</span>
-<a id="__codelineno-0-896" name="__codelineno-0-896"></a>
-<a id="__codelineno-0-897" name="__codelineno-0-897"></a><span class="sd">    This method is a convenience wrapper that uses KmindexWrapper to compress</span>
-<a id="__codelineno-0-898" name="__codelineno-0-898"></a><span class="sd">    an index registered in this registry.</span>
-<a id="__codelineno-0-899" name="__codelineno-0-899"></a>
-<a id="__codelineno-0-900" name="__codelineno-0-900"></a><span class="sd">    Args:</span>
-<a id="__codelineno-0-901" name="__codelineno-0-901"></a><span class="sd">        index_name: Name of the index to compress (must exist in registry).</span>
-<a id="__codelineno-0-902" name="__codelineno-0-902"></a><span class="sd">        block_size: Size of uncompressed blocks in MB (default: 8).</span>
-<a id="__codelineno-0-903" name="__codelineno-0-903"></a><span class="sd">        sampling: Number of rows to sample for reordering (default: 20000).</span>
-<a id="__codelineno-0-904" name="__codelineno-0-904"></a><span class="sd">        column_per_block: Reorder columns by group of N (0=all columns together).</span>
-<a id="__codelineno-0-905" name="__codelineno-0-905"></a><span class="sd">                         Must be a multiple of 8 (default: 0).</span>
-<a id="__codelineno-0-906" name="__codelineno-0-906"></a><span class="sd">        cpr_level: Compression level in range [1-22] (default: 3).</span>
-<a id="__codelineno-0-907" name="__codelineno-0-907"></a><span class="sd">        threads: Number of threads to use (default: 14).</span>
-<a id="__codelineno-0-908" name="__codelineno-0-908"></a><span class="sd">        reorder: Whether to reorder columns before compressing (default: False).</span>
-<a id="__codelineno-0-909" name="__codelineno-0-909"></a><span class="sd">        delete_uncompressed: Delete uncompressed index after successful compression (default: False).</span>
-<a id="__codelineno-0-910" name="__codelineno-0-910"></a><span class="sd">        check_results: Check query results after compressing (default: False).</span>
-<a id="__codelineno-0-911" name="__codelineno-0-911"></a><span class="sd">        verbose: Verbosity level (debug|info|warning|error) (default: info).</span>
-<a id="__codelineno-0-912" name="__codelineno-0-912"></a>
-<a id="__codelineno-0-913" name="__codelineno-0-913"></a><span class="sd">    Returns:</span>
-<a id="__codelineno-0-914" name="__codelineno-0-914"></a><span class="sd">        Dictionary containing compression results from KmindexWrapper.</span>
-<a id="__codelineno-0-915" name="__codelineno-0-915"></a>
-<a id="__codelineno-0-916" name="__codelineno-0-916"></a><span class="sd">    Raises:</span>
-<a id="__codelineno-0-917" name="__codelineno-0-917"></a><span class="sd">        ValueError: If index_name not found in registry.</span>
-<a id="__codelineno-0-918" name="__codelineno-0-918"></a><span class="sd">        subprocess.CalledProcessError: If kmindex compress command fails.</span>
-<a id="__codelineno-0-919" name="__codelineno-0-919"></a>
-<a id="__codelineno-0-920" name="__codelineno-0-920"></a><span class="sd">    Example:</span>
-<a id="__codelineno-0-921" name="__codelineno-0-921"></a><span class="sd">        &gt;&gt;&gt; registry = KmindexRegistry(&quot;/path/to/registry&quot;)</span>
-<a id="__codelineno-0-922" name="__codelineno-0-922"></a><span class="sd">        &gt;&gt;&gt; result = registry.compress(</span>
-<a id="__codelineno-0-923" name="__codelineno-0-923"></a><span class="sd">        ...     index_name=&quot;my_index&quot;,</span>
-<a id="__codelineno-0-924" name="__codelineno-0-924"></a><span class="sd">        ...     reorder=True,</span>
-<a id="__codelineno-0-925" name="__codelineno-0-925"></a><span class="sd">        ...     block_size=8,</span>
-<a id="__codelineno-0-926" name="__codelineno-0-926"></a><span class="sd">        ...     threads=8</span>
-<a id="__codelineno-0-927" name="__codelineno-0-927"></a><span class="sd">        ... )</span>
-<a id="__codelineno-0-928" name="__codelineno-0-928"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-929" name="__codelineno-0-929"></a>    <span class="c1"># Validate index exists in registry</span>
-<a id="__codelineno-0-930" name="__codelineno-0-930"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">index_name</span><span class="p">):</span>
-<a id="__codelineno-0-931" name="__codelineno-0-931"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-<a id="__codelineno-0-932" name="__codelineno-0-932"></a>            <span class="sa">f</span><span class="s2">&quot;Index &#39;</span><span class="si">{</span><span class="n">index_name</span><span class="si">}</span><span class="s2">&#39; not found in registry. &quot;</span>
-<a id="__codelineno-0-933" name="__codelineno-0-933"></a>            <span class="sa">f</span><span class="s2">&quot;Available indices: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">list_indices</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-934" name="__codelineno-0-934"></a>        <span class="p">)</span>
-<a id="__codelineno-0-935" name="__codelineno-0-935"></a>
-<a id="__codelineno-0-936" name="__codelineno-0-936"></a>    <span class="c1"># Import here to avoid circular imports</span>
-<a id="__codelineno-0-937" name="__codelineno-0-937"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">pykmhelpers.core.kmindex_wrapper</span><span class="w"> </span><span class="kn">import</span> <span class="n">KmindexWrapper</span>
-<a id="__codelineno-0-938" name="__codelineno-0-938"></a>
-<a id="__codelineno-0-939" name="__codelineno-0-939"></a>    <span class="c1"># Use KmindexWrapper to compress the index</span>
-<a id="__codelineno-0-940" name="__codelineno-0-940"></a>    <span class="n">wrapper</span> <span class="o">=</span> <span class="n">KmindexWrapper</span><span class="p">()</span>
-<a id="__codelineno-0-941" name="__codelineno-0-941"></a>    <span class="n">result</span> <span class="o">=</span> <span class="n">wrapper</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span>
-<a id="__codelineno-0-942" name="__codelineno-0-942"></a>        <span class="n">input_registry</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_root_path</span><span class="p">,</span>
-<a id="__codelineno-0-943" name="__codelineno-0-943"></a>        <span class="n">index_name</span><span class="o">=</span><span class="n">index_name</span><span class="p">,</span>
-<a id="__codelineno-0-944" name="__codelineno-0-944"></a>        <span class="n">block_size</span><span class="o">=</span><span class="n">block_size</span><span class="p">,</span>
-<a id="__codelineno-0-945" name="__codelineno-0-945"></a>        <span class="n">sampling</span><span class="o">=</span><span class="n">sampling</span><span class="p">,</span>
-<a id="__codelineno-0-946" name="__codelineno-0-946"></a>        <span class="n">column_per_block</span><span class="o">=</span><span class="n">column_per_block</span><span class="p">,</span>
-<a id="__codelineno-0-947" name="__codelineno-0-947"></a>        <span class="n">cpr_level</span><span class="o">=</span><span class="n">cpr_level</span><span class="p">,</span>
-<a id="__codelineno-0-948" name="__codelineno-0-948"></a>        <span class="n">threads</span><span class="o">=</span><span class="n">threads</span><span class="p">,</span>
-<a id="__codelineno-0-949" name="__codelineno-0-949"></a>        <span class="n">reorder</span><span class="o">=</span><span class="n">reorder</span><span class="p">,</span>
-<a id="__codelineno-0-950" name="__codelineno-0-950"></a>        <span class="n">delete_uncompressed</span><span class="o">=</span><span class="n">delete_uncompressed</span><span class="p">,</span>
-<a id="__codelineno-0-951" name="__codelineno-0-951"></a>        <span class="n">check_results</span><span class="o">=</span><span class="n">check_results</span><span class="p">,</span>
-<a id="__codelineno-0-952" name="__codelineno-0-952"></a>    <span class="p">)</span>
-<a id="__codelineno-0-953" name="__codelineno-0-953"></a>
-<a id="__codelineno-0-954" name="__codelineno-0-954"></a>    <span class="k">return</span> <span class="n">result</span>
+<span class="normal"><a href="#__codelineno-0-948">948</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-875" name="__codelineno-0-875"></a><span class="k">def</span><span class="w"> </span><span class="nf">compress</span><span class="p">(</span>
+<a id="__codelineno-0-876" name="__codelineno-0-876"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-877" name="__codelineno-0-877"></a>    <span class="n">index_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-878" name="__codelineno-0-878"></a>    <span class="n">block_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
+<a id="__codelineno-0-879" name="__codelineno-0-879"></a>    <span class="n">sampling</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20000</span><span class="p">,</span>
+<a id="__codelineno-0-880" name="__codelineno-0-880"></a>    <span class="n">column_per_block</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-0-881" name="__codelineno-0-881"></a>    <span class="n">cpr_level</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+<a id="__codelineno-0-882" name="__codelineno-0-882"></a>    <span class="n">threads</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">14</span><span class="p">,</span>
+<a id="__codelineno-0-883" name="__codelineno-0-883"></a>    <span class="n">reorder</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-884" name="__codelineno-0-884"></a>    <span class="n">delete_uncompressed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-885" name="__codelineno-0-885"></a>    <span class="n">check_results</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-886" name="__codelineno-0-886"></a>    <span class="n">verbose</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;info&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-887" name="__codelineno-0-887"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<a id="__codelineno-0-888" name="__codelineno-0-888"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-889" name="__codelineno-0-889"></a><span class="sd">    Compress an index using kmindex compress command.</span>
+<a id="__codelineno-0-890" name="__codelineno-0-890"></a>
+<a id="__codelineno-0-891" name="__codelineno-0-891"></a><span class="sd">    This method is a convenience wrapper that uses KmindexWrapper to compress</span>
+<a id="__codelineno-0-892" name="__codelineno-0-892"></a><span class="sd">    an index registered in this registry.</span>
+<a id="__codelineno-0-893" name="__codelineno-0-893"></a>
+<a id="__codelineno-0-894" name="__codelineno-0-894"></a><span class="sd">    Args:</span>
+<a id="__codelineno-0-895" name="__codelineno-0-895"></a><span class="sd">        index_name: Name of the index to compress (must exist in registry).</span>
+<a id="__codelineno-0-896" name="__codelineno-0-896"></a><span class="sd">        block_size: Size of uncompressed blocks in MB (default: 8).</span>
+<a id="__codelineno-0-897" name="__codelineno-0-897"></a><span class="sd">        sampling: Number of rows to sample for reordering (default: 20000).</span>
+<a id="__codelineno-0-898" name="__codelineno-0-898"></a><span class="sd">        column_per_block: Reorder columns by group of N (0=all columns together).</span>
+<a id="__codelineno-0-899" name="__codelineno-0-899"></a><span class="sd">                         Must be a multiple of 8 (default: 0).</span>
+<a id="__codelineno-0-900" name="__codelineno-0-900"></a><span class="sd">        cpr_level: Compression level in range [1-22] (default: 3).</span>
+<a id="__codelineno-0-901" name="__codelineno-0-901"></a><span class="sd">        threads: Number of threads to use (default: 14).</span>
+<a id="__codelineno-0-902" name="__codelineno-0-902"></a><span class="sd">        reorder: Whether to reorder columns before compressing (default: False).</span>
+<a id="__codelineno-0-903" name="__codelineno-0-903"></a><span class="sd">        delete_uncompressed: Delete uncompressed index after successful compression (default: False).</span>
+<a id="__codelineno-0-904" name="__codelineno-0-904"></a><span class="sd">        check_results: Check query results after compressing (default: False).</span>
+<a id="__codelineno-0-905" name="__codelineno-0-905"></a><span class="sd">        verbose: Verbosity level (debug|info|warning|error) (default: info).</span>
+<a id="__codelineno-0-906" name="__codelineno-0-906"></a>
+<a id="__codelineno-0-907" name="__codelineno-0-907"></a><span class="sd">    Returns:</span>
+<a id="__codelineno-0-908" name="__codelineno-0-908"></a><span class="sd">        Dictionary containing compression results from KmindexWrapper.</span>
+<a id="__codelineno-0-909" name="__codelineno-0-909"></a>
+<a id="__codelineno-0-910" name="__codelineno-0-910"></a><span class="sd">    Raises:</span>
+<a id="__codelineno-0-911" name="__codelineno-0-911"></a><span class="sd">        ValueError: If index_name not found in registry.</span>
+<a id="__codelineno-0-912" name="__codelineno-0-912"></a><span class="sd">        subprocess.CalledProcessError: If kmindex compress command fails.</span>
+<a id="__codelineno-0-913" name="__codelineno-0-913"></a>
+<a id="__codelineno-0-914" name="__codelineno-0-914"></a><span class="sd">    Example:</span>
+<a id="__codelineno-0-915" name="__codelineno-0-915"></a><span class="sd">        &gt;&gt;&gt; registry = KmindexRegistry(&quot;/path/to/registry&quot;)</span>
+<a id="__codelineno-0-916" name="__codelineno-0-916"></a><span class="sd">        &gt;&gt;&gt; result = registry.compress(</span>
+<a id="__codelineno-0-917" name="__codelineno-0-917"></a><span class="sd">        ...     index_name=&quot;my_index&quot;,</span>
+<a id="__codelineno-0-918" name="__codelineno-0-918"></a><span class="sd">        ...     reorder=True,</span>
+<a id="__codelineno-0-919" name="__codelineno-0-919"></a><span class="sd">        ...     block_size=8,</span>
+<a id="__codelineno-0-920" name="__codelineno-0-920"></a><span class="sd">        ...     threads=8</span>
+<a id="__codelineno-0-921" name="__codelineno-0-921"></a><span class="sd">        ... )</span>
+<a id="__codelineno-0-922" name="__codelineno-0-922"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-923" name="__codelineno-0-923"></a>    <span class="c1"># Validate index exists in registry</span>
+<a id="__codelineno-0-924" name="__codelineno-0-924"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_index</span><span class="p">(</span><span class="n">index_name</span><span class="p">):</span>
+<a id="__codelineno-0-925" name="__codelineno-0-925"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<a id="__codelineno-0-926" name="__codelineno-0-926"></a>            <span class="sa">f</span><span class="s2">&quot;Index &#39;</span><span class="si">{</span><span class="n">index_name</span><span class="si">}</span><span class="s2">&#39; not found in registry. &quot;</span>
+<a id="__codelineno-0-927" name="__codelineno-0-927"></a>            <span class="sa">f</span><span class="s2">&quot;Available indices: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">list_indices</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-928" name="__codelineno-0-928"></a>        <span class="p">)</span>
+<a id="__codelineno-0-929" name="__codelineno-0-929"></a>
+<a id="__codelineno-0-930" name="__codelineno-0-930"></a>    <span class="c1"># Import here to avoid circular imports</span>
+<a id="__codelineno-0-931" name="__codelineno-0-931"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">pykmhelpers.core.kmindex_wrapper</span><span class="w"> </span><span class="kn">import</span> <span class="n">KmindexWrapper</span>
+<a id="__codelineno-0-932" name="__codelineno-0-932"></a>
+<a id="__codelineno-0-933" name="__codelineno-0-933"></a>    <span class="c1"># Use KmindexWrapper to compress the index</span>
+<a id="__codelineno-0-934" name="__codelineno-0-934"></a>    <span class="n">wrapper</span> <span class="o">=</span> <span class="n">KmindexWrapper</span><span class="p">()</span>
+<a id="__codelineno-0-935" name="__codelineno-0-935"></a>    <span class="n">result</span> <span class="o">=</span> <span class="n">wrapper</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span>
+<a id="__codelineno-0-936" name="__codelineno-0-936"></a>        <span class="n">input_registry</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_root_path</span><span class="p">,</span>
+<a id="__codelineno-0-937" name="__codelineno-0-937"></a>        <span class="n">index_name</span><span class="o">=</span><span class="n">index_name</span><span class="p">,</span>
+<a id="__codelineno-0-938" name="__codelineno-0-938"></a>        <span class="n">block_size</span><span class="o">=</span><span class="n">block_size</span><span class="p">,</span>
+<a id="__codelineno-0-939" name="__codelineno-0-939"></a>        <span class="n">sampling</span><span class="o">=</span><span class="n">sampling</span><span class="p">,</span>
+<a id="__codelineno-0-940" name="__codelineno-0-940"></a>        <span class="n">column_per_block</span><span class="o">=</span><span class="n">column_per_block</span><span class="p">,</span>
+<a id="__codelineno-0-941" name="__codelineno-0-941"></a>        <span class="n">cpr_level</span><span class="o">=</span><span class="n">cpr_level</span><span class="p">,</span>
+<a id="__codelineno-0-942" name="__codelineno-0-942"></a>        <span class="n">threads</span><span class="o">=</span><span class="n">threads</span><span class="p">,</span>
+<a id="__codelineno-0-943" name="__codelineno-0-943"></a>        <span class="n">reorder</span><span class="o">=</span><span class="n">reorder</span><span class="p">,</span>
+<a id="__codelineno-0-944" name="__codelineno-0-944"></a>        <span class="n">delete_uncompressed</span><span class="o">=</span><span class="n">delete_uncompressed</span><span class="p">,</span>
+<a id="__codelineno-0-945" name="__codelineno-0-945"></a>        <span class="n">check_results</span><span class="o">=</span><span class="n">check_results</span><span class="p">,</span>
+<a id="__codelineno-0-946" name="__codelineno-0-946"></a>    <span class="p">)</span>
+<a id="__codelineno-0-947" name="__codelineno-0-947"></a>
+<a id="__codelineno-0-948" name="__codelineno-0-948"></a>    <span class="k">return</span> <span class="n">result</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -9825,13 +9791,13 @@ result = registry.compress(
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pykmhelpers/core/index.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-956">956</a></span>
-<span class="normal"><a href="#__codelineno-0-957">957</a></span>
-<span class="normal"><a href="#__codelineno-0-958">958</a></span>
-<span class="normal"><a href="#__codelineno-0-959">959</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-956" name="__codelineno-0-956"></a><span class="k">def</span><span class="w"> </span><span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<a id="__codelineno-0-957" name="__codelineno-0-957"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Iterate over all Index objects.&quot;&quot;&quot;</span>
-<a id="__codelineno-0-958" name="__codelineno-0-958"></a>    <span class="k">for</span> <span class="n">_index_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_indices</span><span class="p">():</span>
-<a id="__codelineno-0-959" name="__codelineno-0-959"></a>        <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_index</span><span class="p">(</span><span class="n">_index_id</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-950">950</a></span>
+<span class="normal"><a href="#__codelineno-0-951">951</a></span>
+<span class="normal"><a href="#__codelineno-0-952">952</a></span>
+<span class="normal"><a href="#__codelineno-0-953">953</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-950" name="__codelineno-0-950"></a><span class="k">def</span><span class="w"> </span><span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-0-951" name="__codelineno-0-951"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Iterate over all Index objects.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-952" name="__codelineno-0-952"></a>    <span class="k">for</span> <span class="n">_index_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_indices</span><span class="p">():</span>
+<a id="__codelineno-0-953" name="__codelineno-0-953"></a>        <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_index</span><span class="p">(</span><span class="n">_index_id</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -9854,11 +9820,11 @@ result = registry.compress(
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pykmhelpers/core/index.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-961">961</a></span>
-<span class="normal"><a href="#__codelineno-0-962">962</a></span>
-<span class="normal"><a href="#__codelineno-0-963">963</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-961" name="__codelineno-0-961"></a><span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-<a id="__codelineno-0-962" name="__codelineno-0-962"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get number of indices.&quot;&quot;&quot;</span>
-<a id="__codelineno-0-963" name="__codelineno-0-963"></a>    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_json_data</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">])</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-955">955</a></span>
+<span class="normal"><a href="#__codelineno-0-956">956</a></span>
+<span class="normal"><a href="#__codelineno-0-957">957</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-955" name="__codelineno-0-955"></a><span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<a id="__codelineno-0-956" name="__codelineno-0-956"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get number of indices.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-957" name="__codelineno-0-957"></a>    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_json_data</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">])</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -9881,13 +9847,13 @@ result = registry.compress(
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pykmhelpers/core/index.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-965">965</a></span>
-<span class="normal"><a href="#__codelineno-0-966">966</a></span>
-<span class="normal"><a href="#__codelineno-0-967">967</a></span>
-<span class="normal"><a href="#__codelineno-0-968">968</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-965" name="__codelineno-0-965"></a><span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<a id="__codelineno-0-966" name="__codelineno-0-966"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;String representation.&quot;&quot;&quot;</span>
-<a id="__codelineno-0-967" name="__codelineno-0-967"></a>    <span class="n">indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_indices</span><span class="p">()</span>
-<a id="__codelineno-0-968" name="__codelineno-0-968"></a>    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;IndexRegistry(path=&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_root_path</span><span class="si">}</span><span class="s2">&#39;, indices=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">indices</span><span class="si">}</span><span class="s2">)&quot;</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-959">959</a></span>
+<span class="normal"><a href="#__codelineno-0-960">960</a></span>
+<span class="normal"><a href="#__codelineno-0-961">961</a></span>
+<span class="normal"><a href="#__codelineno-0-962">962</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-959" name="__codelineno-0-959"></a><span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<a id="__codelineno-0-960" name="__codelineno-0-960"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;String representation.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-961" name="__codelineno-0-961"></a>    <span class="n">indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_indices</span><span class="p">()</span>
+<a id="__codelineno-0-962" name="__codelineno-0-962"></a>    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;IndexRegistry(path=&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_root_path</span><span class="si">}</span><span class="s2">&#39;, indices=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">indices</span><span class="si">}</span><span class="s2">)&quot;</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
