@@ -158,9 +158,7 @@ def query(
     parallel,
     query_files,
 ):
-    start_time = time.time()
-
-    \b
+    """\b
     Input:  FASTA/FASTQ file(s), kmindex registry (-r)
     Output: result files in output directory (-o)
 
@@ -186,6 +184,7 @@ def query(
       # Scan a directory recursively
       kmhelpers query -r ./registry -n idx1 -o results ./queries_dir/
     """
+    start_time = time.time()
     registry = KmindexRegistry(registry_path)
 
     if index_ids:
