@@ -56,7 +56,7 @@ Several tools tackle large-scale sequence search with $k$-mer-based data structu
 `kmhelpers` wraps, builds on the `kmtricks` [@lemane2022] counting pipeline and
 is designed for efficient querying of large sequence collections.
 
-`kmhelpers` does not compete with any of these approaches at the algorithmic level. Its contribution lies in correctly parametrizing `kmindex`'s individual components and orchestrating them into a single, size-optimized workflow. `kmhelpers` implements the decisions a `kmindex` expert would otherwise make by hand: `profile` computes Bloom filter sizes and sample-to-sub-index assignments that minimize total index size under a false-positive-rate constraint; `plan` estimates disk and memory requirements before any build starts; and `registry` federates independently built sub-indexes into one logical index. No dedicated automation layer of this kind existed for `kmindex` prior to `kmhelpers`.
+`kmhelpers` does not compete with any of these approaches at the algorithmic level. Its contribution lies in correctly parametrizing `kmindex`'s individual components and orchestrating them into a single, size-optimized workflow. `kmhelpers` implements the decisions a `kmindex` expert would otherwise make by hand: `profile` computes Bloom filter sizes and sample-to-sub-index assignments that minimize total index size under a false-positive-rate constraint; `plan` estimates disk and memory requirements before any build starts; and `manage` federates independently built sub-indexes into one logical index. No dedicated automation layer of this kind existed for `kmindex` prior to `kmhelpers`.
 
 # Software design
 
@@ -81,7 +81,7 @@ For ease of use, steps `list`, `profile`, and `compose` can be grouped under a s
 
 Once an index is built, `kmhelpers` also answers queries (**`query`**). Multi-step workflows can be described as declarative YAML pipelines (**`pipeline`**) and executed in a single command.
 
-An additional command, **`registry`**, lets users register several distinct indexes (built locally or hosted anywhere accessible) into one logical index, redirecting each query to all registered indexes at query time.
+An additional command, **`manage`**, lets users register several distinct indexes (built locally or hosted anywhere accessible) into one logical index, redirecting each query to all registered indexes at query time.
 
 ![Overview of the `kmhelpers` workflow](figures/workflow_V2.pdf)
 
