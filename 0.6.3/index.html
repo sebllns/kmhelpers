@@ -14,7 +14,7 @@
       
       
       
-        <link rel="next" href="installation/">
+        <link rel="next" href="getting-started/">
       
       
         
@@ -260,7 +260,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="installation/" class="md-tabs__link">
+        <a href="getting-started/" class="md-tabs__link">
           
   
   
@@ -564,6 +564,10 @@
     
       
         
+          
+        
+      
+        
       
         
       
@@ -585,8 +589,9 @@
         <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
-            
+          <div class="md-nav__link md-nav__container">
+            <a href="getting-started/" class="md-nav__link ">
+              
   
   
   <span class="md-ellipsis">
@@ -600,8 +605,14 @@
   
   
 
-            <span class="md-nav__icon md-icon"></span>
-          </label>
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2">
@@ -615,13 +626,15 @@
           <ul class="md-nav__list" data-md-scrollfix>
             
               
+            
+              
                 
   
   
   
   
     <li class="md-nav__item">
-      <a href="installation/" class="md-nav__link">
+      <a href="getting-started/installation/" class="md-nav__link">
         
   
   
@@ -649,7 +662,7 @@
   
   
     <li class="md-nav__item">
-      <a href="getting-started/" class="md-nav__link">
+      <a href="getting-started/getting-started/" class="md-nav__link">
         
   
   
@@ -2353,8 +2366,8 @@
 <p>Most <code>kmhelpers</code> commands (<code>design</code>, <code>plan</code>, <code>query</code>, <code>compose</code>, ...) complete in a few seconds, since they mainly manipulate metadata and small files. The exception is <strong><code>build</code></strong> (and the underlying <code>apply</code> build/merge steps): actual k-mer counting and Bloom-filter construction are CPU- and I/O-bound, so runtime scales with sample count and data size — expect build/merge steps to take anywhere from seconds to hours depending on dataset size, <code>--threads</code>, and storage speed.</p>
 <h2 id="quick-links">Quick links</h2>
 <ul>
-<li><a href="installation/">Installation</a></li>
-<li><a href="getting-started/">Quick Start</a></li>
+<li><a href="getting-started/installation/">Installation</a></li>
+<li><a href="getting-started/getting-started/">Quick Start</a></li>
 <li><a href="commands/">Command Reference</a></li>
 <li><a href="changelog/">Changelog</a></li>
 <li><a href="https://github.com/sebllns/kmhelpers">Repository</a></li>
@@ -2383,7 +2396,7 @@
 </tr>
 </tbody>
 </table>
-<p>See <a href="installation/">Installation</a> for build instructions.</p>
+<p>See <a href="getting-started/installation/">Installation</a> for build instructions.</p>
 <h2 id="license">License</h2>
 <p>GPL-3.0-only — Copyright © 2026 Sébastien Bellenous, Genscale, INRIA</p>
 
@@ -2424,13 +2437,13 @@
         
         
           
-          <a href="installation/" class="md-footer__link md-footer__link--next" aria-label="Next: Installation">
+          <a href="getting-started/" class="md-footer__link md-footer__link--next" aria-label="Next: Overview">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Installation
+                Overview
               </div>
             </div>
             <div class="md-footer__button md-icon">
