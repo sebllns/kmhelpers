@@ -160,3 +160,11 @@ kmhelpers query -r coli_build/ -o results/ query.fa
 ## References
 
 - Jarno N. Alanko. (2022). *E. coli assemblies from NCBI* [Data set]. Zenodo. <https://doi.org/10.5281/zenodo.6577997>
+
+---
+
+![E. Coli colony](images/E.coli-colony-growth.gif){ width="50%" style="display: block; margin: 0 auto;" }
+
+*Stewart EJ, Madden R, Paul G, Taddei F (2005), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0), via [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:E.coli-colony-growth.gif)*
+{: style="text-align: center; font-size: 0.85em;" }
+
