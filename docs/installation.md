@@ -19,19 +19,7 @@ cd kmhelpers
 conda env create -f conda/environment.yml -p ./.env
 ```
 
-This installs `ntcard` and all Python dependencies into a local `.env` directory.  
-For kmhelpers versions prior to 0.6.3, `kmindex` is also installed automatically from conda.
-
-!!! warning "Temporary requirement for kmhelpers 0.6.3 — `kmindex` must be built from source"
-    The `static_repart` feature required by kmhelpers 0.6.3 is not yet available in the conda release of `kmindex`.
-    Until the next `kmindex` release, build `kmindex` and `kmtricks` from source using:
-
-    ```bash
-    bash scripts/setup.sh
-    ```
-
-    See the [README](https://github.com/sebllns/kmhelpers/tree/dev/v0.6.3#install-kmindex) for platform support, manual build instructions, and more details.
-
+This installs `kmindex`, `ntcard`, and all Python dependencies into a local `.env` directory.
 
 ### 3. Activate the environment
 
