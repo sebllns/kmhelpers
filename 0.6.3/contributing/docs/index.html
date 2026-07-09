@@ -1317,14 +1317,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../commands/registry/" class="md-nav__link">
+      <a href="../../commands/manage/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    registry
+    manage
   
 
     
@@ -2186,17 +2186,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#structure" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Structure
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#adding-or-editing-pages" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2326,17 +2315,6 @@
     <span class="md-ellipsis">
       
         Build static site
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#structure" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Structure
       
     </span>
   </a>
@@ -2491,31 +2469,6 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mkdocs<span class="w"> </span>build
 </code></pre></div>
 <p>The <code>site/</code> directory is git-ignored and should not be committed.</p>
-<h2 id="structure">Structure</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mkdocs.yml          # MkDocs configuration
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>docs/
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>  index.md          # Home page
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>  getting-started/
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    index.md        # Getting Started overview
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    installation.md # Installation guide
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    getting-started.md
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>  changelog.md      # Includes CHANGELOG.md via snippet
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>  tutorials/
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>    ecoli.md        # E. coli indexing tutorial
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>  commands/
-<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>    index.md        # Command reference overview
-<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>    list.md
-<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>    profile.md
-<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>    compose.md
-<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>    plan.md
-<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>    apply.md
-<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>    query.md
-<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>    compress.md
-<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>    registry.md
-<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>    pipeline.md
-<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a>  contributing/
-<a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a>    docs.md         # This file
-</code></pre></div>
 <h2 id="adding-or-editing-pages">Adding or editing pages</h2>
 <ol>
 <li>Edit or create a <code>.md</code> file under <code>docs/</code>.</li>
@@ -2525,17 +2478,17 @@
 <h2 id="deploying-to-github-pages">Deploying to GitHub Pages</h2>
 <p>Docs are versioned with <a href="https://github.com/jimporter/mike">mike</a>. Do <strong>not</strong> use <code>mkdocs gh-deploy</code> — it overwrites the entire <code>gh-pages</code> branch and destroys version history.</p>
 <h3 id="deploy-a-new-version">Deploy a new version</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mike<span class="w"> </span>deploy<span class="w"> </span>--push<span class="w"> </span>--update-aliases<span class="w"> </span>&lt;version&gt;<span class="w"> </span>latest
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mike<span class="w"> </span>deploy<span class="w"> </span>--push<span class="w"> </span>--update-aliases<span class="w"> </span>&lt;version&gt;<span class="w"> </span>latest
 </code></pre></div>
 <p>Example for a release:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mike<span class="w"> </span>deploy<span class="w"> </span>--push<span class="w"> </span>--update-aliases<span class="w"> </span><span class="m">0</span>.6.3<span class="w"> </span>latest
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mike<span class="w"> </span>deploy<span class="w"> </span>--push<span class="w"> </span>--update-aliases<span class="w"> </span><span class="m">0</span>.6.3<span class="w"> </span>latest
 </code></pre></div>
 <p>This builds the docs, pushes them to <code>gh-pages</code> under <code>/&lt;version&gt;/</code>, and updates the <code>latest</code> alias to point to it.</p>
 <h3 id="list-deployed-versions">List deployed versions</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mike<span class="w"> </span>list
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mike<span class="w"> </span>list
 </code></pre></div>
 <h3 id="preview-versioned-docs-locally">Preview versioned docs locally</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>mike<span class="w"> </span>serve
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mike<span class="w"> </span>serve
 </code></pre></div>
 
 

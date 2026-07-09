@@ -1452,14 +1452,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../commands/registry/" class="md-nav__link">
+      <a href="../../commands/manage/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    registry
+    manage
   
 
     
@@ -2440,12 +2440,16 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/sebllns/kmhelpers
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>kmhelpers
 </code></pre></div>
+<p>To clone a specific version tag directly:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>git<span class="w"> </span>clone<span class="w"> </span>--branch<span class="w"> </span>v0.6.3<span class="w"> </span>https://github.com/sebllns/kmhelpers
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">cd</span><span class="w"> </span>kmhelpers
+</code></pre></div>
 <h3 id="2-create-the-conda-environment">2. Create the Conda environment</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>conda<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>conda/environment.yml<span class="w"> </span>-p<span class="w"> </span>./.env
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>conda<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>conda/environment.yml<span class="w"> </span>-p<span class="w"> </span>./.env
 </code></pre></div>
 <p>This installs <code>kmindex</code>, <code>ntcard</code>, and all Python dependencies into a local <code>.env</code> directory.</p>
 <h3 id="3-activate-the-environment">3. Activate the environment</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>./.env
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>./.env
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -2454,27 +2458,31 @@
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
 <p>You can install to a permanent location instead:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>conda<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>conda/environment.yml<span class="w"> </span>-p<span class="w"> </span>~/.kmhelpers
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>~/.kmhelpers
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>conda<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>conda/environment.yml<span class="w"> </span>-p<span class="w"> </span>~/.kmhelpers
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>~/.kmhelpers
 </code></pre></div>
 </div>
 <h3 id="4-verify">4. Verify</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kmhelpers<span class="w"> </span>--version
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>kmhelpers<span class="w"> </span>--help
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kmhelpers<span class="w"> </span>--version
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>kmhelpers<span class="w"> </span>--help
 </code></pre></div>
 <p>Verify dependencies:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kmindex<span class="w"> </span>--version
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>kmtricks<span class="w"> </span>--version
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>ntcard<span class="w"> </span>--version
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kmindex<span class="w"> </span>--version
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>kmtricks<span class="w"> </span>--version
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>ntcard<span class="w"> </span>--version
 </code></pre></div>
 <h2 id="updating">Updating</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>git<span class="w"> </span>pull<span class="w"> </span>origin<span class="w"> </span>main
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>git<span class="w"> </span>pull<span class="w"> </span>origin<span class="w"> </span>main
 </code></pre></div>
 <p>To pull from a specific branch:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>git<span class="w"> </span>pull<span class="w"> </span>origin<span class="w"> </span>dev/v0.6.3
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>git<span class="w"> </span>pull<span class="w"> </span>origin<span class="w"> </span>release/v0.6.3
+</code></pre></div>
+<p>To check out a specific tag instead:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>git<span class="w"> </span>fetch<span class="w"> </span>--tags
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>git<span class="w"> </span>checkout<span class="w"> </span>v0.6.3
 </code></pre></div>
 <p>Then verify the installed version:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>kmhelpers<span class="w"> </span>--version
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>kmhelpers<span class="w"> </span>--version
 </code></pre></div>
 
 
