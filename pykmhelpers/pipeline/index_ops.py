@@ -539,44 +539,208 @@ class IndexOps:
                 if lookup and lookup in sample_data:
                     sample.files = sample_data[lookup]
 
-    def _resolve_build_params(self, i: IndexDefinition) -> tuple[int, int]:
-        """Resolve ``(threads, partition_count)`` for building index ``i``.
+    def _resolve_build_params(
+        self, i: IndexDefinition, sample_count: int
+    ) -> tuple[int, int, Optional[int]]:
+        """Resolve ``(threads, partition_count, chunk_size)`` for building index ``i``.
 
         If ``kmindex_threads`` is explicitly configured, it is used as-is
         together with the storage-driven partition count already computed
         by ``IndexComposer`` (``i.partition_count``), preserving prior
-        behaviour exactly.
+        behaviour exactly; ``chunk_size`` is always ``None`` in that case.
 
         Otherwise, threads and a RAM-driven partition floor are computed
-        from ``i``'s own sample count and max k-mer count via
-        ``auto_params``. The returned partition count is
-        never lower than the storage-driven value, since both are separate
-        constraints on the same ``--nb-partitions`` flag.
+        from ``i``'s max k-mer count and ``sample_count`` via
+        ``auto_params``. The returned partition count is never lower than
+        the storage-driven value, since both are separate constraints on
+        the same ``--nb-partitions`` flag. If the open-files ceiling can't
+        fit ``sample_count`` samples in one kmtricks build, ``chunk_size``
+        is set to the max samples one physical sub-build can hold; the
+        caller is expected to split the build into
+        ``ceil(sample_count / chunk_size)`` chunks (see ``_build_chunked``).
         """
         partition_count = self.config.partition_count or i.partition_count
 
         if self.config.kmindex_threads:
-            return self.config.kmindex_threads, partition_count
+            return self.config.kmindex_threads, partition_count, None
 
         kmers = max((s.kmer_count for s in i.samples.values()), default=0)
         params = auto_params(
             kmers=kmers,
-            samples=i.sample_count,
+            samples=sample_count,
             limits=self.config.limits or "{}",
             safety_margin=self.config.safety_margin,
         )
-        if params.samples < i.sample_count:
-            raise ValueError(
-                f"Index '{i.name}' has {i.sample_count} samples, exceeding "
-                f"the {params.samples} a single kmtricks build can fit "
-                f"under the current open-files limit"
+        if (
+            params.threads is None
+            or params.samples is None
+            or params.partitions is None
+        ):
+            raise TypeError(
+                f"expected auto_params() to set threads/samples/partitions, got "
+                f"threads={params.threads!r}, samples={params.samples!r}, "
+                f"partitions={params.partitions!r}"
+            )
+        chunk_size = params.samples if params.samples < sample_count else None
+        if chunk_size is not None:
+            logger.info(
+                f"  └── '{i.name}' has {sample_count} samples, exceeding the "
+                f"{chunk_size} a single kmtricks build can fit under the "
+                f"current open-files limit; splitting into chunks"
             )
 
         logger.debug(
             f"  └── Auto-sized: threads={params.threads}, "
             f"partitions={max(partition_count, params.partitions)}"
         )
-        return params.threads, max(partition_count, params.partitions)
+        return params.threads, max(partition_count, params.partitions), chunk_size
+
+    def _build_one(
+        self,
+        builder: IndexBuilder,
+        name: str,
+        fof: FofManager,
+        i: IndexDefinition,
+        threads: int,
+        partition_count: int,
+    ) -> dict | None:
+        """Build a single physical sub-index, showing a progress spinner or bar if configured.
+
+        Delegates to ``IndexBuilder.create_subindex`` using ``i``'s shared
+        build parameters (bloom size, abundance min, k-mer size) with a
+        caller-supplied ``name``/``fof``, so this can build either the
+        whole index or one chunk of it (see ``_build_chunked``). The
+        generated command is appended to ``_script_lines`` for later script
+        export.
+        """
+        # --- Progress handlers setup
+        stop_event = None
+        wait_handler = None
+        progress_handler = None
+
+        if self._mode == ApplyMode.APPLY_SHOW_PROGRESS:
+            start = datetime.now()
+            stop_event = threading.Event()
+
+            def _progress_worker():
+                sleep(2)
+                s = 0
+                wait_steps = ["⢿", "⣻", "⣽", "⣾", "⣷", "⣯", "⣟", "⡿"]
+                while not stop_event.wait(timeout=0.5):
+                    print(
+                        f"\r\033[1;32m{wait_steps[s]} Building index '{name}'...\033[0m ",
+                        end="",
+                        flush=True,
+                    )
+                    s = (s + 1) % len(wait_steps)
+
+            wait_handler = threading.Thread(target=_progress_worker, daemon=True)
+            wait_handler.start()
+
+            def _on_progress(value: float):
+                elapsed = (datetime.now() - start).total_seconds()
+                bar_len = 30
+                filled = int(round(bar_len * value))
+                bar = "■" * filled + " " * (bar_len - filled)
+                print(
+                    f"\r[{bar}] {value * 100:.1f}%  elapsed: {int(elapsed // 60)}m{int(elapsed % 60):02d}s      ",
+                    end="",
+                    flush=True,
+                )
+                if stop_event:
+                    stop_event.set()
+
+                if wait_handler:
+                    wait_handler.join()
+
+            progress_handler = IndexBuilder.Progress(_on_progress, delay=60)
+        elif self._mode >= ApplyMode.APPLY:
+            logger.info(f"  └── Building '{name}'...")
+
+        # --- Call builder
+        try:
+            result = builder.create_subindex(
+                name=name,
+                samples=fof,
+                abundance_min=i.abundance_min,
+                bloom_size=i.bf_size,
+                n_partitions=partition_count,
+                n_threads=threads,
+                auto_check=True,
+                compress_intermediate=not self.config.kmindex_skip_compression,
+                minim_size=self.config.minimizer_length,
+                dry_run=self._mode < ApplyMode.APPLY,
+                kmer_size=i.kmer_size,
+                on_existing=self.config.on_existing,
+                progress=progress_handler,
+            )
+            if result and "command" in result:
+                self._append_script(result["command"])
+        finally:
+            if stop_event:
+                stop_event.set()
+            if wait_handler:
+                wait_handler.join()
+
+        # --- Post-build verification
+        if self._mode >= ApplyMode.APPLY:
+            builder.index.load_json()
+            assert builder.has_subindex(name), f"Could not find index '{name}'"
+
+        return result
+
+    def _build_chunked(
+        self,
+        builder: IndexBuilder,
+        i: IndexDefinition,
+        fof: FofManager,
+        chunk_size: int,
+        threads: int,
+        partition_count: int,
+    ) -> dict | None:
+        """Build index ``i`` as several ``chunk_size``-sized sub-builds, then merge them.
+
+        Used when the open-files ceiling can't fit every sample of ``i`` in
+        a single kmtricks build (see ``_resolve_build_params``). Each chunk
+        is built under a transient ``{i.name}__chunk{n}`` name via
+        ``_build_one``, then merged into ``i.name`` via the same
+        ``builder.merge()`` call ``_merge`` uses for span-registry merges,
+        after which the transient chunk sub-indexes are deleted.
+        """
+        if not i.name:
+            raise ValueError("IndexDefinition is missing required 'name' field")
+
+        items = list(fof.samples.items())
+        chunks = [items[n : n + chunk_size] for n in range(0, len(items), chunk_size)]
+        chunk_names = [f"{i.name}__chunk{n}" for n in range(len(chunks))]
+
+        logger.info(
+            f"  └── Splitting '{i.name}' into {len(chunks)} chunks of up to "
+            f"{chunk_size} samples (open-files limit)"
+        )
+
+        for chunk_name, chunk_items in zip(chunk_names, chunks):
+            chunk_fof = FofManager(samples=dict(chunk_items))
+            self._build_one(builder, chunk_name, chunk_fof, i, threads, partition_count)
+
+        result = builder.merge(
+            i.name,
+            chunk_names,
+            delete_old=False,
+            dry_run=self._mode < ApplyMode.APPLY,
+            threads=threads,
+        )
+        if result and "command" in result:
+            self._append_script(result["command"])
+
+        if self._mode >= ApplyMode.APPLY:
+            builder.index.load_json()
+            assert builder.has_subindex(i.name), f"Could not find index '{i.name}'"
+            if builder.index.get_index(i.name).check_structure():
+                for chunk_name in chunk_names:
+                    self._delete_segment(builder, chunk_name)
+
+        return result
 
     def _run_build(
         self, builder: IndexBuilder, i: IndexDefinition
@@ -584,8 +748,8 @@ class IndexOps:
         """Build a single sub-index, showing a progress spinner or bar if configured.
 
         Resolves sample file paths, populates a ``FofManager``, and delegates
-        the actual build to ``IndexBuilder.create_subindex``.  The generated
-        command is appended to ``_script_lines`` for later script export.
+        the actual build to ``_build_one`` or, when the open-files ceiling
+        requires it, to ``_build_chunked``.
 
         Args:
             builder: The ``IndexBuilder`` instance managing the target registry.
@@ -593,9 +757,9 @@ class IndexOps:
 
         Returns:
             A ``(build_result, issues)`` tuple where ``build_result`` is the
-            dict returned by ``IndexBuilder.create_subindex`` (or ``None`` if
-            the index was already building or no samples were added), and
-            ``issues`` is a list of sample-level warning strings.
+            dict returned by the build/merge call (or ``None`` if the index
+            was already building or no samples were added), and ``issues``
+            is a list of sample-level warning strings.
         """
         assert i.name, "IndexDefinition is missing required 'name' field"
 
@@ -617,80 +781,17 @@ class IndexOps:
         result = None
         self._building.add(i.name)
         if fof.get_sample_count() > 0:
-            # --- Progress handlers setup
-            stop_event = None
-            wait_handler = None
-            progress_handler = None
-
-            if self._mode == ApplyMode.APPLY_SHOW_PROGRESS:
-                start = datetime.now()
-                stop_event = threading.Event()
-
-                def _progress_worker():
-                    sleep(2)
-                    s = 0
-                    wait_steps = ["⢿", "⣻", "⣽", "⣾", "⣷", "⣯", "⣟", "⡿"]
-                    while not stop_event.wait(timeout=0.5):
-                        print(
-                            f"\r\033[1;32m{wait_steps[s]} Building index '{i.name}'...\033[0m ",
-                            end="",
-                            flush=True,
-                        )
-                        s = (s + 1) % len(wait_steps)
-
-                wait_handler = threading.Thread(target=_progress_worker, daemon=True)
-                wait_handler.start()
-
-                def _on_progress(value: float):
-                    elapsed = (datetime.now() - start).total_seconds()
-                    bar_len = 30
-                    filled = int(round(bar_len * value))
-                    bar = "■" * filled + " " * (bar_len - filled)
-                    print(
-                        f"\r[{bar}] {value * 100:.1f}%  elapsed: {int(elapsed // 60)}m{int(elapsed % 60):02d}s      ",
-                        end="",
-                        flush=True,
-                    )
-                    if stop_event:
-                        stop_event.set()
-
-                    if wait_handler:
-                        wait_handler.join()
-
-                progress_handler = IndexBuilder.Progress(_on_progress, delay=60)
-            elif self._mode >= ApplyMode.APPLY:
-                logger.info(f"  └── Building '{i.name}'...")
-
-            # --- Call builder
-            try:
-                threads, partition_count = self._resolve_build_params(i)
-                result = builder.create_subindex(
-                    name=i.name,
-                    samples=fof,
-                    abundance_min=i.abundance_min,
-                    bloom_size=i.bf_size,
-                    n_partitions=partition_count,
-                    n_threads=threads,
-                    auto_check=True,
-                    compress_intermediate=not self.config.kmindex_skip_compression,
-                    minim_size=self.config.minimizer_length,
-                    dry_run=self._mode < ApplyMode.APPLY,
-                    kmer_size=i.kmer_size,
-                    on_existing=self.config.on_existing,
-                    progress=progress_handler,
+            threads, partition_count, chunk_size = self._resolve_build_params(
+                i, fof.get_sample_count()
+            )
+            if chunk_size is not None:
+                result = self._build_chunked(
+                    builder, i, fof, chunk_size, threads, partition_count
                 )
-                if result and "command" in result:
-                    self._append_script(result["command"])
-            finally:
-                if stop_event:
-                    stop_event.set()
-                if wait_handler:
-                    wait_handler.join()
-
-            # --- Post-build verification
-            if self._mode >= ApplyMode.APPLY:
-                builder.index.load_json()
-                assert builder.has_subindex(i.name), f"Could not find index '{i.name}'"
+            else:
+                result = self._build_one(
+                    builder, i.name, fof, i, threads, partition_count
+                )
         else:
             logger.warning(
                 f"{self._indent_prefix()}Skipping index '{i.name}' as no sample was added to it"
