@@ -63,7 +63,8 @@ Open pull requests against `main` for releases, or against `develop` for work in
 ## Releasing
 
 !!! abstract
-    A release consolidates current development work from `develop` into a dedicated `release/vX.Y.Z` branch, then squash-merges it into `main` as a single versioned commit. This keeps `main` history clean and readable while `develop` retains the full commit history.
+    A release consolidates current development work from `develop` into a dedicated `release/vX.Y.Z` branch, then merges it into `main` with a **merge commit** (`--no-ff`). This keeps `main` readable, one merge commit per release when viewed with `--first-parent`, while preserving full history and correct ancestry, so subsequent releases keep merging cleanly.
+
 
 1. Work on a `dev/vX.Y.Z` branch:
    ```bash
@@ -83,7 +84,14 @@ Open pull requests against `main` for releases, or against `develop` for work in
    git checkout -b release/vX.Y.Z
    git push origin release/vX.Y.Z
    ```
-5. Open a pull request from `release/vX.Y.Z` into `main` — use **Squash and merge** with commit message `Release vX.Y.Z`. This keeps `main` history clean with one commit per release.
+5. Merge `release/vX.Y.Z` into `main` with a merge commit (never fast-forward, never squash):
+   ```bash
+   git checkout main
+   git pull origin main
+   git merge --no-ff release/vX.Y.Z -m "Merge branch 'release/vX.Y.Z' into 'main'"
+   git push origin main
+   ```
+   `--no-ff` forces a merge commit even though `main` is an ancestor of the release branch; without it Git would fast-forward and you would lose the per-release merge marker. If you release via a GitLab MR / GitHub PR instead, choose **Create a merge commit** (not squash, not fast-forward).
 6. After merge, tag the release on `main`:
    ```bash
    git checkout main
@@ -101,3 +109,23 @@ Open pull requests against `main` for releases, or against `develop` for work in
    ```bash
    mkdocs gh-deploy
    ```
+
+### Viewing `main` history
+
+Because releases land as `--no-ff` merge commits, `main` reads as one entry per release with `--first-parent`:
+
+```bash
+git log --first-parent --oneline main
+```
+
+```
+xxxxxxx Merge branch 'release/v0.6.3' into 'main'
+0be81302 Merge branch 'release/v0.6.2' into 'main'
+bc287506 Merge branch 'release/v0.6.1' into 'main'
+```
+
+The individual release commits are still fully reachable (blame and `git bisect` work); `--first-parent` just hides them from the top-level view. Optionally alias it:
+
+```bash
+git config alias.mainlog "log --first-parent --oneline main"
+```
