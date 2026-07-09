@@ -1,0 +1,20 @@
+name: kmindex_build
+channels:
+  - bioconda
+  - conda-forge
+  - nodefaults
+dependencies:
+  # kmindex build dependencies
+  - cmake>=3.26,<4
+  - make
+  - git
+  - gcc_linux-64=12.2.0
+  - gxx_linux-64=12.2.0
+  - gcc_impl_linux-64=12.2.0
+  - gxx_impl_linux-64=12.2.0
+  - zlib
+  - xxhash
+  - spdlog=1.10.0
+  - fmt=8.1.1
+  - boost-cpp
+  - bzip2

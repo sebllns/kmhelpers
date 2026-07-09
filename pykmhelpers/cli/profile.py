@@ -1,0 +1,103 @@
+"""Analyse a JSONL sample index and produce a Bloom-filter span distribution."""
+
+import logging
+
+import click
+
+from pykmhelpers.core.log import Log
+from pykmhelpers.core.utils import Toolbox
+from pykmhelpers.pipeline.span_profiler import SpanProfiler
+
+logger = logging.getLogger(__name__)
+
+
+@click.command(name="profile")
+@click.argument(
+    "list_output",
+    nargs=1,
+    required=True,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+)
+@click.option(
+    "--output",
+    "-o",
+    "output_dir",
+    metavar="OUTPUT_DIR",
+    required=True,
+    type=click.Path(file_okay=False, dir_okay=True),
+    help="📁  Output directory for the index profile and distribution files.",
+)
+@click.option(
+    "--group",
+    "-g",
+    "n_groups",
+    metavar="N_GROUPS",
+    default=20,
+    type=int,
+    show_default=True,
+    help="⚙   Partition index into N storage-balanced groups and overlay the result on the plot.",
+)
+@click.option(
+    "--false-positive-rate",
+    "-fp",
+    type=float,
+    default=0.25,
+    show_default=True,
+    help="🎯  Bloom filter false-positive rate p. "
+    "A higher rate reduces disk footprint; the findere algorithm compensates at "
+    "query time by using (k+z)-mers, reducing the effective FP rate to p^z. "
+    "See NOTE and RECOMMENDED above.",
+)
+@click.option(
+    "--base",
+    "-b",
+    type=click.FloatRange(min=1.0, min_open=True),
+    default=1.1,
+    show_default=True,
+    help="⚙   Base for bucket boundaries. "
+    "Use values like 1.1 or 2 to widen or narrow bucket granularity.",
+)
+def profile(list_output, output_dir, n_groups, base, false_positive_rate):
+    """Analyse a JSONL sample index and output a Bloom-filter profile.
+
+    \b
+    Input:  JSONL sample manifest produced by `list`
+    Output: profile.yaml, groups.png in output directory (-o)
+
+    Reads the k-mer counts from LIST_OUTPUT (a JSONL file produced by `list`),
+    assigns each sample to a Bloom-filter using the given false-positive (FP)
+    rate, computes the natural distribution, then partitions index into
+    N storage-balanced groups. Outputs a CSV, a profile YAML, and a distribution
+    plot to OUTPUT_DIR. Samples without a `kmer_count` field are skipped.
+
+    \b
+    ► NOTE: At query time, the effective FP rate is reduced to p^z, where p is
+      the build-time rate (--fp) and z is a query-time parameter.
+    ► RECOMMENDED: build with p=0.25, query with z=6 (effective FP rate: 0.25^6 ≈ 0.024%).
+
+    \b
+    Output files (written to OUTPUT_DIR):
+      baseline.csv  — natural distribution: span id, Bloom filter size, sample count
+      profile.yaml  — natural distribution (baseline) and storage-balanced grouped profile(s)
+      groups.png    — distribution plot
+
+    \b
+    Expected LIST_OUTPUT format (JSONL):
+      {"k": 25, "assembled": true, ...}
+      {"name": "sample_name", "files": [...], "kmer_count": 1234567}
+    """
+
+    try:
+        SpanProfiler(
+            input_file=Toolbox.get_canonical_path(list_output),
+            output_dir=output_dir,
+            false_positive_rate=false_positive_rate,
+            n_groups=n_groups,
+            base=base,
+        ).run()
+        logger.info("SUCCESS ('profile')")
+    except (ValueError, FileNotFoundError) as e:
+        raise click.ClickException(str(e))
+    except Exception as e:
+        Log.handle_exception(logger, e, "FAILED ('profile')")
+        raise click.ClickException("FAILED ('profile')")

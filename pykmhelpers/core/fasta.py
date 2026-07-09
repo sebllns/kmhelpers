@@ -13,8 +13,8 @@ class Fasta:
     TODO: read a fasta from file
     """
 
-    def __init__(self, sequences: list[Sequence] = []) -> None:
-        self._sequences = sequences
+    def __init__(self, sequences: Optional[list[Sequence]] = None) -> None:
+        self._sequences = sequences if sequences is not None else []
 
     @property
     def sequences(self):

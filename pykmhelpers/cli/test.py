@@ -201,7 +201,7 @@ def test_create_db(output_dir, n_samples, average_size, min_size, kmer_size, ver
 
             # Create sequence and count distinct k-mers
             seq = Sequence(header=sample_id)
-            kmer_count = seq.fill_random_and_count_kmers(L=size, k=kmer_size)
+            kmer_count = seq.fill_random_and_count_kmers(length=size, k=kmer_size)
 
             # Save FASTA file
             fasta_path = os.path.join(output_dir, f"{sample_id}.fasta")

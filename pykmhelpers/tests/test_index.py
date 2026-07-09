@@ -13,7 +13,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pykmhelpers.core.index import IndexCompressionState, KmindexRegistry, KmtricksIndex
+from pykmhelpers.core.index import (
+    IndexCompressionState,
+    KmindexRegistry,
+    KmtricksIndex,
+    NotAnIndexError,
+)
 from pykmhelpers.core.utils import Kmindex
 
 
@@ -133,7 +138,11 @@ class TestKmtricksIndexLoading(TestKmtricksIndexBase):
 
     def test_load_kmtricks_index_missing_options(self):
         """Test loading fails when options.txt is missing."""
-        index = KmtricksIndex(str(self.temp_path), self.test_index_id)
+        # auto_load=False so load runs after we remove the file (a loaded index
+        # short-circuits load_kmtricks_index without re-checking files).
+        index = KmtricksIndex(
+            str(self.temp_path), self.test_index_id, auto_load=False
+        )
         options_path = os.path.join(index.dir_path, "options.txt")
         os.remove(options_path)
 
@@ -142,7 +151,9 @@ class TestKmtricksIndexLoading(TestKmtricksIndexBase):
 
     def test_load_kmtricks_index_missing_fof(self):
         """Test loading fails when kmtricks.fof is missing."""
-        index = KmtricksIndex(str(self.temp_path), self.test_index_id)
+        index = KmtricksIndex(
+            str(self.temp_path), self.test_index_id, auto_load=False
+        )
         fof_path = os.path.join(index.dir_path, "kmtricks.fof")
         os.remove(fof_path)
 
@@ -355,39 +366,39 @@ class TestKmtricksIndexCopyMove(TestKmtricksIndexBase):
         self.assertTrue((dest_path / self.test_index_id).exists())
 
     def test_move_to_existing_destination(self):
-        """Test moving to a destination where index already exists."""
+        """Test moving to a destination where index already exists.
+
+        move_to() must honor copy_to()'s result: when the destination already
+        exists the copy fails, so the move must abort (return False) and leave
+        the source index intact rather than destroying it.
+        """
         index = KmtricksIndex(str(self.temp_path), self.test_index_id)
+        original_path = Path(index.dir_path)
         dest_path = self.temp_path / "move_dest"
         dest_path.mkdir()
 
         # Create a duplicate at destination
         shutil.copytree(self.test_index_path, dest_path / self.test_index_id)
 
-        # Move should fail
+        # Move should fail (destination already exists)
         result = index.move_to(str(dest_path))
         self.assertFalse(result)
+        # Source index must not have been destroyed
+        self.assertTrue(original_path.exists())
 
 
 class TestKmtricksIndexIteration(TestKmtricksIndexBase):
-    """Tests for iteration over index partitions."""
+    """Tests for iteration over the index (yields sample names)."""
 
-    def test_iterate_over_partitions(self):
-        """Test iterating over all partitions."""
+    def test_iterate_over_samples(self):
+        """Test iterating over an index yields its sample names."""
         index = KmtricksIndex(str(self.temp_path), self.test_index_id)
         index.load_kmtricks_index()
 
-        partitions = list(index)
-        self.assertEqual(len(partitions), index.nb_partitions)
-        self.assertTrue(all(isinstance(p, str) for p in partitions))
-
-    def test_iteration_yields_matrix_paths(self):
-        """Test that iteration yields valid matrix paths."""
-        index = KmtricksIndex(str(self.temp_path), self.test_index_id)
-        index.load_kmtricks_index()
-
-        for partition_path in index:
-            self.assertTrue("matrix_" in partition_path)
-            self.assertTrue(partition_path.endswith(".cmbf"))
+        samples = list(index)
+        self.assertEqual(len(samples), index.nb_samples)
+        self.assertEqual(samples, index.samples)
+        self.assertTrue(all(isinstance(s, str) for s in samples))
 
 
 class TestKmtricksIndexStringRepresentation(TestKmtricksIndexBase):
@@ -607,6 +618,68 @@ class TestKmindexRegistry(TestKmtricksIndexBase):
 
         self.assertTrue(registry.is_index_dir(self.test_index_id))
         self.assertFalse(registry.is_index_dir("nonexistent_index"))
+
+
+class TestKmtricksIndexV063Params(TestKmtricksIndexBase):
+    """Tests for parameters introduced in v0.6.3."""
+
+    def test_auto_load_enabled_by_default(self):
+        """By default the index is loaded from disk on construction."""
+        index = KmtricksIndex(str(self.temp_path), self.test_index_id)
+        self.assertTrue(index.is_loaded)
+        self.assertGreater(index.nb_samples, 0)
+
+    def test_auto_load_disabled(self):
+        """With auto_load=False properties stay unloaded until explicitly loaded."""
+        index = KmtricksIndex(
+            str(self.temp_path), self.test_index_id, auto_load=False
+        )
+        self.assertFalse(index.is_loaded)
+        self.assertEqual(index.nb_samples, 0)
+
+        index.load_kmtricks_index()
+        self.assertTrue(index.is_loaded)
+        self.assertGreater(index.nb_samples, 0)
+
+
+class TestKmindexRegistryV063Params(TestKmtricksIndexBase):
+    """Tests for KmindexRegistry parameters introduced in v0.6.3."""
+
+    def test_auto_create_false_raises_when_missing(self):
+        """auto_create=False raises NotAnIndexError when index.json is absent."""
+        empty_dir = self.temp_path / "no_json"
+        empty_dir.mkdir()
+        with self.assertRaises(NotAnIndexError):
+            KmindexRegistry(str(empty_dir), auto_create=False)
+
+    def test_auto_create_true_creates_json(self):
+        """auto_create=True (default) creates index.json when it is absent."""
+        new_dir = self.temp_path / "auto_created"
+        new_dir.mkdir()
+        registry = KmindexRegistry(str(new_dir), auto_create=True)
+        self.assertTrue((new_dir / "index.json").exists())
+        self.assertTrue(registry.json_exists)
+
+    def test_remove_index_skip_unregistered(self):
+        """Removing an unknown index with skip_unregistered=True returns False."""
+        registry = KmindexRegistry(str(self.registry_path))
+        result = registry.remove_index("nonexistent_index", skip_unregistered=True)
+        self.assertFalse(result)
+
+    def test_remove_index_delete_files(self):
+        """remove_index(delete_files=True) removes both the entry and on-disk files."""
+        registry = KmindexRegistry(str(self.registry_path))
+        index = KmtricksIndex(str(self.source_path), self.test_index_id)
+        index.load_kmtricks_index()
+        registry.add_index(index)
+
+        index_path = registry.get_index_path(self.test_index_id)
+        self.assertTrue(os.path.exists(index_path))
+
+        result = registry.remove_index(self.test_index_id, delete_files=True)
+        self.assertTrue(result)
+        self.assertFalse(registry.has_index(self.test_index_id))
+        self.assertFalse(os.path.exists(os.path.realpath(index_path)))
 
 
 if __name__ == "__main__":

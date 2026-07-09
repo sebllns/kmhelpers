@@ -157,5 +157,8 @@ test_data/
 results/
 
 /.env/
+/.build/
 /nogit/
 *.dump
+/linux-packages/
+/examples/data/SYNTHETIC_ROD_10/

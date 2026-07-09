@@ -89,33 +89,35 @@ class Sequence:
 
         self._content = sequence
 
-    def fill_random_and_count_kmers(self, L: int, k: int) -> int:
+    def fill_random_and_count_kmers(self, length: int, k: int) -> int:
         """Fill sequence with random nucleotides and count distinct k-mers.
 
         Args:
-            L: Length of the random sequence to generate
+            length: Length of the random sequence to generate
             k: Size of each k-mer
 
         Returns:
             Count of distinct k-mers in the generated sequence
 
         Raises:
-            ValueError: If L or k are not positive, or if k > L
+            ValueError: If length or k are not positive, or if k > length
         """
 
-        if L <= 0:
-            raise ValueError(f"Sequence length must be positive, got {L}")
+        if length <= 0:
+            raise ValueError(f"Sequence length must be positive, got {length}")
         if k <= 0:
             raise ValueError(f"k-mer size must be positive, got {k}")
-        if k > L:
-            raise ValueError(f"k-mer size ({k}) cannot exceed sequence length ({L})")
+        if k > length:
+            raise ValueError(
+                f"k-mer size ({k}) cannot exceed sequence length ({length})"
+            )
 
-        # Generate random sequence of length L
-        self.fill_random(L)
+        # Generate random sequence of the requested length
+        self.fill_random(length)
 
         # Extract all k-mers and count distinct ones
         kmers = set()
-        for i in range(L - k + 1):
+        for i in range(length - k + 1):
             kmer = Sequence(self._content[i : i + k])
             kmers.add(kmer.canonical())
 

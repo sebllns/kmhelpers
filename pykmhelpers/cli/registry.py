@@ -2,14 +2,13 @@
 
 import json
 import os
-import shutil
 
 import click
 
-from pykmhelpers import Kmindex, KmindexRegistry, KmtricksIndex
+from pykmhelpers import KmindexRegistry, KmtricksIndex
 
 
-@click.group()
+@click.group("manage")
 @click.option(
     "--registry-path",
     "-r",
@@ -22,6 +21,79 @@ def registry(ctx, registry_path):
     """Manage k-mer index registries."""
     ctx.ensure_object(dict)
     ctx.obj["registry_path"] = registry_path
+
+
+@registry.command(name="create")
+@click.option(
+    "--input-dir",
+    "-i",
+    required=False,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    help="Input directory containing kmtricks indices",
+)
+@click.option(
+    "--index-ids",
+    "-n",
+    multiple=True,
+    required=False,
+    help="Specific index IDs to register (register all if not specified)",
+)
+@click.pass_obj
+def registry_create(obj, input_dir, index_ids):
+    """Register kmtricks indices in a registry."""
+    registry_path = obj["registry_path"]
+
+    click.echo("Initializing kmhelpers...")
+
+    if os.path.exists(registry_path):
+        raise click.ClickException(f"Path already exixts: {registry_path}")
+
+    registry = KmindexRegistry(registry_path, auto_create=True)
+
+    if input_dir:
+        if not os.path.isdir(input_dir):
+            raise click.ClickException(f"Path not found: {input_dir}")
+        # Get list of indices to register
+        if index_ids:
+            indices_to_process = index_ids
+        else:
+            indices_to_process = [
+                d
+                for d in os.listdir(input_dir)
+                if os.path.isdir(os.path.join(input_dir, d))
+            ]
+
+        registered = 0
+        skipped = 0
+
+        for index_id in indices_to_process:
+            try:
+                entry_path = os.path.join(input_dir, index_id)
+                if not os.path.isdir(entry_path):
+                    click.echo(
+                        f"Warning: {index_id} is not a directory, skipping", err=True
+                    )
+                    skipped += 1
+                    continue
+                if registry.has_index(index_id):
+                    click.echo(f"⊙ Already registered: {index_id}")
+                    skipped += 1
+                    continue
+                index = KmtricksIndex(input_dir, index_id)
+                index.load_kmtricks_index()
+                if index.check_structure():
+                    if registry.add_index(index):
+                        click.echo(f"✓ Registered: {index_id}")
+                        registered += 1
+                    else:
+                        click.echo(f"✗ Could not register: {index_id}")
+                        skipped += 1
+                        continue
+            except Exception as e:
+                click.echo(f"✗ Error processing {index_id}: {e}", err=True)
+                skipped += 1
+
+        click.echo(f"\nSummary: {registered} registered, {skipped} skipped")
 
 
 @registry.command(name="add")
@@ -310,9 +382,6 @@ def registry_rename(obj, index_id, new_index_id):
 
         if not registry.has_index(index_id):
             raise click.ClickException(f"Index '{index_id}' not found in registry")
-
-        # Get index before removal (needed to delete files)
-        index = registry.get_index(index_id)
 
         if not registry.rename_index(index_id, new_index_id):
             raise click.ClickException(

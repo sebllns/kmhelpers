@@ -166,6 +166,8 @@ def build(
             click.echo()
 
         # Build index using wrapper
+        # TODO add nb_partitions other parameters missing
+        # check in kmhelpers.py --config option to pass parameters from a YAML file
         index_path, registry_path = wrapper.build(
             input_fof_file=fof,
             output_registry_path=output_registry,

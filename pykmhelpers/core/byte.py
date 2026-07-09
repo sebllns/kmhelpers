@@ -8,9 +8,10 @@ from enum import Enum, IntEnum
 
 
 class SizeFormat(Enum):
-    BYTE = 0
-    BIBYTE = 1
-    BIT = 2
+    NONE = 0
+    BYTE = 1
+    BIBYTE = 2
+    BIT = 3
 
 
 class SizeUnit(IntEnum):
@@ -59,13 +60,19 @@ class ByteCounter:
         return self.byte_count * 8
 
     def convert(
-        self, unit: SizeUnit = SizeUnit.NONE, format: SizeFormat = SizeFormat.BYTE
+        self, unit: SizeUnit = SizeUnit.NONE, format: SizeFormat = SizeFormat.NONE
     ) -> "ByteCounter":
         """Convert to a different unit and format, returning a new ByteCounter."""
+        format = format if format != SizeFormat.NONE else self.format
         byte_value = self.bit_count if format == SizeFormat.BIT else self.byte_count
         target_factor = 1024 if format == SizeFormat.BIBYTE else 1000
         converted_value = byte_value / (target_factor ** int(unit))
         return ByteCounter(converted_value, unit, format)
+
+    def to_str(
+        self, unit: SizeUnit = SizeUnit.NONE, format: SizeFormat = SizeFormat.NONE
+    ):
+        return self.convert(unit=unit, format=format).__str__()
 
     @classmethod
     def auto(
@@ -257,4 +264,4 @@ class ByteCounter:
             format_suffix = "B"
 
         unit_str = unit_names.get(self.unit, "")
-        return f"{self.value:.4g}{unit_str}{format_suffix}"
+        return f"{self.value:.3g}{unit_str}{format_suffix}"

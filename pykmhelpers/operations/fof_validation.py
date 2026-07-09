@@ -53,9 +53,12 @@ Validation Rules:
    - Duplicate IDs are not allowed
 """
 
+import logging
 import re
 from typing import List, Tuple
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 class FofValidator:
@@ -128,7 +131,7 @@ class FofValidator:
             self.errors.append((0, f"File read error", str(e)))
             return False
 
-        return len(self.errors) == 0
+        return not self.errors
 
     def _validate_line(self, line_num: int, line: str) -> None:
         """
@@ -180,15 +183,14 @@ class FofValidator:
         Displays each error with line number, reason, and the problematic line content.
         """
         if not self.errors:
-            print("No errors found.")
+            logger.info("No errors found.")
             return
 
-        print(f"\nValidation errors in {self.file_path}:\n")
+        logger.info(f"Validation errors in {self.file_path}:")
 
         for line_num, reason, line_content in self.errors:
-            print(f"Line {line_num}: {reason}")
-            print(f"  > {line_content}")
-            print()
+            logger.info(f"Line {line_num}: {reason}")
+            logger.info(f"  > {line_content}")
 
     def get_error_count(self) -> int:
         """
@@ -214,7 +216,7 @@ def main():
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python fof_validation.py <fof_file>")
+        logger.error("Usage: python fof_validation.py <fof_file>")
         sys.exit(1)
 
     fof_file = sys.argv[1]
@@ -224,15 +226,15 @@ def main():
         is_valid = validator.validate()
 
         if is_valid:
-            print(f"✓ {fof_file} is valid")
+            logger.info(f"{fof_file} is valid")
             sys.exit(0)
         else:
-            print(f"✗ {fof_file} has {validator.get_error_count()} error(s):")
+            logger.error(f"{fof_file} has {validator.get_error_count()} error(s):")
             validator.print_errors()
             sys.exit(1)
 
     except FileNotFoundError as e:
-        print(f"Error: {e}")
+        logger.error(f"{e}")
         sys.exit(1)
 
 

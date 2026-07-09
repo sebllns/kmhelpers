@@ -1,12 +1,15 @@
 import dataclasses
 import enum
 import filecmp
+import logging
 import os
 import pathlib
-import sys
+from typing import Optional
 
 import pykmhelpers.core.index
 import pykmhelpers.core.utils
+
+logger = logging.getLogger(__name__)
 
 
 class PermutationFlag(enum.Enum):
@@ -230,7 +233,7 @@ class Compressor:
             output_metric_path = ""
 
         if do_compress:
-            print(f"Compress {input_matrix_path}...")
+            logger.info(f"Compress {input_matrix_path}...")
 
             # TODO
             # tmp_file = output_compressed_path + ".tmp"
@@ -391,7 +394,7 @@ class Compressor:
             This method delegates to compress_index_selection with all partitions
             included in the matrix list.
         """
-        print(f"Compressing index {idx.id} with {idx.nb_partitions} partitions...")
+        logger.info(f"Compressing index {idx.id} with {idx.nb_partitions} partitions...")
         self.compress_index_selection(
             params, idx, 1, list(range(idx.nb_partitions + 1)), output_dir
         )
@@ -401,7 +404,7 @@ class Compressor:
         params: CompressionParams,
         idx: pykmhelpers.core.index.KmtricksIndex,
         ref_matrix: int,
-        matrix_list: list[int] = [],
+        matrix_list: Optional[list[int]] = None,
         output_dir: str = "",
         permutation_flag: PermutationFlag = PermutationFlag.PERMUTATION_ENABLED,
         compare_unordered: bool = False,
@@ -452,6 +455,9 @@ class Compressor:
             - If output_dir equals idx.dir_path, the index compression state is updated to BOTH.
         """
 
+        if matrix_list is None:
+            matrix_list = []
+
         if not output_dir:
             output_dir = idx.dir_path
 
@@ -493,11 +499,9 @@ class Compressor:
             ), f"Permutation file {permutation_path} not found"
 
         except Exception as error:
-            print(
-                f"FATAL: Could not compute permutation or compress reference matrix {ref_matrix}",
-                file=sys.stderr,
+            logger.error(
+                f"Could not compute permutation or compress reference matrix {ref_matrix}: {error}"
             )
-            print(error, file=sys.stderr)
             raise
 
         # Other matrices
@@ -518,8 +522,7 @@ class Compressor:
                     is_reference=False,
                 )
             except Exception as error:
-                print(f"ERROR: Could not compress matrix {i}", file=sys.stderr)
-                print(error, file=sys.stderr)
+                logger.error(f"Could not compress matrix {i}: {error}")
 
         if output_dir == idx.dir_path:
             idx.compress_state = pykmhelpers.core.index.IndexCompressionState.BOTH
