@@ -38,7 +38,7 @@ def count_kmers(input_file, kmer_size, threads, verbose):
         if verbose:
             click.echo(f"Counting {kmer_size}-mers in {input_file} using {threads} threads...")
 
-        counter = KmerCounter(k=kmer_size, threadCount=threads)
+        counter = KmerCounter(k=kmer_size, thread_count=threads)
         f1_value = counter.count(input_file)
 
         click.echo(f"k={kmer_size}\tF1\t{f1_value}")

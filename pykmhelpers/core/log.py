@@ -1,4 +1,5 @@
 import logging
+import traceback
 
 
 class Log:
@@ -27,3 +28,15 @@ class Log:
         logger: logging.Logger, e: Exception, msg: str, level: int = logging.ERROR
     ):
         Log._handle_exception(logger, msg, e, Log.is_verbose(logger), level)
+
+    @staticmethod
+    def print_trace(e: Exception):
+        traceback.print_exception(type(e), e, e.__traceback__)
+
+    @staticmethod
+    def step(logger: logging.Logger, title: str, width: int = 60):
+        """Log a visually separated step header."""
+        logger.info("\n\n")
+        logger.info("=" * width)
+        logger.info(title)
+        logger.info("=" * width)

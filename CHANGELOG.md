@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.3] - 2026-06-30
+
+### Added
+
+- **`profile` Command**: Analyse a JSONL sample list and produce a Bloom-filter span profile
+  - Assigns each sample to a span bucket based on its k-mer count
+  - Outputs `profile.yaml` and a span distribution plot
+  - Supports configurable base, false-positive rate, and span grouping
+
+- **`plan` Command**: Dry-run with upfront path validation before building
+  - Validates all sample paths and reports missing files
+  - Writes a ready-to-execute shell script without running it
+  - Replaces the `--plan` / `--dry-run` flags previously embedded in `apply`
+
+- **`pipeline` Command**: Run a full sequence of commands from a YAML definition file
+
+- **`about` Command**: Display version info and ASCII banner
+
+- **`scripts/setup.sh`**: Automated build script for `kmindex` and `kmtricks` from source
+  - Required for 0.6.3 — `static_repart` index type is not yet in the conda release of `kmindex`
+
+- **MkDocs documentation site**: Complete documentation with tutorials, command reference, and contributing guide
+
+### Changed
+
+- **`list`**: Input now accepts a directory, a plain-text file, or a YAML file (auto-detected); output format changed from YAML to JSONL; plain-text format supports optional sample ID and k-mer count per line
+- **`compose`**: Simplified options; `--run-id` renamed to `--session-id`; layout file replaces fingerprint
+- **`profile`**: Simplified output file naming
+- **Execution time**: Printed at the end of each command
+- **Logging**: Updated log levels and output formatting across all commands
+
+### Fixed
+
+- Path handling in `plan` and `apply`
+- Various bug fixes in `list`
+
 ## [0.6.2] - 2026-04-23
 
 ### Added

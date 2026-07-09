@@ -9,6 +9,8 @@ from typing import List, Optional, Union
 
 import yaml
 
+from pykmhelpers.core import kmindex_utils
+from pykmhelpers.core.system import maximize_nofile
 from pykmhelpers.core.utils import Toolbox
 from pykmhelpers.core.wrapper import Wrapper
 
@@ -74,6 +76,7 @@ class KmindexWrapper(Wrapper):
         from_index: Optional[str] = None,
         km_path: Optional[Union[str, Path]] = None,
         inplace: bool = False,
+        static_repart: bool = True,
     ) -> dict:
         """
         Build a kmindex index.
@@ -183,10 +186,14 @@ class KmindexWrapper(Wrapper):
                 "Either bloom_size (for presence/absence) or nb_cell (for abundance) must be specified"
             )
 
-        # Add optional parameters
+        # Flags
         if compress_intermediate:
             cmd.append("--cpr")
 
+        if static_repart:
+            cmd.append("--static-repart")
+
+        # Add optional parameters
         if from_index is not None:
             cmd.extend(["--from", from_index])
 
@@ -243,15 +250,21 @@ class KmindexWrapper(Wrapper):
                 yaml.safe_dump(d, f)
 
         # Execute command
+        maximize_nofile()
         result = self._monitor_cmd(cmd, log_file=log_file, log_errors_only=True)
-
-        assert result, "Failed to build index"
 
         if output_log_dir:
             with open(
                 os.path.join(output_log_dir, "kmindex_monitoring.yaml"), "w"
             ) as f:
-                yaml.safe_dump(result, f)
+                yaml.safe_dump(result or "", f)
+
+        rc, msg = self._check_result(result)
+
+        if rc != 0:
+            if output_log_dir:
+                logger.error(f"Build failed: consult logs in {output_log_dir}")
+            raise RuntimeError(f"Build failed: <{msg}> ({rc})")
 
         if not self.dry_run:
             assert os.path.isdir(
@@ -261,7 +274,17 @@ class KmindexWrapper(Wrapper):
                 os.path.join(output_registry_path, register_as)
             ), f"Could not find index in registry {output_registry_path}"
 
-        return result
+        return result or {}
+
+    def _check_result(self, result):
+        rc = 0
+        msg = ""
+        if not result or result.get("return_code", 0 if self.dry_run else -1) != 0:
+            stderr = (result or {}).get("stderr") or ""
+            lines = [line.strip() for line in stderr.splitlines() if line.strip()]
+            msg = lines[-1] if lines else "..."
+            rc = (result or {}).get("return_code", -1)
+        return rc, msg
 
     def query(
         self,
@@ -304,8 +327,6 @@ class KmindexWrapper(Wrapper):
             FileNotFoundError: If query_file not found.
         """
 
-        registry = None
-
         input_registry = Toolbox.get_canonical_path(input_registry)
         output_dir = Toolbox.get_canonical_path(output_dir)
 
@@ -325,7 +346,7 @@ class KmindexWrapper(Wrapper):
         if not os.path.isfile(query_file):
             raise FileNotFoundError(f"Query file {query_file}  not found")
 
-        if not self.b_json_exists(index_path):
+        if not kmindex_utils.b_json_exists(index_path):
             raise FileNotFoundError(f"index.json not found in index path {index_path}")
 
         if os.path.isdir(output_dir):
@@ -378,13 +399,15 @@ class KmindexWrapper(Wrapper):
 
         result = self._monitor_cmd(cmd, log_errors_only=True)
 
-        if not result:
-            raise RuntimeError("Query failed.")
+        rc, msg = self._check_result(result)
+
+        if rc != 0:
+            raise RuntimeError(f"Query failed: <{msg}> ({rc})")
 
         if not os.path.isdir(output_dir):
             raise NotADirectoryError(f"Result directory not found: {output_dir}")
 
-        return result
+        return result or {}
 
     def compress(
         self,
@@ -446,7 +469,7 @@ class KmindexWrapper(Wrapper):
                 f"Registry path {input_registry} does not exist or is not a directory"
             )
 
-        if not self.b_json_exists(input_registry):
+        if not kmindex_utils.b_json_exists(input_registry):
             raise FileNotFoundError(
                 f"index.json not found in registry {input_registry}"
             )
@@ -503,10 +526,12 @@ class KmindexWrapper(Wrapper):
         # Execute command
         result = self._monitor_cmd(cmd, log_errors_only=True)
 
-        if not result:
-            raise RuntimeError("Compression failed.")
+        rc, msg = self._check_result(result)
 
-        return result
+        if rc != 0:
+            raise RuntimeError(f"Compress failed: <{msg}> ({rc})")
+
+        return result or {}
 
     def merge(
         self,
@@ -565,12 +590,12 @@ class KmindexWrapper(Wrapper):
                 f"Registry path {input_registry} does not exist or is not a directory"
             )
 
-        if not self.b_json_exists(input_registry):
+        if not kmindex_utils.b_json_exists(input_registry):
             raise FileNotFoundError(
                 f"index.json not found in registry {input_registry}"
             )
 
-        if not to_merge or len(to_merge) == 0:
+        if not to_merge:
             raise ValueError("to_merge list cannot be empty")
 
         if not new_name:
@@ -618,10 +643,12 @@ class KmindexWrapper(Wrapper):
         # Execute command
         result = self._monitor_cmd(cmd, log_errors_only=True)
 
-        if not result:
-            raise RuntimeError("Merge failed.")
+        rc, msg = self._check_result(result)
 
-        return result
+        if rc != 0:
+            raise RuntimeError(f"Merge failed: <{msg}> ({rc})")
+
+        return result or {}
 
     def kmindex_version(self) -> Optional[str]:
         try:
@@ -632,93 +659,8 @@ class KmindexWrapper(Wrapper):
                 ],
                 log_errors_only=True,
             )
-            return v.stderr[8:]
+            return v.stderr[9:].strip()
         except Exception as e:
             logger.warning(f"Could not get kmindex version: {e}")
             return None
 
-    ####################################################
-    def get_matrix_dir(self, index_path: str) -> str:
-        """
-        Get the path to the matrices directory within an index.
-
-        Args:
-            index_path: Path to the index directory
-
-        Returns:
-            Canonical path to the matrices directory
-        """
-        return Toolbox.get_canonical_path(os.path.join(index_path, "matrices"))
-
-    ####################################################
-    def get_matrix_path(
-        self, index_path: str, partition: int, is_compressed: bool = False
-    ) -> str:
-        """
-        Get the path to a specific matrix partition file.
-
-        Args:
-            index_path: Path to the index directory
-            partition: Partition number
-            is_compressed: Whether to get the compressed matrix path (default: False)
-
-        Returns:
-            Path to the matrix file (either matrix_N.cmbf or blocks_N for compressed)
-        """
-        return os.path.join(
-            self.get_matrix_dir(index_path),
-            f"blocks_{partition}" if is_compressed else f"matrix_{partition}.cmbf",
-        )
-
-        ####################################################
-
-    @staticmethod
-    def get_index_path(root: str, index: str) -> str:
-        """
-        Get the full path to an index directory.
-
-        Args:
-            root: Root directory containing indices
-            index: Index ID or name
-
-        Returns:
-            Canonical path to the index directory
-        """
-        return Toolbox.get_canonical_path(os.path.join(root, index))
-
-    ####################################################
-    @staticmethod
-    def get_path_inside_index(root: str, file: str) -> str:
-        """
-        Get the full path to a file within an index directory.
-
-        Args:
-            root: Index root directory
-            file: Relative file path within the index
-
-        Returns:
-            Canonical path to the file
-        """
-        return Toolbox.get_canonical_path(os.path.join(root, file))
-
-    ####################################################
-    def get_options_path(self, root: str) -> str:
-        """Get the path to options.txt file within an index directory."""
-        return self.get_path_inside_index(root, "options.txt")
-
-    ####################################################
-    def get_json_path(self, root: str) -> str:
-        """Get the path to index.json file within a directory."""
-        return self.get_path_inside_index(root, "index.json")
-
-    def b_json_exists(self, root: str) -> bool:
-        """
-        Check if index.json exists in the given directory.
-
-        Args:
-            root: Directory to check
-
-        Returns:
-            True if index.json exists
-        """
-        return os.path.isfile(self.get_json_path(root))

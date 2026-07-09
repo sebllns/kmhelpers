@@ -3,7 +3,7 @@ package:
   version: "{{ environ['GIT_DESCRIBE_TAG'] }}"
 
 source:
-  git_url: https://gitlab.inria.fr/omicfinder/kmhelpers.git
+  git_url: https://github.com/sebllns/kmhelpers.git
   git_rev: "{{ environ['GIT_DESCRIBE_TAG'] }}"
 
 build:
@@ -20,7 +20,7 @@ requirements:
     - python >=3.8
     - psutil >=5.8.0
     - pyyaml >=5.4
-    - bioconda::kmindex >=0.5.3
+    - bioconda::kmindex >=0.6.1
 
 test:
   imports:
@@ -30,7 +30,7 @@ test:
     - kmhelpers.cli
 
 about:
-  home: https://gitlab.inria.fr/omicfinder/kmhelpers
+  home: https://github.com/sebllns/kmhelpers
   license: MIT
   license_family: BSD
   summary: A Python toolkit for managing, compressing, and querying indexes with kmindex
@@ -41,8 +41,8 @@ about:
     - Index compression with intelligent reordering and block compression
     - Fast k-mer lookup with resource monitoring
     - Compression metrics and performance tracking
-  doc_url: https://gitlab.inria.fr/omicfinder/kmhelpers/blob/main/README.md
-  dev_url: https://gitlab.inria.fr/omicfinder/kmhelpers
+  doc_url: https://github.com/sebllns/kmhelpers/blob/main/README.md
+  dev_url: https://github.com/sebllns/kmhelpers
 
 extra:
   recipe-maintainers:

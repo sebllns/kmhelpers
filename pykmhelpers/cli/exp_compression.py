@@ -8,7 +8,7 @@ This module provides two approaches to index compression:
 import os
 import click
 from .experimental import experimental
-from pykmhelpers import KmindexRegistry, KmtricksIndex, Compressor, CompressionParams
+from pykmhelpers import KmtricksIndex, Compressor, CompressionParams
 from pykmhelpers.operations.compressor import PermutationFlag
 
 

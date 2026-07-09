@@ -6,33 +6,38 @@ Unified CLI for kmhelpers - a toolkit for managing, compressing, and querying k-
 import datetime
 import logging
 import os
+import platform
+import sys
+import time
 import traceback
 
 import click
+import yaml
 
-from pykmhelpers import Bin, Main, __version__
-
-# Import all groups and commands
+from pykmhelpers import Bin, __version__
+from pykmhelpers._commit import GIT_COMMIT
 from pykmhelpers.cli.about import about
 from pykmhelpers.cli.apply import apply
-from pykmhelpers.cli.build_subindex import build_subindex
+from pykmhelpers.cli.build import build
 from pykmhelpers.cli.compose import compose
 from pykmhelpers.cli.compress import kmindex_compress
 from pykmhelpers.cli.count_kmers import count_kmers
-
-# Import experimental commands
-from pykmhelpers.cli.exp_compression import exp_compress
+from pykmhelpers.cli.design import design
 from pykmhelpers.cli.experimental import experimental
 from pykmhelpers.cli.fof import fof
 from pykmhelpers.cli.kmindex import kmindex
 from pykmhelpers.cli.list import list_samples
-from pykmhelpers.cli.merge_def_files import merge_def_files
-from pykmhelpers.cli.merge_span import merge_span
+from pykmhelpers.cli.pipeline import pipeline
+from pykmhelpers.cli.plan import plan
+from pykmhelpers.cli.profile import profile
 from pykmhelpers.cli.query import query
 from pykmhelpers.cli.registry import registry
 from pykmhelpers.cli.test import test
 from pykmhelpers.core.log import Log
 from pykmhelpers.core.utils import Toolbox
+
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
+logging.getLogger("PIL").setLevel(logging.WARNING)
 
 
 class ColoredFormatter(logging.Formatter):
@@ -101,7 +106,13 @@ class SectionedGroup(click.Group):
             sections[section].append((subcommand, help_text))
 
         # Define section order
-        section_order = ["Main commands", "Utilities", "Advanced", "Other"]
+        section_order = [
+            "Super commands",
+            "Main commands",
+            "Utilities",
+            "Advanced",
+            "Other",
+        ]
 
         # Write sections in defined order
         for section in section_order:
@@ -111,9 +122,13 @@ class SectionedGroup(click.Group):
 
     def invoke(self, ctx):
         """Invoke the group with global exception handling."""
+        _start = time.monotonic()
         try:
-            return super().invoke(ctx)
-        except (click.ClickException, click.exceptions.Exit, SystemExit):
+            result = super().invoke(ctx)
+            elapsed = time.monotonic() - _start
+            print(f"Done in {elapsed:.2f}s")
+            return result
+        except (click.ClickException, click.exceptions.Exit, click.Abort, SystemExit):
             # Let Click exceptions and sys.exit pass through
             raise
         except Exception as e:
@@ -131,6 +146,14 @@ class SectionedGroup(click.Group):
                         f"kmhelpers crash dump - {datetime.datetime.now().isoformat()}\n"
                     )
                     f.write("=" * 60 + "\n\n")
+                    f.write(f"kmhelpers version: {__version__}\n")
+                    f.write(f"kmhelpers commit:  {GIT_COMMIT}\n")
+                    f.write(f"kmhelpers path:    {sys.executable}\n")
+                    f.write(
+                        f"OS:                {platform.system()} {platform.release()}\n"
+                    )
+                    f.write(f"OS version:        {platform.version()}\n")
+                    f.write("\n")
                     f.write(f"Exception: {type(e).__name__}: {e}\n\n")
                     f.write("Traceback:\n")
                     traceback.print_exc(file=f)
@@ -144,36 +167,53 @@ class SectionedGroup(click.Group):
 @click.command(
     cls=SectionedGroup,
     context_settings={"help_option_names": ["-h", "--help"]},
+    epilog="Also honors KMHELPERS_LOG_LEVEL: default log level 0-4 "
+    "(0=CRITICAL, 4=DEBUG) before -v/-q adjustments. Default: 3 (INFO).",
 )
 @click.version_option(version=__version__, prog_name="kmhelpers")
+@click.option(
+    "--config",
+    "-C",
+    envvar="KMHELPERS_CONFIG",
+    show_envvar=True,
+    type=click.Path(file_okay=True, dir_okay=False, exists=True, readable=True),
+    default=None,
+    help="YAML config file for default values",
+)
 @click.option(
     "-v",
     "--verbose",
     count=True,
-    help="Increase verbosity: -v for INFO, -vv for DEBUG",  # TODO , -vvv for TRACE
+    help="Increase verbosity: -v for DEBUG",
 )
 @click.option(
     "-q",
     "--quiet",
     count=True,
-    help="Decrease verbosity: -q for ERROR, -qq for CRITICAL,",
+    help="Decrease verbosity: -q for WARNING, -qq for ERROR, -qqq for CRITICAL",
 )
 @click.option(
-    "--no-formatting",
-    envvar="KMHELPERS_WITHOUT_FORMATTING",
+    "--no-log-formatting",
+    "-NF",
+    "no_formatting",
+    envvar="KMHELPERS_NO_LOG_FORMATTING",
+    show_envvar=True,
     is_flag=True,
     help="Disable log formatter",
 )
 @click.option(
     "--log-file",
+    "-L",
     envvar="KMHELPERS_LOG_FILE",
-    type=click.Path(),
+    show_envvar=True,
+    type=click.Path(file_okay=True, dir_okay=False, exists=False, writable=True),
     default=None,
     help="Path to log file (logs will be written in addition to console output)",
 )
 @click.option(
     "--chdir",
     envvar="KMHELPERS_RUN_DIR",
+    show_envvar=True,
     type=click.Path(file_okay=False, dir_okay=True),
     required=False,
     help="Change to directory before initialization",
@@ -182,12 +222,14 @@ class SectionedGroup(click.Group):
     "--yes",
     "-y",
     envvar="KMHELPERS_SKIP_CONFIRMATION",
+    show_envvar=True,
     is_flag=True,
     help="Automatically answer yes to all confirmation prompts.",
 )
 @click.pass_context
 def cli(
     ctx,
+    config,
     verbose,
     quiet,
     no_formatting,
@@ -197,15 +239,20 @@ def cli(
 ):
     """kmhelpers - A toolkit for managing, compressing, and querying k-mer indices."""
     ctx.ensure_object(dict)
+    if config and os.path.exists(config):
+        with open(config) as f:
+            defaults = yaml.safe_load(f)
+        ctx.default_map = {name: defaults for name in cli.commands}
+
     ctx.obj["yes"] = yes
     # Configure logging based on verbosity level
     log_levels = {
-        0: logging.CRITICAL,  # -qq
-        1: logging.ERROR,  # -q
-        2: logging.WARNING,  # default
-        3: logging.INFO,  # -v
-        4: logging.DEBUG,  # -vv
-        # 5: logging_TRACE # -vvv
+        0: logging.CRITICAL,  # -qqq
+        1: logging.ERROR,  # -qq
+        2: logging.WARNING,  # -q
+        3: logging.INFO,  # default
+        4: logging.DEBUG,  # -v
+        # 5: logging_TRACE # -vv
     }
 
     # TODO
@@ -215,7 +262,7 @@ def cli(
     #    logging.log()
     # Use Log. as interface
 
-    default_level = os.getenv("KMHELPERS_LOG_LEVEL", 2)
+    default_level = os.getenv("KMHELPERS_LOG_LEVEL", 3)
     log_level = log_levels.get(
         max(min(default_level + verbose - quiet, 4), 0), logging.ERROR
     )
@@ -224,7 +271,7 @@ def cli(
     log_format = (
         "%(asctime)s | %(levelname)-8s | %(name)s:%(funcName)s:%(lineno)d | %(message)s"
         if log_level == logging.DEBUG
-        else "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+        else "%(asctime)s | %(levelname)-8s | %(message)s"
     )
 
     # Set up root logger
@@ -273,45 +320,56 @@ def cli(
             logger.debug(f"Logging to file: {log_file}")
             Log.log_file = Toolbox.get_canonical_path(log_file)
         except Exception as e:
-            click.echo(f"Warning: Could not open log file '{log_file}': {e}", err=True)
+            root_logger.warning(f"Could not open log file '{log_file}': {e}")
 
     if chdir:
-        click.echo(f"cd {chdir}", err=True)
-        os.chdir(chdir)
+        try:
+            os.chdir(chdir)
+            root_logger.info(f"cd {chdir}")
+        except Exception as e:
+            root_logger.warning(f"Could not set working directory '{chdir}': {e}")
+
     try:
         Bin.check_kmindex()
-    except RuntimeError as e:
-        click.echo("Could not find kmindex command in path.", err=True)
+    except RuntimeError:
+        root_logger.warning("Could not find kmindex command in path.")
 
 
 # Register main commands
 list_samples.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(list_samples)
+profile.section = "Main commands"  # type: ignore[assignment]
+cli.add_command(profile)
 compose.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(compose)
+design.section = "Super commands"  # type: ignore[assignment]
+cli.add_command(design)
+plan.section = "Main commands"  # type: ignore[assignment]
+cli.add_command(plan)
 apply.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(apply)
-query.section = "Main commands"  # type: ignore[assignment]
+build.section = "Super commands"  # type: ignore[assignment]
+cli.add_command(build)
+query.section = "Super commands"  # type: ignore[assignment]
 cli.add_command(query)
 kmindex_compress.section = "Main commands"  # type: ignore[assignment]
 cli.add_command(kmindex_compress)
 
 # Register utilities
-count_kmers.section = "Utilities"  # type: ignore[assignment]
-cli.add_command(count_kmers)
-fof.section = "Utilities"  # type: ignore[assignment]
-cli.add_command(fof)
-# ! DEPRECATED
-# build_subindex.section = "Utilities"  # type: ignore[assignment]
-# cli.add_command(build_subindex)
+# count_kmers.section = "Utilities"  # type: ignore[assignment]
+# cli.add_command(count_kmers)
+# fof.section = "Utilities"  # type: ignore[assignment]
+# cli.add_command(fof)
 registry.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(registry)
-kmindex.section = "Utilities"  # type: ignore[assignment]
-cli.add_command(kmindex)
+# kmindex.section = "Utilities"  # type: ignore[assignment]
+# cli.add_command(kmindex)
+pipeline.section = "Utilities"  # type: ignore[assignment]
+cli.add_command(pipeline)
 
 # Register other commands
-experimental.section = "Other"  # type: ignore[assignment]
-cli.add_command(experimental)
+# experimental.section = "Other"  # type: ignore[assignment]
+# cli.add_command(experimental)
 test.section = "Other"  # type: ignore[assignment]
 cli.add_command(test)
 about.section = "Other"  # type: ignore[assignment]

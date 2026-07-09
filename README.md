@@ -6,11 +6,14 @@
 
 A Python toolkit for managing, compressing, and querying [kmindex](https://github.com/tlemane/kmindex) indices efficiently.
 
+**Documentation:** <https://sebllns.github.io/kmhelpers/>
+
 ---
 
 ## Table of Contents
 
 - [Getting Started](#getting-started)
+- [Documentation](https://sebllns.github.io/kmhelpers/)
 - [Update](#update)
 - [License](#license)
 - [Contact](#contact)
@@ -22,15 +25,22 @@ A Python toolkit for managing, compressing, and querying [kmindex](https://githu
 ### Clone the repository and navigate to it
 
 ```bash
-git clone https://gitlab.inria.fr/omicfinder/kmhelpers --branch v0.6.2
+git clone https://github.com/sebllns/kmhelpers
+cd kmhelpers
+```
+
+To clone a specific version tag directly:
+
+```bash
+git clone --branch v0.6.3 https://github.com/sebllns/kmhelpers
 cd kmhelpers
 ```
 
 ### Quick Install with Conda 
 
 This will automatically:
-- Install [`kmindex`](https://github.com/tlemane/kmindex) and [`ntcard`](https://github.com/BirolLab/ntCard) from bioconda
 - Install `kmhelpers` Python package
+- Install `kmindex` and `ntcard`
 
 **Prerequisites:** Conda (Miniconda or Anaconda) must be installed. If you don't have it, see [Installation Instructions](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
 
@@ -65,6 +75,20 @@ kmhelpers --version
 kmhelpers --help
 ```
 
+> **Tip:** `kh` is available as a short alias for `kmhelpers` (e.g. `kh --help`).
+
+```bash
+
+# Check ntcard
+ntcard --version
+
+# Check kmtricks
+kmtricks --version
+
+# Check kmindex
+kmindex --version
+```
+
 ### Update
 
 To pull the latest changes from the default branch (`main`):
@@ -79,8 +103,15 @@ To pull from a specific branch (e.g., a development or release branch):
 git pull origin <branch-name>
 
 # Examples
-git pull origin dev/v0.6.2
+git pull origin release/v0.6.3
 git pull origin feature/my-feature
+```
+
+To check out a specific tag instead:
+
+```bash
+git fetch --tags
+git checkout v0.6.3
 ```
 
 If your local branch is already tracking a remote branch, you can simply run:
@@ -107,14 +138,24 @@ For questions, bug reports, or contributions, please contact:
 
 - **Author**: [Sébastien BELLENOUS](https://github.com/sebllns)
 - **Email**: kmhelpers@groupes.renater.fr
-- **Repository**: [GitLab](https://gitlab.inria.fr/omicfinder/kmhelpers)
+- **Repository**: [GitHub](https://github.com/sebllns/kmhelpers)
 - **Supervisor**: [Pierre Peterlongo](https://github.com/pierrepeterlongo)
 
 ---
 
-**Version**: 0.6.2
+**Version**: 0.6.3
 **Status**: Development
 
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
+
+
+# Acknowledgements
+
+The authors thank Téo Lemane for developing `kmindex` and for his
+responsiveness in addressing feature requests and issues raised during the
+development of `kmhelpers`. We acknowledge the GenOuest core facility
+(<https://www.genouest.org>) for providing the computing infrastructure.
+The work was funded by the Inria Challenge "OmicFinder"
+(<https://project.inria.fr/omicfinder/>), and by the state funding managed by the French National Research Agency under the France 2030 program [ANR-22-PEAE-0005].

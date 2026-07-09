@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pykmhelpers"
-version = "0.6.2"
+version = "0.6.3.dev0"
 description = "A Python toolkit for managing, compressing, and querying indexes with kmindex"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -23,7 +23,13 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
 ]
 
-dependencies = ["psutil>=5.8.0", "pyyaml>=5.4", "click>=8.3.1"]
+dependencies = [
+    "psutil>=5.8.0",
+    "pyyaml>=5.4",
+    "click>=8.3.1",
+    "matplotlib>=3.10.8",
+    "zstandard>=0.25.0",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -33,18 +39,21 @@ dev = [
     "flake8>=4.0",
     "mypy>=0.950",
 ]
+docs = ["mkdocs-material>=9.0", "mkdocstrings[python]>=0.25", "mike>=2.0", "termynal>=0.12"]
 
 [project.scripts]
 kmhelpers = "pykmhelpers.cli.kmhelpers:cli"
+kh = "pykmhelpers.cli.kmhelpers:cli"
 
 [project.urls]
-Repository = "https://gitlab.inria.fr/omicfinder/kmhelpers"
+Repository = "https://github.com/sebllns/kmhelpers"
 
 [tool.setuptools]
 packages = [
     "pykmhelpers",
     "pykmhelpers.core",
     "pykmhelpers.operations",
+    "pykmhelpers.pipeline",
     "pykmhelpers.cli",
     "pykmhelpers.tests",
 ]
@@ -67,7 +76,7 @@ warn_unused_configs = true
 disallow_untyped_defs = false
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["pykmhelpers/tests"]
 addopts = "--cov=pykmhelpers --cov-report=html --cov-report=term-missing"
 
 [tool.coverage.run]

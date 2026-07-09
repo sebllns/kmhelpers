@@ -5,6 +5,16 @@ BYTE_SIZE: int = 8
 ENCODED_BITLENGTH: int = 64
 
 
+def kmindex_matrix_bit_count(rows, cols):
+    return rows * cols
+
+
+def kmindex_matrix_storage_cost(rows, cols):
+    return ((cols + BYTE_SIZE - 1) // BYTE_SIZE) * (
+        ((rows + ENCODED_BITLENGTH - 1) // ENCODED_BITLENGTH) * ENCODED_BITLENGTH
+    )
+
+
 class BloomFilterSpecs:
     def __init__(self, n_rows: int, n_cols: int, n_partitions: int):
         self._n_parts = n_partitions
@@ -27,6 +37,10 @@ class BloomFilterSpecs:
         return self._n_cols
 
     @property
+    def matrix_size(self) -> int:
+        return self.rows * self.cols
+
+    @property
     def parts(self) -> int:
         return self._n_parts
 
@@ -34,15 +48,10 @@ class BloomFilterSpecs:
         return (self.cols + BYTE_SIZE - 1) // BYTE_SIZE
 
     def column_byte_count(self) -> int:
-        return (
-            int(
-                (
-                    (self.rows / self.parts + ENCODED_BITLENGTH - 1)
-                    // ENCODED_BITLENGTH
-                )
-                * ENCODED_BITLENGTH
-                * self.parts
-            )
+        return int(
+            ((self.rows / self.parts + ENCODED_BITLENGTH - 1) // ENCODED_BITLENGTH)
+            * ENCODED_BITLENGTH
+            * self.parts
         )
 
     def total_byte_count(self):
@@ -59,19 +68,27 @@ class BloomFilterSpecs:
 
 
 class SpanManager:
-    def __init__(self, p=0.25) -> None:
+    def __init__(self, p=0.25, b=2.0) -> None:
         assert p > 0, f"Constraint must be respected: p > 0 (got p = {p})"
+        assert b > 0, f"Constraint must be respected: b > 0 (got b = {b})"
         self._p = p
+        self._b = b
         self._f = -math.log(self._p) / (math.log(2) ** 2)
 
     def dispatch(self, kmer_count):
         assert (
             kmer_count > 0
         ), "Constraint must be respected: kmer_count > 0 (got kmer_count = {kmer_count})"
-        s = int(math.log2(kmer_count))
+        s = int(math.log(kmer_count, self._b))
         assert s > 0, f"Constraint must be respected: s > 0 (got s = {s})"
         return s
 
     def get_bf_size(self, span):
         # Calculate real Bloom filter size
-        return ((int(self._f * (2 ** (span + 1))) + 7) // 8) * 8
+        return ((int(self._f * (self._b ** (span + 1))) + 7) // 8) * 8
+
+    def min_kmer_count(self, span):
+        return int(math.ceil(math.pow(self._b, span)))
+
+    def max_kmer_count(self, span):
+        return self.min_kmer_count(span + 1) - 1

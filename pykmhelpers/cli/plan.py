@@ -1,0 +1,240 @@
+"""Build k-mer index command."""
+
+import logging
+import os
+
+import click
+import yaml
+
+import pykmhelpers.cli.shared as shared
+import pykmhelpers.core.log
+import pykmhelpers.pipeline.index_ops as ops
+
+logger = logging.getLogger(__name__)
+
+
+@click.command(name="plan")
+@click.argument(
+    "input_file",
+    nargs=1,
+    required=True,
+    type=click.Path(dir_okay=False, file_okay=True, exists=True),
+)
+@shared.index_build_options
+@shared.fail_fast_option
+@click.option(
+    "--registry",
+    "-r",
+    required=False,
+    type=click.Path(file_okay=False, dir_okay=True),
+    help="📁  Custom base path to kmindex registry (created if doesn't exist).",
+)
+@click.option(
+    "--bloom-dir",
+    "-bl",
+    required=False,
+    type=click.Path(file_okay=False, dir_okay=True),
+    help="📁  Custom base path to kmindex Bloom filters directory (created if doesn't exist).",
+)
+@click.option(
+    "--from",
+    "reuse_from",
+    required=False,
+    help="⚙   Parent index ID to reuse parameters from. Takes precedence over parent_index that can be specified in definition file.",
+)
+@click.option(
+    "--on-conflict",
+    "existing",
+    required=False,
+    type=click.Choice(
+        [
+            "fail",
+            "register",
+            "rename",
+            "replace",
+            "register_or_replace",
+            "register_or_rename",
+        ],
+        case_sensitive=False,
+    ),
+    default="fail",
+    show_default=True,
+    help="⚙   Action when an existing unregistered index folder is found.",
+)
+@click.option(
+    "--offline",
+    "-O",
+    is_flag=True,
+    help="🚩  Skip local path validation (useful when exporting scripts for another machine).",
+)
+@click.pass_context
+def plan(
+    ctx,
+    input_file,
+    work_dir,
+    base_path,
+    span,
+    index_ids,
+    minim_size,
+    threads,
+    partition_count,
+    skip_compression,
+    show_progress,
+    fail_on_error,
+    notify,
+    registry,
+    bloom_dir,
+    reuse_from,
+    existing,
+    offline,
+):
+    """Validate paths and preview the build plan from an index definition file.
+
+    \b
+    Input:  index definition file (.json/.yaml) from `compose`
+    Output: shell script in WORK_DIR/assets/, validation report in WORK_DIR/logs/
+
+    📄 INPUT_FILE is an index definition file (.json/.yaml). If it is an index
+    definition, indices are previewed directly; if it is a span registry, sub-index
+    definition files are resolved from the same directory. Only indices matching
+    --name or --span are processed; if neither is specified, all declared indices
+    are previewed. The resulting build commands are written to a shell script in
+    the working directory.
+
+    Use --offline to skip local path validation when generating scripts for
+    another machine.
+
+    Examples:
+
+    \b
+    # Preview build plan for a definition file
+    kmhelpers plan index.yaml -w /output
+
+    \b
+    # Preview only selected indices by name
+    kmhelpers plan index.yaml -w /output -n idx1,idx2
+
+    \b
+    # Preview only selected k-mer spans
+    kmhelpers plan registry.yaml -w /output -s 28
+    kmhelpers plan registry.yaml -w /output -s 27,28,29
+
+    \b
+    # Reuse parameters from an existing parent index
+    kmhelpers plan index.yaml -w /output -n my_index --from parent_index
+
+    \b
+    # Resolve sample paths from a base directory
+    kmhelpers plan index.yaml -w /output -b /data/samples
+
+    \b
+    # Skip path validation (for exporting scripts to another machine)
+    kmhelpers plan index.yaml -w /output --offline
+    """
+    try:
+        force = (ctx.obj or {}).get("yes", False)
+
+        abort_msg = "FAILED ('plan')"
+
+        try:
+            selected_ids = (
+                [id for entry in index_ids for id in entry.split(",") if id]
+                if index_ids
+                else None
+            )
+            selected_spans = shared.parse_multiple_ranges(span) if span else None
+
+            assert work_dir, "Required parameter 'work_dir' was not provided."
+
+        except Exception as e:
+            pykmhelpers.core.log.Log.handle_exception(logger, e, f"Invalid argument.")
+            raise click.ClickException(abort_msg)
+
+        work_dir = os.path.realpath(work_dir)
+
+        if not registry:
+            registry = work_dir
+
+        if not bloom_dir:
+            bloom_dir = os.path.join(work_dir, "kmindex_data")
+
+        if not offline:
+            registry = os.path.realpath(registry)
+            bloom_dir = os.path.realpath(bloom_dir)
+            if not base_path:
+                base_path = os.getcwd()
+            base_path = os.path.realpath(base_path)
+            if not os.path.isdir(base_path):
+                if fail_on_error:
+                    raise click.ClickException(
+                        f"Data root directory not found at {base_path}"
+                    )
+                else:
+                    logger.warning(f"Data root directory not found at {base_path}")
+
+        if (
+            existing in ("replace", "register_or_replace")
+            and not force
+            and not click.confirm(
+                f"Proceed build with '{existing}' option?", default=True
+            )
+        ):
+            logger.warning("Build cancelled")
+            return
+
+        logger.info(f"Working directory: {work_dir}")
+
+        iops = ops.IndexOps(
+            config=ops.IndexOpsConfig(
+                workdir=work_dir,
+                index_data_folder=bloom_dir,
+                registry_dir=os.path.join(work_dir, registry),
+                sample_rootpath=base_path,
+                kmindex_skip_compression=False,
+                kmindex_build_from=reuse_from,
+                filter_names=selected_ids,
+                filter_spans=selected_spans,
+                on_existing=existing,
+                fail_on_error=fail_on_error,
+            )
+        )
+
+        log_dir = iops.log_dir
+
+        i = 0
+        failed = False
+        input_files = [input_file]
+        for input_file in input_files:
+            try:
+                logger.info(f"Plan {input_file}...")
+                result = iops.run(
+                    input_file,
+                    mode=(ops.ApplyMode.DRY_RUN if offline else ops.ApplyMode.PLAN),
+                )
+                if result.details:
+                    details_path = os.path.join(
+                        log_dir, f"kmhelpers_plan_{iops.timestamp}_{i}.yaml"
+                    )
+                    with open(details_path, "w") as f:
+                        yaml.dump(
+                            result.details, f, default_flow_style=False, sort_keys=False
+                        )
+                    logger.info(f"Result details written to {details_path}")
+                    i += 1
+            except Exception as e:
+                failed = True
+                pykmhelpers.core.log.Log.handle_exception(
+                    logger, e, f"Could not plan {os.path.basename(input_file)}"
+                )
+
+        iops.write_script()
+        if failed:
+            raise click.ClickException("FAILED ('plan')")
+        logger.info("SUCCESS ('plan')")
+    except click.ClickException:
+        raise
+    except (ValueError, FileNotFoundError) as e:
+        raise click.ClickException(str(e))
+    except Exception as e:
+        pykmhelpers.core.log.Log.handle_exception(logger, e, "FAILED ('plan')")
+        raise click.ClickException("FAILED ('plan')")
