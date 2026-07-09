@@ -8,7 +8,7 @@ import click
 from pykmhelpers import KmindexRegistry, KmtricksIndex
 
 
-@click.group()
+@click.group("manage")
 @click.option(
     "--registry-path",
     "-r",
