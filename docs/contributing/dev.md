@@ -8,7 +8,7 @@ cd kmhelpers
 pip install -e ".[dev]"
 ```
 
-`kmindex` and `kmtricks` must also be available — see [Installation](../installation.md).
+`kmindex` and `kmtricks` must also be available — see [Installation](../getting-started/installation.md).
 
 ## Project structure
 

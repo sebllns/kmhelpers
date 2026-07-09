@@ -1,6 +1,6 @@
 # Quick Start
 
-Once kmhelpers is [installed](installation.md), the fastest way to get hands-on is the [E. coli tutorial](tutorials/ecoli.md) — it builds a queryable index from real data in three commands. For syntax and options on any command, see the [Command Reference](commands/index.md).
+Once kmhelpers is [installed](installation.md), the fastest way to get hands-on is the [E. coli tutorial](../tutorials/ecoli.md) — it builds a queryable index from real data in three commands. For syntax and options on any command, see the [Command Reference](../commands/index.md).
 
 !!! tip
     `kh` is available as a short alias for `kmhelpers` — both commands are identical.
@@ -22,7 +22,7 @@ Once kmhelpers is [installed](installation.md), the fastest way to get hands-on 
 
     An additional command, **`registry`**, lets users register several distinct indexes (built locally or hosted anywhere accessible) into one logical index, redirecting each query to all registered indexes at query time.
 
-![Pipeline diagram](diagrams/fig_pipeline.svg)
+![Pipeline diagram](../diagrams/fig_pipeline.svg)
 
 Indices are built and queried in three steps:
 
@@ -32,9 +32,9 @@ Indices are built and queried in three steps:
 
 | Step | Command | Purpose | Input | Output |
 |---------|---------|---------|---------|---------|
-|1| [`design`](commands/design.md) | Discover samples and generate index definitions | directory or sample list | index definitions |
-|2| [`build`](commands/build.md) | Build k-mer indices from those definitions | index definitions | built k-mer index |
-|3| [`query`](commands/query.md) | Search the indices with FASTA/FASTQ sequences | built index + query sequences | match results |
+|1| [`design`](../commands/design.md) | Discover samples and generate index definitions | directory or sample list | index definitions |
+|2| [`build`](../commands/build.md) | Build k-mer indices from those definitions | index definitions | built k-mer index |
+|3| [`query`](../commands/query.md) | Search the indices with FASTA/FASTQ sequences | built index + query sequences | match results |
 
 ## Common Use Cases
 
@@ -60,7 +60,7 @@ Your index is ready to query:
     kmhelpers query -r coli_build/ -o results/ query.fa
     ```
 
-See the [E. coli tutorial](tutorials/ecoli.md) for a full walkthrough.
+See the [E. coli tutorial](../tutorials/ecoli.md) for a full walkthrough.
 
 ### Update an existing index
 
@@ -101,7 +101,7 @@ Point `query` at a built registry (`-r`) with one or more FASTA/FASTQ files, dir
     cat query.fa | kmhelpers query -r coli_build/ -o results/ -
     ```
 
-See [`query`](commands/query.md) for batching, output formats, and threshold options.
+See [`query`](../commands/query.md) for batching, output formats, and threshold options.
 
 ### Work with large datasets: automatic vs manual build
 
@@ -111,7 +111,7 @@ See [`query`](commands/query.md) for batching, output formats, and threshold opt
     **Output:** the same built index, produced manually step-by-step for more flexibility.
 
 
-For large sample counts, prefer running [`plan`](commands/plan.md) and [`apply`](commands/apply.md) separately instead of `build` (which chains them). `plan` validates all sample paths and writes a ready-to-run shell script to `OUTPUT_DIR/assets/` up front, so path errors surface before any CPU/I/O-intensive building starts:
+For large sample counts, prefer running [`plan`](../commands/plan.md) and [`apply`](../commands/apply.md) separately instead of `build` (which chains them). `plan` validates all sample paths and writes a ready-to-run shell script to `OUTPUT_DIR/assets/` up front, so path errors surface before any CPU/I/O-intensive building starts:
 
 ??? example "Commands"
     ```bash
@@ -148,5 +148,5 @@ Review `coli_build/assets/` and `coli_build/logs/`, then:
 
 ## Next Steps
 
-- **[Tutorial](tutorials/ecoli.md)** — a full hands-on walkthrough indexing 10 *E. coli* assemblies
-- **[Command Reference](commands/index.md)** — detailed syntax and options for every command
+- **[Tutorial](../tutorials/ecoli.md)** — a full hands-on walkthrough indexing 10 *E. coli* assemblies
+- **[Command Reference](../commands/index.md)** — detailed syntax and options for every command

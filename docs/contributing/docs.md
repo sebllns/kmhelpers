@@ -43,8 +43,10 @@ The `site/` directory is git-ignored and should not be committed.
 mkdocs.yml          # MkDocs configuration
 docs/
   index.md          # Home page
-  installation.md   # Installation guide
-  getting-started.md
+  getting-started/
+    index.md        # Getting Started overview
+    installation.md # Installation guide
+    getting-started.md
   changelog.md      # Includes CHANGELOG.md via snippet
   tutorials/
     ecoli.md        # E. coli indexing tutorial
