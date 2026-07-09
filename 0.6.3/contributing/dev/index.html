@@ -2190,6 +2190,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Releasing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#viewing-main-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Viewing main history
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -2325,6 +2342,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Releasing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#viewing-main-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Viewing main history
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -2490,7 +2524,7 @@
 <h2 id="releasing">Releasing</h2>
 <div class="admonition abstract">
 <p class="admonition-title">Abstract</p>
-<p>A release consolidates current development work from <code>develop</code> into a dedicated <code>release/vX.Y.Z</code> branch, then squash-merges it into <code>main</code> as a single versioned commit. This keeps <code>main</code> history clean and readable while <code>develop</code> retains the full commit history.</p>
+<p>A release consolidates current development work from <code>develop</code> into a dedicated <code>release/vX.Y.Z</code> branch, then merges it into <code>main</code> with a <strong>merge commit</strong> (<code>--no-ff</code>). This keeps <code>main</code> readable, one merge commit per release when viewed with <code>--first-parent</code>, while preserving full history and correct ancestry, so subsequent releases keep merging cleanly.</p>
 </div>
 <ol>
 <li>Work on a <code>dev/vX.Y.Z</code> branch:
@@ -2508,22 +2542,39 @@
    <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>release/vX.Y.Z
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>release/vX.Y.Z
 </code></pre></div></li>
-<li>Open a pull request from <code>release/vX.Y.Z</code> into <code>main</code> — use <strong>Squash and merge</strong> with commit message <code>Release vX.Y.Z</code>. This keeps <code>main</code> history clean with one commit per release.</li>
-<li>After merge, tag the release on <code>main</code>:
+<li>Merge <code>release/vX.Y.Z</code> into <code>main</code> with a merge commit (never fast-forward, never squash):
    <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>main
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>git<span class="w"> </span>pull
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>git<span class="w"> </span>tag<span class="w"> </span>vX.Y.Z
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>vX.Y.Z
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>git<span class="w"> </span>pull<span class="w"> </span>origin<span class="w"> </span>main
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>git<span class="w"> </span>merge<span class="w"> </span>--no-ff<span class="w"> </span>release/vX.Y.Z<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Merge branch &#39;release/vX.Y.Z&#39; into &#39;main&#39;&quot;</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>main
+</code></pre></div>
+   <code>--no-ff</code> forces a merge commit even though <code>main</code> is an ancestor of the release branch; without it Git would fast-forward and you would lose the per-release merge marker. If you release via a GitLab MR / GitHub PR instead, choose <strong>Create a merge commit</strong> (not squash, not fast-forward).</li>
+<li>After merge, tag the release on <code>main</code>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>main
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>git<span class="w"> </span>pull
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>git<span class="w"> </span>tag<span class="w"> </span>vX.Y.Z
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>vX.Y.Z
 </code></pre></div></li>
 <li>Sync <code>develop</code> with a regular merge (preserves full commit history):
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>develop
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>git<span class="w"> </span>merge<span class="w"> </span>main
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>develop
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>develop
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>git<span class="w"> </span>merge<span class="w"> </span>main
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>develop
 </code></pre></div></li>
 <li>Deploy the updated docs:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>mkdocs<span class="w"> </span>gh-deploy
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>mkdocs<span class="w"> </span>gh-deploy
 </code></pre></div></li>
 </ol>
+<h3 id="viewing-main-history">Viewing <code>main</code> history</h3>
+<p>Because releases land as <code>--no-ff</code> merge commits, <code>main</code> reads as one entry per release with <code>--first-parent</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>git<span class="w"> </span>log<span class="w"> </span>--first-parent<span class="w"> </span>--oneline<span class="w"> </span>main
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>xxxxxxx Merge branch &#39;release/v0.6.3&#39; into &#39;main&#39;
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>0be81302 Merge branch &#39;release/v0.6.2&#39; into &#39;main&#39;
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>bc287506 Merge branch &#39;release/v0.6.1&#39; into &#39;main&#39;
+</code></pre></div>
+<p>The individual release commits are still fully reachable (blame and <code>git bisect</code> work); <code>--first-parent</code> just hides them from the top-level view. Optionally alias it:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>git<span class="w"> </span>config<span class="w"> </span>alias.mainlog<span class="w"> </span><span class="s2">&quot;log --first-parent --oneline main&quot;</span>
+</code></pre></div>
 
 
 
