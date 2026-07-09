@@ -2424,12 +2424,11 @@
 <p><code>kh</code> is available as a short alias for <code>kmhelpers</code> — both commands are identical.</p>
 </div>
 <h2 id="the-pipeline">The Pipeline</h2>
-<p>Indices are built and queried in three steps:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>[1] design → [2] build → [3] query
-</code></pre></div>
-<p><code>kmhelpers</code> exposes the index lifecycle as a sequence of commands, illustrated Figure 1:</p>
+<p><code>kmhelpers</code> exposes the index lifecycle as a sequence of commands, illustrated in figure below:</p>
+<details class="note">
+<summary>Command breakdown</summary>
 <ul>
-<li><strong><code>list</code></strong> — recursively discovers all samples in a given directory and counts each sample's distinct <span class="arithmatex">\(k\)</span>-mers using <code>ntCard</code> [@mohamadi2017] (unless the counts are provided by the user).</li>
+<li><strong><code>list</code></strong> — recursively discovers all samples in a given directory and counts each sample's distinct <span class="arithmatex">\(k\)</span>-mers using <a href="https://github.com/BirolLab/ntCard"><strong><code>ntcard</code></strong></a> (unless the counts are provided by the user).</li>
 <li><strong><code>profile</code></strong> — determines the best set of sub-index BF sizes given the user-defined maximum number of sub-indexes and target false-positive rate.</li>
 <li><strong><code>compose</code></strong> — assigns each sample to its sub-index and generates the <em>files-of-files</em> describing the data origin of each sub-index.</li>
 <li><strong><code>plan</code></strong> — validates sample files, available disk space, and memory upfront, and emits ready-to-execute pipeline scripts.</li>
@@ -2438,7 +2437,11 @@
 <p>For ease of use, steps <code>list</code>, <code>profile</code>, and <code>compose</code> can be grouped under a single command named <strong><code>design</code></strong>, and steps <code>plan</code> and <code>apply</code> can be grouped under the <strong><code>build</code></strong> command.</p>
 <p>Once an index is built, <code>kmhelpers</code> also answers queries (<strong><code>query</code></strong>). Multi-step workflows can be described as declarative YAML pipelines (<strong><code>pipeline</code></strong>) and executed in a single command.</p>
 <p>An additional command, <strong><code>registry</code></strong>, lets users register several distinct indexes (built locally or hosted anywhere accessible) into one logical index, redirecting each query to all registered indexes at query time.</p>
+</details>
 <p><img alt="Pipeline diagram" src="../diagrams/fig_pipeline.svg" /></p>
+<p>Indices are built and queried in three steps:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>[1] design → [2] build → [3] query
+</code></pre></div>
 <table>
 <thead>
 <tr>
