@@ -31,18 +31,6 @@ class NotAnIndexError(Exception):
         super().__init__(self.message)
 
 
-class NotAnIndexError(Exception):
-    """Exception raised when an existing index is required and is not found in the current context.
-
-    Attributes:
-        message -- explanation of the error
-    """
-
-    def __init__(self, index_id):
-        self.message = f"Index not found: {index_id}"
-        super().__init__(self.message)
-
-
 class IndexCompressionState(Enum):
     """
     Enum representing the compression state of a kmindex.
@@ -586,48 +574,6 @@ class KmtricksIndex:
 
         except Exception as e:
             logger.error(f"Error renaming index: {e}")
-            return False
-
-    def rename(self, new_id) -> bool:
-        """
-        Rename this index to a new ID.
-
-        Args:
-            new_id: New index ID
-
-        Returns:
-            True if rename was successful, False otherwise
-        """
-        try:
-            # Validate new_id
-            if not new_id or not isinstance(new_id, str):
-                print(f"Error: Invalid new index ID: {new_id}")
-                return False
-
-            if new_id == self._index_id:
-                print(f"Error: New ID is the same as current ID: {new_id}")
-                return False
-
-            # Get current and new paths
-            old_path = self.dir_path
-            new_path = Kmindex.get_index_path(self._parent_dir, new_id)
-
-            # Check if new path already exists
-            if os.path.exists(new_path):
-                print(f"Error: Index with ID '{new_id}' already exists at {new_path}")
-                return False
-
-            # Rename the directory
-            os.rename(old_path, new_path)
-
-            # Update the index ID
-            self._index_id = new_id
-
-            print(f"Successfully renamed index to '{new_id}'")
-            return True
-
-        except Exception as e:
-            print(f"Error renaming index: {e}")
             return False
 
     def __str__(self) -> str:
