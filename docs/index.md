@@ -107,8 +107,8 @@ Most `kmhelpers` commands (`design`, `plan`, `query`, `compose`, ...) complete i
 
 ## Quick links
 
-- [Installation](installation.md)
-- [Quick Start](getting-started.md)
+- [Installation](getting-started/installation.md)
+- [Quick Start](getting-started/getting-started.md)
 - [Command Reference](commands/index.md)
 - [Changelog](changelog.md)
 - [Repository](https://github.com/sebllns/kmhelpers)
@@ -123,7 +123,7 @@ Most `kmhelpers` commands (`design`, `plan`, `query`, `compose`, ...) complete i
 | [kmtricks](https://github.com/tlemane/kmtricks) | ≥ 1.6.0 |
 | [ntCard](https://github.com/bcgsc/ntCard) | ≥ 1.2.2 |
 
-See [Installation](installation.md) for build instructions.
+See [Installation](getting-started/installation.md) for build instructions.
 
 ## License
 

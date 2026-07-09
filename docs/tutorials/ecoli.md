@@ -8,7 +8,7 @@ three commands:
 
 ## Prerequisites
 
-- **kmhelpers** installed (see [Installation](../installation.md))
+- **kmhelpers** installed (see [Installation](../getting-started/installation.md))
 - Command `wget` to download the dataset
 - ~200 MB of free disk space for the dataset + resulting index
 
