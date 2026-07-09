@@ -34,7 +34,7 @@ Steps run internally by [`build`](build.md):
 
 | Command | Description |
 |---------|-------------|
-| [`registry`](registry.md) | Manage k-mer index registries |
+| [`manage`](manage.md) | Manage k-mer index registries *(under development)* |
 | [`pipeline`](pipeline.md) | Run a sequence of commands defined in a YAML pipeline file |
 
 ## Global Options
