@@ -3,10 +3,11 @@ permissions:
   contents: write
 on:
   push:
+    branches: [paper]
     paths:
-      - 'paper/paper.md'
-      - 'paper/paper.bib'
-      - '.github/workflows/draft-pdf.yml'
+      - "paper/paper.md"
+      - "paper/paper.bib"
+      - ".github/workflows/draft-pdf.yml"
 jobs:
   paper:
     runs-on: ubuntu-latest
@@ -31,6 +32,6 @@ jobs:
       - name: Commit PDF to repository
         uses: EndBug/add-and-commit@v9
         with:
-          message: '(auto) Paper PDF Draft'
+          message: "(auto) Paper PDF Draft"
           # This should be the path to the paper within your repo.
-          add: 'paper/paper.pdf' # 'paper/*.pdf' to commit all PDFs in the paper directory
+          add: "paper/paper.pdf" # 'paper/*.pdf' to commit all PDFs in the paper directory
