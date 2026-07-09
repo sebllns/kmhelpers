@@ -1,0 +1,26 @@
+name: Tests
+
+on:
+  push:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up conda environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          environment-file: conda/environment.yml
+          activate-environment: kmhelpers
+
+      - name: Install dev dependencies
+        shell: bash -el {0}
+        run: pip install -e .[dev]
+
+      - name: Run tests
+        shell: bash -el {0}
+        run: pytest pykmhelpers/tests

@@ -123,12 +123,7 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/seblln
    pip install -e ".[dev]"
    ```
 
-3. **Build kmindex from source** (required — the `static_repart` index type is not yet in the conda release):
-   ```bash
-   bash scripts/setup.sh
-   ```
-
-4. **Run the test suite** to verify everything is working:
+3. **Run the test suite** to verify everything is working:
    ```bash
    pytest
    ```
