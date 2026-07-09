@@ -71,12 +71,6 @@ logger = logging.getLogger(__name__)
     help="🚩  Treat all sequences across all query files as a single batched query instead of querying each sequence individually.",
 )
 @click.option(
-    "--batch-query",
-    "-b",
-    is_flag=True,
-    help="Treat all sequences across all query files as a single batched query instead of querying each sequence individually",
-)
-@click.option(
     "--aggregate",
     "-a",
     is_flag=True,
@@ -158,7 +152,7 @@ def query(
     parallel,
     query_files,
 ):
-    start_time = time.time()
+    """Query indices with FASTA/FASTQ sequences.
 
     \b
     Input:  FASTA/FASTQ file(s), kmindex registry (-r)
