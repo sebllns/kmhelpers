@@ -1,4 +1,4 @@
-# registry
+# manage
 
 ## Synopsis
 
@@ -6,7 +6,7 @@ Manage k-mer index registries.
 
 !!! abstract "USAGE"
     ```
-    kmhelpers registry [OPTIONS] COMMAND [ARGS]...
+    kmhelpers manage [OPTIONS] COMMAND [ARGS]...
     ```
 
     | Argument | Description |
@@ -79,42 +79,42 @@ Manage k-mer index registries.
 
 ```bash
 # Create a registry in the current directory
-kmhelpers registry create
+kmhelpers manage create
 
 # Create a registry and register indices from a directory
-kmhelpers registry create -i /data/indices
+kmhelpers manage create -i /data/indices
 
 # List all registered indices
-kmhelpers registry list
-kmhelpers registry -r /path/to/registry list
+kmhelpers manage list
+kmhelpers manage -r /path/to/registry list
 
 # Add indices from a directory to an existing registry
-kmhelpers registry add -i /data/new_indices
+kmhelpers manage add -i /data/new_indices
 
 # Show info for a specific index
-kmhelpers registry info -n my_index
+kmhelpers manage info -n my_index
 
 # Show info as JSON
-kmhelpers registry info -n my_index --json
+kmhelpers manage info -n my_index --json
 
 # Check consistency
-kmhelpers registry check
+kmhelpers manage check
 
 # Remove an index (keep files)
-kmhelpers registry remove -n my_index
+kmhelpers manage remove -n my_index
 
 # Remove an index and delete files from disk
-kmhelpers registry remove -n my_index -d
+kmhelpers manage remove -n my_index -d
 
 # Remove multiple indices without confirmation
-kmhelpers registry remove -n idx1 -n idx2 -y
+kmhelpers manage remove -n idx1 -n idx2 -y
 
 # Rename an index
-kmhelpers registry rename -f old_name -t new_name
+kmhelpers manage rename -f old_name -t new_name
 
 # Relink all indices from a new directory
-kmhelpers registry relink -i /new/location
+kmhelpers manage relink -i /new/location
 
 # Relink a specific index
-kmhelpers registry relink -i /new/location -n my_index
+kmhelpers manage relink -i /new/location -n my_index
 ```

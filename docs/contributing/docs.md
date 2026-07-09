@@ -37,34 +37,6 @@ mkdocs build
 
 The `site/` directory is git-ignored and should not be committed.
 
-## Structure
-
-```
-mkdocs.yml          # MkDocs configuration
-docs/
-  index.md          # Home page
-  getting-started/
-    index.md        # Getting Started overview
-    installation.md # Installation guide
-    getting-started.md
-  changelog.md      # Includes CHANGELOG.md via snippet
-  tutorials/
-    ecoli.md        # E. coli indexing tutorial
-  commands/
-    index.md        # Command reference overview
-    list.md
-    profile.md
-    compose.md
-    plan.md
-    apply.md
-    query.md
-    compress.md
-    registry.md
-    pipeline.md
-  contributing/
-    docs.md         # This file
-```
-
 ## Adding or editing pages
 
 1. Edit or create a `.md` file under `docs/`.

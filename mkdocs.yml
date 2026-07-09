@@ -110,7 +110,7 @@ nav:
                 - plan: commands/plan.md
                 - apply: commands/apply.md
           - Utilities:
-                - registry: commands/registry.md
+                - manage: commands/manage.md
                 - pipeline: commands/pipeline.md
     - API Reference:
           - Overview: api/index.md

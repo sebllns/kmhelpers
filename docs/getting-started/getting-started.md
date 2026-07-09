@@ -20,7 +20,7 @@ Once kmhelpers is [installed](installation.md), the fastest way to get hands-on 
 
     Once an index is built, `kmhelpers` also answers queries (**`query`**). Multi-step workflows can be described as declarative YAML pipelines (**`pipeline`**) and executed in a single command.
 
-    An additional command, **`registry`**, lets users register several distinct indexes (built locally or hosted anywhere accessible) into one logical index, redirecting each query to all registered indexes at query time.
+    An additional command, **`manage`** *(under development)*, lets users register several distinct indexes (built locally or hosted anywhere accessible) into one logical index, redirecting each query to all registered indexes at query time.
 
 ![Pipeline diagram](../diagrams/fig_pipeline.svg)
 
