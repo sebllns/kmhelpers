@@ -109,9 +109,6 @@ class IndexOpsConfig:
         on_existing: Behaviour when a sub-index folder already exists on disk but is not registered.
             Passed directly to the builder (e.g. ``"fail"``, ``"register"``).
             Defaults to ``"fail"``.
-        fail_on_error: Abort the entire apply operation on the first build or
-            merge error instead of continuing and returning ``PARTIAL``.
-            Defaults to ``False``.
         limits: JSON line of resource limits (``ram``, ``files``, ``threads``,
             ``focus``) forwarded to ``auto_params`` when
             ``kmindex_threads`` is unset. Any key omitted is auto-detected
@@ -131,7 +128,6 @@ class IndexOpsConfig:
     filter_spans: Optional[list[int]] = None
     filter_names: Optional[list[str]] = None
     on_existing: str = "fail"
-    fail_on_error: bool = False
     partition_count: Optional[int] = None
     limits: Optional[str] = None
     safety_margin: float = 0.9
@@ -178,6 +174,7 @@ class IndexOps:
         self._timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         self._mode = ApplyMode.APPLY
+        self._fail_on_error = True
 
         self._dbs = dict[str, list[IndexDB]]()
         self._building = set[str]()
@@ -251,7 +248,9 @@ class IndexOps:
             f.write("\n".join(self._script_lines) + "\n")
         logger.info(f"Script written to {script_path}")
 
-    def run(self, path: str, mode: ApplyMode) -> ApplyResult:
+    def run(
+        self, path: str, mode: ApplyMode, fail_on_error: bool = False
+    ) -> ApplyResult:
         """Apply an index definition or span registry file to the kmindex registry.
 
         Reads ``path``, detects whether it is an index definition or a span
@@ -262,6 +261,8 @@ class IndexOps:
             path: Path to a YAML or JSON file containing either an
                 ``IndexDefinition`` or a span registry.
             mode: Execution mode — controls whether to dry-run, plan, or apply.
+            fail_on_error: Abort this run on the first build or merge error
+                instead of continuing and returning ``PARTIAL``.
 
         Returns:
             An ``ApplyResult`` with the overall status and a per-index details
@@ -274,6 +275,7 @@ class IndexOps:
         path = os.path.realpath(path)
 
         self._mode = mode
+        self._fail_on_error = fail_on_error
         self._building = set[str]()
         self._loaded_sample_files = set[int]()
         self._sample_file_cache = dict[str, dict[str, list[str]]]()
@@ -461,7 +463,7 @@ class IndexOps:
                 result, key, ApplyStatus.FAILED, Log.format_exception(e)
             )
         result.status = ApplyStatus.PARTIAL
-        if self.config.fail_on_error:
+        if self._fail_on_error:
             result.status = ApplyStatus.FAILED
             return True
         return False

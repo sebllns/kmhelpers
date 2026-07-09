@@ -106,7 +106,7 @@ _threads_option = click.option(
     "-t",
     type=int,
     required=False,
-    help="⚙   Number of threads (default: auto-sized from system RAM/ulimit, see --limits).",
+    help="⚙   Number of threads.",
 )
 _partition_count_option = click.option(
     "--partition-count",
@@ -165,22 +165,60 @@ _notify_option = click.option(
 _INDEX_BUILD_OPTIONS = [
     output_dir_option,
     _base_path_option,
-    _span_option,
-    _index_ids_option,
     _minim_size_option,
     _threads_option,
     _partition_count_option,
-    _limits_option,
-    _safety_margin_option,
     _skip_compression_option,
+]
+
+# Only meaningful for commands that operate on an already-composed
+# definition/registry file (plan, apply); `build` always processes the
+# whole input file, so filtering by name/span doesn't apply there.
+_INDEX_FILTER_OPTIONS = [
+    _span_option,
+    _index_ids_option,
+]
+
+# Only meaningful for commands that actually execute a build (apply, build);
+# `plan` is a preview/dry-run, so a progress bar or completion notification
+# don't apply there.
+_INDEX_APPLY_OPTIONS = [
     _show_progress_option,
     _notify_option,
+]
+
+# Only meaningful for commands that let threads be auto-sized (plan, apply);
+# `build` always relies on system-detected limits, with no override.
+_INDEX_LIMITS_OPTIONS = [
+    _limits_option,
+    _safety_margin_option,
 ]
 
 
 def index_build_options(f):
     """Shared options for commands that build k-mer indices (plan, apply, build)."""
     for opt in reversed(_INDEX_BUILD_OPTIONS):
+        f = opt(f)
+    return f
+
+
+def index_filter_options(f):
+    """Extra options for commands that filter by name/span (plan, apply), not `build`."""
+    for opt in reversed(_INDEX_FILTER_OPTIONS):
+        f = opt(f)
+    return f
+
+
+def index_apply_options(f):
+    """Extra options for commands that execute a build (apply, build), not `plan`."""
+    for opt in reversed(_INDEX_APPLY_OPTIONS):
+        f = opt(f)
+    return f
+
+
+def index_limits_options(f):
+    """Extra options for commands that let resource limits be overridden (plan, apply), not `build`."""
+    for opt in reversed(_INDEX_LIMITS_OPTIONS):
         f = opt(f)
     return f
 

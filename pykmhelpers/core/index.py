@@ -724,9 +724,15 @@ class KmindexRegistry:
             index: KmtricksIndex object to add
 
         Returns:
-            True if index was added, False if it already exists
+            True if index was added, False if it already exists or its
+            on-disk structure is invalid.
         """
         if self.has_index(index._index_id):
+            return False
+        if not index.check_structure():
+            logger.warning(
+                f"Refusing to register '{index._index_id}': invalid index structure"
+            )
             return False
         Kmindex.register_index_in_json(
             index._parent_dir, self._root_path, index._index_id
