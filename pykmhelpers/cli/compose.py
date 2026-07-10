@@ -97,7 +97,11 @@ def compose(
 
     \b
     Input:  JSONL sample list (from `list`), profiles YAML for new index (from `profile`)
-    Output: index definition files in OUTPUT_DIR/NAME/
+    Output: index definition files in OUTPUT_DIR/NAME/RUN_ID/
+
+    The run directory contains a NAME.yaml registry. Pass
+    OUTPUT_DIR/NAME/RUN_ID/NAME.yaml as INPUT_FILE to `plan`, `build` or `apply` to
+    process the index.
 
     Use --profiles-file to build a new index. To update an existing index, omit
     --profiles-file: the layout file at OUTPUT_DIR/NAME_layout.yaml is loaded automatically.

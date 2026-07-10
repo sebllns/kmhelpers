@@ -11,11 +11,11 @@ Validate paths and preview the build plan from an index definition file, then wr
 
     | Argument | Description |
     |----------|-------------|
-    | `INPUT_FILE` | Index definition file (`.json`/`.yaml`) from `compose` (required) |
+    | `INPUT_FILE` | `NAME.yaml` written by `compose` in `OUTPUT_DIR/NAME/SESSION/` (required) |
     | `-o, --output-dir DIR` | Working directory for output (required) |
 
 !!! abstract "I/O"
-    **Input:** index definition file (`.json`/`.yaml`) from `compose`  
+    **Input:** `NAME.yaml` written by `compose` in `OUTPUT_DIR/NAME/SESSION/`  
     **Output:** shell script in `OUTPUT_DIR/assets/`, validation report in `OUTPUT_DIR/logs/`
 
 ## Advanced Options
@@ -40,7 +40,7 @@ Validate paths and preview the build plan from an index definition file, then wr
 
 ## Description
 
-`plan` validates all sample paths upfront and previews the `kmindex` commands that would be executed by [`apply`](apply.md), without running them. It writes the equivalent shell script to `OUTPUT_DIR/assets/` and a validation report to `OUTPUT_DIR/logs/`.
+`plan` takes the `NAME.yaml` file written by [`compose`](compose.md) in `OUTPUT_DIR/NAME/SESSION/`. It validates all sample paths upfront and previews the `kmindex` commands that would be executed by [`apply`](apply.md), without running them. It writes the equivalent shell script to `OUTPUT_DIR/assets/` and a validation report to `OUTPUT_DIR/logs/`.
 
 **Offline mode** — use `--offline` to skip local path validation when generating scripts destined for another machine.
 

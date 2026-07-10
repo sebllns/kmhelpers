@@ -96,10 +96,9 @@ def plan(
     Input:  index definition file (.json/.yaml) from `compose`
     Output: shell script in WORK_DIR/assets/, validation report in WORK_DIR/logs/
 
-    📄 INPUT_FILE is an index definition file (.json/.yaml). If it is an index
-    definition, indices are previewed directly; if it is a span registry, sub-index
-    definition files are resolved from the same directory. Only indices matching
-    --name or --span are processed; if neither is specified, all declared indices
+    📄 INPUT_FILE is the NAME.yaml written by `compose` in OUTPUT_DIR/NAME/RUN_ID/.
+    Only indices matching --name or --span are processed; 
+    if neither is specified, all declared indices
     are previewed. The resulting build commands are written to a shell script in
     the working directory.
 
