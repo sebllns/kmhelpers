@@ -64,6 +64,7 @@ class SampleLister:
 
         self._tools = IndexDefinitionTools()
         self._samples: set[str] = set()
+        self._root_path: str | None = None
         self._counter: KmerCounter | None = None
         self._count_mode = (
             KmerCountMode.DISTINCT if is_assembled else KmerCountMode.SOLID
@@ -106,6 +107,8 @@ class SampleLister:
 
         if root_path is None:
             raise ValueError("root_path is None")
+
+        self._root_path = root_path
 
         with open(self.output_file, "w") as out:
             self._out = out
@@ -209,8 +212,18 @@ class SampleLister:
         if self._counter is None:
             return 0
         try:
+            # Entries store paths relative to root_path; resolve them so
+            # ntcard can find the files regardless of the current directory.
+            resolved = [
+                f
+                if os.path.isabs(f) or not self._root_path
+                else os.path.join(self._root_path, f)
+                for f in files
+            ]
             kmer_count = self._counter.count_files(
-                files, mode=self._count_mode, verbose=logger.isEnabledFor(logging.DEBUG)
+                resolved,
+                mode=self._count_mode,
+                verbose=logger.isEnabledFor(logging.DEBUG),
             )
             logger.info(f"{sample_id}:{kmer_count}")
             return kmer_count
@@ -283,9 +296,7 @@ class SampleLister:
         for dirpath, dirnames, filenames in os.walk(root):
             dirnames.sort()
             data_files = [
-                os.path.relpath(
-                    os.path.join(dirpath, fname), root
-                )  #                os.path.join(dirpath, fname)
+                os.path.relpath(os.path.join(dirpath, fname), root)
                 for fname in sorted(filenames)
                 if any(fname.endswith(ext) for ext in extensions)
             ]
@@ -327,6 +338,7 @@ class SampleLister:
             if parsed:
                 kmer_size = first_entry.get("k", kmer_size)
                 input_dir = first_entry.get("root_path") or input_dir
+                self._root_path = input_dir
                 is_assembled = first_entry.get("assembled", self.is_assembled)
                 first_entry["k"] = kmer_size
                 first_entry["root_path"] = input_dir
