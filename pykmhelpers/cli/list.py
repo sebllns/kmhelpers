@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
     "output_file",
     required=True,
     type=click.Path(dir_okay=False),
-    help="📄  Path for the output JSONL file. If it already exists, it is backed up and the run resumes without reprocessing already-listed samples (use --autorename to rename duplicates instead of skipping).",
+    help="📄  Path for the output JSONL file. If it already exists, it is backed up; pass --continue/-c to resume without reprocessing already-listed samples (use --autorename to rename duplicates instead of skipping).",
 )
 @click.option(
     "--kmer-size",
@@ -61,8 +61,17 @@ logger = logging.getLogger(__name__)
     help="🚩  Group files by leaf folder; each leaf directory becomes one sample.",
 )
 @click.option(
+    "--continue",
+    "-c",
+    "do_continue",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="🚩  Resume from an existing output file, skipping already-listed samples.",
+)
+@click.option(
     "--autorename",
-    "-r",
+    "-a",
     is_flag=True,
     default=False,
     show_default=True,
@@ -84,6 +93,7 @@ def list_samples(
     data_type,
     no_count,
     leaf_grouping,
+    do_continue,
     autorename,
     ntcard_threads,
 ):
@@ -116,6 +126,7 @@ def list_samples(
             is_assembled=is_assembled,
             do_count=not no_count,
             do_grouping=leaf_grouping,
+            do_continue=do_continue,
             autorename=autorename,
             ntcard_threads=ntcard_threads,
         ).run()

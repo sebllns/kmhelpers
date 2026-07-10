@@ -25,7 +25,8 @@ Scan a directory or import a sample list, count k-mers, and produce a JSONL samp
 |--------|-------------|
 | `-nc, --no-count` | Skip k-mer counting with ntcard |
 | `-lg, --leaf-grouping` | Group files by leaf folder; each leaf directory becomes one sample |
-| `-r, --autorename` | Rename duplicate sample IDs by appending a numeric suffix instead of skipping |
+| `-c, --continue` | Resume from an existing output file, skipping already-listed samples |
+| `-a, --autorename` | Rename duplicate sample IDs by appending a numeric suffix instead of skipping |
 | `-ntt, --ntcard-threads INT` | Number of threads for ntcard k-mer counting (default: 8) |
 
 ## Input formats
@@ -72,7 +73,7 @@ samples:
 - `assembled` (default) — counts all distinct k-mers; suited for assemblies where every k-mer is expected at least once
 - `unassembled` — counts only k-mers appearing at least twice, filtering out likely sequencing errors; suited for raw reads
 
-**Resuming** — if the output file already exists, it is backed up and the run resumes without reprocessing already-listed samples. Use `--autorename` to rename duplicate sample IDs instead of skipping them.
+**Resuming** — if the output file already exists, it is backed up. Pass `--continue` to resume from that backup without reprocessing already-listed samples; otherwise the run starts fresh. Use `--autorename` to rename duplicate sample IDs instead of skipping them.
 
 
 Top-level keys other than `samples` are written as-is into the output header.
@@ -110,8 +111,11 @@ kmhelpers list my_files.txt -o samples.jsonl
 # Import from a YAML sample list
 kmhelpers list my_files.yaml -o samples.jsonl
 
+# Resume an interrupted run without reprocessing already-listed samples
+kmhelpers list /data/sequences -o samples.jsonl -c
+
 # Rename duplicate sample IDs instead of skipping them
-kmhelpers list /data/sequences -o samples.jsonl -r
+kmhelpers list /data/sequences -o samples.jsonl -a
 ```
 
 ## Dependencies
