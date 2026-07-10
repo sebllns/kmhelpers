@@ -12,8 +12,8 @@ from time import sleep
 from typing import Optional
 
 import pykmhelpers
-from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.build_params import auto_params
+from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
 from pykmhelpers.core.log import Log
 from pykmhelpers.operations.builder import IndexBuilder
@@ -828,7 +828,12 @@ class IndexOps:
                 fof.add_sample(sample_files, s.name)
         except Exception as e:
             msg = f"Error adding sample '{s.name or 'UNNAMED'}' to '{i.name}' | {e}"
-            logger.warning(f"{self._indent_prefix()}{msg}")
+            Log.handle_exception(
+                logger=logger,
+                e=e,
+                msg=f"{self._indent_prefix()}{msg}",
+                level=logging.WARNING,
+            )
             issues.append(msg)
 
     def _get_dbs(self, path: str, idt: IndexDefinitionTools) -> list[IndexDB]:

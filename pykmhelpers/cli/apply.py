@@ -232,16 +232,17 @@ def apply(
     else:
         base_bloom_dir = os.path.realpath(bloom_dir)
 
-    if not base_path:
-        base_path = os.getcwd()
-
-    base_path = os.path.realpath(base_path)
-
-    if not os.path.isdir(base_path):
-        if fail_on_error:
-            raise click.ClickException(f"Data root directory not found at {base_path}")
-        else:
-            logger.warning(f"Data root directory not found at {base_path}")
+    # Only an explicit --base-path overrides the sample root; otherwise each
+    # definition resolves paths against its JSONL header's root_path.
+    if base_path:
+        base_path = os.path.realpath(base_path)
+        if not os.path.isdir(base_path):
+            if fail_on_error:
+                raise click.ClickException(
+                    f"Data root directory not found at {base_path}"
+                )
+            else:
+                logger.warning(f"Data root directory not found at {base_path}")
 
     if (
         existing in ("replace", "register_or_replace")
