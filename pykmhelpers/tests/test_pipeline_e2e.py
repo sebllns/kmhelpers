@@ -78,7 +78,8 @@ class PipelineE2EBase(unittest.TestCase):
 
     def run_cli(self, *args, expect_success=True):
         """Run one CLI command in a fresh subprocess; assert the exit code."""
-        cmd = [sys.executable, "-m", CLI_MODULE] + [str(a) for a in args]
+        # -v is a top-level group option, so it precedes the subcommand.
+        cmd = [sys.executable, "-m", CLI_MODULE, "-v"] + [str(a) for a in args]
         proc = subprocess.run(cmd, cwd=self.tmp, capture_output=True, text=True)
         pretty = "kmhelpers " + " ".join(str(a) for a in args)
         if expect_success:
@@ -322,6 +323,134 @@ class TestChunkedBuild(PipelineE2EBase):
             q, header = self.write_query(f"s{idx}", sample_idx=idx)
             self.run_cli("query", q, "-r", "build", "-o", f"results_{idx}", "-f", "json")
             self.assert_query_hit(f"results_{idx}", header, f"sample_{idx}")
+
+
+class TestDirectoryScanBuildQueryUpdateQuery(PipelineE2EBase):
+    """Directory-scan flow: scan a dir -> build -> query -> update -> query.
+
+    Samples live in subdirectories, so the JSONL stores paths *relative* to the
+    scanned root (e.g. ``s1/sample_1.fasta``); every stage must resolve them
+    against the header ``root_path`` regardless of cwd.
+    """
+
+    def _write_tree(self, root, indices):
+        """Write ``sample_{i}.fasta`` under ``root/s{i}/`` for each i in indices."""
+        for i in indices:
+            d = self.mkdirs(*root, f"s{i}")
+            (d / f"sample_{i}.fasta").write_text(
+                f">sample_{i}\n{self.sequences[i]}\n"
+            )
+        return self.tmp.joinpath(*root)
+
+    def test_scan_dir_build_query_update_query(self):
+        # 1. list by scanning a directory tree (default: one sample per file).
+        scan_data = self._write_tree(("scan_data",), range(N_SAMPLES))
+        self.mkdirs("db", "list")
+        self.run_cli("list", scan_data, "-o", "db/list/idx.jsonl", "-k", KMER_SIZE)
+
+        jsonl = self.tmp / "db" / "list" / "idx.jsonl"
+        lines = [ln for ln in jsonl.read_text().splitlines() if ln.strip()]
+        header = json.loads(lines[0])
+        self.assertEqual(header.get("root_path"), str(scan_data.resolve()))
+        records = [json.loads(ln) for ln in lines[1:]]
+        self.assertEqual(len(records), N_SAMPLES)
+        # Stored paths are relative to the scanned root (not absolute).
+        for rec in records:
+            for f in rec["files"]:
+                self.assertFalse(f.startswith("/"), f"expected relative path: {f}")
+
+        # 2. profile -> compose -> build
+        self.run_cli("profile", jsonl, "-o", "db/profile", "-g", "1", "-b", "1.1")
+        self.run_cli(
+            "compose",
+            jsonl,
+            "-o",
+            "db/compose",
+            "-n",
+            "idx",
+            "-S",
+            "initial",
+            "-pf",
+            "db/profile/profile.yaml",
+        )
+        span_reg = self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml"
+        self.assertTrue(span_reg.is_file(), f"missing span registry: {span_reg}")
+        self.run_cli("build", span_reg, "-o", "build")
+        self.assertTrue(
+            (self.tmp / "build" / "index.json").is_file(),
+            "build did not produce index.json",
+        )
+
+        # 3. query a substring of sample_0 -> perfect match
+        q0, q0_header = self.write_query("s0", sample_idx=0)
+        self.run_cli("query", q0, "-r", "build", "-o", "results", "-f", "json")
+        self.assert_query_hit("results", q0_header, "sample_0")
+
+        # 4. update: scan a separate dir holding one new sample, compose against
+        #    the existing layout (no -pf), and rebuild into the same work dir.
+        #    Keep the new sample smaller so it fits an existing span bucket.
+        random.seed(SEED + 1)
+        new_seq = "".join(random.choice("ACGT") for _ in range(SAMPLE_LEN - 400))
+        self.sequences.append(new_seq)  # index N_SAMPLES == "sample_new"
+        upd_dir = self.mkdirs("scan_upd", "snew")
+        (upd_dir / "sample_new.fasta").write_text(f">sample_new\n{new_seq}\n")
+
+        self.run_cli(
+            "list", self.tmp / "scan_upd", "-o", "db/list/upd.jsonl", "-k", KMER_SIZE
+        )
+        self.run_cli(
+            "compose", "db/list/upd.jsonl", "-o", "db/compose", "-n", "idx", "-S", "upd"
+        )
+        upd_reg = self.tmp / "db" / "compose" / "idx" / "upd" / "idx.yaml"
+        self.assertTrue(upd_reg.is_file(), f"update compose missing: {upd_reg}")
+        self.run_cli("build", upd_reg, "-o", "build")
+
+        # 5. the new sample is queryable, and the original still matches.
+        qn, qn_header = self.write_query("snew", sample_idx=N_SAMPLES)
+        self.run_cli("query", qn, "-r", "build", "-o", "results_upd", "-f", "json")
+        self.assert_query_hit("results_upd", qn_header, "sample_new")
+
+        self.run_cli("query", q0, "-r", "build", "-o", "results_after", "-f", "json")
+        self.assert_query_hit("results_after", q0_header, "sample_0")
+
+
+class TestListLeafGrouping(PipelineE2EBase):
+    """`list --leaf-grouping` alone: each leaf folder becomes one grouped sample."""
+
+    def test_scan_dir_leaf_grouping_groups_by_folder(self):
+        # Two leaf folders, two files each.
+        groups = {"g0": (0, 1), "g1": (2, 3)}
+        for folder, idxs in groups.items():
+            d = self.mkdirs("grp_data", folder)
+            for i in idxs:
+                (d / f"sample_{i}.fasta").write_text(
+                    f">sample_{i}\n{self.sequences[i]}\n"
+                )
+        grp_data = self.tmp / "grp_data"
+
+        self.mkdirs("db", "list")
+        self.run_cli(
+            "list", grp_data, "-o", "db/list/grp.jsonl", "-lg", "-k", KMER_SIZE
+        )
+
+        lines = [
+            ln
+            for ln in (self.tmp / "db" / "list" / "grp.jsonl").read_text().splitlines()
+            if ln.strip()
+        ]
+        header = json.loads(lines[0])
+        self.assertEqual(header.get("root_path"), str(grp_data.resolve()))
+
+        records = {r["name"]: r for r in (json.loads(ln) for ln in lines[1:])}
+        self.assertEqual(set(records), set(groups), f"unexpected samples: {records}")
+        for folder, idxs in groups.items():
+            rec = records[folder]
+            files = sorted(rec["files"])
+            self.assertEqual(
+                files, [f"{folder}/sample_{i}.fasta" for i in sorted(idxs)]
+            )
+            # Counting resolved the relative paths against root_path.
+            self.assertGreater(rec.get("kmer_count", 0), 0)
 
 
 class TestPipelineFailuresExitNonzero(PipelineE2EBase):
