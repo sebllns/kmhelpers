@@ -17,6 +17,8 @@ Scenarios:
   * ``test_design_build_query_update_query`` -- the full super-command flow.
   * ``test_step_by_step_design_and_build``   -- list -> profile -> compose,
     then plan -> apply, mirroring docs/tutorials/ecoli_steps.md.
+  * ``test_apply_chunks_and_merges_when_files_limit_too_low`` -- a low
+    --limits open-files ceiling forces a chunked build+merge.
   * ``test_failures_exit_nonzero``           -- the failure paths exit non-zero.
 
 Data is small random FASTA generated with a fixed seed. Queries are exact
@@ -271,6 +273,55 @@ class TestStepByStepDesignAndBuild(PipelineE2EBase):
         q0, q0_header = self.write_query("s0", sample_idx=0)
         self.run_cli("query", q0, "-r", "build2", "-o", "results", "-f", "json")
         self.assert_query_hit("results", q0_header, "sample_0")
+
+
+class TestChunkedBuild(PipelineE2EBase):
+    """A too-low --limits open-files ceiling splits a build into chunks."""
+
+    def test_apply_chunks_and_merges_when_files_limit_too_low(self):
+        # A wide span base (-b 4) buckets all N_SAMPLES samples into one
+        # group, so the group's build is what gets constrained by --limits.
+        self.run_cli(
+            "design",
+            self.samples_txt,
+            "-o",
+            "db",
+            "-n",
+            "idx",
+            "-S",
+            "initial",
+            "-k",
+            KMER_SIZE,
+            "-b",
+            "4",
+            "-g",
+            "1",
+        )
+        span_reg = self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml"
+        self.assertTrue(span_reg.is_file(), f"missing span registry: {span_reg}")
+
+        # files=5 can't fit N_SAMPLES=5 samples in one kmtricks build (merge
+        # stage needs samples+1 open files), forcing a chunked build+merge.
+        self.run_cli(
+            "apply", span_reg, "-o", "build", "--limits", '{"files": 5}'
+        )
+
+        index_json = self.tmp / "build" / "index.json"
+        self.assertTrue(index_json.is_file(), "apply did not produce index.json")
+        registry = json.loads(index_json.read_text())["index"]
+
+        chunk_names = [name for name in registry if "__chunk" in name]
+        self.assertFalse(
+            chunk_names, f"transient chunk sub-indexes left registered: {chunk_names}"
+        )
+        merged = next(iter(registry.values()))
+        self.assertEqual(merged["nb_samples"], N_SAMPLES)
+
+        # every original sample must still be queryable after the chunked merge
+        for idx in range(N_SAMPLES):
+            q, header = self.write_query(f"s{idx}", sample_idx=idx)
+            self.run_cli("query", q, "-r", "build", "-o", f"results_{idx}", "-f", "json")
+            self.assert_query_hit(f"results_{idx}", header, f"sample_{idx}")
 
 
 class TestPipelineFailuresExitNonzero(PipelineE2EBase):
