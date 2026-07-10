@@ -18,8 +18,8 @@ from pykmhelpers.core.index import (
     KmindexRegistry,
     KmtricksIndex,
     NotAnIndexError,
-    create_empty_index_json,
 )
+from pykmhelpers.core.kmindex_layout import create_empty_index_json
 
 
 class TestKmtricksIndexBase(unittest.TestCase):

@@ -13,7 +13,7 @@ from typing import Optional
 
 import pykmhelpers
 from pykmhelpers.core.byte import ByteCounter
-from pykmhelpers.core.kmindex_utils import auto_params
+from pykmhelpers.core.build_params import auto_params
 from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
 from pykmhelpers.core.log import Log
 from pykmhelpers.operations.builder import IndexBuilder

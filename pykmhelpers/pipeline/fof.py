@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
-from pykmhelpers.core.index import get_fof_path
+from pykmhelpers.core.kmindex_paths import get_fof_path
 from pykmhelpers.core.utils import Toolbox
 
 
