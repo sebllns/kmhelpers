@@ -11,11 +11,11 @@ Validate paths then build k-mer indices from index definition files in a single 
 
     | Argument | Description |
     |----------|-------------|
-    | `INPUT_FILE` | Index definition file (`.json`/`.yaml`) from `compose` (required) |
+    | `INPUT_FILE` | `NAME.yaml` written by `compose` in `OUTPUT_DIR/NAME/SESSION/` (required) |
     | `-o, --output-dir DIR` | Working directory for output (required) |
 
 !!! abstract "I/O"
-    **Input:** index definition file (`.json`/`.yaml`) from `compose`  
+    **Input:** `NAME.yaml` written by `compose` in `OUTPUT_DIR/NAME/SESSION/`  
     **Output:** built k-mer index in `OUTPUT_DIR/`, registered in `OUTPUT_DIR/index.json`
 
 ## Advanced Options
@@ -35,7 +35,7 @@ Validate paths then build k-mer indices from index definition files in a single 
 
 ## Description
 
-`build` chains [`plan`](plan.md) and [`apply`](apply.md) into a single invocation. It is equivalent to running the two commands in sequence.
+`build` takes the `NAME.yaml` file written by [`compose`](compose.md) in `OUTPUT_DIR/NAME/SESSION/` and chains [`plan`](plan.md) and [`apply`](apply.md) into a single invocation. It is equivalent to running the two commands in sequence.
 
 **Step 1 — plan:** validates all sample paths upfront and writes the equivalent `kmindex` shell script to `OUTPUT_DIR/assets/` and a validation report to `OUTPUT_DIR/logs/`. Fix any path errors before the build starts rather than discovering them mid-run.
 

@@ -19,7 +19,7 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 
 !!! abstract "I/O"
     **Input:** JSONL sample list (from [`list`](list.md)), profiles YAML required only for new index creation (from [`profile`](profile.md))  
-    **Output:** index definition files in `OUTPUT_DIR/NAME/`
+    **Output:** index definition files in `OUTPUT_DIR/NAME/SESSION/`, with `NAME.yaml` as the entry point
 
 ## Advanced Options
 
@@ -34,10 +34,11 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 ## Description
 
 Takes a JSONL sample list (produced by [`list`](list.md)) and generates index definition
-files that can be passed to [`apply`](apply.md).
+files that can be passed to [`plan`](plan.md), [`build`](build.md) or [`apply`](apply.md).
 
 Output files are written to `OUTPUT_DIR/NAME/SESSION/`, where `SESSION` defaults to the
-current timestamp if `--session-id` is not provided.
+current timestamp if `--session-id` is not provided. Pass the `NAME.yaml` file in that
+directory as the input to `plan`, `build` or `apply` to process the index.
 
 **Building a new index** — provide `--profiles-file` (produced by [`profile`](profile.md)).
 A layout file is written to `OUTPUT_DIR/NAME_layout.yaml` for future updates.

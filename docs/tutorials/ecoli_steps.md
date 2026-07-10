@@ -176,13 +176,14 @@ kmhelpers compose coli_db/list/coli.jsonl \
 
 ??? abstract "I/O"
     **Input:** `coli_db/list/coli.jsonl`, `coli_db/profile/profile.yaml`  
-    **Output:** `coli_db/compose/`
+    **Output:** `coli_db/compose/coli/initial/`, with `coli.yaml` as the entry point
 
 ??? info "INFO"
     `compose` reads the sample list and the profile, then writes index definition
-    files into `coli_db/compose/`. The sample-to-sub-index repartition is driven by
-    the selected profile — here `2_groups`, the default set by `profile` — whose
-    Bloom-filter sizes are read from `coli_db/profile/profile.yaml`.
+    files into `coli_db/compose/coli/initial/`. Pass the `coli.yaml` file in that
+    directory to `plan`, `build` or `apply` in the next step. The sample-to-sub-index
+    repartition is driven by the selected profile — here `2_groups`, the default set
+    by `profile` — whose Bloom-filter sizes are read from `coli_db/profile/profile.yaml`.
 
 ---
 

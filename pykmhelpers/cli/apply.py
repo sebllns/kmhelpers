@@ -99,15 +99,13 @@ def apply(
     """Apply changes and build indices from definition files.
 
     \b
-    Input:  index definition file(s) (.json/.yaml) from `compose`
+    Input:  NAME.yaml written by `compose` in OUTPUT_DIR/NAME/RUN_ID/
     Output: built k-mer index in WORK_DIR/, registered in WORK_DIR/index.json
 
-    📄 input_file are one or more index definition files (.json/.yaml). For each file,
-    the declared indices are built and registered. If the file type is an index definition,
-    indices are built directly; if it is a span registry, sub-index definition files are
-    resolved from the same directory and merged into the named indices after building.
-    Parent indices are built automatically when required. Only indices matching --name or
-    --span are processed; if neither is specified, all declared indices are built.
+    📄 INPUT_FILE is the NAME.yaml written by `compose` in OUTPUT_DIR/NAME/RUN_ID/.
+    The declared indices are built and registered. Parent indices are built
+    automatically when required. Only indices matching --name or --span are
+    processed; if neither is specified, all declared indices are built.
 
     Examples:
 
