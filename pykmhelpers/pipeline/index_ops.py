@@ -12,8 +12,8 @@ from time import sleep
 from typing import Optional
 
 import pykmhelpers
-from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.build_params import auto_params
+from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
 from pykmhelpers.core.log import Log
 from pykmhelpers.operations.builder import IndexBuilder
@@ -403,8 +403,10 @@ class IndexOps:
                         result.input_type = ApplyInputType.SPAN_REGISTRY
                     else:
                         result.input_type = ApplyInputType.UNKNOWN
-                except (ValueError, KeyError):
-                    logger.error(f"Invalid type value: {data.get('type')}")
+                except (ValueError, KeyError) as e:
+                    Log.handle_exception(
+                        logger, e, f"Invalid type value: {data.get('type')}"
+                    )
                     return None
         return data
 
@@ -687,7 +689,8 @@ class IndexOps:
         # --- Post-build verification
         if self._mode >= ApplyMode.APPLY:
             builder.index.load_json()
-            assert builder.has_subindex(name), f"Could not find index '{name}'"
+            if not builder.has_subindex(name):
+                raise RuntimeError(f"Could not find index '{name}'")
 
         return result
 
@@ -737,7 +740,8 @@ class IndexOps:
 
         if self._mode >= ApplyMode.APPLY:
             builder.index.load_json()
-            assert builder.has_subindex(i.name), f"Could not find index '{i.name}'"
+            if not builder.has_subindex(i.name):
+                raise RuntimeError(f"Could not find index '{i.name}'")
             if builder.index.get_index(i.name).check_structure():
                 for chunk_name in chunk_names:
                     self._delete_segment(builder, chunk_name)
@@ -763,14 +767,16 @@ class IndexOps:
             was already building or no samples were added), and ``issues``
             is a list of sample-level warning strings.
         """
-        assert i.name, "IndexDefinition is missing required 'name' field"
+        if not i.name:
+            raise ValueError("IndexDefinition is missing required 'name' field")
 
         if i.name in self._building or builder.has_subindex(i.name):
             return None, []
 
-        assert (
-            i.bf_size
-        ), f"IndexDefinition {i.name} is missing required 'bf_size' field"
+        if not i.bf_size:
+            raise ValueError(
+                f"IndexDefinition {i.name} is missing required 'bf_size' field"
+            )
 
         # --- Build FofManager from samples
         self._load_sample_file(i)
@@ -824,11 +830,17 @@ class IndexOps:
                 )
                 if self._mode > ApplyMode.DRY_RUN:
                     for f in sample_files:
-                        assert os.path.isfile(f), f"Sample file not found: {f}"
+                        if not os.path.isfile(f):
+                            raise FileNotFoundError(f"Sample file not found: {f}")
                 fof.add_sample(sample_files, s.name)
         except Exception as e:
             msg = f"Error adding sample '{s.name or 'UNNAMED'}' to '{i.name}' | {e}"
-            logger.warning(f"{self._indent_prefix()}{msg}")
+            Log.handle_exception(
+                logger=logger,
+                e=e,
+                msg=f"{self._indent_prefix()}{msg}",
+                level=logging.WARNING,
+            )
             issues.append(msg)
 
     def _get_dbs(self, path: str, idt: IndexDefinitionTools) -> list[IndexDB]:
@@ -872,8 +884,8 @@ class IndexOps:
             objects and ``merges`` maps each merge target to its sub-index names.
 
         Raises:
-            AssertionError: If a span entry is missing the ``"indices"`` field
-                or a required definition file does not exist on disk.
+            ValueError: If a span entry is missing the ``"indices"`` field.
+            FileNotFoundError: If a required definition file does not exist on disk.
         """
         dbs = list[IndexDB]()
         merges = dict[str, list[str]]()
@@ -882,7 +894,8 @@ class IndexOps:
             if self.config.filter_spans and to_index not in self.config.filter_spans:
                 continue
             parts = parts.get("indices")
-            assert parts, f"Span registry is missing field 'indices'"
+            if not parts:
+                raise ValueError("Span registry is missing field 'indices'")
             indices = dict[str, list[str]](parts)
             for name, subindices in indices.items():
                 # if len(subindices) == 1:
@@ -914,9 +927,10 @@ class IndexOps:
                             os.path.dirname(path),
                             subindex + os.path.splitext(path)[1],
                         )
-                        assert os.path.isfile(
-                            db_path
-                        ), f"Could not find required data file at {db_path}"
+                        if not os.path.isfile(db_path):
+                            raise FileNotFoundError(
+                                f"Could not find required data file at {db_path}"
+                            )
                         dbs.extend(self._get_dbs(db_path, idt))
         return dbs, merges
 
@@ -932,12 +946,14 @@ class IndexOps:
             i: The ``IndexDefinition`` of the index to build.
 
         Raises:
-            AssertionError: If ``bf_size`` is not set on the definition.
+            ValueError: If ``name`` or ``bf_size`` is not set on the definition.
         """
-        assert i.name, "IndexDefinition is missing required 'name' field"
-        assert (
-            i.bf_size > 0
-        ), f"IndexDefinition {i.name} is missing required 'bf_size' field"
+        if not i.name:
+            raise ValueError("IndexDefinition is missing required 'name' field")
+        if not i.bf_size > 0:
+            raise ValueError(
+                f"IndexDefinition {i.name} is missing required 'bf_size' field"
+            )
 
         builder.index.load_json()
         build_result, issues = self._run_build(builder, i)
@@ -981,7 +997,7 @@ class IndexOps:
 
         Raises:
             Exception: If the builder returns a malformed result dict.
-            AssertionError: If the merged sub-index is not found in the registry
+            RuntimeError: If the merged sub-index is not found in the registry
                 after the merge.
         """
         builder.index.load_json()
@@ -1035,7 +1051,8 @@ class IndexOps:
 
             if self._mode >= ApplyMode.APPLY:
                 builder.index.load_json()
-                assert builder.has_subindex(to_index), f"Sub-index {to_index} not found"
+                if not builder.has_subindex(to_index):
+                    raise RuntimeError(f"Sub-index {to_index} not found")
                 if builder.index.get_index(to_index).check_structure():
                     for segment in parts:
                         self._delete_segment(builder, segment)
@@ -1060,7 +1077,9 @@ class IndexOps:
                 segment, delete_files=False, skip_unregistered=True
             )
         except Exception as e:
-            logger.warning(f"Failed to remove {segment} from registry: {e}")
+            Log.handle_exception(
+                logger, e, f"Failed to remove {segment} from registry", logging.WARNING
+            )
 
         index_path = os.path.join(self.config.index_data_folder, segment)
 

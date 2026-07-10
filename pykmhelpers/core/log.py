@@ -22,6 +22,7 @@ class Log:
             logger.exception(f"{Log.format_exception(e)} | {msg}")
         else:
             logger.log(level, f"{Log.format_exception(e)} | {msg}")
+            Log.print_trace(e)
 
     @staticmethod
     def handle_exception(
