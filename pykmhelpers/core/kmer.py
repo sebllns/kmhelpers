@@ -69,7 +69,10 @@ class KmerCounter(Wrapper):
         return self._thread_count
 
     def count(
-        self, filename: str, mode: KmerCountMode = KmerCountMode.DISTINCT, verbose: bool = False
+        self,
+        filename: str,
+        mode: KmerCountMode = KmerCountMode.DISTINCT,
+        verbose: bool = False,
     ) -> int:
         """Count k-mers in a single file using ntcard.
 
@@ -92,7 +95,10 @@ class KmerCounter(Wrapper):
         return self.count_files([filename], mode=mode, verbose=verbose)
 
     def count_files(
-        self, files: list, mode: KmerCountMode = KmerCountMode.DISTINCT, verbose: bool = False
+        self,
+        files: list,
+        mode: KmerCountMode = KmerCountMode.DISTINCT,
+        verbose: bool = False,
     ) -> int:
         """Count k-mers for one or more files in a single ntcard call.
 
@@ -220,7 +226,10 @@ class KmerCounter(Wrapper):
                     os.remove(path)
 
     def count_all(
-        self, samples_dict: dict, mode: KmerCountMode = KmerCountMode.DISTINCT, verbose: bool = False
+        self,
+        samples_dict: dict,
+        mode: KmerCountMode = KmerCountMode.DISTINCT,
+        verbose: bool = False,
     ) -> dict:
         """Count k-mers for multiple samples.
 
