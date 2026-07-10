@@ -11,11 +11,11 @@ Build k-mer indices from index definition files.
 
     | Argument | Description |
     |----------|-------------|
-    | `INPUT_FILES...` | Index definition file(s) (`.json`/`.yaml`) from `compose` (required) |
+    | `INPUT_FILES...` | `NAME.yaml` written by `compose` in `OUTPUT_DIR/NAME/SESSION/` (required) |
     | `-w, --work-dir DIR` | Working directory for output |
 
 !!! abstract "I/O"
-    **Input:** index definition file(s) (`.json`/`.yaml`) from `compose`  
+    **Input:** `NAME.yaml` written by `compose` in `OUTPUT_DIR/NAME/SESSION/`  
     **Output:** built k-mer index in `WORK_DIR/`, registered in `WORK_DIR/index.json`
 
 ## Advanced Options
@@ -39,9 +39,7 @@ Build k-mer indices from index definition files.
 
 ## Description
 
-`apply` reads one or more index definition files (`.json`/`.yaml`) and builds the declared indices, registering them on completion.
-
-**Span registries** — if the input is a span registry, sub-index definition files are resolved from the same directory and merged into the named indices after building.
+`apply` reads the `NAME.yaml` file written by [`compose`](compose.md) in `OUTPUT_DIR/NAME/SESSION/` and builds the declared indices, registering them on completion.
 
 **Parent indices** — built automatically when required.
 
