@@ -45,6 +45,9 @@ def _parse_spans(spans):
 @click.command(name="apply")
 @click.argument("input_file", nargs=1, required=True, type=click.Path(exists=True))
 @shared.index_build_options
+@shared.index_filter_options
+@shared.index_limits_options
+@shared.index_apply_options
 @shared.fail_fast_option
 @click.option(
     "--registry",
@@ -85,6 +88,8 @@ def apply(
     minim_size,
     threads,
     partition_count,
+    limits,
+    safety_margin,
     existing,
     skip_compression,
     show_progress,
@@ -209,8 +214,6 @@ def apply(
         selected_spans = _parse_spans(span)
         if not existing:
             existing = "fail"
-        if not threads:
-            threads = 1
         if not minim_size:
             minim_size = 10
     except Exception as e:
@@ -288,14 +291,15 @@ def apply(
                     filter_names=selected_ids,
                     filter_spans=selected_spans,
                     on_existing=existing,
-                    fail_on_error=fail_on_error,
                     partition_count=partition_count,
+                    limits=limits,
+                    safety_margin=safety_margin,
                 )
             )
             log_dir = iops.log_dir
 
             logger.info(f"Apply {input_file}...")
-            result = iops.run(input_file, apply_mode)
+            result = iops.run(input_file, apply_mode, fail_on_error=fail_on_error)
             _notify_state["status"] = result.status.value
             if result.details:
                 details_path = os.path.join(

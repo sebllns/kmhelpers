@@ -9,7 +9,7 @@ from typing import List, Optional, Union
 
 import yaml
 
-from pykmhelpers.core import kmindex_utils
+from pykmhelpers.core import kmindex_paths
 from pykmhelpers.core.system import maximize_nofile
 from pykmhelpers.core.utils import Toolbox
 from pykmhelpers.core.wrapper import Wrapper
@@ -305,8 +305,6 @@ class KmindexWrapper(Wrapper):
         """
         Query a kmindex index.
 
-        This method wraps the existing Kmindex.query_index() functionality.
-
         Args:
             input_registry: Path to the registry directory (index.json parent directory).
             query_file: Path to query FASTA/FASTQ file (supports gz/bzip2 compression).
@@ -346,7 +344,7 @@ class KmindexWrapper(Wrapper):
         if not os.path.isfile(query_file):
             raise FileNotFoundError(f"Query file {query_file}  not found")
 
-        if not kmindex_utils.b_json_exists(index_path):
+        if not kmindex_paths.b_json_exists(index_path):
             raise FileNotFoundError(f"index.json not found in index path {index_path}")
 
         if os.path.isdir(output_dir):
@@ -469,7 +467,7 @@ class KmindexWrapper(Wrapper):
                 f"Registry path {input_registry} does not exist or is not a directory"
             )
 
-        if not kmindex_utils.b_json_exists(input_registry):
+        if not kmindex_paths.b_json_exists(input_registry):
             raise FileNotFoundError(
                 f"index.json not found in registry {input_registry}"
             )
@@ -590,7 +588,7 @@ class KmindexWrapper(Wrapper):
                 f"Registry path {input_registry} does not exist or is not a directory"
             )
 
-        if not kmindex_utils.b_json_exists(input_registry):
+        if not kmindex_paths.b_json_exists(input_registry):
             raise FileNotFoundError(
                 f"index.json not found in registry {input_registry}"
             )

@@ -11,7 +11,8 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
-from ..core.utils import Kmindex, Toolbox
+from pykmhelpers.core.kmindex_paths import get_fof_path
+from pykmhelpers.core.utils import Toolbox
 
 
 class FofManager:
@@ -509,4 +510,4 @@ class FofManager:
         Returns:
             Canonical path to kmtricks.fof file.
         """
-        return Kmindex.get_fof_path(str(index_dir))
+        return get_fof_path(str(index_dir))

@@ -19,7 +19,7 @@ from pykmhelpers.core.index import (
     KmtricksIndex,
     NotAnIndexError,
 )
-from pykmhelpers.core.utils import Kmindex
+from pykmhelpers.core.kmindex_layout import create_empty_index_json
 
 
 class TestKmtricksIndexBase(unittest.TestCase):
@@ -71,7 +71,7 @@ class TestKmtricksIndexBase(unittest.TestCase):
         shutil.copytree(self.test_data_dir, self.source_index_path)
 
         # Create index.json for registry
-        Kmindex.create_empty_index_json(str(self.registry_path))
+        create_empty_index_json(str(self.registry_path))
 
     def tearDown(self):
         """Clean up test fixtures after each test method."""

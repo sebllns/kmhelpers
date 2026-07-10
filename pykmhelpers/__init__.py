@@ -15,9 +15,8 @@ from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
 from pykmhelpers.core.sequence import Sequence
 
 # Import core classes for easy access
-from pykmhelpers.core.utils import Bin, BlockCompressorZSTD, Kmindex, Main, Toolbox
+from pykmhelpers.core.utils import Bin, Main, Toolbox
 from pykmhelpers.operations.builder import IndexBuilder
-from pykmhelpers.operations.compressor import CompressionParams, Compressor
 from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.pipeline.query import KmindexQuery, KmindexQueryResult, QueryRunner, QueryRunnerConfig
 
@@ -26,8 +25,6 @@ __all__ = [
     "Main",
     "Bin",
     "Toolbox",
-    "Kmindex",
-    "BlockCompressorZSTD",
     # Index management
     "KmtricksIndex",
     "KmindexRegistry",
@@ -35,9 +32,7 @@ __all__ = [
     "BloomFilterSpecs",
     # Operations - Builder
     "IndexBuilder",
-    # Operations - Compression and Management
-    "Compressor",
-    "CompressionParams",
+    # Operations - Management
     "FofManager",
     # Operations - Query and Sequence
     "KmindexQuery",

@@ -1,3 +1,0 @@
-# compressor
-
-::: pykmhelpers.operations.compressor
