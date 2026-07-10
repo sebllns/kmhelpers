@@ -10,6 +10,7 @@ import yaml
 
 from pykmhelpers.core.constants import DATA_EXT
 from pykmhelpers.core.kmer import KmerCounter, KmerCountMode
+from pykmhelpers.core.log import Log
 from pykmhelpers.pipeline.index_db import IndexDefinitionTools
 
 logger = logging.getLogger(__name__)
@@ -197,7 +198,12 @@ class SampleLister:
 
             self._out.write(json.dumps(entry) + "\n")
         except Exception as e:
-            logger.warning(f"Could not write entry for '{sample_id or '<NONE>'}': {e}")
+            Log.handle_exception(
+                logger=logger,
+                msg=f"Could not write entry for '{sample_id or '<NONE>'}'",
+                e=e,
+                level=logging.WARNING,
+            )
 
     def _count_sample(self, sample_id: str, files: list[str]) -> int:
         if self._counter is None:
@@ -209,7 +215,12 @@ class SampleLister:
             logger.info(f"{sample_id}:{kmer_count}")
             return kmer_count
         except Exception as e:
-            logger.warning(f"Warning: could not count k-mers for {sample_id}: {e}")
+            Log.handle_exception(
+                logger=logger,
+                msg=f"Warning: could not count k-mers for {sample_id}",
+                e=e,
+                level=logging.WARNING,
+            )
             return 0
 
     def _import_plain_text_list(
@@ -272,7 +283,9 @@ class SampleLister:
         for dirpath, dirnames, filenames in os.walk(root):
             dirnames.sort()
             data_files = [
-                os.path.relpath(os.path.join(dirpath, fname), root)
+                os.path.relpath(
+                    os.path.join(dirpath, fname), root
+                )  #                os.path.join(dirpath, fname)
                 for fname in sorted(filenames)
                 if any(fname.endswith(ext) for ext in extensions)
             ]
