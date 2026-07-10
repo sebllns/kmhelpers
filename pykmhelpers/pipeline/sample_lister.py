@@ -46,6 +46,7 @@ class SampleLister:
         is_assembled: bool = True,
         do_count: bool = True,
         do_grouping: bool = True,
+        do_continue: bool = False,
         autorename: bool = False,
         ntcard_threads: int = 8,
     ):
@@ -57,6 +58,7 @@ class SampleLister:
         self.do_count = do_count
         self.do_grouping = do_grouping
         self.autorename = autorename
+        self._do_continue = do_continue
         self.ntcard_threads = ntcard_threads
 
         self._tools = IndexDefinitionTools()
@@ -94,15 +96,24 @@ class SampleLister:
             )
 
         backup_parsed = False
+
+        root_path = self.input_dir or (
+            os.path.dirname(os.path.realpath(self.input_list))
+            if self.input_list
+            else None
+        )
+
+        if root_path is None:
+            raise ValueError("root_path is None")
+
         with open(self.output_file, "w") as out:
             self._out = out
 
-            if not backup_file:
-                root_path = self.input_dir or (
-                    os.path.dirname(os.path.realpath(self.input_list))
-                    if self.input_list
-                    else None
+            if self._do_continue and backup_file:
+                self.input_dir, self.kmer_size, backup_parsed = self._process_backup(
+                    backup_file
                 )
+            else:
                 self._out.write(
                     self._new_header(
                         root_path,
@@ -111,11 +122,6 @@ class SampleLister:
                         self._tools.get_abundance_min(self.is_assembled),
                     )
                 )
-            else:
-                self.input_dir, self.kmer_size, backup_parsed = self._process_backup(
-                    backup_file
-                )
-                root_path = self.input_dir
 
             if self.input_list is not None:
                 if self.input_list.endswith((".yaml", ".yml")):
