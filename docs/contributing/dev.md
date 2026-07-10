@@ -16,7 +16,7 @@ pip install -e ".[dev]"
 pykmhelpers/
   cli/          # Click commands (one file per command)
   core/         # Low-level building blocks (index, bloom_filter, kmindex_wrapper, …)
-  operations/   # Higher-level operations (builder, compressor, fof_validation, …)
+  operations/   # Higher-level operations (builder, fof_validation, …)
   tests/        # Test suite
   pipeline/     # Pipeline execution engine
 ```

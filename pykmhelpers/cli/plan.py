@@ -21,6 +21,8 @@ logger = logging.getLogger(__name__)
     type=click.Path(dir_okay=False, file_okay=True, exists=True),
 )
 @shared.index_build_options
+@shared.index_filter_options
+@shared.index_limits_options
 @shared.fail_fast_option
 @click.option(
     "--registry",
@@ -78,10 +80,10 @@ def plan(
     minim_size,
     threads,
     partition_count,
+    limits,
+    safety_margin,
     skip_compression,
-    show_progress,
     fail_on_error,
-    notify,
     registry,
     bloom_dir,
     reuse_from,
@@ -190,12 +192,16 @@ def plan(
                 index_data_folder=bloom_dir,
                 registry_dir=os.path.join(work_dir, registry),
                 sample_rootpath=base_path,
-                kmindex_skip_compression=False,
+                kmindex_threads=threads,
+                kmindex_skip_compression=skip_compression,
                 kmindex_build_from=reuse_from,
                 filter_names=selected_ids,
                 filter_spans=selected_spans,
                 on_existing=existing,
-                fail_on_error=fail_on_error,
+                partition_count=partition_count,
+                limits=limits,
+                safety_margin=safety_margin,
+                minimizer_length=minim_size,
             )
         )
 
@@ -210,6 +216,7 @@ def plan(
                 result = iops.run(
                     input_file,
                     mode=(ops.ApplyMode.DRY_RUN if offline else ops.ApplyMode.PLAN),
+                    fail_on_error=fail_on_error,
                 )
                 if result.details:
                     details_path = os.path.join(
