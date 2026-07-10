@@ -2445,7 +2445,7 @@
 <div class="admonition abstract">
 <p class="admonition-title">I/O</p>
 <p><strong>Input:</strong> JSONL sample list (from <a href="../list/"><code>list</code></a>), profiles YAML required only for new index creation (from <a href="../profile/"><code>profile</code></a>)<br />
-<strong>Output:</strong> index definition files in <code>OUTPUT_DIR/NAME/</code></p>
+<strong>Output:</strong> index definition files in <code>OUTPUT_DIR/NAME/SESSION/</code>, with <code>NAME.yaml</code> as the entry point</p>
 </div>
 <h2 id="advanced-options">Advanced Options</h2>
 <table>
@@ -2480,9 +2480,10 @@
 </table>
 <h2 id="description">Description</h2>
 <p>Takes a JSONL sample list (produced by <a href="../list/"><code>list</code></a>) and generates index definition
-files that can be passed to <a href="../apply/"><code>apply</code></a>.</p>
+files that can be passed to <a href="../plan/"><code>plan</code></a>, <a href="../build/"><code>build</code></a> or <a href="../apply/"><code>apply</code></a>.</p>
 <p>Output files are written to <code>OUTPUT_DIR/NAME/SESSION/</code>, where <code>SESSION</code> defaults to the
-current timestamp if <code>--session-id</code> is not provided.</p>
+current timestamp if <code>--session-id</code> is not provided. Pass the <code>NAME.yaml</code> file in that
+directory as the input to <code>plan</code>, <code>build</code> or <code>apply</code> to process the index.</p>
 <p><strong>Building a new index</strong> — provide <code>--profiles-file</code> (produced by <a href="../profile/"><code>profile</code></a>).
 A layout file is written to <code>OUTPUT_DIR/NAME_layout.yaml</code> for future updates.</p>
 <p><strong>Updating an existing index</strong> — omit <code>--profiles-file</code>. The layout file at

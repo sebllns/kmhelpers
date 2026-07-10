@@ -2421,7 +2421,7 @@
 <tbody>
 <tr>
 <td><code>INPUT_FILE</code></td>
-<td>Index definition file (<code>.json</code>/<code>.yaml</code>) from <code>compose</code> (required)</td>
+<td><code>NAME.yaml</code> written by <code>compose</code> in <code>OUTPUT_DIR/NAME/SESSION/</code> (required)</td>
 </tr>
 <tr>
 <td><code>-o, --output-dir DIR</code></td>
@@ -2432,7 +2432,7 @@
 </div>
 <div class="admonition abstract">
 <p class="admonition-title">I/O</p>
-<p><strong>Input:</strong> index definition file (<code>.json</code>/<code>.yaml</code>) from <code>compose</code><br />
+<p><strong>Input:</strong> <code>NAME.yaml</code> written by <code>compose</code> in <code>OUTPUT_DIR/NAME/SESSION/</code><br />
 <strong>Output:</strong> shell script in <code>OUTPUT_DIR/assets/</code>, validation report in <code>OUTPUT_DIR/logs/</code></p>
 </div>
 <h2 id="advanced-options">Advanced Options</h2>
@@ -2507,7 +2507,7 @@
 </tbody>
 </table>
 <h2 id="description">Description</h2>
-<p><code>plan</code> validates all sample paths upfront and previews the <code>kmindex</code> commands that would be executed by <a href="../apply/"><code>apply</code></a>, without running them. It writes the equivalent shell script to <code>OUTPUT_DIR/assets/</code> and a validation report to <code>OUTPUT_DIR/logs/</code>.</p>
+<p><code>plan</code> takes the <code>NAME.yaml</code> file written by <a href="../compose/"><code>compose</code></a> in <code>OUTPUT_DIR/NAME/SESSION/</code>. It validates all sample paths upfront and previews the <code>kmindex</code> commands that would be executed by <a href="../apply/"><code>apply</code></a>, without running them. It writes the equivalent shell script to <code>OUTPUT_DIR/assets/</code> and a validation report to <code>OUTPUT_DIR/logs/</code>.</p>
 <p><strong>Offline mode</strong> — use <code>--offline</code> to skip local path validation when generating scripts destined for another machine.</p>
 <p><strong>Filtering</strong> — use <code>--name</code> or <code>--span</code> to preview only a subset of the declared indices.</p>
 <h2 id="examples">Examples</h2>

@@ -2421,7 +2421,7 @@
 <tbody>
 <tr>
 <td><code>INPUT_FILES...</code></td>
-<td>Index definition file(s) (<code>.json</code>/<code>.yaml</code>) from <code>compose</code> (required)</td>
+<td><code>NAME.yaml</code> written by <code>compose</code> in <code>OUTPUT_DIR/NAME/SESSION/</code> (required)</td>
 </tr>
 <tr>
 <td><code>-w, --work-dir DIR</code></td>
@@ -2432,7 +2432,7 @@
 </div>
 <div class="admonition abstract">
 <p class="admonition-title">I/O</p>
-<p><strong>Input:</strong> index definition file(s) (<code>.json</code>/<code>.yaml</code>) from <code>compose</code><br />
+<p><strong>Input:</strong> <code>NAME.yaml</code> written by <code>compose</code> in <code>OUTPUT_DIR/NAME/SESSION/</code><br />
 <strong>Output:</strong> built k-mer index in <code>WORK_DIR/</code>, registered in <code>WORK_DIR/index.json</code></p>
 </div>
 <h2 id="advanced-options">Advanced Options</h2>
@@ -2507,8 +2507,7 @@
 </tbody>
 </table>
 <h2 id="description">Description</h2>
-<p><code>apply</code> reads one or more index definition files (<code>.json</code>/<code>.yaml</code>) and builds the declared indices, registering them on completion.</p>
-<p><strong>Span registries</strong> — if the input is a span registry, sub-index definition files are resolved from the same directory and merged into the named indices after building.</p>
+<p><code>apply</code> reads the <code>NAME.yaml</code> file written by <a href="../compose/"><code>compose</code></a> in <code>OUTPUT_DIR/NAME/SESSION/</code> and builds the declared indices, registering them on completion.</p>
 <p><strong>Parent indices</strong> — built automatically when required.</p>
 <p><strong>Filtering</strong> — use <code>--name</code> or <code>--span</code> to build only a subset of the declared indices.</p>
 <p><strong>Config file</strong> — options can be loaded from a YAML file with <code>-c</code>; command-line flags take precedence.</p>

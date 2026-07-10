@@ -2583,7 +2583,11 @@
 <td>Group files by leaf folder; each leaf directory becomes one sample</td>
 </tr>
 <tr>
-<td><code>-r, --autorename</code></td>
+<td><code>-c, --continue</code></td>
+<td>Resume from an existing output file, skipping already-listed samples</td>
+</tr>
+<tr>
+<td><code>-a, --autorename</code></td>
 <td>Rename duplicate sample IDs by appending a numeric suffix instead of skipping</td>
 </tr>
 <tr>
@@ -2626,7 +2630,7 @@
 <li><code>assembled</code> (default) — counts all distinct k-mers; suited for assemblies where every k-mer is expected at least once</li>
 <li><code>unassembled</code> — counts only k-mers appearing at least twice, filtering out likely sequencing errors; suited for raw reads</li>
 </ul>
-<p><strong>Resuming</strong> — if the output file already exists, it is backed up and the run resumes without reprocessing already-listed samples. Use <code>--autorename</code> to rename duplicate sample IDs instead of skipping them.</p>
+<p><strong>Resuming</strong> — if the output file already exists, it is backed up. Pass <code>--continue</code> to resume from that backup without reprocessing already-listed samples; otherwise the run starts fresh. Use <code>--autorename</code> to rename duplicate sample IDs instead of skipping them.</p>
 <p>Top-level keys other than <code>samples</code> are written as-is into the output header.</p>
 <h2 id="output-format">Output Format</h2>
 <p>The output is a JSONL file. The first line is a header and the remaining lines are one sample per line:</p>
@@ -2654,8 +2658,11 @@
 <a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="c1"># Import from a YAML sample list</span>
 <a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>my_files.yaml<span class="w"> </span>-o<span class="w"> </span>samples.jsonl
 <a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>
-<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="c1"># Rename duplicate sample IDs instead of skipping them</span>
-<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>samples.jsonl<span class="w"> </span>-r
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="c1"># Resume an interrupted run without reprocessing already-listed samples</span>
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>samples.jsonl<span class="w"> </span>-c
+<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>
+<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a><span class="c1"># Rename duplicate sample IDs instead of skipping them</span>
+<a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>samples.jsonl<span class="w"> </span>-a
 </code></pre></div>
 <h2 id="dependencies">Dependencies</h2>
 <p>K-mer counting relies on <a href="https://github.com/BirolLab/ntCard"><strong>ntcard</strong></a>, which is automatically installed as a dependency when installing kmhelpers via conda.</p>

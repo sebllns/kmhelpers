@@ -2421,7 +2421,7 @@
 <tbody>
 <tr>
 <td><code>INPUT_FILE</code></td>
-<td>Index definition file (<code>.json</code>/<code>.yaml</code>) from <code>compose</code> (required)</td>
+<td><code>NAME.yaml</code> written by <code>compose</code> in <code>OUTPUT_DIR/NAME/SESSION/</code> (required)</td>
 </tr>
 <tr>
 <td><code>-o, --output-dir DIR</code></td>
@@ -2432,7 +2432,7 @@
 </div>
 <div class="admonition abstract">
 <p class="admonition-title">I/O</p>
-<p><strong>Input:</strong> index definition file (<code>.json</code>/<code>.yaml</code>) from <code>compose</code><br />
+<p><strong>Input:</strong> <code>NAME.yaml</code> written by <code>compose</code> in <code>OUTPUT_DIR/NAME/SESSION/</code><br />
 <strong>Output:</strong> built k-mer index in <code>OUTPUT_DIR/</code>, registered in <code>OUTPUT_DIR/index.json</code></p>
 </div>
 <h2 id="advanced-options">Advanced Options</h2>
@@ -2487,7 +2487,7 @@
 </tbody>
 </table>
 <h2 id="description">Description</h2>
-<p><code>build</code> chains <a href="../plan/"><code>plan</code></a> and <a href="../apply/"><code>apply</code></a> into a single invocation. It is equivalent to running the two commands in sequence.</p>
+<p><code>build</code> takes the <code>NAME.yaml</code> file written by <a href="../compose/"><code>compose</code></a> in <code>OUTPUT_DIR/NAME/SESSION/</code> and chains <a href="../plan/"><code>plan</code></a> and <a href="../apply/"><code>apply</code></a> into a single invocation. It is equivalent to running the two commands in sequence.</p>
 <p><strong>Step 1 — plan:</strong> validates all sample paths upfront and writes the equivalent <code>kmindex</code> shell script to <code>OUTPUT_DIR/assets/</code> and a validation report to <code>OUTPUT_DIR/logs/</code>. Fix any path errors before the build starts rather than discovering them mid-run.</p>
 <p><strong>Step 2 — apply:</strong> executes the build and registers all completed indices in <code>OUTPUT_DIR/index.json</code>.</p>
 <p><strong>Filtering</strong> — use <code>--name</code> or <code>--span</code> to build only a subset of the declared indices.</p>
