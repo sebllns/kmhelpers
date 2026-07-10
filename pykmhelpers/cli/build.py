@@ -31,14 +31,13 @@ class PartialError(click.ClickException):
 @click.command(name="build")
 @click.argument("input_file", nargs=1, required=True, type=click.Path(exists=True))
 @shared.index_build_options
+@shared.index_apply_options
 @click.pass_context
 def build(
     ctx,
     input_file,
     work_dir,
     base_path,
-    span,
-    index_ids,
     minim_size,
     threads,
     partition_count,
@@ -66,18 +65,9 @@ def build(
     kmhelpers build index.yaml -o build
 
     \b
-    # Filter by name or span
-    kmhelpers build index.yaml -o build -n idx1,idx2
-    kmhelpers build registry.yaml -o build -s 28
-
-    \b
     # Set threads and show progress
     kmhelpers build index.yaml -o build -t 8 --show-progress
     """
-
-    # 'build' is the high-level command: always fail loudly rather than
-    # skipping a failed index and exiting 0.
-    fail_on_error = True
 
     abort_msg = "Command 'build' aborted."
     attachments = []
@@ -119,9 +109,6 @@ def build(
         signal.signal(signal.SIGTERM, _handle_sigterm)
 
     try:
-        selected_ids = [id for entry in index_ids for id in entry.split(",") if id]
-        selected_spans = shared.parse_multiple_ranges(span) if span else None
-
         assert work_dir, "Required parameter 'work_dir' was not provided."
 
     except Exception as e:
@@ -144,10 +131,7 @@ def build(
     base_path = os.path.realpath(base_path)
 
     if not os.path.isdir(base_path):
-        if fail_on_error:
-            raise click.ClickException(f"Data root directory not found at {base_path}")
-        else:
-            logger.warning(f"Data root directory not found at {base_path}")
+        raise click.ClickException(f"Data root directory not found at {base_path}")
 
     logger.info(f"Working directory: {work_dir}")
 
@@ -158,14 +142,14 @@ def build(
             registry_dir=os.path.join(work_dir, registry),
             minimizer_length=int(minim_size) if minim_size else 10,
             sample_rootpath=base_path,
-            kmindex_threads=threads or 1,
+            kmindex_threads=threads,
             kmindex_skip_compression=skip_compression,
             kmindex_build_from=None,
-            filter_names=selected_ids,
-            filter_spans=selected_spans,
-            on_existing="register_or_rename",
-            fail_on_error=fail_on_error,
+            filter_names=None,
+            filter_spans=None,
+            on_existing="fail",
             partition_count=partition_count,
+            safety_margin=0.75,
         )
     )
 
@@ -174,7 +158,7 @@ def build(
     # --- Step 1: plan ---
     try:
         pykmhelpers.core.log.Log.step(logger, f"STEP 1: Plan {input_file}")
-        result = iops.run(input_file, mode=ops.ApplyMode.PLAN)
+        result = iops.run(input_file, mode=ops.ApplyMode.PLAN, fail_on_error=False)
         if result.details:
             details_path = os.path.join(
                 log_dir, f"kmhelpers_plan_{iops.timestamp}.yaml"
@@ -210,7 +194,9 @@ def build(
 
     try:
         pykmhelpers.core.log.Log.step(logger, f"STEP 2: Apply {input_file}")
-        result = iops.run(input_file, apply_mode)
+        # 'build' is the high-level command: always fail loudly rather than
+        # skipping a failed index and exiting 0.
+        result = iops.run(input_file, apply_mode, fail_on_error=True)
         _notify_state["status"] = result.status.value
         if result.details:
             details_path = os.path.join(

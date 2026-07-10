@@ -1,93 +1,13 @@
-"""Path helpers for kmindex index/registry directory layout."""
+"""kmtricks build-parameter selection from hardware limits."""
 
-import os
+import json
 
-from pykmhelpers.core.utils import Toolbox
+from pykmhelpers.core.system import (
+    get_available_ram,
+    get_available_threads,
+    get_max_open_files,
+)
 from pykmhelpers.vendor import kmparams
-
-
-def get_matrix_dir(index_path: str) -> str:
-    """
-    Get the path to the matrices directory within an index.
-
-    Args:
-        index_path: Path to the index directory
-
-    Returns:
-        Canonical path to the matrices directory
-    """
-    return Toolbox.get_canonical_path(os.path.join(index_path, "matrices"))
-
-
-def get_matrix_path(
-    index_path: str, partition: int, is_compressed: bool = False
-) -> str:
-    """
-    Get the path to a specific matrix partition file.
-
-    Args:
-        index_path: Path to the index directory
-        partition: Partition number
-        is_compressed: Whether to get the compressed matrix path (default: False)
-
-    Returns:
-        Path to the matrix file (either matrix_N.cmbf or blocks_N for compressed)
-    """
-    return os.path.join(
-        get_matrix_dir(index_path),
-        f"blocks_{partition}" if is_compressed else f"matrix_{partition}.cmbf",
-    )
-
-
-def get_index_path(root: str, index: str) -> str:
-    """
-    Get the full path to an index directory.
-
-    Args:
-        root: Root directory containing indices
-        index: Index ID or name
-
-    Returns:
-        Canonical path to the index directory
-    """
-    return Toolbox.get_canonical_path(os.path.join(root, index))
-
-
-def get_path_inside_index(root: str, file: str) -> str:
-    """
-    Get the full path to a file within an index directory.
-
-    Args:
-        root: Index root directory
-        file: Relative file path within the index
-
-    Returns:
-        Canonical path to the file
-    """
-    return Toolbox.get_canonical_path(os.path.join(root, file))
-
-
-def get_options_path(root: str) -> str:
-    """Get the path to options.txt file within an index directory."""
-    return get_path_inside_index(root, "options.txt")
-
-
-def get_json_path(root: str) -> str:
-    """Get the path to index.json file within a directory."""
-    return get_path_inside_index(root, "index.json")
-
-
-def b_json_exists(root: str) -> bool:
-    """
-    Check if index.json exists in the given directory.
-
-    Args:
-        root: Directory to check
-
-    Returns:
-        True if index.json exists
-    """
-    return os.path.isfile(get_json_path(root))
 
 
 def get_best_params(
@@ -122,7 +42,7 @@ def get_best_params(
     So this returns the largest feasible thread count with its minimum
     partitions. Raises ValueError if not even one thread fits ``ulimit``.
     """
-    max_s = min(ulimit, samples) - 1  # per-chunk sample cap for the split build
+    max_s = min(ulimit - 1, samples)  # per-chunk sample cap for the split build
     # hard ceiling on threads: user cap and the merge-stage file limit
     max_t = min(n_threads, ulimit // (max_s + 1))
     if max_t < 1:
@@ -145,3 +65,47 @@ def get_best_params(
             return p
 
     raise ValueError("no feasible configuration under the given ulimit")
+
+
+def auto_params(
+    kmers: int, samples: int, limits: str, safety_margin: float = 0.9
+) -> kmparams.kmtricks_params:
+    """Resolve system limits and delegate to `get_best_params`.
+
+    Args:
+        kmers: Max number of k-mers across samples.
+        samples: Total sample count of the dataset (see `get_best_params`).
+        limits: One line of JSON with optional "ram" (bytes), "files"
+            (max open files, i.e. ulimit -n), "threads", and "focus" keys.
+            Any key that is missing or null falls back to the current
+            system limit, scaled down by ``safety_margin``.
+        safety_margin: Fraction of a detected system limit to use when the
+            corresponding key is absent from ``limits`` (default: 0.9).
+
+    Returns:
+        kmparams.kmtricks_params: best configuration for the given limits.
+    """
+    parsed = json.loads(limits)
+
+    ram = parsed.get("ram")
+    if ram is None:
+        ram = get_available_ram(safety_margin)
+
+    ulimit = parsed.get("files")
+    if ulimit is None:
+        ulimit = get_max_open_files(safety_margin)
+
+    n_threads = parsed.get("threads")
+    if n_threads is None:
+        n_threads = get_available_threads(safety_margin)
+
+    focus = parsed.get("focus", 0.5)
+
+    return get_best_params(
+        kmers=kmers,
+        ram=ram,
+        samples=samples,
+        ulimit=ulimit,
+        n_threads=n_threads,
+        focus=focus,
+    )

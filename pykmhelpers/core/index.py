@@ -10,13 +10,78 @@ import json
 import logging
 import os
 import shutil
+import subprocess
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List
 
-from pykmhelpers.core.utils import Kmindex, Toolbox
+from pykmhelpers.core.kmindex_layout import (
+    check_index_structure,
+    create_empty_index_json,
+    get_bytes_per_matrix,
+    get_bytes_per_row,
+    get_header_byte_size,
+    get_row_count,
+    index_exists_in_json,
+    load_fof_file,
+    load_options_file,
+)
+from pykmhelpers.core.kmindex_paths import (
+    b_index_exists,
+    b_json_exists,
+    get_compressed_files_path,
+    get_fof_path,
+    get_index_path,
+    get_json_path,
+    get_matrix_dir,
+    get_matrix_path,
+    get_options_path,
+    get_path_inside_index,
+)
+from pykmhelpers.core.utils import Bin, Toolbox
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# kmindex registration (shells out to the kmindex binary)
+# ---------------------------------------------------------------------------
+def register_index_in_json(input_dir, output_dir, index_id):
+    """Register a new index in the index.json located in output_dir (kmindex register)."""
+    input_dir = Toolbox.get_canonical_path(os.path.join(input_dir, index_id))
+    output_dir = Toolbox.get_canonical_path(output_dir)
+
+    if not os.path.isdir(input_dir):
+        raise NotADirectoryError(
+            f"Input directory {input_dir} does not exist or is not a directory"
+        )
+
+    if not os.path.isdir(output_dir):
+        raise NotADirectoryError(
+            f"Output directory {output_dir} does not exist or is not a directory"
+        )
+
+    if not b_json_exists(output_dir):
+        raise FileNotFoundError(f"index.json not found in {output_dir}")
+
+    if index_id is None:
+        index_id = Toolbox.get_basename(input_dir)
+
+    if index_exists_in_json(get_json_path(output_dir), index_id):
+        logger.info(
+            f"Index ID {index_id} already exists in index.json, skipping registration."
+        )
+        return None
+
+    cmd = [Bin.kmindex(), "register", "-i", output_dir, "-p", input_dir, "-n", index_id]
+    logger.info("Running command: " + " ".join(str(arg) for arg in cmd))
+    result = subprocess.run([str(arg) for arg in cmd], capture_output=True, text=True)
+    if result.returncode != 0:
+        raise subprocess.SubprocessError(
+            f"Command {cmd[0]} returned code {result.returncode}\n"
+            f"Log: {result.stderr}"
+        )
+    return result.stdout
 
 
 class NotAnIndexError(Exception):
@@ -94,7 +159,7 @@ class KmtricksIndex:
 
         self.compress_state: IndexCompressionState = compressed_state
 
-        if not Kmindex.b_index_exists(self._parent_dir, self._index_id):
+        if not b_index_exists(self._parent_dir, self._index_id):
             raise NotADirectoryError(
                 f"Index directory for '{self._index_id}' not found in {self._parent_dir}"
             )
@@ -123,17 +188,17 @@ class KmtricksIndex:
     @property
     def dir_path(self) -> str:
         """Get the full path to this index directory."""
-        return Kmindex.get_index_path(self._parent_dir, self._index_id)
+        return get_index_path(self._parent_dir, self._index_id)
 
     @property
     def fof_path(self) -> str:
         """Get the path to the kmtricks.fof file."""
-        return Kmindex.get_fof_path(self.dir_path)
+        return get_fof_path(self.dir_path)
 
     @property
     def kmtricks_options_path(self) -> str:
         """Get the path to the kmtricks options.txt file."""
-        return Kmindex.get_options_path(self.dir_path)
+        return get_options_path(self.dir_path)
 
     @property
     def permutation_path(self) -> str:
@@ -148,7 +213,7 @@ class KmtricksIndex:
     @property
     def matrices_dir_path(self) -> str:
         """Get the path to the matrices directory."""
-        return Kmindex.get_matrix_dir(self.dir_path)
+        return get_matrix_dir(self.dir_path)
 
     # Index properties from JSON
     @property
@@ -210,12 +275,12 @@ class KmtricksIndex:
     @property
     def bytes_per_row(self) -> int:
         """Number of bytes per row based on sample count."""
-        return Kmindex.get_bytes_per_row(self.nb_samples)
+        return get_bytes_per_row(self.nb_samples)
 
     @property
     def header_size(self) -> int:
         """Size of matrix header in bytes."""
-        return Kmindex.get_header_byte_size()
+        return get_header_byte_size()
 
     def get_path_inside_index(self, path: str) -> str:
         """
@@ -227,7 +292,7 @@ class KmtricksIndex:
         Returns:
             Canonical path to the file or directory
         """
-        return Kmindex.get_path_inside_index(self.dir_path, path)
+        return get_path_inside_index(self.dir_path, path)
 
     def get_matrix_path(self, partition: int, is_compressed: bool = False) -> str:
         """
@@ -240,7 +305,7 @@ class KmtricksIndex:
         Returns:
             str: Path to the matrix file
         """
-        return Kmindex.get_matrix_path(self.dir_path, partition, is_compressed)
+        return get_matrix_path(self.dir_path, partition, is_compressed)
 
     def get_compressed_files(self, partition: int) -> tuple[str, str]:
         """
@@ -252,7 +317,7 @@ class KmtricksIndex:
         Returns:
             Tuple of (blocks_path, ef_path)
         """
-        return Kmindex.get_compressed_files_path(self.dir_path, partition)
+        return get_compressed_files_path(self.dir_path, partition)
 
     def get_matrix_byte_size(self, partition: int, is_compressed: bool = False) -> int:
         """
@@ -265,7 +330,7 @@ class KmtricksIndex:
         Returns:
             Size in bytes
         """
-        return Kmindex.get_bytes_per_matrix(self.dir_path, partition, is_compressed)
+        return get_bytes_per_matrix(self.dir_path, partition, is_compressed)
 
     def get_matrix_element_count(self, partition: int) -> int:
         """
@@ -290,7 +355,7 @@ class KmtricksIndex:
             Number of rows in the partition
         """
         matrix_size = self.get_matrix_byte_size(partition)
-        return Kmindex.get_row_count(matrix_size, self.bytes_per_row, self.header_size)
+        return get_row_count(matrix_size, self.bytes_per_row, self.header_size)
 
     def get_matrix_size(self) -> tuple[int, int]:
         """
@@ -338,7 +403,7 @@ class KmtricksIndex:
             logger.warning("Samples list length must match nb_samples")
             ok = False
 
-        if not Kmindex.check_index_structure(self.dir_path, self.nb_partitions):
+        if not check_index_structure(self.dir_path, self.nb_partitions):
             ok = False
 
         ref_size = self.get_matrix_byte_size(
@@ -433,17 +498,17 @@ class KmtricksIndex:
             return
 
         # Check required files exist
-        options_path = Kmindex.get_options_path(self.dir_path)
+        options_path = get_options_path(self.dir_path)
         if not os.path.exists(options_path):
             raise FileNotFoundError(f"Options file not found: {options_path}")
 
-        fof_path = Kmindex.get_fof_path(self.dir_path)
+        fof_path = get_fof_path(self.dir_path)
         if not os.path.exists(fof_path):
             raise FileNotFoundError(f"FOF file not found: {fof_path}")
 
-        self.import_properties(Kmindex.load_options_file(options_path))
+        self.import_properties(load_options_file(options_path))
         # load samples
-        samples = Kmindex.load_fof_file(fof_path)
+        samples = load_fof_file(fof_path)
         self._properties["samples"] = samples
         self._properties["nb_samples"] = len(samples)
         self._loaded = True
@@ -498,7 +563,9 @@ class KmtricksIndex:
             # Copy the entire index directory
             shutil.copytree(source_path, dest_path)
 
-            logger.info(f"Successfully copied index '{self._index_id}' to {destination}")
+            logger.info(
+                f"Successfully copied index '{self._index_id}' to {destination}"
+            )
 
             return True
 
@@ -613,7 +680,7 @@ class KmindexRegistry:
 
         if not self.json_exists:
             if auto_create:
-                Kmindex.create_empty_index_json(self._root_path)
+                create_empty_index_json(self._root_path)
             else:
                 raise NotAnIndexError(root_path)
 
@@ -627,11 +694,11 @@ class KmindexRegistry:
     @property
     def json_path(self) -> str:
         """Get path to the index.json file."""
-        return Kmindex.get_json_path(self._root_path)
+        return get_json_path(self._root_path)
 
     @property
     def json_exists(self) -> bool:
-        return Kmindex.b_json_exists(self._root_path)
+        return b_json_exists(self._root_path)
 
     def load_json(self) -> None:
         """Load the index.json file into memory."""
@@ -724,13 +791,17 @@ class KmindexRegistry:
             index: KmtricksIndex object to add
 
         Returns:
-            True if index was added, False if it already exists
+            True if index was added, False if it already exists or its
+            on-disk structure is invalid.
         """
         if self.has_index(index._index_id):
             return False
-        Kmindex.register_index_in_json(
-            index._parent_dir, self._root_path, index._index_id
-        )
+        if not index.check_structure():
+            logger.warning(
+                f"Refusing to register '{index._index_id}': invalid index structure"
+            )
+            return False
+        register_index_in_json(index._parent_dir, self._root_path, index._index_id)
         # Reload json after kmindex modified it
         self.load_json()
         return True
