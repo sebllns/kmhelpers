@@ -115,4 +115,5 @@ The authors thank Téo Lemane for developing `kmindex` and for his support in ad
 
 AI assistance was used for constrained tasks (code suggestions and drafting the paper) under strict human review at every stage. AI provider used: Claude (Anthropic, 2025).
 
+<!-- Will automatically add references here in PDF, built from paper.bib -->
 # References
