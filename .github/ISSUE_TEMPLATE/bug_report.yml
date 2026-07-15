@@ -1,0 +1,100 @@
+name: Bug Report
+description: Report a bug to help us improve kmhelpers
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report.
+
+        Tip: run `bash scripts/collect_versions.sh` from the repo to gather
+        all tool versions at once, then paste the output in the versions field below.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of the bug.
+      placeholder: What happened, and what did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: The command(s) or steps that trigger the bug.
+      placeholder: |
+        1. Run `kmhelpers ...`
+        2. ...
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: kmhelpers_version
+    attributes:
+      label: kmhelpers version
+      description: Output of `kmhelpers --version`
+      placeholder: "0.6.3"
+    validations:
+      required: true
+
+  - type: input
+    id: kmindex_version
+    attributes:
+      label: kmindex version
+      description: Output of `kmindex --version`
+      placeholder: "kmindex 0.5.x"
+    validations:
+      required: false
+
+  - type: input
+    id: kmtricks_version
+    attributes:
+      label: kmtricks version
+      description: Output of `kmtricks --version`
+      placeholder: "kmtricks v1.x.x"
+    validations:
+      required: false
+
+  - type: input
+    id: ntcard_version
+    attributes:
+      label: ntcard version
+      description: Output of `ntcard --version`
+      placeholder: "ntCard 1.x.x"
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log output
+      description: Copy and paste any relevant log output. This is automatically formatted, no backticks needed.
+      render: shell
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        **Crash report:** if the bug caused a crash, please attach the `.dump`
+        file by dragging and dropping it into the box below.
+
+  - type: textarea
+    id: crash_dump
+    attributes:
+      label: Crash dump (optional)
+      description: Drag and drop the `.dump` file here to attach it.
+    validations:
+      required: false
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "Ubuntu 24.04 / macOS 14 / ..."
+    validations:
+      required: false
