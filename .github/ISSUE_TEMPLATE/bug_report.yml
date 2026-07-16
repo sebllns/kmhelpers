@@ -14,7 +14,7 @@ body:
   - type: textarea
     id: description
     attributes:
-      label: Description
+      label: Description (required)
       description: A clear and concise description of the bug.
       placeholder: What happened, and what did you expect to happen?
     validations:
@@ -23,7 +23,7 @@ body:
   - type: textarea
     id: reproduction
     attributes:
-      label: Steps to reproduce
+      label: Steps to reproduce (required)
       description: The command(s) or steps that trigger the bug.
       placeholder: |
         1. Run `kmhelpers ...`
@@ -35,7 +35,7 @@ body:
   - type: textarea
     id: versions
     attributes:
-      label: Versions
+      label: Versions (required)
       description: Paste the output of `bash scripts/collect_versions.sh` (kmhelpers, kmindex, kmtricks, ntcard, OS).
       render: shell
       placeholder: |
@@ -52,7 +52,7 @@ body:
   - type: textarea
     id: logs
     attributes:
-      label: Log output
+      label: Log output (optional)
       description: Copy and paste any relevant log output. This is automatically formatted, no backticks needed.
       render: shell
     validations:
@@ -61,6 +61,7 @@ body:
   - type: markdown
     attributes:
       value: |
+        ---
         **Crash report:** if the bug caused a crash, please attach the `.dump`
         file by dragging and dropping it into the box below.
 
@@ -69,13 +70,5 @@ body:
     attributes:
       label: Crash dump (optional)
       description: Drag and drop the `.dump` file here to attach it.
-    validations:
-      required: false
-
-  - type: input
-    id: os
-    attributes:
-      label: Operating system
-      placeholder: "Ubuntu 24.04 / macOS 14 / ..."
     validations:
       required: false
