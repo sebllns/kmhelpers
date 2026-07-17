@@ -297,6 +297,7 @@ class KmindexWrapper(Wrapper):
         threshold: float = 0.0,
         single_query: Optional[str] = None,
         aggregate: bool = False,
+        batch_size: int = 0,
         fast: bool = True,
         is_compressed: bool = False,
         method: str = "seq",
@@ -316,6 +317,7 @@ class KmindexWrapper(Wrapper):
             monitor: Whether to monitor resource usage.
             single_query: Query identifier. If provided, all sequences are considered as a unique query.
             aggregate: Whether to aggregate results from batches into one file.
+            batch_size: Size of query batches. 0 (default) lets kmindex pick (~nb_seq/nb_thread).
             threads: Number of threads to use for the query.
 
         Returns:
@@ -378,6 +380,10 @@ class KmindexWrapper(Wrapper):
 
         if aggregate:
             cmd.append("--aggregate")
+
+        # --batch-size is only supported by 'query' (not 'query2').
+        if batch_size and not (is_compressed or method == "sub"):
+            cmd.extend(["--batch-size", str(batch_size)])
 
         if names:
             cmd.extend(

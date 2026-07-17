@@ -68,15 +68,7 @@ logger = logging.getLogger(__name__)
     is_flag=True,
     default=False,
     show_default=True,
-    help="🚩  Treat all sequences across all query files as a single batched query instead of querying each sequence individually.",
-)
-@click.option(
-    "--aggregate",
-    "-a",
-    is_flag=True,
-    default=False,
-    show_default=True,
-    help="🚩  Aggregate batch results into one file.",
+    help="🚩  Treat all sequences across all query files as a single batched file instead of querying each file individually.",
 )
 @click.option(
     "--compressed",
@@ -125,7 +117,7 @@ logger = logging.getLogger(__name__)
     type=click.Choice(["seq", "sub"]),
     default="seq",
     show_default=True,
-    help="⚙   Parallelization strategy: seq (across sequences) or sub (across sub-indices). Forced to sub when --compressed is set.",
+    help="⚙   Parallelization strategy: seq (across sequences) or sub (across sub-indices). ‼️ Forced to sub when --compressed is set.",
 )
 @click.argument(
     "query_files",
@@ -143,7 +135,6 @@ def query(
     threads,
     single_query,
     batch_query,
-    aggregate,
     compressed,
     format,
     print_output,
@@ -206,7 +197,7 @@ def query(
             threads=threads,
             single_query=single_query,
             batch=batch_query,
-            aggregate=aggregate,
+            aggregate=False,
             compressed=compressed,
             output_format=format,
             print_output=print_output,
@@ -223,5 +214,6 @@ def query(
     except (FileNotFoundError, FileExistsError, RuntimeError) as e:
         raise click.ClickException(str(e))
 
-    logger.info(f"Completed in {time.time() - start:.2f}s")
+    logger.info("=" * 50)
+    logger.info(f"Completed all queries in {time.time() - start:.2f}s")
     logger.info(f"Output directory: {output_dir}")
