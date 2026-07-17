@@ -125,7 +125,7 @@ logger = logging.getLogger(__name__)
     type=click.Choice(["seq", "sub"]),
     default="seq",
     show_default=True,
-    help="⚙   Parallelization strategy: seq (across sequences) or sub (across sub-indices). Forced to sub when --compressed is set.",
+    help="⚙   Parallelization strategy: seq (across sequences) or sub (across sub-indices). ‼️ Forced to sub when --compressed is set.",
 )
 @click.argument(
     "query_files",
