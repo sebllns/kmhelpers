@@ -6,7 +6,8 @@ channels:
 dependencies:
   - python>=3.8,<3.14
   - bioconda::ntcard>=1.2.2
-  - kmindex>=0.6.1
+  - bioconda::kmindex>=0.6.1
+  - bioconda::seqkit>=2.13.0
   - pip
   - pip:
       - -e ..
