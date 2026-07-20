@@ -28,7 +28,6 @@ Query indices with FASTA/FASTQ sequences.
 | `-R, --threshold FLOAT` | Score threshold for filtering results (default: 0.05) |
 | `-b, --batch-query` | Treat all sequences across all query files as a single batched query |
 | `-s, --single-query NAME` | Name for the single batched query |
-| `-a, --aggregate` | Aggregate batch results into one file |
 | `-c, --compressed` | Index is compressed (forces `sub` parallelization) |
 | `-f, --format TEXT` | Output format: `json` (default), `yaml`, `md`, `html`, `csv` |
 | `-p, --print` | Print results to console |

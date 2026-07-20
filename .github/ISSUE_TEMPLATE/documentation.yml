@@ -1,0 +1,50 @@
+name: Documentation
+description: Report a problem or suggest an improvement in the documentation
+title: "[DOC] "
+labels: ["documentation"]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Type of issue
+      options:
+        - Something is incorrect or outdated
+        - Something is missing
+        - Something is unclear or confusing
+        - Typo or formatting
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: kmhelpers/documentation version
+      placeholder: "0.6.3"
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: Where the problem is - a doc page/file, or a CLI command's help/description text.
+      placeholder: "README.md / docs/... / https://... / kmhelpers <command> --help"
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is wrong or missing, and what would you expect instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested wording (optional)
+      description: If you have a concrete fix or wording in mind, share it here.
+    validations:
+      required: false
