@@ -162,3 +162,4 @@ results/
 *.dump
 /linux-packages/
 /examples/data/SYNTHETIC_ROD_10/
+/paper/paper.pdf
