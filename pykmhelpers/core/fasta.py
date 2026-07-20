@@ -1,9 +1,10 @@
 import gzip
+import os
 import random
 from io import TextIOWrapper
-import os
 from pathlib import Path
 from typing import Optional
+
 from .sequence import Sequence
 
 
@@ -247,13 +248,15 @@ class SequenceValidator:
         self,
         filepath,
         fmt: Optional[str] = None,
-        max_errors: int = 100,
+        max_errors: int = 1,
         use_seqkit: bool = True,
         strict: bool = True,
     ):
         self.filepath = Path(filepath)
         if not self.filepath.exists():
             raise FileNotFoundError(f"Sequence file not found: {self.filepath}")
+        # Scanning stops once this many errors are found; max_errors=1 gives
+        # fail-fast behavior (stop at the first error).
         self.max_errors = max_errors
         self.use_seqkit = use_seqkit
         # strict also runs the per-character alphabet check (the slow part);
@@ -274,9 +277,7 @@ class SequenceValidator:
                 return "fasta"
             if s in self.FASTQ_EXT:
                 return "fastq"
-        raise ValueError(
-            f"Cannot detect FASTA/FASTQ format from: {self.filepath.name}"
-        )
+        raise ValueError(f"Cannot detect FASTA/FASTQ format from: {self.filepath.name}")
 
     def validate(self) -> bool:
         """
@@ -305,6 +306,8 @@ class SequenceValidator:
         ok, messages = wrapper.validate(self.filepath, strict=self.strict)
         for msg in messages:
             self._add(0, msg)
+            if self._stop():
+                break
         if not ok and not self.errors:
             self._add(0, "seqkit reported the file as invalid")
         return True
@@ -325,6 +328,10 @@ class SequenceValidator:
         if len(self.errors) < self.max_errors:
             self.errors.append((line_num, reason))
 
+    def _stop(self) -> bool:
+        """True once max_errors is reached, so scanning can stop early."""
+        return len(self.errors) >= self.max_errors
+
     def _invalid_chars(self, line: str) -> str:
         """Return distinct characters not allowed in a sequence line."""
         # set(line) is built in C and holds only distinct chars, so the
@@ -341,6 +348,8 @@ class SequenceValidator:
             seq_len = 0
             seen_record = False
             for line_num, raw in enumerate(fh, start=1):
+                if self._stop():
+                    return
                 line = raw.rstrip("\r\n")
                 if line == "":
                     continue
@@ -374,6 +383,8 @@ class SequenceValidator:
             record_start = 0
             n_lines = 0
             for line_num, raw in enumerate(fh, start=1):
+                if self._stop():
+                    return
                 n_lines = line_num
                 line = raw.rstrip("\r\n")
                 if pos == 0:
@@ -406,7 +417,9 @@ class SequenceValidator:
             if n_lines == 0:
                 self._add(0, "File contains no FASTQ records")
             elif pos != 0:
-                self._add(record_start, "Truncated FASTQ record (incomplete 4-line block)")
+                self._add(
+                    record_start, "Truncated FASTQ record (incomplete 4-line block)"
+                )
 
     def print_errors(self) -> None:
         """Print all validation errors with their line numbers."""

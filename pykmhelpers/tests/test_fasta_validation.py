@@ -213,6 +213,37 @@ class TestStrictToggle(unittest.TestCase):
         self.assertTrue(any("Quality length" in r for _, r in v.get_errors()))
 
 
+class TestMaxErrors(unittest.TestCase):
+    """max_errors caps the report and stops the scan early (1 = fail-fast)."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = self.tmp.name
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_collects_many(self):
+        # Several invalid sequence lines: the default collects them all.
+        content = ">s\n" + "".join("Z\n" for _ in range(10))
+        path = _write(self.dir, "bad.fasta", content)
+        v = SequenceValidator(path, use_seqkit=False, max_errors=100)
+        v.validate()
+        self.assertGreater(v.get_error_count(), 1)
+
+    def test_max_errors_one_stops_at_first(self):
+        content = ">s\n" + "".join("Z\n" for _ in range(10))
+        path = _write(self.dir, "bad.fasta", content)
+        v = SequenceValidator(path, use_seqkit=False, max_errors=1)
+        self.assertFalse(v.validate())
+        self.assertEqual(v.get_error_count(), 1)
+
+    def test_max_errors_valid_file_unaffected(self):
+        path = _write(self.dir, "good.fasta", _random_good_fasta())
+        v = SequenceValidator(path, use_seqkit=False, max_errors=1)
+        self.assertTrue(v.validate())
+
+
 @unittest.skipUnless(SEQKIT_AVAILABLE, "seqkit not installed")
 class TestSeqKitEngine(unittest.TestCase):
     """seqkit-backed path, only run when the real seqkit binary is present."""
