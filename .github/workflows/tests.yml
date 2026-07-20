@@ -2,6 +2,8 @@ name: Tests
 
 on:
   push:
+    branches-ignore:
+      - 'paper'
     paths-ignore:
       - 'docs/**'
       - 'paper/**'
@@ -10,6 +12,8 @@ on:
       - 'mkdocs.yml'
       - 'LICENSE'
   pull_request:
+    branches-ignore:
+      - 'paper'
     paths-ignore:
       - 'docs/**'
       - 'paper/**'
