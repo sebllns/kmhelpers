@@ -303,9 +303,7 @@ class TestChunkedBuild(PipelineE2EBase):
 
         # files=5 can't fit N_SAMPLES=5 samples in one kmtricks build (merge
         # stage needs samples+1 open files), forcing a chunked build+merge.
-        self.run_cli(
-            "apply", span_reg, "-o", "build", "--limits", '{"files": 5}'
-        )
+        self.run_cli("apply", span_reg, "-o", "build", "--limits", '{"files": 5}')
 
         index_json = self.tmp / "build" / "index.json"
         self.assertTrue(index_json.is_file(), "apply did not produce index.json")
@@ -321,7 +319,9 @@ class TestChunkedBuild(PipelineE2EBase):
         # every original sample must still be queryable after the chunked merge
         for idx in range(N_SAMPLES):
             q, header = self.write_query(f"s{idx}", sample_idx=idx)
-            self.run_cli("query", q, "-r", "build", "-o", f"results_{idx}", "-f", "json")
+            self.run_cli(
+                "query", q, "-r", "build", "-o", f"results_{idx}", "-f", "json"
+            )
             self.assert_query_hit(f"results_{idx}", header, f"sample_{idx}")
 
 
@@ -337,9 +337,7 @@ class TestDirectoryScanBuildQueryUpdateQuery(PipelineE2EBase):
         """Write ``sample_{i}.fasta`` under ``root/s{i}/`` for each i in indices."""
         for i in indices:
             d = self.mkdirs(*root, f"s{i}")
-            (d / f"sample_{i}.fasta").write_text(
-                f">sample_{i}\n{self.sequences[i]}\n"
-            )
+            (d / f"sample_{i}.fasta").write_text(f">sample_{i}\n{self.sequences[i]}\n")
         return self.tmp.joinpath(*root)
 
     def test_scan_dir_build_query_update_query(self):

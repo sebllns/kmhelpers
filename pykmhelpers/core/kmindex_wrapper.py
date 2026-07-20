@@ -409,7 +409,21 @@ class KmindexWrapper(Wrapper):
             raise RuntimeError(f"Query failed: <{msg}> ({rc})")
 
         if not os.path.isdir(output_dir):
-            raise NotADirectoryError(f"Result directory not found: {output_dir}")
+            # kmindex exits 0 without writing an output directory only when it
+            # could not process the query: malformed format (e.g. FASTQ content
+            # in a .fa file), sequences shorter than s+z, or an empty file.
+            # A valid query always creates the directory, even with zero hits.
+            stderr = (result or {}).get("stderr") or ""
+            skipped = [
+                line.split("] ", 1)[-1].strip()
+                for line in stderr.splitlines()
+                if "skipped:" in line
+            ]
+            detail = f" ({'; '.join(skipped[:3])})" if skipped else ""
+            raise RuntimeError(
+                f"Query produced no results: no valid sequences in {query_file}. "
+                f"Check the file format (FASTA/FASTQ) and sequence length.{detail}"
+            )
 
         return result or {}
 
