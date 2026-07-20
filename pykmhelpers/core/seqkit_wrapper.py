@@ -4,7 +4,7 @@ import logging
 import os
 import subprocess
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 from pykmhelpers.core.wrapper import Wrapper
 
@@ -37,7 +37,10 @@ class SeqKitWrapper(Wrapper):
             return False
 
     def validate(
-        self, filepath: Union[str, Path], strict: bool = True
+        self,
+        filepath: Union[str, Path],
+        strict: bool = True,
+        timeout: Optional[float] = None,
     ) -> Tuple[bool, List[str]]:
         """
         Validate a FASTA/FASTQ file with seqkit.
@@ -46,7 +49,7 @@ class SeqKitWrapper(Wrapper):
         problems. When `strict` is set, the sequence alphabet is additionally
         validated against DNA IUPAC (the more expensive part). The DNA type is
         pinned explicitly: seqkit's auto-guess is too lenient and lets stray
-        characters pass.
+        characters pass. `timeout` bounds the seqkit run in seconds.
 
         Returns:
             (is_valid, errors) where errors holds seqkit's stderr lines.
@@ -56,7 +59,7 @@ class SeqKitWrapper(Wrapper):
             cmd += ["--validate-seq", "--seq-type", "dna"]
         cmd += ["-w", "0", "-o", os.devnull, str(filepath)]
         try:
-            self._run_cmd(cmd, log_errors_only=True)
+            self._run_cmd(cmd, log_errors_only=True, timeout=timeout)
             return True, []
         except subprocess.SubprocessError as e:
             # _run_cmd embeds seqkit's stderr after a "Log:" marker; keep that

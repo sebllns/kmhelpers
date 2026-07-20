@@ -290,15 +290,19 @@ class TestSeqKitEngine(unittest.TestCase):
         self.assertEqual(v.engine, "seqkit")
 
 
-def _run_on_file(path, strict=True):
+def _run_on_file(path, strict=True, use_seqkit=True, timeout=None):
     """Validate a single file, print the outcome. Return True if valid."""
-    if not SEQKIT_AVAILABLE:
+    import time
+
+    if use_seqkit and not SEQKIT_AVAILABLE:
         print("Warning: seqkit not installed, using builtin validator")
-    v = SequenceValidator(path, use_seqkit=SEQKIT_AVAILABLE, strict=strict)
+    v = SequenceValidator(path, use_seqkit=use_seqkit, strict=strict, timeout=timeout)
+    start = time.perf_counter()
     ok = v.validate()
+    elapsed = time.perf_counter() - start
     status = "VALID" if ok else "INVALID"
     mode = "strict" if strict else "structural"
-    print(f"[{status}] {path} (engine={v.engine}, mode={mode})")
+    print(f"[{status}] {path} (engine={v.engine}, mode={mode}, time={elapsed:.3f}s)")
     if not ok:
         v.print_errors()
     return ok
@@ -307,13 +311,14 @@ def _run_on_file(path, strict=True):
 if __name__ == "__main__":
     import sys
 
-    # Usage: python -m ...test_fasta_validation [--no-strict] [FILE ...]
+    # Usage: python -m ...test_fasta_validation [--no-strict] [--no-seqkit] [FILE ...]
     strict = "--no-strict" not in sys.argv[1:]
+    use_seqkit = "--no-seqkit" not in sys.argv[1:]
     files = [a for a in sys.argv[1:] if not a.startswith("-")]
     if files:
         rc = 0
         for f in files:
-            if not _run_on_file(f, strict=strict):
+            if not _run_on_file(f, strict=strict, use_seqkit=use_seqkit, timeout=60):
                 rc = 1
         sys.exit(rc)
     unittest.main()

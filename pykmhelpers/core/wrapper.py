@@ -83,6 +83,7 @@ class Wrapper:
         print_trace: Optional[bool] = None,
         log_file: Optional[str] = None,
         log_errors_only: Optional[bool] = None,
+        timeout: Optional[float] = None,
     ) -> subprocess.CompletedProcess[str]:
         """
         Run a command using subprocess and capture its output.
@@ -92,6 +93,8 @@ class Wrapper:
             print_trace: Whether to print command output (default: computed from logger level)
             log_file: Optional path to write stdout/stderr to
             log_errors_only: Whether to log only errors (default: computed from logger level)
+            timeout: Optional wall-clock limit in seconds; raises
+                subprocess.TimeoutExpired when exceeded
 
         Returns:
             CompletedProcess with stdout and stderr
@@ -111,7 +114,10 @@ class Wrapper:
         else:
             # Run command
             result = subprocess.run(
-                [str(arg) for arg in cmd], capture_output=True, text=True
+                [str(arg) for arg in cmd],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
             )
 
         # Build output content
