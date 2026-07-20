@@ -1,6 +1,7 @@
 import gzip
 import os
 import random
+import time
 from io import TextIOWrapper
 from pathlib import Path
 from typing import Optional
@@ -251,6 +252,7 @@ class SequenceValidator:
         max_errors: int = 1,
         use_seqkit: bool = True,
         strict: bool = True,
+        timeout: Optional[float] = 60.0,
     ):
         self.filepath = Path(filepath)
         if not self.filepath.exists():
@@ -262,6 +264,11 @@ class SequenceValidator:
         # strict also runs the per-character alphabet check (the slow part);
         # when False only the cheaper structural checks are performed.
         self.strict = strict
+        # Wall-clock limit in seconds for a single validate() call; defaults to
+        # 60s. None or 0 disables it. Applies to both the seqkit subprocess and
+        # the builtin scan.
+        self.timeout = timeout
+        self._deadline: Optional[float] = None
         # Engine actually used by the last validate() call: "seqkit" or "builtin".
         self.engine: Optional[str] = None
         self.fmt = (fmt or self._detect_format()).lower()
@@ -288,6 +295,9 @@ class SequenceValidator:
         `self.engine`.
         """
         self.errors = []
+        self._deadline = (
+            time.perf_counter() + self.timeout if self.timeout else None
+        )
         if self.use_seqkit and self._validate_with_seqkit():
             return not self.errors
         return self._validate_builtin()
@@ -303,7 +313,9 @@ class SequenceValidator:
             return False
 
         self.engine = "seqkit"
-        ok, messages = wrapper.validate(self.filepath, strict=self.strict)
+        ok, messages = wrapper.validate(
+            self.filepath, strict=self.strict, timeout=self.timeout
+        )
         for msg in messages:
             self._add(0, msg)
             if self._stop():
@@ -329,8 +341,13 @@ class SequenceValidator:
             self.errors.append((line_num, reason))
 
     def _stop(self) -> bool:
-        """True once max_errors is reached, so scanning can stop early."""
-        return len(self.errors) >= self.max_errors
+        """True when scanning should stop: max_errors reached or timed out."""
+        if len(self.errors) >= self.max_errors:
+            return True
+        if self._deadline is not None and time.perf_counter() >= self._deadline:
+            self._add(0, f"Validation timed out after {self.timeout}s")
+            return True
+        return False
 
     def _invalid_chars(self, line: str) -> str:
         """Return distinct characters not allowed in a sequence line."""
@@ -442,10 +459,11 @@ def validate_sequence_file(
     fmt: Optional[str] = None,
     use_seqkit: bool = True,
     strict: bool = True,
+    timeout: Optional[float] = 60.0,
 ) -> bool:
     """Convenience helper: return True if the FASTA/FASTQ file is well formed."""
     return SequenceValidator(
-        filepath, fmt=fmt, use_seqkit=use_seqkit, strict=strict
+        filepath, fmt=fmt, use_seqkit=use_seqkit, strict=strict, timeout=timeout
     ).validate()
 
 
