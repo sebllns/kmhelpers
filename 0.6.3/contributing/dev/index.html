@@ -2182,22 +2182,66 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#releasing" class="md-nav__link">
+  <a href="#workflow-scenarios" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Releasing
+        Workflow scenarios
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Releasing">
+    <nav class="md-nav" aria-label="Workflow scenarios">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#viewing-main-history" class="md-nav__link">
+  <a href="#branch-protection" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Viewing main history
+        Branch protection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#branch-flow-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Branch flow overview
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#start-a-new-feature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Start a new feature
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#keep-a-feature-current-with-develop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keep a feature current with develop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#merge-a-feature-into-develop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Merge a feature into develop
       
     </span>
   </a>
@@ -2206,6 +2250,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#releasing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Releasing
+      
+    </span>
+  </a>
   
 </li>
       
@@ -2335,22 +2390,66 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#releasing" class="md-nav__link">
+  <a href="#workflow-scenarios" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Releasing
+        Workflow scenarios
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Releasing">
+    <nav class="md-nav" aria-label="Workflow scenarios">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#viewing-main-history" class="md-nav__link">
+  <a href="#branch-protection" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Viewing main history
+        Branch protection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#branch-flow-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Branch flow overview
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#start-a-new-feature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Start a new feature
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#keep-a-feature-current-with-develop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keep a feature current with develop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#merge-a-feature-into-develop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Merge a feature into develop
       
     </span>
   </a>
@@ -2359,6 +2458,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#releasing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Releasing
+      
+    </span>
+  </a>
   
 </li>
       
@@ -2478,6 +2588,7 @@
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>mypy<span class="w"> </span>pykmhelpers/
 </code></pre></div>
 <h2 id="branching">Branching</h2>
+<p><strong>Protected</strong> (PR-only; no direct push, force-push, or deletion):</p>
 <table>
 <thead>
 <tr>
@@ -2495,8 +2606,46 @@
 <td>Integration branch for ongoing work</td>
 </tr>
 <tr>
+<td><code>release/vX.Y.Z</code></td>
+<td>Frozen release candidate, gate to <code>main</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Long-lived</strong> (unprotected, permanent):</p>
+<table>
+<thead>
+<tr>
+<th>Branch pattern</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>docs</code></td>
+<td>Docs source; pushes trigger the <code>mike</code> deploy workflow</td>
+</tr>
+<tr>
+<td><code>paper</code></td>
+<td>JOSS paper build; <code>paper.pdf</code> committed by CI here only</td>
+</tr>
+<tr>
+<td><code>gh-pages</code></td>
+<td>Auto-managed by the <code>mike</code> docs workflow, do not push manually</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Working</strong> (unprotected, short-lived; deleted after merge):</p>
+<table>
+<thead>
+<tr>
+<th>Branch pattern</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
 <td><code>dev/vX.Y.Z</code></td>
-<td>Version-scoped development (e.g. <code>dev/v0.6.3</code>)</td>
+<td>Release staging: version bump, changelog, stabilisation fixes</td>
 </tr>
 <tr>
 <td><code>dev/&lt;topic&gt;</code></td>
@@ -2507,73 +2656,144 @@
 <td>Self-contained feature work</td>
 </tr>
 <tr>
+<td><code>hotfix/&lt;name&gt;</code></td>
+<td>Urgent fix branched from <code>main</code></td>
+</tr>
+<tr>
 <td><code>doc/&lt;name&gt;</code></td>
 <td>Documentation-only changes</td>
-</tr>
-<tr>
-<td><code>release/vX.Y.Z</code></td>
-<td>Release stabilisation branch</td>
-</tr>
-<tr>
-<td><code>gh-pages</code></td>
-<td>Auto-managed by <code>mkdocs gh-deploy</code> — do not push manually</td>
 </tr>
 </tbody>
 </table>
 <p>Open pull requests against <code>main</code> for releases, or against <code>develop</code> for work in progress.</p>
+<h2 id="workflow-scenarios">Workflow scenarios</h2>
+<p>This repo uses a git-flow style layout: <code>main</code> (stable/released), <code>develop</code> (integration), <code>feature/*</code> (work in progress), <code>release/*</code> (release staging), and <code>paper</code> (the JOSS/paper build). The sequences below are the exact commands to follow so duplicate-history problems do not recur.</p>
+<h3 id="branch-protection">Branch protection</h3>
+<p><code>main</code>, <code>develop</code>, and <code>release/*</code> are <strong>protected</strong>:</p>
+<ul>
+<li><strong>No direct push.</strong> Every change lands via a Pull Request merged on the platform (GitHub). You never run <code>git push origin main</code> / <code>develop</code> / <code>release/*</code> locally.</li>
+<li><strong>No force-push, no deletion.</strong> <code>--force</code> and <code>--force-with-lease</code> are both rejected on these branches by the server, regardless of any client-side lease. Deletion is blocked too.</li>
+<li><strong>Only unprotected branches</strong> (<code>feature/*</code>, <code>hotfix/*</code>, <code>paper</code>) may be pushed to directly, force-pushed (with <code>--force-with-lease</code>), and deleted locally.</li>
+</ul>
+<p>Every "integrate into a protected branch" step below is a <strong>PR merge on the platform</strong>, shown with <code>gh pr</code> for reference. The local <code>git merge</code> + <code>git push</code> form is only valid for unprotected branches.</p>
+<h3 id="branch-flow-overview">Branch flow overview</h3>
+<p>Solid lines = branch created from. Dashed lines = PR merge (into a protected branch). Protected branches are <code>main</code>, <code>develop</code>, <code>release/*</code>.</p>
+<pre class="mermaid"><code>flowchart LR
+    main[("main&lt;br/&gt;protected")]
+    develop[("develop&lt;br/&gt;protected")]
+    feat["feature/my-feature"]
+    devv["dev/v0.6.4"]
+    rel[("release/v0.6.4&lt;br/&gt;protected, frozen")]
+    hot["hotfix/fix-crash"]
+
+    %% feature cycle
+    develop --&gt;|branch from| feat
+    feat -.-&gt;|PR merge| develop
+
+    %% release cycle
+    develop --&gt;|branch from| devv
+    devv --&gt;|branch from| rel
+    devv -.-&gt;|PR: post-freeze fixes| rel
+    rel -.-&gt;|PR merge + tag| main
+    rel -.-&gt;|PR back-merge| develop
+
+    %% hotfix cycle
+    main --&gt;|branch from| hot
+    hot -.-&gt;|PR merge + tag| main
+    hot -.-&gt;|PR forward-port| develop
+
+    classDef prot fill:#fde2e2,stroke:#c0392b,color:#000;
+    classDef work fill:#e2f0fd,stroke:#2c6fbb,color:#000;
+    class main,develop,rel prot;
+    class feat,devv,hot work;</code></pre>
+<p>Reading it:</p>
+<ul>
+<li><strong>Feature</strong>: branch off <code>develop</code>, PR back into <code>develop</code>.</li>
+<li><strong>Release</strong>: <code>develop</code> -&gt; <code>dev/vX.Y.Z</code> (stage) -&gt; <code>release/vX.Y.Z</code> (freeze) -&gt; PR into <code>main</code> (tag) and back into <code>develop</code>.</li>
+<li><strong>Hotfix</strong>: branch off <code>main</code>, PR into <code>main</code> (tag) and forward-port to <code>develop</code>.</li>
+</ul>
+<p>Every arrow landing on a protected branch (dashed) is a PR merge; nothing is pushed to <code>main</code>, <code>develop</code>, or <code>release/*</code> directly.</p>
+<h3 id="start-a-new-feature">Start a new feature</h3>
+<p>Always branch from an up-to-date <code>develop</code>, never from <code>main</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>develop
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>git<span class="w"> </span>pull<span class="w"> </span>--no-rebase<span class="w">                 </span><span class="c1"># merge, keep commit identity stable</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>feature/my-feature
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># ... work, commit freely ...</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>git<span class="w"> </span>push<span class="w"> </span>-u<span class="w"> </span>origin<span class="w"> </span>feature/my-feature
+</code></pre></div>
+<p>Rebase is fine <em>here</em> while the branch is still private, to tidy local commits before the first push:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>git<span class="w"> </span>rebase<span class="w"> </span>-i<span class="w"> </span>develop<span class="w">                </span><span class="c1"># ONLY before the first push / while unshared</span>
+</code></pre></div>
+<p>Once pushed and shared, stop rebasing it.</p>
+<h3 id="keep-a-feature-current-with-develop">Keep a feature current with <code>develop</code></h3>
+<p>While the feature is open and <code>develop</code> moves ahead, integrate by <strong>merging</strong>, not rebasing, so you never rewrite already-pushed commits:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>feature/my-feature
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>git<span class="w"> </span>fetch<span class="w"> </span>origin
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>git<span class="w"> </span>merge<span class="w"> </span>origin/develop<span class="w">             </span><span class="c1"># brings develop&#39;s new work in, stable SHAs</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># resolve conflicts if any, then:</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>git<span class="w"> </span>push
+</code></pre></div>
+<p>If you truly must rebase a shared feature branch, coordinate with everyone on it first, then force-push safely:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>git<span class="w"> </span>rebase<span class="w"> </span>origin/develop
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>git<span class="w"> </span>push<span class="w"> </span>--force-with-lease<span class="w">          </span><span class="c1"># never plain --force on a shared branch</span>
+</code></pre></div>
+<p>This is valid ONLY because <code>feature/*</code> is unprotected. The same command against <code>main</code>, <code>develop</code>, or <code>release/*</code> is rejected by the server; integrate via PR instead.</p>
+<h3 id="merge-a-feature-into-develop">Merge a feature into <code>develop</code></h3>
+<p>Open a PR into <code>develop</code>. On merge, pick ONE strategy and stick to it:</p>
+<ul>
+<li><strong>Squash-merge</strong> (recommended for tidy history): the PR becomes one commit on <code>develop</code> with a new SHA. Because the original commits now have a different identity, you MUST delete the feature branch and not reuse it:</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># after the squash-merge is done on the remote:</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>git<span class="w"> </span>branch<span class="w"> </span>-d<span class="w"> </span>feature/my-feature
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>--delete<span class="w"> </span>feature/my-feature
+</code></pre></div>
+<p>Reusing a squash-merged branch is what produces "same content, new SHA" duplicate commits.</p>
+<ul>
+<li><strong>Merge commit</strong> (preserves individual commits): keeps SHAs, no duplication, but a noisier graph. Fine for large features you want to keep granular.</li>
+</ul>
+<p>Do not mix strategies: squash-merging and then also merging the old branch later creates duplicate-commit divergence.</p>
 <h2 id="releasing">Releasing</h2>
 <div class="admonition abstract">
 <p class="admonition-title">Abstract</p>
 <p>A release consolidates current development work from <code>develop</code> into a dedicated <code>release/vX.Y.Z</code> branch, then merges it into <code>main</code> with a <strong>merge commit</strong> (<code>--no-ff</code>). This keeps <code>main</code> readable, one merge commit per release when viewed with <code>--first-parent</code>, while preserving full history and correct ancestry, so subsequent releases keep merging cleanly.</p>
 </div>
-<ol>
-<li>Work on a <code>dev/vX.Y.Z</code> branch:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>dev/vX.Y.Z
-</code></pre></div></li>
-<li>Bump the version in <code>pyproject.toml</code> and <code>CHANGELOG.md</code>.</li>
-<li>Merge into <code>develop</code> and delete <code>dev/vX.Y.Z</code>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>develop
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>git<span class="w"> </span>merge<span class="w"> </span>dev/vX.Y.Z
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>develop
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>git<span class="w"> </span>branch<span class="w"> </span>-d<span class="w"> </span>dev/vX.Y.Z
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>--delete<span class="w"> </span>dev/vX.Y.Z
-</code></pre></div></li>
-<li>Create a <code>release/vX.Y.Z</code> branch from <code>develop</code>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>release/vX.Y.Z
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>release/vX.Y.Z
-</code></pre></div></li>
-<li>Merge <code>release/vX.Y.Z</code> into <code>main</code> with a merge commit (never fast-forward, never squash):
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>main
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>git<span class="w"> </span>pull<span class="w"> </span>origin<span class="w"> </span>main
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>git<span class="w"> </span>merge<span class="w"> </span>--no-ff<span class="w"> </span>release/vX.Y.Z<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Merge branch &#39;release/vX.Y.Z&#39; into &#39;main&#39;&quot;</span>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>main
+<p>This repo uses a two-branch release pattern:</p>
+<ul>
+<li><strong><code>dev/vX.Y.Z</code></strong> = unprotected staging. Version bump, changelog, and all stabilization fixes are committed here directly - no PR needed to touch it.</li>
+<li><strong><code>release/vX.Y.Z</code></strong> = protected, frozen release candidate. Created FROM the staging branch, and is the reviewed gate that flows to <code>main</code>.</li>
+</ul>
+<p>Creating a protected branch from an existing ref is allowed; protection only blocks force-push, direct push of new commits, and deletion. So <code>release/vX.Y.Z</code> inherits the bump + fixes in one shot, with no PR to populate it.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># 1. staging branch off develop (UNPROTECTED - commit freely)</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>git<span class="w"> </span>checkout<span class="w"> </span>develop
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>git<span class="w"> </span>pull<span class="w"> </span>--no-rebase
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>dev/vX.Y.Z
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="c1"># bump version, changelog, last fixes committed directly here</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>git<span class="w"> </span>commit<span class="w"> </span>-am<span class="w"> </span><span class="s2">&quot;Bump version to X.Y.Z&quot;</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>git<span class="w"> </span>push<span class="w"> </span>-u<span class="w"> </span>origin<span class="w"> </span>dev/vX.Y.Z
 </code></pre></div>
-   <code>--no-ff</code> forces a merge commit even though <code>main</code> is an ancestor of the release branch; without it Git would fast-forward and you would lose the per-release merge marker. If you release via a GitLab MR / GitHub PR instead, choose <strong>Create a merge commit</strong> (not squash, not fast-forward).</li>
-<li>After merge, tag the release on <code>main</code>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>main
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>git<span class="w"> </span>pull
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>git<span class="w"> </span>tag<span class="w"> </span>vX.Y.Z
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>vX.Y.Z
-</code></pre></div></li>
-<li>Sync <code>develop</code> with a regular merge (preserves full commit history):
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>develop
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>git<span class="w"> </span>merge<span class="w"> </span>main
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>develop
-</code></pre></div></li>
-<li>Deploy the updated docs:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>mkdocs<span class="w"> </span>gh-deploy
-</code></pre></div></li>
-</ol>
-<h3 id="viewing-main-history">Viewing <code>main</code> history</h3>
-<p>Because releases land as <code>--no-ff</code> merge commits, <code>main</code> reads as one entry per release with <code>--first-parent</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>git<span class="w"> </span>log<span class="w"> </span>--first-parent<span class="w"> </span>--oneline<span class="w"> </span>main
+<p>On <code>dev/vX.Y.Z</code> you finalise the release, bump the version, update the changelog, and land any last fixes, committing directly since it is unprotected.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># 2. protected release branch, created FROM the staging branch (creation allowed)</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>release/vX.Y.Z<span class="w"> </span>dev/vX.Y.Z
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>git<span class="w"> </span>push<span class="w"> </span>-u<span class="w"> </span>origin<span class="w"> </span>release/vX.Y.Z
 </code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>xxxxxxx Merge branch &#39;release/v0.6.3&#39; into &#39;main&#39;
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>0be81302 Merge branch &#39;release/v0.6.2&#39; into &#39;main&#39;
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>bc287506 Merge branch &#39;release/v0.6.1&#39; into &#39;main&#39;
-</code></pre></div>
-<p>The individual release commits are still fully reachable (blame and <code>git bisect</code> work); <code>--first-parent</code> just hides them from the top-level view. Optionally alias it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>git<span class="w"> </span>config<span class="w"> </span>alias.mainlog<span class="w"> </span><span class="s2">&quot;log --first-parent --oneline main&quot;</span>
+<p>Branching from <code>dev/vX.Y.Z</code> makes <code>release/vX.Y.Z</code> inherit the bump, changelog, and fixes with no PR to populate it (creating a new branch is allowed; only later pushes of commits to it are blocked). Branch from <code>dev</code>, not <code>develop</code>, which lacks the bump/changelog.</p>
+<p>Once pushed, <code>release/vX.Y.Z</code> is <strong>frozen</strong>. Post-freeze fixes go on <code>dev/vX.Y.Z</code>, then reach the candidate via a PR <code>dev/vX.Y.Z -&gt; release/vX.Y.Z</code>.</p>
+<p>When ready, integrate the release into BOTH <code>main</code> and <code>develop</code> via PRs, then tag <code>main</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># PR 1: release -&gt; main</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>gh<span class="w"> </span>pr<span class="w"> </span>create<span class="w"> </span>--base<span class="w"> </span>main<span class="w"> </span>--head<span class="w"> </span>release/vX.Y.Z<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span>--title<span class="w"> </span><span class="s2">&quot;Release vX.Y.Z&quot;</span><span class="w"> </span>--body<span class="w"> </span><span class="s2">&quot;Release vX.Y.Z&quot;</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># review, then merge on the platform choosing &quot;Create a merge commit&quot;</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="c1"># after it merges, tag the merge commit on main:</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>git<span class="w"> </span>checkout<span class="w"> </span>main
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>git<span class="w"> </span>pull<span class="w"> </span>--no-rebase
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>git<span class="w"> </span>tag<span class="w"> </span>-a<span class="w"> </span>vX.Y.Z<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Release vX.Y.Z&quot;</span>
+<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>vX.Y.Z<span class="w">               </span><span class="c1"># pushing a TAG is allowed; pushing the branch is not</span>
+<a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>
+<a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="c1"># PR 2: release -&gt; develop  (back-merge, keeps main and develop aligned)</span>
+<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>gh<span class="w"> </span>pr<span class="w"> </span>create<span class="w"> </span>--base<span class="w"> </span>develop<span class="w"> </span>--head<span class="w"> </span>release/vX.Y.Z<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a><span class="w">  </span>--title<span class="w"> </span><span class="s2">&quot;Back-merge release vX.Y.Z into develop&quot;</span><span class="w"> </span>--body<span class="w"> </span><span class="s2">&quot;Keep develop aligned&quot;</span>
+<a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a><span class="c1"># merge on the platform (merge commit)</span>
 </code></pre></div>
 
 
