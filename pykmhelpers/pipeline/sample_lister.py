@@ -215,9 +215,11 @@ class SampleLister:
             # Entries store paths relative to root_path; resolve them so
             # ntcard can find the files regardless of the current directory.
             resolved = [
-                f
-                if os.path.isabs(f) or not self._root_path
-                else os.path.join(self._root_path, f)
+                (
+                    f
+                    if os.path.isabs(f) or not self._root_path
+                    else os.path.join(self._root_path, f)
+                )
                 for f in files
             ]
             kmer_count = self._counter.count_files(

@@ -124,7 +124,7 @@ class FofValidator:
         self.sample_ids = set()
 
         try:
-            with open(self.file_path, 'r') as f:
+            with open(self.file_path, "r") as f:
                 for line_num, line in enumerate(f, start=1):
                     self._validate_line(line_num, line)
         except Exception as e:
@@ -142,7 +142,7 @@ class FofValidator:
             line (str): The line content to validate
         """
         # Strip whitespace
-        stripped = line.rstrip('\n').strip()
+        stripped = line.rstrip("\n").strip()
 
         # Skip empty lines
         if not stripped:
@@ -152,17 +152,13 @@ class FofValidator:
         invalid_match = self.INVALID_CHARS.search(line)
         if invalid_match:
             char = invalid_match.group(1)
-            self.errors.append(
-                (line_num, f"Invalid character '{char}'", stripped)
-            )
+            self.errors.append((line_num, f"Invalid character '{char}'", stripped))
             return
 
         # Check format matches pattern
         format_match = self.PATTERN.match(stripped)
         if not format_match:
-            self.errors.append(
-                (line_num, "Invalid FOF format", stripped)
-            )
+            self.errors.append((line_num, "Invalid FOF format", stripped))
             return
 
         # Extract sample ID

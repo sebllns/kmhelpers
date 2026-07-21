@@ -38,7 +38,9 @@ class TestByteCounterConversion(unittest.TestCase):
 
     def test_bibyte_scaling(self):
         """1 KiB is 1024 bytes (BIBYTE uses a 1024 factor)."""
-        self.assertEqual(ByteCounter(1, SizeUnit.KILO, SizeFormat.BIBYTE).byte_count, 1024)
+        self.assertEqual(
+            ByteCounter(1, SizeUnit.KILO, SizeFormat.BIBYTE).byte_count, 1024
+        )
 
     def test_bit_format_rounds_up_to_bytes(self):
         """8 bits round up to exactly 1 byte."""
@@ -59,9 +61,15 @@ class TestByteCounterStr(unittest.TestCase):
     """Tests for string rendering and the new to_str helper."""
 
     def test_str_suffix_by_format(self):
-        self.assertTrue(str(ByteCounter(2, SizeUnit.KILO, SizeFormat.BYTE)).endswith("KB"))
-        self.assertTrue(str(ByteCounter(2, SizeUnit.KILO, SizeFormat.BIBYTE)).endswith("KiB"))
-        self.assertTrue(str(ByteCounter(2, SizeUnit.KILO, SizeFormat.BIT)).endswith("Kb"))
+        self.assertTrue(
+            str(ByteCounter(2, SizeUnit.KILO, SizeFormat.BYTE)).endswith("KB")
+        )
+        self.assertTrue(
+            str(ByteCounter(2, SizeUnit.KILO, SizeFormat.BIBYTE)).endswith("KiB")
+        )
+        self.assertTrue(
+            str(ByteCounter(2, SizeUnit.KILO, SizeFormat.BIT)).endswith("Kb")
+        )
 
     def test_to_str_matches_convert_str(self):
         bc = ByteCounter(2000)

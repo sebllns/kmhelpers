@@ -681,4 +681,3 @@ class KmindexWrapper(Wrapper):
         except Exception as e:
             logger.warning(f"Could not get kmindex version: {e}")
             return None
-
