@@ -281,7 +281,7 @@ class IndexDefinitionTools:
         assert "data" in data, "Definition file is missing required field 'data'"
         assert (
             data["type"] == SerializedDataType.INDEX_DEFINITION
-        ), f"Bad input type: {data["type"]}"
+        ), f"Bad input type: {data['type']}"
 
         data = data["data"]
         index_db = IndexDB(name=os.path.splitext(os.path.basename(filename))[0])
