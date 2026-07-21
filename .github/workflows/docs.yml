@@ -1,0 +1,40 @@
+name: Deploy docs
+
+on:
+  push:
+    branches:
+      - docs
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install docs dependencies
+        run: python -m pip install --upgrade pip && pip install -e .[docs]
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Resolve docs version
+        id: version
+        run: |
+          # Strip pre/dev suffix so 0.6.3.dev0 -> 0.6.3
+          version=$(python -c "from importlib.metadata import version; from packaging.version import Version; v=Version(version('pykmhelpers')); print(v.base_version)")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy with mike
+        run: mike deploy --push --update-aliases "${{ steps.version.outputs.version }}" latest
