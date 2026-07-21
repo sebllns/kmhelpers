@@ -136,7 +136,7 @@ _skip_compression_option = click.option(
     is_flag=True,
     default=False,
     show_default=True,
-    help="🚩  Skip compression of intermediate files during index building.",
+    help="🚩  Skip compression of intermediate files during index building (useful on slow disks).",
 )
 _show_progress_option = click.option(
     "--show-progress",
@@ -144,7 +144,7 @@ _show_progress_option = click.option(
     is_flag=True,
     default=False,
     show_default=True,
-    help="🚩  Show a progress bar with elapsed time and estimated remaining time during index building.",
+    help="🚩  Enable animation that shows the current subindex being built (use in an interactive shell).",
 )
 # Not part of _INDEX_BUILD_OPTIONS: `build` hardcodes fail-on-error, while
 # `plan`/`apply` expose this flag individually via @shared.fail_fast_option.
