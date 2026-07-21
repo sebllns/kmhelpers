@@ -5,6 +5,7 @@ from typing import Optional, Dict, Any
 @dataclass
 class BuscoStats:
     """BUSCO (Benchmarking Universal Single-Copy Orthologs) statistics"""
+
     busco_complete: float
     busco_single: int
     busco_duplicated: int
@@ -17,6 +18,7 @@ class BuscoStats:
 @dataclass
 class AssemblyStats:
     """Assembly statistics for a sample"""
+
     total_nucleotides: int
     ungapped_length: int
     num_contigs: int
@@ -37,6 +39,7 @@ class AssemblyStats:
 @dataclass
 class SampleMetadata:
     """Represents a sample object from the kmindex assembly metadata"""
+
     sample_id: str
     organism: str
     taxid: int
