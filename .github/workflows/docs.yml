@@ -24,20 +24,8 @@ jobs:
       - name: Install docs dependencies
         run: python -m pip install --upgrade pip && pip install -e .[docs]
 
-      - name: Log docs tool versions
-        run: |
-          python --version
-          pip list | grep -iE "mkdocs|mkdocstrings|griffe|mike|termynal|markdown|pymdown" || true
-
       - name: Freeze commit hash
         run: python scripts/freeze_commit.py
-
-      - name: Debug - import and collect composer
-        run: |
-          echo "=== python import ==="
-          python -c "import pykmhelpers.pipeline.composer as m; print('import OK:', m.__file__)" || true
-          echo "=== griffe static collect ==="
-          python -c "import griffe; griffe.load('pykmhelpers.pipeline.composer'); print('griffe load OK')" || true
 
       - name: Configure git
         run: |
