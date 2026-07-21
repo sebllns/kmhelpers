@@ -24,6 +24,17 @@ All notable changes to this project will be documented in this file.
   - Required for 0.6.3 — `static_repart` index type is not yet in the conda release of `kmindex`
 
 - **MkDocs documentation site**: Complete documentation with tutorials, command reference, and contributing guide
+  - End-to-end E. coli tutorial with a metro-map pipeline diagram
+
+- **`IndexComposer`** (`pipeline/composer.py`): Core class that composes samples into Bloom-filter spans; index fingerprint renamed to *layout*
+
+- **`QueryRunner`** (`pipeline/query.py`): Query pipeline logic extracted from the CLI into a dedicated class
+
+- **GitHub Actions release workflow**: Builds sdist and wheel for PyPI packaging
+
+- **GitHub Actions docs workflow**: Versioned documentation deploy via `mike` on push to `docs`
+
+- **CI compile guard**: `compileall` matrix (Python 3.8-3.11) to catch version-specific syntax early
 
 ### Changed
 
@@ -32,11 +43,15 @@ All notable changes to this project will be documented in this file.
 - **`profile`**: Simplified output file naming
 - **Execution time**: Printed at the end of each command
 - **Logging**: Updated log levels and output formatting across all commands
+- **`index_ops`**: Refactored for cleaner path management, clearer plan reporting, and reduced duplication
+- **Terminology**: Removed internal `span` wording from user-facing output for clarity
+- **Version single-source**: Package version now defined once in `pykmhelpers/_version.py`; `pyproject.toml` reads it dynamically
 
 ### Fixed
 
 - Path handling in `plan` and `apply`
 - Various bug fixes in `list`
+- Python 3.11 compatibility: replaced nested same-quote f-strings (3.12+ syntax) in `composer.py` and `index_db.py`
 
 ## [0.6.2] - 2026-04-23
 
