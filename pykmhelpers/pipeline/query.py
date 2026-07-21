@@ -20,9 +20,9 @@ logger = logging.getLogger(__name__)
 
 class KmindexQueryResult:
     _CONVERTERS: dict[str, str] = {
-        "md":   "generate_markdown",
+        "md": "generate_markdown",
         "html": "generate_html",
-        "csv":  "generate_csv",
+        "csv": "generate_csv",
         "json": "generate_json",
         "yaml": "generate_yaml",
     }
@@ -352,7 +352,7 @@ class QueryRunner:
                         result = self._run_single(qfile, total=total, idx=idx)
                         all_results.append(result)
                     except Exception as e:
-                        logger.error(f"Error querying {os.path.basename(qfile)}: {e}")
+                        logger.error(f"[{os.path.basename(qfile)}] {e}")
                         errors.append(f"{os.path.basename(qfile)}: {e}")
         finally:
             for tmp in temp_files:
@@ -371,9 +371,7 @@ class QueryRunner:
     # ---
     # PRIVATE METHODS
 
-    def _resolve_files(
-        self, query_files: Iterable[str]
-    ) -> tuple[list[str], list[str]]:
+    def _resolve_files(self, query_files: Iterable[str]) -> tuple[list[str], list[str]]:
         resolved: list[str] = []
         temp_files: list[str] = []
         for qfile in query_files:
