@@ -33,7 +33,9 @@ class MailNotifier(Wrapper):
             with open(path, "rb") as f:
                 part.set_payload(f.read())
             encoders.encode_base64(part)
-            part.add_header("Content-Disposition", f"attachment; filename={os.path.basename(path)}")
+            part.add_header(
+                "Content-Disposition", f"attachment; filename={os.path.basename(path)}"
+            )
             msg.attach(part)
 
         cmd = [self.main_cmd, "-t", "-f", sender]
@@ -49,7 +51,14 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--subject", default="(no subject)")
     parser.add_argument("-f", "--from", dest="sender", default="")
     parser.add_argument("body", nargs="?", default="")
-    parser.add_argument("-a", "--attachment", dest="attachments", action="append", default=[], metavar="FILE")
+    parser.add_argument(
+        "-a",
+        "--attachment",
+        dest="attachments",
+        action="append",
+        default=[],
+        metavar="FILE",
+    )
     args = parser.parse_args()
 
     body = args.body or sys.stdin.read()

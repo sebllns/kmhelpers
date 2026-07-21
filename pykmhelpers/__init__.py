@@ -18,7 +18,12 @@ from pykmhelpers.core.sequence import Sequence
 from pykmhelpers.core.utils import Bin, Main, Toolbox
 from pykmhelpers.operations.builder import IndexBuilder
 from pykmhelpers.pipeline.fof import FofManager
-from pykmhelpers.pipeline.query import KmindexQuery, KmindexQueryResult, QueryRunner, QueryRunnerConfig
+from pykmhelpers.pipeline.query import (
+    KmindexQuery,
+    KmindexQueryResult,
+    QueryRunner,
+    QueryRunnerConfig,
+)
 
 __all__ = [
     # Core utilities

@@ -36,7 +36,9 @@ def count_kmers(input_file, kmer_size, threads, verbose):
     """Count the number of distinct k-mers in a sequence file using ntcard."""
     try:
         if verbose:
-            click.echo(f"Counting {kmer_size}-mers in {input_file} using {threads} threads...")
+            click.echo(
+                f"Counting {kmer_size}-mers in {input_file} using {threads} threads..."
+            )
 
         counter = KmerCounter(k=kmer_size, thread_count=threads)
         f1_value = counter.count(input_file)

@@ -2,6 +2,7 @@ import random
 
 REVERSER = str.maketrans("ACGTacgt", "TGCAtgca")
 
+
 class Sequence:
     def __init__(self, content: str = "", header: str = "") -> None:
         self._content = content
