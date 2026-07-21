@@ -28,8 +28,8 @@ Validate paths then build k-mer indices from index definition files in a single 
 | `--minim-size INT` | Minimizer size (default: 10) |
 | `-t, --threads INT` | Number of threads (default: 1) |
 | `-p, --partition-count INT` | Override number of partitions |
-| `-NC, --skip-compression` | Skip compression of intermediate files during build |
-| `-SP, --show-progress` | Show progress bar with elapsed and estimated remaining time |
+| `-NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
+| `-SP, --show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
 | `-X, --fail-fast` | Abort on first failure instead of continuing |
 | `--notify EMAIL` | Send email notification on exit (requires sendmail) |
 
