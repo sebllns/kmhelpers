@@ -3,6 +3,7 @@
 import click
 
 from pykmhelpers import __version__
+from pykmhelpers.core.constants import KMHELPERS_COMMIT
 
 
 def get_banner():
@@ -44,6 +45,7 @@ def about():
     info = f"""{banner}
 
 📦 Version: {__version__}
+🔖 Commit:  {KMHELPERS_COMMIT}
 
 📝 Features:
   • Build and manage k-mer indices using kmindex
