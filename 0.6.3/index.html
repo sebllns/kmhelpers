@@ -503,17 +503,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#performance" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Performance
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#quick-links" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2258,17 +2247,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#performance" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Performance
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#quick-links" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2362,8 +2340,10 @@
 </div>
 </div>
 </div>
-<h2 id="performance">Performance</h2>
+<div class="admonition info">
+<p class="admonition-title">Performance</p>
 <p>Most <code>kmhelpers</code> commands (<code>design</code>, <code>plan</code>, <code>query</code>, <code>compose</code>, ...) complete in a few seconds, since they mainly manipulate metadata and small files. The exception is <strong><code>build</code></strong> (and the underlying <code>apply</code> build/merge steps): actual k-mer counting and Bloom-filter construction are CPU- and I/O-bound, so runtime scales with sample count and data size — expect build/merge steps to take anywhere from seconds to hours depending on dataset size, <code>--threads</code>, and storage speed.</p>
+</div>
 <h2 id="quick-links">Quick links</h2>
 <ul>
 <li><a href="getting-started/installation/">Installation</a></li>
