@@ -15,7 +15,6 @@ import click
 import yaml
 
 from pykmhelpers import Bin, __version__
-from pykmhelpers._commit import GIT_COMMIT
 from pykmhelpers.cli.about import about
 from pykmhelpers.cli.apply import apply
 from pykmhelpers.cli.build import build
@@ -33,6 +32,7 @@ from pykmhelpers.cli.profile import profile
 from pykmhelpers.cli.query import query
 from pykmhelpers.cli.registry import registry
 from pykmhelpers.cli.test import test
+from pykmhelpers.core.constants import KMHELPERS_COMMIT
 from pykmhelpers.core.log import Log
 from pykmhelpers.core.utils import Toolbox
 
@@ -126,7 +126,8 @@ class SectionedGroup(click.Group):
         try:
             result = super().invoke(ctx)
             elapsed = time.monotonic() - _start
-            print(f"Done in {elapsed:.2f}s")
+            if ctx.invoked_subcommand != "about":
+                print(f"Done in {elapsed:.2f}s")
             return result
         except (click.ClickException, click.exceptions.Exit, click.Abort, SystemExit):
             # Let Click exceptions and sys.exit pass through
@@ -147,7 +148,7 @@ class SectionedGroup(click.Group):
                     )
                     f.write("=" * 60 + "\n\n")
                     f.write(f"kmhelpers version: {__version__}\n")
-                    f.write(f"kmhelpers commit:  {GIT_COMMIT}\n")
+                    f.write(f"kmhelpers commit:  {KMHELPERS_COMMIT}\n")
                     f.write(f"kmhelpers path:    {sys.executable}\n")
                     f.write(
                         f"OS:                {platform.system()} {platform.release()}\n"
