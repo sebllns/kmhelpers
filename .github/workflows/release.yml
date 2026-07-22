@@ -39,7 +39,9 @@ jobs:
     if: false
     needs: build
     runs-on: ubuntu-latest
-    environment: pypi
+    environment:
+      name: pypi
+      url: https://pypi.org/p/pykmhelpers
     permissions:
       id-token: write
     steps:
