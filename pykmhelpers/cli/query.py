@@ -81,8 +81,16 @@ logger = logging.getLogger(__name__)
 @click.option(
     "--format",
     "-f",
-    type=click.Choice(["json", "yaml", "md", "html", "csv"]),
-    default="json",
+    type=click.Choice(
+        [
+            "html",
+            "json",
+            "md",
+            "tsv",
+            "yaml",
+        ]
+    ),
+    default="tsv",
     show_default=True,
     help="⚙   Output format for results.",
 )

@@ -22,7 +22,7 @@ class KmindexQueryResult:
     _CONVERTERS: dict[str, str] = {
         "md": "generate_markdown",
         "html": "generate_html",
-        "csv": "generate_csv",
+        "tsv": "generate_csv",
         "json": "generate_json",
         "yaml": "generate_yaml",
     }
@@ -131,7 +131,7 @@ class KmindexQueryResult:
         )
 
     def generate_csv(self, threshold: float = 0.0) -> str:
-        lines = ["query,sample,score"]
+        lines = ["query\tsample\tscore"]
         for query_name, samples in self.queries.items():
             for sample, score in self._filtered_sorted_samples(samples, threshold):
                 lines.append(f"{query_name},{sample},{score:.3f}")
@@ -233,6 +233,7 @@ class KmindexQuery:
             fast=fast and not is_compressed,
             threshold=threshold,
             method=method,
+            format="jsonl",
         )
 
         # Save result to info.yaml
@@ -268,7 +269,7 @@ class QueryRunnerConfig:
         batch: Concatenate all input files into one query before running.
         aggregate: Aggregate batch results into a single output file.
         compressed: Whether the index is stored in compressed form.
-        output_format: Output format for result conversion (``json``, ``yaml``, ``md``, ``html``, ``csv``).
+        output_format: Output format for result conversion (``json``, ``yaml``, ``md``, ``html``, ``tsv``).
         timestamp: Append a ``YYYYmmdd_HHMMSS`` suffix to each per-query output directory.
         on_existing: Behaviour when the output directory already exists
             (``skip``, ``fail``, ``delete``, ``new-name``).
