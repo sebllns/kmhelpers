@@ -30,7 +30,7 @@ class KmindexQueryResult:
     def __init__(self, file: str) -> None:
         self._result = {}
         if file:
-            self.load_json(file)
+            self.load_jsonl(file)
 
     @property
     def result(self):
@@ -44,12 +44,21 @@ class KmindexQueryResult:
             return False
         return self._result == other._result
 
-    def load_json(self, file):
+    def load_jsonl(self, file):
+        # Each line is a record: {"index": ..., "query": ..., "samples": {...}}
+        # Records are grouped by index into {index: {query: samples}}.
+        self._result = {}
         with open(file, "r") as f:
-            self._result = json.load(f)
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                record = json.loads(line)
+                index = record["index"]
+                self._result.setdefault(index, {})[record["query"]] = record["samples"]
 
         if not self._result:
-            raise ValueError("Empty JSON file")
+            raise ValueError("Empty JSONL file")
 
         self.index_name = list(self._result.keys())[0]
         self.queries = self._result[self.index_name]
@@ -235,7 +244,7 @@ class KmindexQuery:
 
         for f in os.listdir(result_dir):
             fpath = os.path.join(result_dir, f)
-            if os.path.isfile(fpath) and f.endswith(".json"):
+            if os.path.isfile(fpath) and f.endswith(".jsonl"):
                 try:
                     result.append(KmindexQueryResult(fpath))
                 except Exception as e:
@@ -470,7 +479,7 @@ class QueryRunner:
         fmt = self._config.output_format
         threshold = self._config.threshold
         for fname in os.listdir(result_dir):
-            if not fname.endswith(".json"):
+            if not fname.endswith(".jsonl"):
                 continue
             json_path = os.path.join(result_dir, fname)
             try:

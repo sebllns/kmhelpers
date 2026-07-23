@@ -120,25 +120,28 @@ class PipelineE2EBase(unittest.TestCase):
         return path, header
 
     def load_query_results(self, results_dir):
-        """Merge every per-sub-index result JSON under ``results_dir``.
+        """Merge every per-sub-index result JSONL under ``results_dir``.
 
-        Layout: ``<results_dir>/<query_stem>/result/<subindex>.json`` (the
-        middle dir is named after the query file), each shaped
-        ``{subindex: {query_header: {sample: fraction}}}``. Returns a flat dict
-        ``{query_header: {sample: fraction}}`` merged across sub-indices.
+        Layout: ``<results_dir>/<query_stem>/result/<subindex>.jsonl`` (the
+        middle dir is named after the query file), one record per line shaped
+        ``{"index": ..., "query": query_header, "samples": {sample: fraction}}``.
+        Returns a flat dict ``{query_header: {sample: fraction}}`` merged across
+        sub-indices.
         """
         base = self.tmp / results_dir
         self.assertTrue(base.is_dir(), f"query output dir not found: {base}")
         merged = {}
-        json_files = sorted(
-            p for p in base.rglob("*.json") if p.parent.name == "result"
+        jsonl_files = sorted(
+            p for p in base.rglob("*.jsonl") if p.parent.name == "result"
         )
-        self.assertTrue(json_files, f"no result JSON files under {base}")
-        for jf in json_files:
-            data = json.loads(jf.read_text())
-            for per_query in data.values():
-                for qheader, hits in per_query.items():
-                    merged.setdefault(qheader, {}).update(hits)
+        self.assertTrue(jsonl_files, f"no result JSONL files under {base}")
+        for jf in jsonl_files:
+            for line in jf.read_text().splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                record = json.loads(line)
+                merged.setdefault(record["query"], {}).update(record["samples"])
         return merged
 
     def assert_query_hit(self, results_dir, query_header, sample, min_score=MIN_SCORE):
