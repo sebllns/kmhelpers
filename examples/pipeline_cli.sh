@@ -15,8 +15,11 @@ set -euo pipefail
 KMER_SIZE=21
 MIN_SCORE=0.9
 
-workdir="$(mktemp -d "${TMPDIR:-/tmp}/kmhelpers_cli_XXXXXX")"
-trap 'rm -rf "$workdir"' EXIT
+export KMHELPERS_LOG_LEVEL=4
+
+workdir="examples_cli"
+rm -rf "$workdir"
+mkdir -p "$workdir"
 cd "$workdir"
 echo "Working directory: $workdir"
 
