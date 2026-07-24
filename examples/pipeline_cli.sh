@@ -16,6 +16,7 @@ KMER_SIZE=21
 MIN_SCORE=0.9
 
 export KMHELPERS_LOG_LEVEL=4
+export KMHELPERS_SEED=42
 
 workdir="examples_cli"
 rm -rf "$workdir"

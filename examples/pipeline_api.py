@@ -17,6 +17,7 @@ reset_index_registry). Requires kmindex and ntcard on PATH.
 
 import json
 import os
+import random
 import shutil
 import sys
 import tempfile
@@ -111,6 +112,16 @@ def assert_query_hit(results_dir, sample, min_score=MIN_SCORE):
 
 
 def main():
+    # Seed the global random module for reproducible test data. The CLI reads
+    # KMHELPERS_SEED in its top-level callback; here we honor the same variable.
+    seed = os.getenv("KMHELPERS_SEED")
+    if seed is not None:
+        try:
+            seed = int(seed)
+        except ValueError:
+            pass  # non-integer values are still valid seeds
+        random.seed(seed)
+
     workdir = tempfile.mkdtemp(prefix="kmhelpers_api_")
     try:
         os.chdir(workdir)
