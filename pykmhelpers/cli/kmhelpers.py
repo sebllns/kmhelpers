@@ -263,7 +263,16 @@ def cli(
     #    logging.log()
     # Use Log. as interface
 
-    default_level = os.getenv("KMHELPERS_LOG_LEVEL", 3)
+    raw_level = os.getenv("KMHELPERS_LOG_LEVEL", "3")
+    try:
+        default_level = int(raw_level)
+    except (TypeError, ValueError):
+        default_level = 3
+        root_logger = logging.getLogger()
+        root_logger.warning(
+            f"Invalid KMHELPERS_LOG_LEVEL '{raw_level}' (expected integer 0-4), "
+            f"using default {default_level}."
+        )
     log_level = log_levels.get(
         max(min(default_level + verbose - quiet, 4), 0), logging.ERROR
     )
