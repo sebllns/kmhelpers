@@ -197,6 +197,7 @@ class KmindexQuery:
         fast: bool = True,
         is_compressed: bool = False,
         method: str = "seq",
+        vec: bool = False,
     ):
         """Run a query against the kmindex registry.
 
@@ -212,6 +213,7 @@ class KmindexQuery:
             fast (bool): Enable fast mode (disabled automatically when `is_compressed` is True).
             is_compressed (bool): Whether the index is stored in compressed form.
             method (str): Query method passed to kmindex (e.g. ``"seq"``).
+            vec (bool): Use ``jsonl_vec`` output format instead of ``jsonl``.
         """
         index_ids = index_ids if index_ids is not None else []
         result_dir = os.path.join(output_dir, "result")
@@ -233,7 +235,7 @@ class KmindexQuery:
             fast=fast and not is_compressed,
             threshold=threshold,
             method=method,
-            format="jsonl",
+            format="jsonl_vec" if vec else "jsonl",
         )
 
         # Save result to info.yaml
@@ -298,6 +300,7 @@ class QueryRunnerConfig:
     on_existing: str = "skip"
     parallel: str = "seq"
     force: bool = False
+    vec: bool = False
     print_output: bool = False
     on_result: Optional[Callable[[list["KmindexQueryResult"]], None]] = None
 
@@ -433,6 +436,7 @@ class QueryRunner:
             fast=not cfg.compressed,
             threshold=cfg.threshold,
             method=cfg.parallel,
+            vec=cfg.vec,
         )
 
         elapsed = time.time() - start

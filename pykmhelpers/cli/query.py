@@ -95,6 +95,14 @@ logger = logging.getLogger(__name__)
     help="⚙   Output format for results.",
 )
 @click.option(
+    "--vec",
+    "-V",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="🚩  Also output the per-k-mer presence/absence vector P along the query, not just the coverage ratio R.",
+)
+@click.option(
     "--print",
     "-p",
     "print_output",
@@ -145,6 +153,7 @@ def query(
     batch_query,
     compressed,
     format,
+    vec,
     print_output,
     timestamp,
     existing,
@@ -208,6 +217,7 @@ def query(
             aggregate=False,
             compressed=compressed,
             output_format=format,
+            vec=vec,
             print_output=print_output,
             timestamp=timestamp,
             on_existing=existing,
