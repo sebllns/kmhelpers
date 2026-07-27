@@ -122,10 +122,10 @@ logger = logging.getLogger(__name__)
 @click.option(
     "--existing",
     "-e",
-    type=click.Choice(["skip", "fail", "delete", "new-name"]),
+    type=click.Choice(["skip", "fail", "delete"]),
     default="skip",
     show_default=True,
-    help="⚙   Action when result directory already exists: skip, fail, delete, new-name.",
+    help="⚙   Action when result directory already exists: skip, fail, delete.",
 )
 @click.option(
     "--parallel",
