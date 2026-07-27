@@ -58,17 +58,17 @@ logger = logging.getLogger(__name__)
     help="⚙️  Number of threads for parallel execution.",
 )
 @click.option(
-    "--single-query",
-    "-s",
-    help="⚙   Treat all sequences as single query with this identifier.",
-)
-@click.option(
     "--batch-query",
     "-b",
     is_flag=True,
     default=False,
     show_default=True,
-    help="🚩  Treat all sequences across all query files as a single batched file instead of querying each file individually.",
+    help="🚩  Concatenate all query files into one file, keeping sequences unchanged, instead of querying each file individually.",
+)
+@click.option(
+    "--single-query",
+    "-s",
+    help="⚙   Concatenate all sequences of each file into one single sequence with this identifier.",
 )
 @click.option(
     "--compressed",
