@@ -85,7 +85,7 @@ class KmindexQueryResult:
 
     def _matrix(self, threshold: float) -> tuple[list[str], list[str], dict]:
         # Sample x query score matrix, max score across indices
-        # Queries sorted by name, samples by best score desc then name
+        # Queries and samples sorted by name
         scores: dict[str, dict[str, float]] = {}
         for queries in self._items.values():
             for query_name, samples in queries.items():
@@ -94,7 +94,7 @@ class KmindexQueryResult:
                         row = scores.setdefault(sample, {})
                         row[query_name] = max(row.get(query_name, 0), score)
         query_names = sorted({q for row in scores.values() for q in row})
-        sample_names = sorted(scores, key=lambda s: (-max(scores[s].values()), s))
+        sample_names = sorted(scores)
         return query_names, sample_names, scores
 
     def generate_markdown(self, threshold: float = 0.0) -> str:
@@ -121,21 +121,21 @@ class KmindexQueryResult:
         # lines.append("")
 
         query_names, sample_names, scores = self._matrix(threshold)
-        s_w = max([len("Sample")] + [len(s) for s in sample_names])
-        q_ws = [max(len(q), len("0.000")) for q in query_names]
+        q_w = max([len("Query")] + [len(q) for q in query_names])
+        s_ws = [max(len(s), len("0.000")) for s in sample_names]
         # lines.append("## Score matrix\n")
         lines.append(
-            f"| {'Sample':<{s_w}} | "
-            + " | ".join(f"{q:<{w}}" for q, w in zip(query_names, q_ws))
+            f"| {'Query':<{q_w}} | "
+            + " | ".join(f"{s:<{w}}" for s, w in zip(sample_names, s_ws))
             + " |"
         )
-        lines.append(f"| {'-' * s_w} | " + " | ".join("-" * w for w in q_ws) + " |")
-        for sample in sample_names:
+        lines.append(f"| {'-' * q_w} | " + " | ".join("-" * w for w in s_ws) + " |")
+        for query in query_names:
             cells = [
-                f"{scores[sample][q]:.3f}".ljust(w) if q in scores[sample] else " " * w
-                for q, w in zip(query_names, q_ws)
+                f"{scores[s][query]:.3f}".ljust(w) if query in scores[s] else " " * w
+                for s, w in zip(sample_names, s_ws)
             ]
-            lines.append(f"| {sample:<{s_w}} | " + " | ".join(cells) + " |")
+            lines.append(f"| {query:<{q_w}} | " + " | ".join(cells) + " |")
         lines.append("")
         return "\n".join(lines)
 
@@ -145,19 +145,19 @@ class KmindexQueryResult:
             for q, s, loc, sc in self._rows(threshold)
         )
         query_names, sample_names, scores = self._matrix(threshold)
-        matrix_header = "".join(f"<th>{q}</th>" for q in query_names)
+        matrix_header = "".join(f"<th>{s}</th>" for s in sample_names)
         matrix_html = "\n".join(
-            f"        <tr><td>{sample}</td>"
+            f"        <tr><td>{query}</td>"
             + "".join(
                 (
-                    f"<td>{scores[sample][q]:.3f}</td>"
-                    if q in scores[sample]
+                    f"<td>{scores[s][query]:.3f}</td>"
+                    if query in scores[s]
                     else "<td></td>"
                 )
-                for q in query_names
+                for s in sample_names
             )
             + "</tr>"
-            for sample in sample_names
+            for query in query_names
         )
         body = (
             # f"    <h2>kmindex results - Filter scores ≥ {threshold}</h2>\n"
@@ -167,7 +167,7 @@ class KmindexQueryResult:
             # f"    </table>\n"
             f"    <h2>Score matrix</h2>\n"
             f"    <table>\n"
-            f"        <tr><th>Sample</th>{matrix_header}</tr>\n"
+            f"        <tr><th>Query</th>{matrix_header}</tr>\n"
             f"{matrix_html}\n"
             f"    </table>"
         )
@@ -190,9 +190,14 @@ class KmindexQueryResult:
         )
 
     def generate_tsv(self, threshold: float = 0.0) -> str:
-        lines = ["query\tsample\tlocation\tscore"]
-        for query_name, sample, index_name, score in self._rows(threshold):
-            lines.append(f"{query_name}\t{sample}\t{index_name}\t{score:.3f}")
+        query_names, sample_names, scores = self._matrix(threshold)
+        lines = ["\t".join(["query"] + sample_names)]
+        for query in query_names:
+            cells = [
+                f"{scores[s][query]:.3f}" if query in scores[s] else ""
+                for s in sample_names
+            ]
+            lines.append("\t".join([query] + cells))
         return "\n".join(lines)
 
     def generate_json(self, threshold: float = 0.0) -> str:
