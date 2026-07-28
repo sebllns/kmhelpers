@@ -121,11 +121,11 @@ class KmindexQueryResult:
         # lines.append("")
 
         query_names, sample_names, scores = self._matrix(threshold)
-        q_w = max([len("Query")] + [len(q) for q in query_names])
+        q_w = max([len("Query \\ Sample")] + [len(q) for q in query_names])
         s_ws = [max(len(s), len("0.000")) for s in sample_names]
         # lines.append("## Score matrix\n")
         lines.append(
-            f"| {'Query':<{q_w}} | "
+            f"| {'Query \\ Sample':<{q_w}} | "
             + " | ".join(f"{s:<{w}}" for s, w in zip(sample_names, s_ws))
             + " |"
         )
@@ -167,7 +167,7 @@ class KmindexQueryResult:
             # f"    </table>\n"
             f"    <h2>Score matrix</h2>\n"
             f"    <table>\n"
-            f"        <tr><th>Query</th>{matrix_header}</tr>\n"
+            f"        <tr><th>Query \\ Sample</th>{matrix_header}</tr>\n"
             f"{matrix_html}\n"
             f"    </table>"
         )
