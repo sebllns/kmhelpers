@@ -8,6 +8,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable, Iterable, Optional
 
+import numpy as np
 import yaml
 
 from pykmhelpers.core.constants import DATA_EXT
@@ -30,141 +31,170 @@ class KmindexQueryResult:
     def __init__(
         self, file: Optional[str] = None, items: Optional[dict] = None
     ) -> None:
-        self._items = items or {}
+        # Scores are a float32 matrix: one row per query, one column per
+        # sample, both sorted by name. 0.0 means no hit.
+        self._queries: dict[str, int] = {}
+        self._samples: dict[str, int] = {}
+        self._scores = np.zeros((0, 0), dtype=np.float32)
+        if items:
+            pending: dict[int, list] = {}
+            for query, samples in items.items():
+                self._add_record(query, samples, pending)
+            self._scatter(pending)
         if file:
             self.load_jsonl(file)
 
     @property
-    def items(self):
-        return self._items
+    def queries(self) -> list[str]:
+        return list(self._queries)
 
-    def get_index_result(self, index_id) -> "KmindexQueryResult":
-        items = {index_id: self._items[index_id]} if index_id in self._items else {}
-        return KmindexQueryResult(items=items)
+    @property
+    def samples(self) -> list[str]:
+        return list(self._samples)
+
+    @property
+    def items(self) -> dict:
+        # Nested {query: {sample: score}} of nonzero cells, built on demand.
+        # Convenience for small results; avoid on millions of samples.
+        names = self.samples
+        result = {}
+        for query, row in self._queries.items():
+            scores = self._scores[row]
+            result[query] = {
+                names[c]: round(float(scores[c]), 3) for c in np.nonzero(scores)[0]
+            }
+        return result
+
+    def score(self, query: str, sample: str) -> float:
+        q = self._queries.get(query)
+        s = self._samples.get(sample)
+        if q is None or s is None:
+            return 0.0
+        return float(self._scores[q, s])
+
+    def query_scores(self, query: str) -> np.ndarray:
+        # Score row aligned with .samples
+        q = self._queries.get(query)
+        if q is None:
+            return np.zeros(len(self._samples), dtype=np.float32)
+        return self._scores[q]
+
+    def sample_scores(self, sample: str) -> np.ndarray:
+        # Score column aligned with .queries
+        s = self._samples.get(sample)
+        if s is None:
+            return np.zeros(len(self._queries), dtype=np.float32)
+        return self._scores[:, s]
+
+    def max_score(self, sample: str) -> float:
+        col = self.sample_scores(sample)
+        return float(col.max()) if col.size else 0.0
+
+    def __bool__(self) -> bool:
+        return self._scores.size > 0
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, KmindexQueryResult):
             return False
-        return self._items == other._items
+        return (
+            self._queries == other._queries
+            and self._samples == other._samples
+            and np.array_equal(self._scores, other._scores)
+        )
 
     def load_jsonl(self, file):
         # Each line is a record: {"index": ..., "query": ..., "samples": {...}}
-        # Records are grouped by index into {index: {query: samples}}.
+        # The index field is ignored; repeated loads keep merging.
+        pending: dict[int, list] = {}
         with open(file, "r") as f:
             for line in f:
                 line = line.strip()
                 if not line:
                     continue
                 record = json.loads(line)
-                index = record["index"]
                 query = record["query"]
                 samples = record["samples"]
-                if index and query and samples:
-                    self._items.setdefault(index, {})[query] = samples
+                if query and samples:
+                    self._add_record(query, samples, pending)
 
-        if not self._items:
+        if not pending:
             raise ValueError("Empty JSONL file")
+        self._scatter(pending)
 
-    def max_score(self, sample):
-        max_score = 0
-        for queries in self._items.values():
-            for samples in queries.values():
-                max_score = max(max_score, samples.get(sample, 0))
-        return max_score
+    def _add_record(self, query: str, samples: dict, pending: dict) -> None:
+        # Register labels and stash the record as (cols, vals) arrays
+        row = self._queries.setdefault(query, len(self._queries))
+        cols = np.fromiter(
+            (self._samples.setdefault(s, len(self._samples)) for s in samples),
+            dtype=np.int64,
+            count=len(samples),
+        )
+        vals = np.fromiter(samples.values(), dtype=np.float32, count=len(samples))
+        pending.setdefault(row, []).append((cols, vals))
 
-    def _rows(self, threshold: float) -> list[tuple[str, str, str, float]]:
-        # Flattened (query, sample, location, score) rows, sorted by query then score desc
-        rows = []
-        for index_name, queries in self._items.items():
-            for query_name, samples in queries.items():
-                for sample, score in samples.items():
-                    if score >= threshold:
-                        rows.append((query_name, sample, index_name, score))
-        rows.sort(key=lambda r: (r[0], -r[3]))
-        return rows
+    def _scatter(self, pending: dict) -> None:
+        # Grow the matrix, apply pending records (max wins on duplicates),
+        # then reorder both axes by name
+        grown = np.zeros((len(self._queries), len(self._samples)), dtype=np.float32)
+        grown[: self._scores.shape[0], : self._scores.shape[1]] = self._scores
+        for row, chunks in pending.items():
+            for cols, vals in chunks:
+                np.maximum.at(grown[row], cols, vals)
+        q_order = sorted(self._queries)
+        s_order = sorted(self._samples)
+        q_idx = np.fromiter((self._queries[q] for q in q_order), dtype=np.int64)
+        s_idx = np.fromiter((self._samples[s] for s in s_order), dtype=np.int64)
+        self._scores = grown[np.ix_(q_idx, s_idx)] if grown.size else grown
+        self._queries = {q: i for i, q in enumerate(q_order)}
+        self._samples = {s: i for i, s in enumerate(s_order)}
 
-    def _matrix(self, threshold: float) -> tuple[list[str], list[str], dict]:
-        # Sample x query score matrix, max score across indices
-        # Queries and samples sorted by name
-        scores: dict[str, dict[str, float]] = {}
-        for queries in self._items.values():
-            for query_name, samples in queries.items():
-                for sample, score in samples.items():
-                    if score >= threshold:
-                        row = scores.setdefault(sample, {})
-                        row[query_name] = max(row.get(query_name, 0), score)
-        query_names = sorted({q for row in scores.values() for q in row})
-        sample_names = sorted(scores)
-        return query_names, sample_names, scores
+    def _mask(self, block: np.ndarray, threshold: float) -> np.ndarray:
+        # Visible cells: above threshold and an actual hit (0 = absent)
+        return (block >= threshold) & (block > 0)
 
-    def generate_markdown(self, threshold: float = 0.0) -> str:
-        rows = self._rows(threshold)
-        headers = ("Query", "Sample", "Location")
-        widths = [
-            max([len(h)] + [len(str(row[i])) for row in rows])
-            for i, h in enumerate(headers)
-        ]
-        lines = []
+    def _filtered_query(self, query: str, threshold: float) -> dict:
+        row = self._scores[self._queries[query]]
+        names = self.samples
+        visible = np.nonzero(self._mask(row, threshold))[0]
+        return {names[c]: round(float(row[c]), 3) for c in visible}
 
-        # lines.append(f"## kmindex results - Filter scores ≥ {threshold}\n")
-        # lines.append(
-        #     "| "
-        #     + " | ".join(f"{h:<{w}}" for h, w in zip(headers, widths))
-        #     + " | Score |"
-        # )
-        # lines.append("| " + " | ".join("-" * w for w in widths) + " | ----- |")
-        # for query_name, sample, index_name, score in rows:
-        #     lines.append(
-        #         f"| {query_name:<{widths[0]}} | {sample:<{widths[1]}} "
-        #         f"| {index_name:<{widths[2]}} | {score:.3f} |"
-        #     )
-        # lines.append("")
-
-        query_names, sample_names, scores = self._matrix(threshold)
-        q_w = max([len("Query")] + [len(q) for q in query_names])
+    def _markdown_lines(
+        self, sample_names: list[str], block: np.ndarray, threshold: float
+    ) -> list[str]:
+        q_names = self.queries
+        q_w = max([len("Query")] + [len(q) for q in q_names])
         s_ws = [max(len(s), len("0.000")) for s in sample_names]
-        # lines.append("## Score matrix\n")
-        lines.append(
+        mask = self._mask(block, threshold)
+        lines = [
             f"| {'Query':<{q_w}} | "
             + " | ".join(f"{s:<{w}}" for s, w in zip(sample_names, s_ws))
-            + " |"
-        )
-        lines.append(f"| {'-' * q_w} | " + " | ".join("-" * w for w in s_ws) + " |")
-        for query in query_names:
+            + " |",
+            f"| {'-' * q_w} | " + " | ".join("-" * w for w in s_ws) + " |",
+        ]
+        for r, query in enumerate(q_names):
             cells = [
-                f"{scores[s][query]:.3f}".ljust(w) if query in scores[s] else " " * w
-                for s, w in zip(sample_names, s_ws)
+                f"{block[r, c]:.3f}".ljust(w) if mask[r, c] else " " * w
+                for c, w in enumerate(s_ws)
             ]
             lines.append(f"| {query:<{q_w}} | " + " | ".join(cells) + " |")
         lines.append("")
-        return "\n".join(lines)
+        return lines
 
-    def generate_html(self, threshold: float = 0.0) -> str:
-        row_html = "\n".join(
-            f"        <tr><td>{q}</td><td>{s}</td><td>{loc}</td><td>{sc:.3f}</td></tr>"
-            for q, s, loc, sc in self._rows(threshold)
-        )
-        query_names, sample_names, scores = self._matrix(threshold)
+    def _html_document(
+        self, sample_names: list[str], block: np.ndarray, threshold: float
+    ) -> str:
+        mask = self._mask(block, threshold)
         matrix_header = "".join(f"<th>{s}</th>" for s in sample_names)
         matrix_html = "\n".join(
             f"        <tr><td>{query}</td>"
             + "".join(
-                (
-                    f"<td>{scores[s][query]:.3f}</td>"
-                    if query in scores[s]
-                    else "<td></td>"
-                )
-                for s in sample_names
+                f"<td>{block[r, c]:.3f}</td>" if mask[r, c] else "<td></td>"
+                for c in range(block.shape[1])
             )
             + "</tr>"
-            for query in query_names
+            for r, query in enumerate(self.queries)
         )
         body = (
-            # f"    <h2>kmindex results - Filter scores ≥ {threshold}</h2>\n"
-            # f"    <table>\n"
-            # f"        <tr><th>Query</th><th>Sample</th><th>Location</th><th>Score</th></tr>\n"
-            # f"{row_html}\n"
-            # f"    </table>\n"
             f"    <h2>Score matrix</h2>\n"
             f"    <table>\n"
             f"        <tr><th>Query</th>{matrix_header}</tr>\n"
@@ -175,7 +205,7 @@ class KmindexQueryResult:
             f"<!DOCTYPE html>\n<html lang='en'>\n<head>\n"
             f"    <meta charset='UTF-8'>\n"
             f"    <meta name='viewport' content='width=device-width, initial-scale=1.0'>\n"
-            f"    <title>kmindex Results - {', '.join(self._items)}</title>\n"
+            f"    <title>kmindex Results</title>\n"
             f"    <style>\n"
             f"        body {{ font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }}\n"
             f"        h2 {{ color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 8px; margin-top: 30px; }}\n"
@@ -189,46 +219,100 @@ class KmindexQueryResult:
             f"</body>\n</html>"
         )
 
-    def generate_tsv(self, threshold: float = 0.0) -> str:
-        query_names, sample_names, scores = self._matrix(threshold)
-        lines = ["\t".join(["query"] + sample_names)]
-        for query in query_names:
+    def _tsv_lines(self, threshold: float) -> Iterable[str]:
+        yield "\t".join(["query"] + self.samples) + "\n"
+        mask = self._mask(self._scores, threshold)
+        for query, r in self._queries.items():
             cells = [
-                f"{scores[s][query]:.3f}" if query in scores[s] else ""
-                for s in sample_names
+                f"{self._scores[r, c]:.3f}" if mask[r, c] else ""
+                for c in range(self._scores.shape[1])
             ]
-            lines.append("\t".join([query] + cells))
-        return "\n".join(lines)
+            yield "\t".join([query] + cells) + "\n"
+
+    def generate_markdown(self, threshold: float = 0.0) -> str:
+        return "\n".join(self._markdown_lines(self.samples, self._scores, threshold))
+
+    def generate_html(self, threshold: float = 0.0) -> str:
+        return self._html_document(self.samples, self._scores, threshold)
+
+    def generate_tsv(self, threshold: float = 0.0) -> str:
+        return "".join(self._tsv_lines(threshold))
 
     def generate_json(self, threshold: float = 0.0) -> str:
-        filtered = {
-            index_name: {
-                query_name: {s: sc for s, sc in samples.items() if sc >= threshold}
-                for query_name, samples in queries.items()
-            }
-            for index_name, queries in self._items.items()
-        }
+        filtered = {q: self._filtered_query(q, threshold) for q in self._queries}
         return json.dumps(filtered, indent=2)
 
     def generate_yaml(self, threshold: float = 0.0) -> str:
-        filtered = {
-            index_name: {
-                query_name: {
-                    s: round(sc, 3) for s, sc in samples.items() if sc >= threshold
-                }
-                for query_name, samples in queries.items()
-            }
-            for index_name, queries in self._items.items()
-        }
+        filtered = {q: self._filtered_query(q, threshold) for q in self._queries}
         return yaml.dump(filtered, default_flow_style=False, sort_keys=False)
 
-    def convert(self, format: str, threshold: float = 0.01) -> str:
+    def _check_format(self, format: str) -> str:
         key = format.lower()
         if key not in self._CONVERTERS:
             raise ValueError(
                 f"Unsupported output format: {format!r}. Use: {', '.join(self._CONVERTERS)}"
             )
+        return key
+
+    def convert(self, format: str, threshold: float = 0.01) -> str:
+        key = self._check_format(format)
         return getattr(self, self._CONVERTERS[key])(threshold)
+
+    def write(
+        self, path: str, format: str, threshold: float = 0.01, max_cols: int = 1000
+    ) -> list[str]:
+        """Write converted results to file(s) without building giant strings.
+
+        tsv/json/yaml stream to a single file. md/html wider than max_cols
+        samples are split column-wise into stem_partNNN files.
+
+        Returns the list of written paths.
+        """
+        key = self._check_format(format)
+        if key == "tsv":
+            with open(path, "w") as f:
+                f.writelines(self._tsv_lines(threshold))
+            return [path]
+        if key == "json":
+            with open(path, "w") as f:
+                f.write("{")
+                for i, query in enumerate(self._queries):
+                    f.write(("," if i else "") + f"\n{json.dumps(query)}: ")
+                    json.dump(self._filtered_query(query, threshold), f)
+                f.write("\n}")
+            return [path]
+        if key == "yaml":
+            with open(path, "w") as f:
+                for query in self._queries:
+                    yaml.dump(
+                        {query: self._filtered_query(query, threshold)},
+                        f,
+                        default_flow_style=False,
+                        sort_keys=False,
+                    )
+            return [path]
+
+        # md / html: chunk sample columns into multiple files if too wide
+        samples = self.samples
+        if len(samples) <= max_cols:
+            with open(path, "w") as f:
+                f.write(self.convert(key, threshold))
+            return [path]
+        stem, ext = os.path.splitext(path)
+        paths = []
+        for part, start in enumerate(range(0, len(samples), max_cols), 1):
+            names = samples[start : start + max_cols]
+            block = self._scores[:, start : start + max_cols]
+            content = (
+                "\n".join(self._markdown_lines(names, block, threshold))
+                if key == "md"
+                else self._html_document(names, block, threshold)
+            )
+            part_path = f"{stem}_part{part:03d}{ext}"
+            with open(part_path, "w") as f:
+                f.write(content)
+            paths.append(part_path)
+        return paths
 
 
 class KmindexQuery:
@@ -557,13 +641,11 @@ class QueryRunner:
                 merged.load_jsonl(json_path)
             except Exception as e:
                 logger.warning(f"Failed to read {fname}: {e}")
-        if not merged.items:
+        if not merged:
             return
-        converted = merged.convert(format=fmt, threshold=threshold)
         if self._config.print_output:
-            sys.stdout.write(f"{converted}\n")
+            sys.stdout.write(f"{merged.convert(format=fmt, threshold=threshold)}\n")
         else:
             out_file = os.path.join(result_dir, f"results.{fmt}")
-            with open(out_file, "w") as f:
-                f.write(converted)
-            logger.debug(f"Converted: {out_file}")
+            for written in merged.write(out_file, fmt, threshold):
+                logger.debug(f"Converted: {written}")
