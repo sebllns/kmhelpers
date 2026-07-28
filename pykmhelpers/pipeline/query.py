@@ -22,32 +22,34 @@ class KmindexQueryResult:
     _CONVERTERS: dict[str, str] = {
         "md": "generate_markdown",
         "html": "generate_html",
-        "tsv": "generate_csv",
+        "tsv": "generate_tsv",
         "json": "generate_json",
         "yaml": "generate_yaml",
     }
 
-    def __init__(self, file: str) -> None:
-        self._result = {}
+    def __init__(
+        self, file: Optional[str] = None, items: Optional[dict] = None
+    ) -> None:
+        self._items = items or {}
         if file:
             self.load_jsonl(file)
 
     @property
-    def result(self):
-        return self._result
+    def items(self):
+        return self._items
 
-    def get_index_result(self, index_id) -> dict:
-        return self.result.get(index_id, dict)
+    def get_index_result(self, index_id) -> "KmindexQueryResult":
+        items = {index_id: self._items[index_id]} if index_id in self._items else {}
+        return KmindexQueryResult(items=items)
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, KmindexQueryResult):
             return False
-        return self._result == other._result
+        return self._items == other._items
 
     def load_jsonl(self, file):
         # Each line is a record: {"index": ..., "query": ..., "samples": {...}}
         # Records are grouped by index into {index: {query: samples}}.
-        self._result = {}
         with open(file, "r") as f:
             for line in f:
                 line = line.strip()
@@ -55,68 +57,125 @@ class KmindexQueryResult:
                     continue
                 record = json.loads(line)
                 index = record["index"]
-                self._result.setdefault(index, {})[record["query"]] = record["samples"]
+                query = record["query"]
+                samples = record["samples"]
+                if index and query and samples:
+                    self._items.setdefault(index, {})[query] = samples
 
-        if not self._result:
+        if not self._items:
             raise ValueError("Empty JSONL file")
-
-        self.index_name = list(self._result.keys())[0]
-        self.queries = self._result[self.index_name]
 
     def max_score(self, sample):
         max_score = 0
-        for _, samples in self.queries.items():
-            max_score = max(max_score, samples.get(sample, 0))
+        for queries in self._items.values():
+            for samples in queries.values():
+                max_score = max(max_score, samples.get(sample, 0))
         return max_score
 
-    def _filtered_sorted_samples(
-        self, samples: dict, threshold: float
-    ) -> list[tuple[str, float]]:
-        return sorted(
-            [(s, sc) for s, sc in samples.items() if sc >= threshold],
-            key=lambda x: x[1],
-            reverse=True,
-        )
+    def _rows(self, threshold: float) -> list[tuple[str, str, str, float]]:
+        # Flattened (query, sample, location, score) rows, sorted by query then score desc
+        rows = []
+        for index_name, queries in self._items.items():
+            for query_name, samples in queries.items():
+                for sample, score in samples.items():
+                    if score >= threshold:
+                        rows.append((query_name, sample, index_name, score))
+        rows.sort(key=lambda r: (r[0], -r[3]))
+        return rows
+
+    def _matrix(self, threshold: float) -> tuple[list[str], list[str], dict]:
+        # Sample x query score matrix, max score across indices
+        # Queries sorted by name, samples by best score desc then name
+        scores: dict[str, dict[str, float]] = {}
+        for queries in self._items.values():
+            for query_name, samples in queries.items():
+                for sample, score in samples.items():
+                    if score >= threshold:
+                        row = scores.setdefault(sample, {})
+                        row[query_name] = max(row.get(query_name, 0), score)
+        query_names = sorted({q for row in scores.values() for q in row})
+        sample_names = sorted(scores, key=lambda s: (-max(scores[s].values()), s))
+        return query_names, sample_names, scores
 
     def generate_markdown(self, threshold: float = 0.0) -> str:
+        rows = self._rows(threshold)
+        headers = ("Query", "Sample", "Location")
+        widths = [
+            max([len(h)] + [len(str(row[i])) for row in rows])
+            for i, h in enumerate(headers)
+        ]
         lines = []
-        for query_name, samples in self.queries.items():
-            lines.append(
-                f"## Query {query_name} on {self.index_name} - Filter scores ≥ {threshold}\n"
-            )
-            sorted_samples = self._filtered_sorted_samples(samples, threshold)
-            col_w = max((len(s) for s, _ in sorted_samples), default=len("Sample"))
-            col_w = max(col_w, len("Sample"))
-            lines.append(f"| {'Sample':<{col_w}} | Score |")
-            lines.append(f"| {'-' * col_w} | ----- |")
-            for sample, score in sorted_samples:
-                lines.append(f"| {sample:<{col_w}} | {score:.3f} |")
-            lines.append("")
+
+        # lines.append(f"## kmindex results - Filter scores ≥ {threshold}\n")
+        # lines.append(
+        #     "| "
+        #     + " | ".join(f"{h:<{w}}" for h, w in zip(headers, widths))
+        #     + " | Score |"
+        # )
+        # lines.append("| " + " | ".join("-" * w for w in widths) + " | ----- |")
+        # for query_name, sample, index_name, score in rows:
+        #     lines.append(
+        #         f"| {query_name:<{widths[0]}} | {sample:<{widths[1]}} "
+        #         f"| {index_name:<{widths[2]}} | {score:.3f} |"
+        #     )
+        # lines.append("")
+
+        query_names, sample_names, scores = self._matrix(threshold)
+        s_w = max([len("Sample")] + [len(s) for s in sample_names])
+        q_ws = [max(len(q), len("0.000")) for q in query_names]
+        # lines.append("## Score matrix\n")
+        lines.append(
+            f"| {'Sample':<{s_w}} | "
+            + " | ".join(f"{q:<{w}}" for q, w in zip(query_names, q_ws))
+            + " |"
+        )
+        lines.append(f"| {'-' * s_w} | " + " | ".join("-" * w for w in q_ws) + " |")
+        for sample in sample_names:
+            cells = [
+                f"{scores[sample][q]:.3f}".ljust(w) if q in scores[sample] else " " * w
+                for q, w in zip(query_names, q_ws)
+            ]
+            lines.append(f"| {sample:<{s_w}} | " + " | ".join(cells) + " |")
+        lines.append("")
         return "\n".join(lines)
 
     def generate_html(self, threshold: float = 0.0) -> str:
-        rows = []
-        for query_name, samples in self.queries.items():
-            sorted_samples = self._filtered_sorted_samples(samples, threshold)
-            row_html = "\n".join(
-                f"        <tr><td>{s}</td><td>{sc:.3f}</td></tr>"
-                for s, sc in sorted_samples
+        row_html = "\n".join(
+            f"        <tr><td>{q}</td><td>{s}</td><td>{loc}</td><td>{sc:.3f}</td></tr>"
+            for q, s, loc, sc in self._rows(threshold)
+        )
+        query_names, sample_names, scores = self._matrix(threshold)
+        matrix_header = "".join(f"<th>{q}</th>" for q in query_names)
+        matrix_html = "\n".join(
+            f"        <tr><td>{sample}</td>"
+            + "".join(
+                (
+                    f"<td>{scores[sample][q]:.3f}</td>"
+                    if q in scores[sample]
+                    else "<td></td>"
+                )
+                for q in query_names
             )
-            rows.append(
-                f"    <details open><summary>"
-                f"<h2>Query {query_name} on {self.index_name} - Filter scores ≥ {threshold}</h2>"
-                f"</summary>\n"
-                f"    <table>\n"
-                f"        <tr><th>Sample</th><th>Score</th></tr>\n"
-                f"{row_html}\n"
-                f"    </table></details>"
-            )
-        body = "\n".join(rows)
+            + "</tr>"
+            for sample in sample_names
+        )
+        body = (
+            # f"    <h2>kmindex results - Filter scores ≥ {threshold}</h2>\n"
+            # f"    <table>\n"
+            # f"        <tr><th>Query</th><th>Sample</th><th>Location</th><th>Score</th></tr>\n"
+            # f"{row_html}\n"
+            # f"    </table>\n"
+            f"    <h2>Score matrix</h2>\n"
+            f"    <table>\n"
+            f"        <tr><th>Sample</th>{matrix_header}</tr>\n"
+            f"{matrix_html}\n"
+            f"    </table>"
+        )
         return (
             f"<!DOCTYPE html>\n<html lang='en'>\n<head>\n"
             f"    <meta charset='UTF-8'>\n"
             f"    <meta name='viewport' content='width=device-width, initial-scale=1.0'>\n"
-            f"    <title>kmindex Results - {self.index_name}</title>\n"
+            f"    <title>kmindex Results - {', '.join(self._items)}</title>\n"
             f"    <style>\n"
             f"        body {{ font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }}\n"
             f"        h2 {{ color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 8px; margin-top: 30px; }}\n"
@@ -130,30 +189,31 @@ class KmindexQueryResult:
             f"</body>\n</html>"
         )
 
-    def generate_csv(self, threshold: float = 0.0) -> str:
-        lines = ["query\tsample\tscore"]
-        for query_name, samples in self.queries.items():
-            for sample, score in self._filtered_sorted_samples(samples, threshold):
-                lines.append(f"{query_name},{sample},{score:.3f}")
+    def generate_tsv(self, threshold: float = 0.0) -> str:
+        lines = ["query\tsample\tlocation\tscore"]
+        for query_name, sample, index_name, score in self._rows(threshold):
+            lines.append(f"{query_name}\t{sample}\t{index_name}\t{score:.3f}")
         return "\n".join(lines)
 
     def generate_json(self, threshold: float = 0.0) -> str:
         filtered = {
-            self.index_name: {
+            index_name: {
                 query_name: {s: sc for s, sc in samples.items() if sc >= threshold}
-                for query_name, samples in self.queries.items()
+                for query_name, samples in queries.items()
             }
+            for index_name, queries in self._items.items()
         }
         return json.dumps(filtered, indent=2)
 
     def generate_yaml(self, threshold: float = 0.0) -> str:
         filtered = {
-            self.index_name: {
+            index_name: {
                 query_name: {
                     s: round(sc, 3) for s, sc in samples.items() if sc >= threshold
                 }
-                for query_name, samples in self.queries.items()
+                for query_name, samples in queries.items()
             }
+            for index_name, queries in self._items.items()
         }
         return yaml.dump(filtered, default_flow_style=False, sort_keys=False)
 
@@ -483,20 +543,22 @@ class QueryRunner:
     def _convert_results(self, result_dir: str) -> None:
         fmt = self._config.output_format
         threshold = self._config.threshold
-        for fname in os.listdir(result_dir):
+        merged = KmindexQueryResult()
+        for fname in sorted(os.listdir(result_dir)):
             if not fname.endswith(".jsonl"):
                 continue
             json_path = os.path.join(result_dir, fname)
             try:
-                result = KmindexQueryResult(json_path)
-                converted = result.convert(format=fmt, threshold=threshold)
-                if self._config.print_output:
-                    sys.stdout.write(converted)
-                else:
-                    stem = os.path.splitext(fname)[0]
-                    out_file = os.path.join(result_dir, f"{stem}.{fmt}")
-                    with open(out_file, "w") as f:
-                        f.write(converted)
-                    logger.debug(f"Converted: {out_file}")
+                merged.load_jsonl(json_path)
             except Exception as e:
-                logger.warning(f"Failed to convert {fname}: {e}")
+                logger.warning(f"Failed to read {fname}: {e}")
+        if not merged.items:
+            return
+        converted = merged.convert(format=fmt, threshold=threshold)
+        if self._config.print_output:
+            sys.stdout.write(f"{converted}\n")
+        else:
+            out_file = os.path.join(result_dir, f"results.{fmt}")
+            with open(out_file, "w") as f:
+                f.write(converted)
+            logger.debug(f"Converted: {out_file}")
