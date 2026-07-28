@@ -62,9 +62,6 @@ class KmindexQueryResult:
                 if index and query and samples:
                     self._items.setdefault(index, {})[query] = samples
 
-        if not self._items:
-            raise ValueError("Empty JSONL file")
-
     def max_score(self, sample):
         max_score = 0
         for queries in self._items.values():
@@ -316,7 +313,7 @@ class KmindexQuery:
                 try:
                     result.append(KmindexQueryResult(fpath))
                 except Exception as e:
-                    print(f"Could not read result from {fpath}: {e}")
+                    logger.warning(f"Could not read result from {fpath}: {e}")
 
         return result
 
