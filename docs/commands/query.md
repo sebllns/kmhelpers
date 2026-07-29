@@ -29,7 +29,8 @@ Query indices with FASTA/FASTQ sequences.
 | `-b, --batch-query` | Treat all sequences across all query files as a single batched query |
 | `-s, --single-query NAME` | Name for the single batched query |
 | `-c, --compressed` | Index is compressed (forces `sub` parallelization) |
-| `-f, --format TEXT` | Output format: `json` (default), `yaml`, `md`, `html`, `csv` |
+| `-f, --format TEXT` | Output format: `tsv` (default), `json`, `yaml`, `md`, `html` |
+| `-V, --vec` | Also collect the per-k-mer presence/absence vector, not just the coverage ratio |
 | `-p, --print` | Print results to console |
 | `-T, --timestamp` | Append timestamp suffix to output directory to avoid overwriting |
 | `-e, --existing TEXT` | Conflict resolution: `skip` (default), `fail`, `delete`, `new-name` |
@@ -43,7 +44,32 @@ Each value in the output is the fraction of query k-mers found in that sample. R
 
 **Batch mode** — use `--batch-query` to treat all sequences across all query files as a single query, or `--single-query NAME` to assign them a specific identifier.
 
-**Parallelization** — `seq` parallelises across sequences (default); `sub` parallelises across sub-indices (forced when `--compressed` is set).
+**Parallelization** - `seq` parallelises across sequences (default); `sub` parallelises across sub-indices (forced when `--compressed` is set).
+
+**Presence vector** - by default kmindex reports one coverage ratio `R` per sample:
+
+```json
+{"index":"idx_0","query":"q0","samples":{"sample_0":0.69}}
+```
+
+With `--vec` it reports the per-k-mer presence vector `P` as well, `R` being its mean:
+
+```json
+{"index":"idx_0","query":"q0","samples":{"sample_0":{"P":[1,1,0,...],"R":0.69}}}
+```
+
+The score matrix is identical either way. `--vec` adds, per (query, sample), the coverage
+stats `n_kmers`, `covered`, `longest_run` (longest stretch of consecutive k-mers found) and
+`gaps` (number of missing stretches), which tell a uniformly diluted match apart from one
+concentrated on a sub-region:
+
+| Format | Where the vector data goes |
+|--------|----------------------------|
+| `tsv` | `coverage.tsv` beside `results.tsv`, one row per (query, sample) |
+| `md` | `## Coverage` table appended to the score matrix |
+| `html` | `Coverage` section with a colored track showing where the query is covered |
+| `json` | stats plus `P` run-length encoded as `[[value, count], ...]` |
+| `yaml` | stats only, no raw vector |
 
 ## Examples
 
@@ -69,6 +95,9 @@ kmhelpers query -r ./registry -n idx1 --single-query batch1 -o results multi.fa
 # Score threshold filtering
 kmhelpers query -r ./registry -n idx1 -o results -R 0.1 query.fa
 
-# Output as CSV
-kmhelpers query -r ./registry -n idx1 -o results -f csv query.fa
+# Output as HTML
+kmhelpers query -r ./registry -n idx1 -o results -f html query.fa
+
+# Per-k-mer coverage track in the HTML report
+kmhelpers query -r ./registry -n idx1 -o results -f html --vec query.fa
 ```

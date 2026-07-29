@@ -100,7 +100,7 @@ logger = logging.getLogger(__name__)
     is_flag=True,
     default=False,
     show_default=True,
-    help="🚩  Also output the per-k-mer presence/absence vector P along the query, not just the coverage ratio R.",
+    help="🚩  Also output the per-k-mer presence/absence vector P along the query, not just the coverage ratio R. Adds coverage stats to the results (a coverage track in html, a coverage.tsv beside results.tsv in tsv).",
 )
 @click.option(
     "--print",

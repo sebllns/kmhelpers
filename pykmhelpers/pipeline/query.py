@@ -6,6 +6,7 @@ import sys
 import tempfile
 import time
 from dataclasses import dataclass, field
+from itertools import groupby
 from typing import Callable, Iterable, Optional
 
 import yaml
@@ -33,6 +34,9 @@ class KmindexQueryResult:
     )
     # From this step on, the background is dark enough to need light text
     _SCORE_RAMP_INVERT = 4
+    # Coverage track: number of buckets and color of a fully absent bucket
+    _TRACK_BUCKETS = 200
+    _TRACK_EMPTY = "#eeeeee"
 
     _CONVERTERS: dict[str, str] = {
         "md": "generate_markdown",
@@ -43,9 +47,14 @@ class KmindexQueryResult:
     }
 
     def __init__(
-        self, file: Optional[str] = None, items: Optional[dict] = None
+        self,
+        file: Optional[str] = None,
+        items: Optional[dict] = None,
+        vectors: Optional[dict] = None,
     ) -> None:
         self._items = items or {}
+        # {index: {query: {sample: [0/1 per k-mer]}}}, only filled by jsonl_vec input
+        self._vectors: dict[str, dict[str, dict[str, list[int]]]] = vectors or {}
         if file:
             self.load_jsonl(file)
 
@@ -53,18 +62,47 @@ class KmindexQueryResult:
     def items(self):
         return self._items
 
+    @property
+    def vectors(self):
+        return self._vectors
+
+    @property
+    def has_vectors(self) -> bool:
+        return bool(self._vectors)
+
     def get_index_result(self, index_id) -> "KmindexQueryResult":
         items = {index_id: self._items[index_id]} if index_id in self._items else {}
-        return KmindexQueryResult(items=items)
+        vectors = (
+            {index_id: self._vectors[index_id]} if index_id in self._vectors else {}
+        )
+        return KmindexQueryResult(items=items, vectors=vectors)
 
     def __eq__(self, other) -> bool:
+        # Scores only: a jsonl_vec result equals the plain jsonl result it derives from.
         if not isinstance(other, KmindexQueryResult):
             return False
         return self._items == other._items
 
+    @staticmethod
+    def _parse_sample(value) -> tuple[Optional[float], Optional[list[int]]]:
+        # jsonl gives a plain score, jsonl_vec gives {"P": [0/1, ...], "R": score}
+        if isinstance(value, bool):
+            return None, None
+        if isinstance(value, (int, float)):
+            return float(value), None
+        if isinstance(value, dict):
+            vector = value.get("P")
+            score = value.get("R")
+            if score is None and vector:
+                score = sum(vector) / len(vector)
+            if score is None:
+                return None, None
+            return float(score), vector
+        return None, None
+
     def load_jsonl(self, file):
         # Each line is a record: {"index": ..., "query": ..., "samples": {...}}
-        # Records are grouped by index into {index: {query: samples}}.
+        # Records are grouped by index into {index: {query: {sample: score}}}.
         with open(file, "r") as f:
             for line in f:
                 line = line.strip()
@@ -74,8 +112,23 @@ class KmindexQueryResult:
                 index = record["index"]
                 query = record["query"]
                 samples = record["samples"]
-                if index and query and samples:
-                    self._items.setdefault(index, {})[query] = samples
+                if not (index and query and samples):
+                    continue
+                scores = self._items.setdefault(index, {}).setdefault(query, {})
+                for sample, value in samples.items():
+                    score, vector = self._parse_sample(value)
+                    if score is None:
+                        logger.warning(
+                            f"Unsupported sample entry for {index}/{query}/{sample}, skipped"
+                        )
+                        continue
+                    scores[sample] = score
+                    if vector:
+                        self._vectors.setdefault(index, {}).setdefault(query, {})[
+                            sample
+                        ] = vector
+                if not scores:
+                    del self._items[index][query]
 
     def max_score(self, sample):
         max_score = 0
@@ -108,6 +161,89 @@ class KmindexQueryResult:
         query_names = sorted({q for row in scores.values() for q in row})
         sample_names = sorted(scores)
         return query_names, sample_names, scores
+
+    @staticmethod
+    def _vector_stats(vector: list[int]) -> dict:
+        # Coverage summary of a per-k-mer presence vector
+        n = len(vector)
+        covered = 0
+        longest_run = 0
+        run = 0
+        gaps = 0
+        previous = 1
+        for v in vector:
+            if v:
+                covered += 1
+                run += 1
+                longest_run = max(longest_run, run)
+            else:
+                run = 0
+                if previous:
+                    gaps += 1
+            previous = v
+        return {
+            "n_kmers": n,
+            "covered": covered,
+            "ratio": covered / n if n else 0.0,
+            "longest_run": longest_run,
+            "gaps": gaps,
+        }
+
+    @staticmethod
+    def _rle(vector: list[int]) -> list[list[int]]:
+        # Run-length encoding: [[value, count], ...]
+        return [[value, len(list(group))] for value, group in groupby(vector)]
+
+    def _vector_rows(
+        self, threshold: float
+    ) -> list[tuple[str, str, str, float, list[int]]]:
+        # (query, sample, index, score, vector) rows, sorted by query then score desc
+        rows = []
+        for index_name, queries in self._vectors.items():
+            for query_name, samples in queries.items():
+                for sample, vector in samples.items():
+                    score = self._items.get(index_name, {}).get(query_name, {}).get(sample)
+                    if score is not None and score >= threshold:
+                        rows.append((query_name, sample, index_name, score, vector))
+        rows.sort(key=lambda r: (r[0], -r[3]))
+        return rows
+
+    _COVERAGE_HEADERS = (
+        "query",
+        "sample",
+        "index",
+        "R",
+        "n_kmers",
+        "covered",
+        "longest_run",
+        "gaps",
+    )
+
+    @classmethod
+    def _coverage_cells(cls, rows) -> list[list[str]]:
+        # One string cell list per row of _vector_rows, matching _COVERAGE_HEADERS
+        cells = []
+        for query, sample, index_name, score, vector in rows:
+            stats = cls._vector_stats(vector)
+            cells.append(
+                [
+                    query,
+                    sample,
+                    index_name,
+                    f"{score:.3f}",
+                    str(stats["n_kmers"]),
+                    str(stats["covered"]),
+                    str(stats["longest_run"]),
+                    str(stats["gaps"]),
+                ]
+            )
+        return cells
+
+    def generate_coverage_tsv(self, threshold: float = 0.0) -> str:
+        lines = ["\t".join(self._COVERAGE_HEADERS)]
+        cells = self._coverage_cells(self._vector_rows(threshold))
+        lines.extend("\t".join(row) for row in cells)
+        return "\n".join(lines)
 
     def generate_markdown(self, threshold: float = 0.0) -> str:
         rows = self._rows(threshold)
@@ -150,6 +286,24 @@ class KmindexQueryResult:
             ]
             lines.append(f"| {query:<{q_w}} | " + " | ".join(cells) + " |")
         lines.append("")
+
+        coverage = self._coverage_cells(self._vector_rows(threshold))
+        if coverage:
+            headers = self._COVERAGE_HEADERS
+            widths = [
+                max([len(h)] + [len(row[i]) for row in coverage])
+                for i, h in enumerate(headers)
+            ]
+            lines.append("## Coverage\n")
+            lines.append(
+                "| " + " | ".join(f"{h:<{w}}" for h, w in zip(headers, widths)) + " |"
+            )
+            lines.append("| " + " | ".join("-" * w for w in widths) + " |")
+            for row in coverage:
+                lines.append(
+                    "| " + " | ".join(f"{c:<{w}}" for c, w in zip(row, widths)) + " |"
+                )
+            lines.append("")
         return "\n".join(lines)
 
     @classmethod
@@ -159,6 +313,44 @@ class KmindexQueryResult:
         step = min(int(max(score, 0.0) * len(ramp)), len(ramp) - 1)
         fg = "#ffffff" if step >= cls._SCORE_RAMP_INVERT else "#0b0b0b"
         return f"background-color: {ramp[step]}; color: {fg}"
+
+    @classmethod
+    def _track_html(cls, vector: list[int]) -> str:
+        # Presence vector downsampled to fixed-width buckets, colored by bucket mean
+        n = len(vector)
+        buckets = min(n, cls._TRACK_BUCKETS)
+        cells = []
+        for i in range(buckets):
+            lo = i * n // buckets
+            hi = max((i + 1) * n // buckets, lo + 1)
+            chunk = vector[lo:hi]
+            mean = sum(chunk) / len(chunk)
+            style = (
+                f"background-color: {cls._TRACK_EMPTY}"
+                if mean == 0
+                else cls._score_style(mean)
+            )
+            cells.append(f"<span style='{style}' title='{lo}-{hi}: {mean:.2f}'></span>")
+        return f"<div class='track'>{''.join(cells)}</div>"
+
+    def _coverage_html(self, threshold: float) -> str:
+        rows = self._vector_rows(threshold)
+        if not rows:
+            return ""
+        header = "".join(f"<th>{h}</th>" for h in self._COVERAGE_HEADERS)
+        body = "\n".join(
+            "        <tr>"
+            + "".join(f"<td>{c}</td>" for c in cells)
+            + f"<td class='track-cell'>{self._track_html(row[4])}</td></tr>"
+            for cells, row in zip(self._coverage_cells(rows), rows)
+        )
+        return (
+            f"    <h2>Coverage</h2>\n"
+            f"    <table>\n"
+            f"        <tr>{header}<th>k-mer presence</th></tr>\n"
+            f"{body}\n"
+            f"    </table>"
+        )
 
     def generate_html(self, threshold: float = 0.0) -> str:
         row_html = "\n".join(
@@ -196,6 +388,9 @@ class KmindexQueryResult:
             f"        <span>0.000</span><span class='scale'></span><span>1.000</span>\n"
             f"    </div>"
         )
+        coverage_html = self._coverage_html(threshold)
+        if coverage_html:
+            body = f"{body}\n{coverage_html}"
         return (
             f"<!DOCTYPE html>\n<html lang='en'>\n<head>\n"
             f"    <meta charset='UTF-8'>\n"
@@ -214,6 +409,9 @@ class KmindexQueryResult:
             f"font-size: 0.85em; color: #52514e; }}\n"
             f"        .legend .scale {{ width: 200px; height: 12px; border-radius: 2px; "
             f"background: linear-gradient(to right, {', '.join(self._SCORE_RAMP)}); }}\n"
+            f"        td.track-cell {{ width: 40%; padding: 6px 10px; }}\n"
+            f"        .track {{ display: flex; height: 14px; border-radius: 2px; overflow: hidden; }}\n"
+            f"        .track span {{ flex: 1 1 0; }}\n"
             f"    </style>\n</head>\n<body>\n"
             f"{body}\n"
             f"</body>\n</html>"
@@ -230,24 +428,45 @@ class KmindexQueryResult:
             lines.append("\t".join([query] + cells))
         return "\n".join(lines)
 
-    def _by_sample(self, threshold: float) -> dict[str, dict[str, dict[str, float]]]:
-        # {index: {sample: {query: score}}}, scores below threshold dropped
-        pivoted: dict[str, dict[str, dict[str, float]]] = {}
+    def _by_sample(self, threshold: float, with_rle: bool = False) -> dict:
+        # {index: {sample: {query: entry}}}, scores below threshold dropped.
+        # entry is the bare score, or a stats dict when a presence vector is known.
+        pivoted: dict[str, dict[str, dict[str, object]]] = {}
         for index_name, queries in self._items.items():
             samples_map = pivoted.setdefault(index_name, {})
             for query_name, samples in queries.items():
                 for sample, score in samples.items():
-                    if score >= threshold:
-                        samples_map.setdefault(sample, {})[query_name] = score
+                    if score < threshold:
+                        continue
+                    vector = (
+                        self._vectors.get(index_name, {})
+                        .get(query_name, {})
+                        .get(sample)
+                    )
+                    entry: object = score
+                    if vector:
+                        entry = {"R": score, **self._vector_stats(vector)}
+                        if with_rle:
+                            entry["P"] = self._rle(vector)
+                    samples_map.setdefault(sample, {})[query_name] = entry
         return pivoted
 
     def generate_json(self, threshold: float = 0.0) -> str:
-        return json.dumps(self._by_sample(threshold), indent=2)
+        return json.dumps(self._by_sample(threshold, with_rle=True), indent=2)
 
     def generate_yaml(self, threshold: float = 0.0) -> str:
+        # Human-facing: scores and coverage stats, no raw presence vector
+        def rounded(entry):
+            if isinstance(entry, dict):
+                return {
+                    k: round(v, 3) if isinstance(v, float) else v
+                    for k, v in entry.items()
+                }
+            return round(entry, 3)
+
         filtered = {
             index_name: {
-                sample: {q: round(sc, 3) for q, sc in queries.items()}
+                sample: {q: rounded(entry) for q, entry in queries.items()}
                 for sample, queries in samples.items()
             }
             for index_name, samples in self._by_sample(threshold).items()
@@ -614,3 +833,16 @@ class QueryRunner:
             with open(out_file, "w") as f:
                 f.write(converted)
             logger.info(f"Results: {out_file}")
+
+        # Other formats embed coverage, a matrix TSV cannot hold a second table
+        if fmt == "tsv" and merged.has_vectors:
+            coverage = merged.generate_coverage_tsv(threshold)
+            if self._config.print_output:
+                sys.stdout.write(f"{coverage}\n")
+            else:
+                coverage_file = os.path.join(
+                    os.path.dirname(result_dir), "coverage.tsv"
+                )
+                with open(coverage_file, "w") as f:
+                    f.write(coverage)
+                logger.info(f"Coverage: {coverage_file}")
