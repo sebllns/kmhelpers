@@ -118,11 +118,12 @@ class KmindexQueryResult:
         # lines.append("")
 
         query_names, sample_names, scores = self._matrix(threshold)
-        q_w = max([len("Query \\ Sample")] + [len(q) for q in query_names])
+        corner = "Sequence \\ Sample"
+        q_w = max([len(corner)] + [len(q) for q in query_names])
         s_ws = [max(len(s), len("0.000")) for s in sample_names]
         # lines.append("## Score matrix\n")
         lines.append(
-            f"| {'Query \\ Sample':<{q_w}} | "
+            f"| {corner:<{q_w}} | "
             + " | ".join(f"{s:<{w}}" for s, w in zip(sample_names, s_ws))
             + " |"
         )
@@ -164,7 +165,7 @@ class KmindexQueryResult:
             # f"    </table>\n"
             f"    <h2>Score matrix</h2>\n"
             f"    <table>\n"
-            f"        <tr><th>Query \\ Sample</th>{matrix_header}</tr>\n"
+            f"        <tr><th>Sequence \\ Sample</th>{matrix_header}</tr>\n"
             f"{matrix_html}\n"
             f"    </table>"
         )
@@ -188,7 +189,7 @@ class KmindexQueryResult:
 
     def generate_tsv(self, threshold: float = 0.0) -> str:
         query_names, sample_names, scores = self._matrix(threshold)
-        lines = ["\t".join(["query"] + sample_names)]
+        lines = ["\t".join(["seq"] + sample_names)]
         for query in query_names:
             cells = [
                 f"{scores[s][query]:.3f}" if query in scores[s] else ""
@@ -197,25 +198,27 @@ class KmindexQueryResult:
             lines.append("\t".join([query] + cells))
         return "\n".join(lines)
 
+    def _by_sample(self, threshold: float) -> dict[str, dict[str, dict[str, float]]]:
+        # {index: {sample: {query: score}}}, scores below threshold dropped
+        pivoted: dict[str, dict[str, dict[str, float]]] = {}
+        for index_name, queries in self._items.items():
+            samples_map = pivoted.setdefault(index_name, {})
+            for query_name, samples in queries.items():
+                for sample, score in samples.items():
+                    if score >= threshold:
+                        samples_map.setdefault(sample, {})[query_name] = score
+        return pivoted
+
     def generate_json(self, threshold: float = 0.0) -> str:
-        filtered = {
-            index_name: {
-                query_name: {s: sc for s, sc in samples.items() if sc >= threshold}
-                for query_name, samples in queries.items()
-            }
-            for index_name, queries in self._items.items()
-        }
-        return json.dumps(filtered, indent=2)
+        return json.dumps(self._by_sample(threshold), indent=2)
 
     def generate_yaml(self, threshold: float = 0.0) -> str:
         filtered = {
             index_name: {
-                query_name: {
-                    s: round(sc, 3) for s, sc in samples.items() if sc >= threshold
-                }
-                for query_name, samples in queries.items()
+                sample: {q: round(sc, 3) for q, sc in queries.items()}
+                for sample, queries in samples.items()
             }
-            for index_name, queries in self._items.items()
+            for index_name, samples in self._by_sample(threshold).items()
         }
         return yaml.dump(filtered, default_flow_style=False, sort_keys=False)
 
@@ -506,7 +509,7 @@ class QueryRunner:
         logger.info(f"Time: {elapsed:.2f}s")
         logger.info(f"Results: {result_dir}")
 
-        if cfg.output_format != "json":
+        if cfg.output_format:
             self._convert_results(result_dir)
 
         if cfg.on_result is not None:
