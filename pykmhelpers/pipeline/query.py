@@ -560,7 +560,7 @@ class QueryRunner:
             except Exception as e:
                 logger.warning(f"Failed to read {fname}: {e}")
         if not merged.items:
-            logger.info(f"No result.")
+            logger.info(f"No match")
             return
         converted = merged.convert(format=fmt, threshold=threshold)
         if self._config.print_output:
