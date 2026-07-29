@@ -17,6 +17,8 @@ from pykmhelpers.core.utils import Toolbox
 
 logger = logging.getLogger(__name__)
 
+KMINDEX_QUERY_OUTPUT = "kmindex_output"
+
 
 class KmindexQueryResult:
     _CONVERTERS: dict[str, str] = {
@@ -281,7 +283,7 @@ class KmindexQuery:
             vec (bool): Use ``jsonl_vec`` output format instead of ``jsonl``.
         """
         index_ids = index_ids if index_ids is not None else []
-        result_dir = os.path.join(output_dir, "result")
+        result_dir = os.path.join(output_dir, KMINDEX_QUERY_OUTPUT)
         os.makedirs(output_dir, exist_ok=True)
 
         query_path = os.path.join(output_dir, os.path.basename(self._path))
@@ -505,9 +507,9 @@ class QueryRunner:
         )
 
         elapsed = time.time() - start
-        result_dir = os.path.join(query_output, "result")
+        result_dir = os.path.join(query_output, KMINDEX_QUERY_OUTPUT)
+        logger.debug(f"kmindex output dir: {result_dir}")
         logger.info(f"Time: {elapsed:.2f}s")
-        logger.info(f"Results: {result_dir}")
 
         if cfg.output_format:
             self._convert_results(result_dir)
@@ -558,12 +560,13 @@ class QueryRunner:
             except Exception as e:
                 logger.warning(f"Failed to read {fname}: {e}")
         if not merged.items:
+            logger.info(f"No result.")
             return
         converted = merged.convert(format=fmt, threshold=threshold)
         if self._config.print_output:
             sys.stdout.write(f"{converted}\n")
         else:
-            out_file = os.path.join(result_dir, f"results.{fmt}")
+            out_file = os.path.join(os.path.dirname(result_dir), f"results.{fmt}")
             with open(out_file, "w") as f:
                 f.write(converted)
-            logger.debug(f"Converted: {out_file}")
+            logger.info(f"Results: {out_file}")
