@@ -421,7 +421,10 @@ class QueryRunner:
                 with open(batch_path, "wb") as fout:
                     for qfile in resolved:
                         with open(qfile, "rb") as fin:
-                            fout.write(fin.read())
+                            data = fin.read()
+                        fout.write(data)
+                        if not data.endswith(b"\n"):
+                            fout.write(b"\n")
                 logger.info(f"Batching {len(resolved)} file(s) into a single query...")
                 result = self._run_single(batch_path, total=1, idx=1)
                 all_results.append(result)
