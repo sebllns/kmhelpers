@@ -120,6 +120,18 @@ class TestVectorHelpers(unittest.TestCase):
             [[1, 6], [0, 2], [1, 3], [0, 1], [1, 8]],
         )
 
+    def test_rle_starting_with_a_gap(self):
+        self.assertEqual(KmindexQueryResult._rle([0, 0, 1]), [[0, 2], [1, 1]])
+
+    def test_rle_empty(self):
+        self.assertEqual(KmindexQueryResult._rle([]), [])
+
+    def test_rle_round_trip(self):
+        decoded = []
+        for value, count in KmindexQueryResult._rle(VECTOR):
+            decoded.extend([value] * count)
+        self.assertEqual(decoded, VECTOR)
+
 
 class TestConverters(QueryResultBase):
     def test_all_formats_on_vec_input(self):
@@ -175,10 +187,14 @@ class TestConverters(QueryResultBase):
         self.assertEqual(entry["covered"], 17)
         self.assertEqual(entry["P"], [[1, 6], [0, 2], [1, 3], [0, 1], [1, 8]])
 
-    def test_yaml_has_stats_without_vector(self):
+    def test_yaml_has_stats_and_inline_vector(self):
         text = KmindexQueryResult(self.vec_file()).generate_yaml(0.0)
         self.assertIn("longest_run: 8", text)
-        self.assertNotIn("P:", text)
+        self.assertIn("P: [[1, 6], [0, 2], [1, 3], [0, 1], [1, 8]]", text)
+
+    def test_yaml_plain_input_has_no_stats(self):
+        text = KmindexQueryResult(self.plain_file()).generate_yaml(0.0)
+        self.assertEqual(text.strip(), f"idx_0:\n  s0:\n    q0: {round(RATIO, 3)}")
 
     def test_unknown_format(self):
         with self.assertRaises(ValueError):

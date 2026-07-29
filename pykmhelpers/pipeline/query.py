@@ -21,6 +21,22 @@ logger = logging.getLogger(__name__)
 KMINDEX_QUERY_OUTPUT = "kmindex_output"
 
 
+class _InlineList(list):
+    """List kept on a single line by the yaml dumper."""
+
+
+class _QueryDumper(yaml.SafeDumper):
+    pass
+
+
+_QueryDumper.add_representer(
+    _InlineList,
+    lambda dumper, data: dumper.represent_sequence(
+        "tag:yaml.org,2002:seq", data, flow_style=True
+    ),
+)
+
+
 class KmindexQueryResult:
     # Sequential blue ramp, light (score 0) to dark (score 1)
     _SCORE_RAMP = (
@@ -34,8 +50,10 @@ class KmindexQueryResult:
     )
     # From this step on, the background is dark enough to need light text
     _SCORE_RAMP_INVERT = 4
-    # Coverage track: number of buckets and color of a fully absent bucket
+    # Coverage track: bucket count (html), character count (markdown),
+    # and color of a fully absent bucket
     _TRACK_BUCKETS = 200
+    _TRACK_TEXT_WIDTH = 120
     _TRACK_EMPTY = "#eeeeee"
 
     _CONVERTERS: dict[str, str] = {
@@ -194,6 +212,27 @@ class KmindexQueryResult:
         # Run-length encoding: [[value, count], ...]
         return [[value, len(list(group))] for value, group in groupby(vector)]
 
+    @staticmethod
+    def _track_buckets(vector: list[int], width: int) -> list[tuple[int, int, float]]:
+        # Downsample a presence vector to (start, end, mean) buckets
+        n = len(vector)
+        buckets = min(n, width)
+        out = []
+        for i in range(buckets):
+            lo = i * n // buckets
+            hi = max((i + 1) * n // buckets, lo + 1)
+            chunk = vector[lo:hi]
+            out.append((lo, hi, sum(chunk) / len(chunk)))
+        return out
+
+    @classmethod
+    def _track_text(cls, vector: list[int]) -> str:
+        # ASCII coverage track: + all found, ~ partial, - absent
+        return "".join(
+            "+" if mean == 1 else "-" if mean == 0 else "~"
+            for _, _, mean in cls._track_buckets(vector, cls._TRACK_TEXT_WIDTH)
+        )
+
     def _vector_rows(
         self, threshold: float
     ) -> list[tuple[str, str, str, float, list[int]]]:
@@ -202,7 +241,9 @@ class KmindexQueryResult:
         for index_name, queries in self._vectors.items():
             for query_name, samples in queries.items():
                 for sample, vector in samples.items():
-                    score = self._items.get(index_name, {}).get(query_name, {}).get(sample)
+                    score = (
+                        self._items.get(index_name, {}).get(query_name, {}).get(sample)
+                    )
                     if score is not None and score >= threshold:
                         rows.append((query_name, sample, index_name, score, vector))
         rows.sort(key=lambda r: (r[0], -r[3]))
@@ -287,14 +328,22 @@ class KmindexQueryResult:
             lines.append(f"| {query:<{q_w}} | " + " | ".join(cells) + " |")
         lines.append("")
 
-        coverage = self._coverage_cells(self._vector_rows(threshold))
+        rows = self._vector_rows(threshold)
+        coverage = [
+            cells + [f"`{self._track_text(row[4])}`"]
+            for cells, row in zip(self._coverage_cells(rows), rows)
+        ]
         if coverage:
-            headers = self._COVERAGE_HEADERS
+            headers = self._COVERAGE_HEADERS + ("k-mer presence",)
             widths = [
                 max([len(h)] + [len(row[i]) for row in coverage])
                 for i, h in enumerate(headers)
             ]
             lines.append("## Coverage\n")
+            lines.append(
+                f"Track: {self._TRACK_TEXT_WIDTH} buckets along the query, "
+                "`+` all k-mers found, `~` partial, `-` none.\n"
+            )
             lines.append(
                 "| " + " | ".join(f"{h:<{w}}" for h, w in zip(headers, widths)) + " |"
             )
@@ -317,14 +366,8 @@ class KmindexQueryResult:
     @classmethod
     def _track_html(cls, vector: list[int]) -> str:
         # Presence vector downsampled to fixed-width buckets, colored by bucket mean
-        n = len(vector)
-        buckets = min(n, cls._TRACK_BUCKETS)
         cells = []
-        for i in range(buckets):
-            lo = i * n // buckets
-            hi = max((i + 1) * n // buckets, lo + 1)
-            chunk = vector[lo:hi]
-            mean = sum(chunk) / len(chunk)
+        for lo, hi, mean in cls._track_buckets(vector, cls._TRACK_BUCKETS):
             style = (
                 f"background-color: {cls._TRACK_EMPTY}"
                 if mean == 0
@@ -455,11 +498,14 @@ class KmindexQueryResult:
         return json.dumps(self._by_sample(threshold, with_rle=True), indent=2)
 
     def generate_yaml(self, threshold: float = 0.0) -> str:
-        # Human-facing: scores and coverage stats, no raw presence vector
         def rounded(entry):
             if isinstance(entry, dict):
                 return {
-                    k: round(v, 3) if isinstance(v, float) else v
+                    k: (
+                        _InlineList(v)
+                        if k == "P"
+                        else round(v, 3) if isinstance(v, float) else v
+                    )
                     for k, v in entry.items()
                 }
             return round(entry, 3)
@@ -469,9 +515,11 @@ class KmindexQueryResult:
                 sample: {q: rounded(entry) for q, entry in queries.items()}
                 for sample, queries in samples.items()
             }
-            for index_name, samples in self._by_sample(threshold).items()
+            for index_name, samples in self._by_sample(threshold, with_rle=True).items()
         }
-        return yaml.dump(filtered, default_flow_style=False, sort_keys=False)
+        return yaml.dump(
+            filtered, Dumper=_QueryDumper, default_flow_style=False, sort_keys=False
+        )
 
     def convert(self, format: str, threshold: float = 0.01) -> str:
         key = format.lower()

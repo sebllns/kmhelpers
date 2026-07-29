@@ -69,7 +69,11 @@ concentrated on a sub-region:
 | `md` | `## Coverage` table appended to the score matrix |
 | `html` | `Coverage` section with a colored track showing where the query is covered |
 | `json` | stats plus `P` run-length encoded as `[[value, count], ...]` |
-| `yaml` | stats only, no raw vector |
+| `yaml` | stats plus the same `P` encoding, kept on one line |
+
+In the `P` encoding each pair is a run of consecutive k-mers, `1` present and `0` absent. For
+example `[[1, 557], [0, 597], [1, 507]]` means 557 k-mers found, then 597 missing, then 507
+found.
 
 ## Examples
 
