@@ -261,28 +261,29 @@ class KmindexQueryResult:
     )
 
     @classmethod
-    def _coverage_cells(cls, rows) -> list[list[str]]:
+    def _coverage_cells(cls, rows, with_runs: bool = False) -> list[list[str]]:
         # One string cell list per row of _vector_rows, matching _COVERAGE_HEADERS
         cells = []
         for query, sample, index_name, score, vector in rows:
             stats = cls._vector_stats(vector)
-            cells.append(
-                [
-                    query,
-                    sample,
-                    index_name,
-                    f"{score:.3f}",
-                    str(stats["n_kmers"]),
-                    str(stats["covered"]),
-                    str(stats["longest_run"]),
-                    str(stats["gaps"]),
-                ]
-            )
+            row = [
+                query,
+                sample,
+                index_name,
+                f"{score:.3f}",
+                str(stats["n_kmers"]),
+                str(stats["covered"]),
+                str(stats["longest_run"]),
+                str(stats["gaps"]),
+            ]
+            if with_runs:
+                row.append(json.dumps(cls._rle(vector), separators=(",", ":")))
+            cells.append(row)
         return cells
 
     def generate_coverage_tsv(self, threshold: float = 0.0) -> str:
-        lines = ["\t".join(self._COVERAGE_HEADERS)]
-        cells = self._coverage_cells(self._vector_rows(threshold))
+        lines = ["\t".join(self._COVERAGE_HEADERS + ("runs",))]
+        cells = self._coverage_cells(self._vector_rows(threshold), with_runs=True)
         lines.extend("\t".join(row) for row in cells)
         return "\n".join(lines)
 

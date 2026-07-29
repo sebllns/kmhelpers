@@ -152,12 +152,16 @@ class TestConverters(QueryResultBase):
         self.assertNotIn("class='track'", html)
 
     def test_coverage_tsv(self):
-        lines = KmindexQueryResult(self.vec_file()).generate_coverage_tsv(0.0).split("\n")
-        self.assertEqual(
-            lines[0], "query\tsample\tindex\tR\tn_kmers\tcovered\tlongest_run\tgaps"
+        lines = (
+            KmindexQueryResult(self.vec_file()).generate_coverage_tsv(0.0).split("\n")
         )
         self.assertEqual(
-            lines[1], f"q0\ts0\tidx_0\t{RATIO:.3f}\t20\t17\t8\t2"
+            lines[0],
+            "query\tsample\tindex\tR\tn_kmers\tcovered\tlongest_run\tgaps\truns",
+        )
+        self.assertEqual(
+            lines[1],
+            f"q0\ts0\tidx_0\t{RATIO:.3f}\t20\t17\t8\t2\t[[1,6],[0,2],[1,3],[0,1],[1,8]]",
         )
 
     def test_coverage_tsv_respects_threshold(self):

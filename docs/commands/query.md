@@ -65,7 +65,7 @@ concentrated on a sub-region:
 
 | Format | Where the vector data goes |
 |--------|----------------------------|
-| `tsv` | `coverage.tsv` beside `results.tsv`, one row per (query, sample) |
+| `tsv` | `coverage.tsv` beside `results.tsv`, one row per (query, sample), `P` in a `runs` column |
 | `md` | `## Coverage` table appended to the score matrix |
 | `html` | `Coverage` section with a colored track showing where the query is covered |
 | `json` | stats plus `P` run-length encoded as `[[value, count], ...]` |
