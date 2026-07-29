@@ -592,6 +592,8 @@ class QueryRunner:
 
     def _convert_results(self, result_dir: str) -> None:
         fmt = self._config.output_format
+        out_file = os.path.join(os.path.dirname(result_dir), f"results.{fmt}")
+        logger.debug(f"Merge results to {out_file}...")
         threshold = self._config.threshold
         merged = KmindexQueryResult()
         for fname in sorted(os.listdir(result_dir)):
@@ -609,7 +611,6 @@ class QueryRunner:
         if self._config.print_output:
             sys.stdout.write(f"{converted}\n")
         else:
-            out_file = os.path.join(os.path.dirname(result_dir), f"results.{fmt}")
             with open(out_file, "w") as f:
                 f.write(converted)
             logger.info(f"Results: {out_file}")
