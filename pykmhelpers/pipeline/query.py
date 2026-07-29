@@ -21,6 +21,19 @@ KMINDEX_QUERY_OUTPUT = "kmindex_output"
 
 
 class KmindexQueryResult:
+    # Sequential blue ramp, light (score 0) to dark (score 1)
+    _SCORE_RAMP = (
+        "#cde2fb",
+        "#9ec5f4",
+        "#6da7ec",
+        "#3987e5",
+        "#256abf",
+        "#184f95",
+        "#0d366b",
+    )
+    # From this step on, the background is dark enough to need light text
+    _SCORE_RAMP_INVERT = 4
+
     _CONVERTERS: dict[str, str] = {
         "md": "generate_markdown",
         "html": "generate_html",
@@ -139,6 +152,14 @@ class KmindexQueryResult:
         lines.append("")
         return "\n".join(lines)
 
+    @classmethod
+    def _score_style(cls, score: float) -> str:
+        # Map a 0..1 score onto a ramp step, plus a readable text color
+        ramp = cls._SCORE_RAMP
+        step = min(int(max(score, 0.0) * len(ramp)), len(ramp) - 1)
+        fg = "#ffffff" if step >= cls._SCORE_RAMP_INVERT else "#0b0b0b"
+        return f"background-color: {ramp[step]}; color: {fg}"
+
     def generate_html(self, threshold: float = 0.0) -> str:
         row_html = "\n".join(
             f"        <tr><td>{q}</td><td>{s}</td><td>{loc}</td><td>{sc:.3f}</td></tr>"
@@ -150,9 +171,10 @@ class KmindexQueryResult:
             f"        <tr><td>{query}</td>"
             + "".join(
                 (
-                    f"<td>{scores[s][query]:.3f}</td>"
+                    f"<td style='{self._score_style(scores[s][query])}'>"
+                    f"{scores[s][query]:.3f}</td>"
                     if query in scores[s]
-                    else "<td></td>"
+                    else "<td class='empty'>-</td>"
                 )
                 for s in sample_names
             )
@@ -169,7 +191,10 @@ class KmindexQueryResult:
             f"    <table>\n"
             f"        <tr><th>Sequence \\ Sample</th>{matrix_header}</tr>\n"
             f"{matrix_html}\n"
-            f"    </table>"
+            f"    </table>\n"
+            f"    <div class='legend'>\n"
+            f"        <span>0.000</span><span class='scale'></span><span>1.000</span>\n"
+            f"    </div>"
         )
         return (
             f"<!DOCTYPE html>\n<html lang='en'>\n<head>\n"
@@ -180,10 +205,15 @@ class KmindexQueryResult:
             f"        body {{ font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }}\n"
             f"        h2 {{ color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 8px; margin-top: 30px; }}\n"
             f"        table {{ border-collapse: collapse; width: 100%; margin: 20px 0; }}\n"
-            f"        th, td {{ padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }}\n"
+            f"        th, td {{ padding: 10px; text-align: center; border-bottom: 1px solid #ddd; }}\n"
+            f"        th:first-child, td:first-child {{ text-align: left; }}\n"
             f"        th {{ background-color: #3498db; color: white; font-weight: bold; position: sticky; top: 0; }}\n"
-            f"        tr:hover {{ background-color: #f5f5f5; }}\n"
-            f"        tr:nth-child(even) {{ background-color: #f9f9f9; }}\n"
+            f"        tr:nth-child(even) td.empty {{ background-color: #f9f9f9; }}\n"
+            f"        td.empty {{ color: #52514e; }}\n"
+            f"        .legend {{ display: flex; align-items: center; gap: 8px; "
+            f"font-size: 0.85em; color: #52514e; }}\n"
+            f"        .legend .scale {{ width: 200px; height: 12px; border-radius: 2px; "
+            f"background: linear-gradient(to right, {', '.join(self._SCORE_RAMP)}); }}\n"
             f"    </style>\n</head>\n<body>\n"
             f"{body}\n"
             f"</body>\n</html>"
@@ -426,17 +456,19 @@ class QueryRunner:
                         if not data.endswith(b"\n"):
                             fout.write(b"\n")
                 logger.info(f"Batching {len(resolved)} file(s) into a single query...")
-                result = self._run_single(batch_path, total=1, idx=1)
-                all_results.append(result)
+                result = self._run_single_safe(batch_path, total=1, idx=1)
+                if result:
+                    all_results.append(result)
+                else:
+                    errors.append(f"{os.path.basename(batch_path)}")
             else:
                 total = len(resolved)
                 for idx, qfile in enumerate(resolved, 1):
-                    try:
-                        result = self._run_single(qfile, total=total, idx=idx)
+                    result = self._run_single_safe(qfile, total=total, idx=idx)
+                    if result:
                         all_results.append(result)
-                    except Exception as e:
-                        logger.error(f"[{os.path.basename(qfile)}] {e}")
-                        errors.append(f"{os.path.basename(qfile)}: {e}")
+                    else:
+                        errors.append(f"{os.path.basename(qfile)}")
         finally:
             for tmp in temp_files:
                 try:
@@ -474,6 +506,14 @@ class QueryRunner:
                     raise FileNotFoundError(f"Query file not found: {qfile}")
                 resolved.append(qfile)
         return resolved, temp_files
+
+    def _run_single_safe(self, qfile: str, total: int, idx: int):
+        try:
+            result = self._run_single(qfile, total=total, idx=idx)
+            return result
+        except Exception as e:
+            logger.error(f"[{os.path.basename(qfile)}] {e}")
+            return None
 
     def _run_single(
         self, qfile: str, total: int, idx: int
