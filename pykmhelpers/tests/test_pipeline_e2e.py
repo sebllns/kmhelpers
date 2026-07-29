@@ -132,7 +132,7 @@ class PipelineE2EBase(unittest.TestCase):
         self.assertTrue(base.is_dir(), f"query output dir not found: {base}")
         merged = {}
         jsonl_files = sorted(
-            p for p in base.rglob("*.jsonl") if p.parent.name == "result"
+            p for p in base.rglob("*.jsonl") if p.parent.name == "kmindex_output"
         )
         self.assertTrue(jsonl_files, f"no result JSONL files under {base}")
         for jf in jsonl_files:
