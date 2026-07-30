@@ -58,17 +58,17 @@ logger = logging.getLogger(__name__)
     help="⚙️  Number of threads for parallel execution.",
 )
 @click.option(
-    "--single-query",
-    "-s",
-    help="⚙   Treat all sequences as single query with this identifier.",
-)
-@click.option(
     "--batch-query",
     "-b",
     is_flag=True,
     default=False,
     show_default=True,
-    help="🚩  Treat all sequences across all query files as a single batched file instead of querying each file individually.",
+    help="🚩  Concatenate all query files into one file, keeping sequences unchanged, instead of querying each file individually.",
+)
+@click.option(
+    "--single-query",
+    "-s",
+    help="⚙   Concatenate all sequences of each file into one single sequence with this identifier.",
 )
 @click.option(
     "--compressed",
@@ -81,10 +81,26 @@ logger = logging.getLogger(__name__)
 @click.option(
     "--format",
     "-f",
-    type=click.Choice(["json", "yaml", "md", "html", "csv"]),
-    default="json",
+    type=click.Choice(
+        [
+            "html",
+            "json",
+            "md",
+            "tsv",
+            "yaml",
+        ]
+    ),
+    default="tsv",
     show_default=True,
     help="⚙   Output format for results.",
+)
+@click.option(
+    "--vec",
+    "-V",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="🚩  Also output the per-k-mer presence/absence vector P along the query, not just the coverage ratio R. Adds coverage stats to the results (a coverage track in html, a coverage.tsv beside results.tsv in tsv).",
 )
 @click.option(
     "--print",
@@ -106,10 +122,10 @@ logger = logging.getLogger(__name__)
 @click.option(
     "--existing",
     "-e",
-    type=click.Choice(["skip", "fail", "delete", "new-name"]),
+    type=click.Choice(["skip", "fail", "delete"]),
     default="skip",
     show_default=True,
-    help="⚙   Action when result directory already exists: skip, fail, delete, new-name.",
+    help="⚙   Action when result directory already exists: skip, fail, delete.",
 )
 @click.option(
     "--parallel",
@@ -137,6 +153,7 @@ def query(
     batch_query,
     compressed,
     format,
+    vec,
     print_output,
     timestamp,
     existing,
@@ -200,6 +217,7 @@ def query(
             aggregate=False,
             compressed=compressed,
             output_format=format,
+            vec=vec,
             print_output=print_output,
             timestamp=timestamp,
             on_existing=existing,

@@ -414,11 +414,13 @@ class KmindexWrapper(Wrapper):
             # in a .fa file), sequences shorter than s+z, or an empty file.
             # A valid query always creates the directory, even with zero hits.
             stderr = (result or {}).get("stderr") or ""
-            skipped = [
-                line.split("] ", 1)[-1].strip()
-                for line in stderr.splitlines()
-                if "skipped:" in line
-            ]
+            skipped = list(
+                dict.fromkeys(
+                    line.split("] ", 1)[-1].strip()
+                    for line in stderr.splitlines()
+                    if "skipped:" in line
+                )
+            )
             detail = f" ({'; '.join(skipped[:3])})" if skipped else ""
             raise RuntimeError(
                 f"Query produced no results: no valid sequences in {query_file}. "
