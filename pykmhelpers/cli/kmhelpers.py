@@ -7,6 +7,7 @@ import datetime
 import logging
 import os
 import platform
+import random
 import sys
 import time
 import traceback
@@ -169,7 +170,8 @@ class SectionedGroup(click.Group):
     cls=SectionedGroup,
     context_settings={"help_option_names": ["-h", "--help"]},
     epilog="Also honors KMHELPERS_LOG_LEVEL: default log level 0-4 "
-    "(0=CRITICAL, 4=DEBUG) before -v/-q adjustments. Default: 3 (INFO).",
+    "(0=CRITICAL, 4=DEBUG) before -v/-q adjustments. Default: 3 (INFO). "
+    "KMHELPERS_SEED: seed the random generator for reproducible test data.",
 )
 @click.version_option(version=__version__, prog_name="kmhelpers")
 @click.option(
@@ -263,7 +265,16 @@ def cli(
     #    logging.log()
     # Use Log. as interface
 
-    default_level = os.getenv("KMHELPERS_LOG_LEVEL", 3)
+    raw_level = os.getenv("KMHELPERS_LOG_LEVEL", "3")
+    try:
+        default_level = int(raw_level)
+    except (TypeError, ValueError):
+        default_level = 3
+        root_logger = logging.getLogger()
+        root_logger.warning(
+            f"Invalid KMHELPERS_LOG_LEVEL '{raw_level}' (expected integer 0-4), "
+            f"using default {default_level}."
+        )
     log_level = log_levels.get(
         max(min(default_level + verbose - quiet, 4), 0), logging.ERROR
     )
@@ -329,6 +340,16 @@ def cli(
             root_logger.info(f"cd {chdir}")
         except Exception as e:
             root_logger.warning(f"Could not set working directory '{chdir}': {e}")
+
+    # Seed the global random module for reproducible test-data generation.
+    seed = os.getenv("KMHELPERS_SEED")
+    if seed is not None:
+        try:
+            seed = int(seed)
+        except ValueError:
+            pass  # non-integer values are still valid seeds
+        random.seed(seed)
+        root_logger.debug(f"Random seed set from KMHELPERS_SEED: {seed}")
 
     try:
         Bin.check_kmindex()
