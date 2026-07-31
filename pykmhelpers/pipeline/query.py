@@ -56,6 +56,14 @@ class KmindexQueryResult:
     _TRACK_TEXT_WIDTH = 120
     _TRACK_EMPTY = "#eeeeee"
 
+    # Run info fields kept in reports, in display order
+    _RUN_FIELDS: tuple[tuple[str, str], ...] = (
+        ("command", "Command"),
+        ("execution_time_s", "Execution time (s)"),
+        ("max_cpu_percent", "Max CPU (%)"),
+        ("max_memory_mb", "Max memory (MB)"),
+    )
+
     _CONVERTERS: dict[str, str] = {
         "md": "generate_markdown",
         "html": "generate_html",
@@ -69,16 +77,27 @@ class KmindexQueryResult:
         file: Optional[str] = None,
         items: Optional[dict] = None,
         vectors: Optional[dict] = None,
+        metadata: Optional[dict] = None,
     ) -> None:
         self._items = items or {}
         # {index: {query: {sample: [0/1 per k-mer]}}}, only filled by jsonl_vec input
         self._vectors: dict[str, dict[str, dict[str, list[int]]]] = vectors or {}
+        # Run info reported by the kmindex wrapper (command, timing, resources)
+        self._metadata: dict = metadata or {}
         if file:
             self.load_jsonl(file)
 
     @property
     def items(self):
         return self._items
+
+    @property
+    def metadata(self) -> dict:
+        return self._metadata
+
+    @metadata.setter
+    def metadata(self, value: Optional[dict]) -> None:
+        self._metadata = value or {}
 
     @property
     def vectors(self):
@@ -287,6 +306,14 @@ class KmindexQueryResult:
         lines.extend("\t".join(row) for row in cells)
         return "\n".join(lines)
 
+    def _metadata_rows(self) -> list[tuple[str, str]]:
+        # Only the fields actually reported, dry runs carry the command alone
+        return [
+            (label, str(self._metadata[key]))
+            for key, label in self._RUN_FIELDS
+            if self._metadata.get(key) is not None
+        ]
+
     def generate_markdown(self, threshold: float = 0.0) -> str:
         rows = self._rows(threshold)
         headers = ("Query", "Sample", "Location")
@@ -309,6 +336,13 @@ class KmindexQueryResult:
         #         f"| {index_name:<{widths[2]}} | {score:.3f} |"
         #     )
         # lines.append("")
+
+        meta = self._metadata_rows()
+        if meta:
+            lines.append("## Run\n")
+            for label, value in meta:
+                lines.append(f"- {label}: `{value}`")
+            lines.append("")
 
         query_names, sample_names, scores = self._matrix(threshold)
         corner = "Sequence \\ Sample"
@@ -417,12 +451,22 @@ class KmindexQueryResult:
             + "</tr>"
             for query in query_names
         )
+        meta_html = "".join(
+            f"        <tr><th>{label}</th><td class='run-value'>{value}</td></tr>\n"
+            for label, value in self._metadata_rows()
+        )
+        if meta_html:
+            meta_html = (
+                f"    <h2>Run</h2>\n"
+                f"    <table class='run'>\n{meta_html}    </table>\n"
+            )
         body = (
             # f"    <h2>kmindex results - Filter scores ≥ {threshold}</h2>\n"
             # f"    <table>\n"
             # f"        <tr><th>Query</th><th>Sample</th><th>Location</th><th>Score</th></tr>\n"
             # f"{row_html}\n"
             # f"    </table>\n"
+            f"{meta_html}"
             f"    <h2>Score matrix</h2>\n"
             f"    <table>\n"
             f"        <tr><th>Sequence \\ Sample</th>{matrix_header}</tr>\n"
@@ -453,6 +497,11 @@ class KmindexQueryResult:
             f"font-size: 0.85em; color: #52514e; }}\n"
             f"        .legend .scale {{ width: 200px; height: 12px; border-radius: 2px; "
             f"background: linear-gradient(to right, {', '.join(self._SCORE_RAMP)}); }}\n"
+            f"        table.run {{ width: auto; }}\n"
+            f"        table.run th {{ background-color: #ecf0f1; color: #2c3e50; "
+            f"text-align: left; position: static; }}\n"
+            f"        td.run-value {{ text-align: left; font-family: monospace; "
+            f"word-break: break-all; }}\n"
             f"        td.track-cell {{ width: 40%; padding: 6px 10px; }}\n"
             f"        .track {{ display: flex; height: 14px; border-radius: 2px; overflow: hidden; }}\n"
             f"        .track span {{ flex: 1 1 0; }}\n"
@@ -537,6 +586,8 @@ class KmindexQuery:
             raise ValueError("Either path or sequence must be provided")
         self._sequence = sequence
         self._path = path
+        # Run info (command, timing, resources) filled by execute()
+        self.info: dict = {}
         if sequence:
             if path:
                 path = Toolbox.get_canonical_path(path)
@@ -602,6 +653,7 @@ class KmindexQuery:
             method=method,
             format="jsonl_vec" if vec else "jsonl",
         )
+        self.info = output or {}
 
         # Save result to info.yaml
         info_file = os.path.join(output_dir, "info.yaml")
@@ -614,7 +666,7 @@ class KmindexQuery:
             fpath = os.path.join(result_dir, f)
             if os.path.isfile(fpath) and f.endswith(".jsonl"):
                 try:
-                    result.append(KmindexQueryResult(fpath))
+                    result.append(KmindexQueryResult(fpath, metadata=self.info))
                 except Exception as e:
                     logger.warning(f"Could not read result from {fpath}: {e}")
 
@@ -823,7 +875,7 @@ class QueryRunner:
         logger.info(f"Time: {elapsed:.2f}s")
 
         if cfg.output_format:
-            self._convert_results(result_dir)
+            self._convert_results(result_dir, kq.info)
 
         if cfg.on_result is not None:
             cfg.on_result(results)
@@ -858,12 +910,12 @@ class QueryRunner:
 
         return output_path
 
-    def _convert_results(self, result_dir: str) -> None:
+    def _convert_results(self, result_dir: str, info: Optional[dict] = None) -> None:
         fmt = self._config.output_format
         out_file = os.path.join(os.path.dirname(result_dir), f"results.{fmt}")
         logger.debug(f"Merge results to {out_file}...")
         threshold = self._config.threshold
-        merged = KmindexQueryResult()
+        merged = KmindexQueryResult(metadata=info)
         for fname in sorted(os.listdir(result_dir)):
             if not fname.endswith(".jsonl"):
                 continue
