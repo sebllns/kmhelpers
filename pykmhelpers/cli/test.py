@@ -1,6 +1,7 @@
 """Test data generation commands."""
 
 import json
+import math
 import os
 import random
 from datetime import datetime
@@ -13,6 +14,9 @@ from pykmhelpers.core.fasta import Fasta, FASTAReader
 from pykmhelpers.core.sequence import Sequence
 from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.pipeline.sample_lister import SampleLister
+
+# Guard against a stddev given in kmer counts instead of spans
+MAX_SPAN_STDDEV: float = 64.0
 
 
 @click.group()
@@ -263,20 +267,21 @@ def test_create_db(output_dir, n_samples, average_size, min_size, kmer_size, ver
     help="K-mer size reported in the header",
 )
 @click.option(
-    "--mean",
+    "--median",
     "-mu",
+    "median",
     type=float,
     default=500000000.0,
     show_default=True,
-    help="Mean of the gaussian kmer_count distribution",
+    help="Median kmer_count (center of the lognormal distribution)",
 )
 @click.option(
     "--stddev",
     "-sd",
     type=float,
-    default=100000000.0,
+    default=3.0,
     show_default=True,
-    help="Standard deviation of the gaussian kmer_count distribution",
+    help="Standard deviation in spans, i.e. in log2(kmer_count) units",
 )
 @click.option(
     "--root-path",
@@ -308,24 +313,43 @@ def test_create_db(output_dir, n_samples, average_size, min_size, kmer_size, ver
     help="Random seed for reproducible output",
 )
 def test_create_list(
-    output_file, n_samples, kmer_size, mean, stddev, root_path, prefix, data_type, seed
+    output_file,
+    n_samples,
+    kmer_size,
+    median,
+    stddev,
+    root_path,
+    prefix,
+    data_type,
+    seed,
 ):
     """Generate a fake JSONL sample list, as produced by the 'list' command.
 
     No FASTA file is created: only the manifest, with kmer_count values drawn
-    from a gaussian distribution (clamped to at least 1).
+    from a lognormal distribution: log2(kmer_count) ~ N(log2(median), stddev).
+    Spans being logarithmic, stddev is expressed in spans, so the resulting
+    span distribution is a bell curve centered on log2(median).
 
     Examples:
-      # 100 samples, k=31, kmer_count ~ N(50000, 5000)
-      kmhelpers test create-list -o fake.jsonl -n 100 -k 31 -mu 50000 -sd 5000
+      # 100 samples, k=31, median 50000 kmers, spread of 2 spans
+      kmhelpers test create-list -o fake.jsonl -n 100 -k 31 -mu 50000 -sd 2
 
       # Reproducible unassembled list
       kmhelpers test create-list -o fake.jsonl -n 20 -dt u --seed 42
     """
     if n_samples < 1:
         raise click.BadParameter(f"n-samples ({n_samples}) must be >= 1")
+    if median < 1:
+        raise click.BadParameter(f"median ({median}) must be >= 1")
     if stddev < 0:
         raise click.BadParameter(f"stddev ({stddev}) must be >= 0")
+    if stddev > MAX_SPAN_STDDEV:
+        raise click.BadParameter(
+            f"stddev ({stddev}) must be <= {MAX_SPAN_STDDEV}: it is expressed "
+            "in spans (log2 units), not in kmer counts"
+        )
+
+    mu = math.log2(median)
 
     if seed is not None:
         random.seed(seed)
@@ -349,14 +373,14 @@ def test_create_list(
                 entry = {
                     "name": name,
                     "files": [f"{name}.fasta"],
-                    "kmer_count": max(1, round(random.gauss(mean, stddev))),
+                    "kmer_count": max(1, round(2 ** random.gauss(mu, stddev))),
                 }
                 out.write(json.dumps(entry) + "\n")
     except OSError as e:
         raise click.ClickException(f"Failed to write sample list: {e}")
 
     click.echo(f"✓ Generated {n_samples} fake samples in {output_file}")
-    click.echo(f"  kmer_count ~ N({mean}, {stddev})")
+    click.echo(f"  log2(kmer_count) ~ N({mu:.2f}, {stddev}), median {round(median)}")
 
 
 def _create_single_dataset(
