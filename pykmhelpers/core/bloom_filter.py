@@ -81,9 +81,10 @@ class SpanManager:
         self._f = -math.log(self._p) / (math.log(2) ** 2)
 
     def dispatch(self, kmer_count):
-        assert (
-            kmer_count > 0
-        ), "Constraint must be respected: kmer_count > 0 (got kmer_count = {kmer_count})"
+        if kmer_count <= 0:
+            raise ValueError(
+                f"Constraint must be respected: kmer_count > 0 (got kmer_count = {kmer_count})"
+            )
         s = int(math.log(kmer_count, self._b))
         if s <= 0:
             logger.debug(
