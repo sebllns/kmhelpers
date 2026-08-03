@@ -1,4 +1,7 @@
+import logging
 import math
+
+logger = logging.getLogger(__name__)
 
 KMINDEX_HEADER_SIZE: int = 49
 BYTE_SIZE: int = 8
@@ -69,8 +72,10 @@ class BloomFilterSpecs:
 
 class SpanManager:
     def __init__(self, p=0.25, b=2.0) -> None:
-        assert p > 0, f"Constraint must be respected: p > 0 (got p = {p})"
-        assert b > 0, f"Constraint must be respected: b > 0 (got b = {b})"
+        if p <= 0:
+            raise ValueError(f"Constraint must be respected: p > 0 (got p = {p})")
+        if b <= 0:
+            raise ValueError(f"Constraint must be respected: b > 0 (got b = {b})")
         self._p = p
         self._b = b
         self._f = -math.log(self._p) / (math.log(2) ** 2)
@@ -80,7 +85,11 @@ class SpanManager:
             kmer_count > 0
         ), "Constraint must be respected: kmer_count > 0 (got kmer_count = {kmer_count})"
         s = int(math.log(kmer_count, self._b))
-        assert s > 0, f"Constraint must be respected: s > 0 (got s = {s})"
+        if s <= 0:
+            logger.debug(
+                f"Constraint must be respected: s > 0 (got s = {s}), using s = 1"
+            )
+            s = 1
         return s
 
     def get_bf_size(self, span):
