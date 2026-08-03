@@ -6,6 +6,7 @@ import os
 
 import yaml
 
+import pykmhelpers.pipeline.span_analyzer
 from pykmhelpers.core.bloom_filter import SpanManager
 from pykmhelpers.core.log import Log
 
@@ -105,30 +106,24 @@ class SpanProfiler:
 
         baseline = sorted(spans.keys())
 
-        try:
-            import pykmhelpers.pipeline.span_analyzer
+        sa = pykmhelpers.pipeline.span_analyzer.SpanAnalyzer(distribution_file)
 
-            sa = pykmhelpers.pipeline.span_analyzer.SpanAnalyzer(distribution_file)
+        n_groups = self.n_groups or len(spans)
 
-            n_groups = self.n_groups
+        sa.plot(n_groups=n_groups)
 
-            sa.plot(n_groups=n_groups)
-
-            with open(os.path.join(self.output_dir, "profile.yaml"), "w") as f:
-                yaml.dump(
-                    {
-                        "false_positive_rate": self.false_positive_rate,
-                        "span_base": self.base,
-                        "sample_count": sample_count,
-                        "biggest_sample": str(biggest_sample),
-                        "max_kmer_count": sm.max_kmer_count(baseline[-1]),
-                        "default_profile": sa.default_profile or "baseline",
-                        "profiles": sa.serialize_profiles(),
-                    },
-                    f,
-                    default_flow_style=False,
-                    sort_keys=False,
-                )
-
-        except Exception as e:
-            Log.handle_exception(logger, e, "Plot error", level=logging.ERROR)
+        with open(os.path.join(self.output_dir, "profile.yaml"), "w") as f:
+            yaml.dump(
+                {
+                    "false_positive_rate": self.false_positive_rate,
+                    "span_base": self.base,
+                    "sample_count": sample_count,
+                    "biggest_sample": str(biggest_sample),
+                    "max_kmer_count": sm.max_kmer_count(baseline[-1]),
+                    "default_profile": sa.default_profile or "baseline",
+                    "profiles": sa.serialize_profiles(),
+                },
+                f,
+                default_flow_style=False,
+                sort_keys=False,
+            )
