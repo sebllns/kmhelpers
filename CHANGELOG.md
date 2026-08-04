@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.6.3] - 2026-06-30
+## [0.6.3] - 2026-08-04
 
 ### Added
 
@@ -20,8 +20,29 @@ All notable changes to this project will be documented in this file.
 
 - **`about` Command**: Display version info and ASCII banner
 
+- **`test create-list` Subcommand**: Generate a fake JSONL sample list, as produced by `list`
+  - K-mer counts drawn from a lognormal distribution (median count, standard deviation expressed in spans)
+  - Configurable sample count, k-mer size, name prefix, data type, root path, and seed
+  - Useful to exercise `profile` and `plan` without real data
+
+- **`query --vec` / `-V`**: Export the per-k-mer presence/absence vector `P` in addition to the coverage ratio `R`
+  - Vectors are run-length encoded in the reports to keep them compact
+  - Adds coverage output: a coverage track in HTML, a `coverage.tsv` beside `results.tsv`
+
+- **Automatic build parameters from hardware limits**: Build steps derive their parameters from the available memory and CPU (`core/build_params.py`, vendored `kmparams`)
+
+- **`KMHELPERS_SEED` Environment Variable**: Seed the random generator for reproducible test data
+
+- **Examples**: `examples/pipeline_cli.sh` and `examples/pipeline_api.py` walking through the full pipeline from the CLI and from the Python API
+
+- **Dynamic commit reporting**: The build commit is resolved at runtime instead of being frozen at release time (`scripts/collect_versions.sh` replaces `scripts/freeze_commit.py`)
+
+- **GitHub issue forms**: Templates for bug reports, feature requests, and documentation issues
+
+- **JOSS paper**: Paper sources and figures under `paper/`, built only on the `paper` branch
+
 - **`scripts/setup.sh`**: Automated build script for `kmindex` and `kmtricks` from source
-  - Required for 0.6.3 — `static_repart` index type is not yet in the conda release of `kmindex`
+  - Required for 0.6.3, `static_repart` index type is not yet in the conda release of `kmindex`
 
 - **MkDocs documentation site**: Complete documentation with tutorials, command reference, and contributing guide
   - End-to-end E. coli tutorial with a metro-map pipeline diagram
@@ -38,7 +59,13 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **`list`**: Input now accepts a directory, a plain-text file, or a YAML file (auto-detected); output format changed from YAML to JSONL; plain-text format supports optional sample ID and k-mer count per line
+- **`list`**: Input now accepts a directory, a plain-text file, or a YAML file (auto-detected); output format changed from YAML to JSONL; plain-text format supports optional sample ID and k-mer count per line; continuing after an error is now opt-in with `-c` instead of automatic
+- **`query`**: Results are written as JSONL; output format defaults to `tsv` and `csv` is replaced by `tsv`; the `new-name` choice of `-e`/`--existing` is removed as it overlaps with `-T`/`--timestamp`
+- **`index_db`**: YAML I/O uses the libyaml loader and dumper when available, and sample uniqueness is checked by key lookup instead of a linear scan; large index definitions load and save much faster
+- **`SpanManager`**: Constraint assertions replaced by explicit `ValueError` so guards survive `python -O`
+- **Help messages**: Reviewed and clarified across commands
+- **Code style**: `black` formatting applied across the package
+- **Documentation**: Contributing and development guides updated
 - **`compose`**: Simplified options; `--run-id` renamed to `--session-id`; layout file replaces fingerprint
 - **`profile`**: Simplified output file naming
 - **Execution time**: Printed at the end of each command
@@ -52,6 +79,13 @@ All notable changes to this project will be documented in this file.
 - Path handling in `plan` and `apply`
 - Various bug fixes in `list`
 - Python 3.11 compatibility: replaced nested same-quote f-strings (3.12+ syntax) in `composer.py` and `index_db.py`
+- Small samples are no longer rejected: span dispatch falls back to span 1 when the k-mer count is below the base
+- Minor issues and error handling in `profile` span profiling
+- Relative path handling when scanning a directory, and `base_path` no longer forced to the current directory
+- Aggregation failure on queries (issue #16)
+- Batched queries when the sequences do not end with a newline
+- Result path used by `load_query_results`
+- `KMHELPERS_LOG_LEVEL` was not parsed as an integer
 
 ## [0.6.2] - 2026-04-23
 
