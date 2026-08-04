@@ -118,15 +118,15 @@ class TestSpanManagerGuards(unittest.TestCase):
     """Tests for constructor and argument constraints."""
 
     def test_rejects_non_positive_p(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             SpanManager(p=0)
 
     def test_rejects_non_positive_b(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             SpanManager(b=0)
 
     def test_dispatch_rejects_non_positive_count(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             SpanManager().dispatch(0)
 
 
