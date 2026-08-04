@@ -2024,15 +2024,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#063-2026-06-30" class="md-nav__link">
+  <a href="#063-2026-08-04" class="md-nav__link">
     <span class="md-ellipsis">
       
-        [0.6.3] - 2026-06-30
+        [0.6.3] - 2026-08-04
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="[0.6.3] - 2026-06-30">
+    <nav class="md-nav" aria-label="[0.6.3] - 2026-08-04">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2988,15 +2988,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#063-2026-06-30" class="md-nav__link">
+  <a href="#063-2026-08-04" class="md-nav__link">
     <span class="md-ellipsis">
       
-        [0.6.3] - 2026-06-30
+        [0.6.3] - 2026-08-04
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="[0.6.3] - 2026-06-30">
+    <nav class="md-nav" aria-label="[0.6.3] - 2026-08-04">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -3811,7 +3811,7 @@
 
 <h1 id="changelog">Changelog</h1>
 <p>All notable changes to this project will be documented in this file.</p>
-<h2 id="063-2026-06-30">[0.6.3] - 2026-06-30</h2>
+<h2 id="063-2026-08-04">[0.6.3] - 2026-08-04</h2>
 <h3 id="added">Added</h3>
 <ul>
 <li><strong><code>profile</code> Command</strong>: Analyse a JSONL sample list and produce a Bloom-filter span profile</li>
@@ -3835,27 +3835,95 @@
 <p><strong><code>about</code> Command</strong>: Display version info and ASCII banner</p>
 </li>
 <li>
+<p><strong><code>test create-list</code> Subcommand</strong>: Generate a fake JSONL sample list, as produced by <code>list</code></p>
+</li>
+<li>K-mer counts drawn from a lognormal distribution (median count, standard deviation expressed in spans)</li>
+<li>Configurable sample count, k-mer size, name prefix, data type, root path, and seed</li>
+<li>
+<p>Useful to exercise <code>profile</code> and <code>plan</code> without real data</p>
+</li>
+<li>
+<p><strong><code>query --vec</code> / <code>-V</code></strong>: Export the per-k-mer presence/absence vector <code>P</code> in addition to the coverage ratio <code>R</code></p>
+</li>
+<li>Vectors are run-length encoded in the reports to keep them compact</li>
+<li>
+<p>Adds coverage output: a coverage track in HTML, a <code>coverage.tsv</code> beside <code>results.tsv</code></p>
+</li>
+<li>
+<p><strong>Automatic build parameters from hardware limits</strong>: Build steps derive their parameters from the available memory and CPU (<code>core/build_params.py</code>, vendored <code>kmparams</code>)</p>
+</li>
+<li>
+<p><strong><code>KMHELPERS_SEED</code> Environment Variable</strong>: Seed the random generator for reproducible test data</p>
+</li>
+<li>
+<p><strong>Examples</strong>: <code>examples/pipeline_cli.sh</code> and <code>examples/pipeline_api.py</code> walking through the full pipeline from the CLI and from the Python API</p>
+</li>
+<li>
+<p><strong>Dynamic commit reporting</strong>: The build commit is resolved at runtime instead of being frozen at release time (<code>scripts/collect_versions.sh</code> replaces <code>scripts/freeze_commit.py</code>)</p>
+</li>
+<li>
+<p><strong>GitHub issue forms</strong>: Templates for bug reports, feature requests, and documentation issues</p>
+</li>
+<li>
+<p><strong>JOSS paper</strong>: Paper sources and figures under <code>paper/</code>, built only on the <code>paper</code> branch</p>
+</li>
+<li>
 <p><strong><code>scripts/setup.sh</code></strong>: Automated build script for <code>kmindex</code> and <code>kmtricks</code> from source</p>
 </li>
 <li>
-<p>Required for 0.6.3 — <code>static_repart</code> index type is not yet in the conda release of <code>kmindex</code></p>
+<p>Required for 0.6.3, <code>static_repart</code> index type is not yet in the conda release of <code>kmindex</code></p>
 </li>
 <li>
 <p><strong>MkDocs documentation site</strong>: Complete documentation with tutorials, command reference, and contributing guide</p>
 </li>
+<li>
+<p>End-to-end E. coli tutorial with a metro-map pipeline diagram</p>
+</li>
+<li>
+<p><strong><code>IndexComposer</code></strong> (<code>pipeline/composer.py</code>): Core class that composes samples into Bloom-filter spans; index fingerprint renamed to <em>layout</em></p>
+</li>
+<li>
+<p><strong><code>QueryRunner</code></strong> (<code>pipeline/query.py</code>): Query pipeline logic extracted from the CLI into a dedicated class</p>
+</li>
+<li>
+<p><strong>GitHub Actions release workflow</strong>: Builds sdist and wheel for PyPI packaging</p>
+</li>
+<li>
+<p><strong>GitHub Actions docs workflow</strong>: Versioned documentation deploy via <code>mike</code> on push to <code>docs</code></p>
+</li>
+<li>
+<p><strong>CI compile guard</strong>: <code>compileall</code> matrix (Python 3.8-3.11) to catch version-specific syntax early</p>
+</li>
 </ul>
 <h3 id="changed">Changed</h3>
 <ul>
-<li><strong><code>list</code></strong>: Input now accepts a directory, a plain-text file, or a YAML file (auto-detected); output format changed from YAML to JSONL; plain-text format supports optional sample ID and k-mer count per line</li>
+<li><strong><code>list</code></strong>: Input now accepts a directory, a plain-text file, or a YAML file (auto-detected); output format changed from YAML to JSONL; plain-text format supports optional sample ID and k-mer count per line; continuing after an error is now opt-in with <code>-c</code> instead of automatic</li>
+<li><strong><code>query</code></strong>: Results are written as JSONL; output format defaults to <code>tsv</code> and <code>csv</code> is replaced by <code>tsv</code>; the <code>new-name</code> choice of <code>-e</code>/<code>--existing</code> is removed as it overlaps with <code>-T</code>/<code>--timestamp</code></li>
+<li><strong><code>index_db</code></strong>: YAML I/O uses the libyaml loader and dumper when available, and sample uniqueness is checked by key lookup instead of a linear scan; large index definitions load and save much faster</li>
+<li><strong><code>SpanManager</code></strong>: Constraint assertions replaced by explicit <code>ValueError</code> so guards survive <code>python -O</code></li>
+<li><strong>Help messages</strong>: Reviewed and clarified across commands</li>
+<li><strong>Code style</strong>: <code>black</code> formatting applied across the package</li>
+<li><strong>Documentation</strong>: Contributing and development guides updated</li>
 <li><strong><code>compose</code></strong>: Simplified options; <code>--run-id</code> renamed to <code>--session-id</code>; layout file replaces fingerprint</li>
 <li><strong><code>profile</code></strong>: Simplified output file naming</li>
 <li><strong>Execution time</strong>: Printed at the end of each command</li>
 <li><strong>Logging</strong>: Updated log levels and output formatting across all commands</li>
+<li><strong><code>index_ops</code></strong>: Refactored for cleaner path management, clearer plan reporting, and reduced duplication</li>
+<li><strong>Terminology</strong>: Removed internal <code>span</code> wording from user-facing output for clarity</li>
+<li><strong>Version single-source</strong>: Package version now defined once in <code>pykmhelpers/_version.py</code>; <code>pyproject.toml</code> reads it dynamically</li>
 </ul>
 <h3 id="fixed">Fixed</h3>
 <ul>
 <li>Path handling in <code>plan</code> and <code>apply</code></li>
 <li>Various bug fixes in <code>list</code></li>
+<li>Python 3.11 compatibility: replaced nested same-quote f-strings (3.12+ syntax) in <code>composer.py</code> and <code>index_db.py</code></li>
+<li>Small samples are no longer rejected: span dispatch falls back to span 1 when the k-mer count is below the base</li>
+<li>Minor issues and error handling in <code>profile</code> span profiling</li>
+<li>Relative path handling when scanning a directory, and <code>base_path</code> no longer forced to the current directory</li>
+<li>Aggregation failure on queries (issue #16)</li>
+<li>Batched queries when the sequences do not end with a newline</li>
+<li>Result path used by <code>load_query_results</code></li>
+<li><code>KMHELPERS_LOG_LEVEL</code> was not parsed as an integer</li>
 </ul>
 <h2 id="062-2026-04-23">[0.6.2] - 2026-04-23</h2>
 <h3 id="added_1">Added</h3>
