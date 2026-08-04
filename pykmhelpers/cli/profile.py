@@ -96,8 +96,6 @@ def profile(list_output, output_dir, n_groups, base, false_positive_rate):
             base=base,
         ).run()
         logger.info("SUCCESS ('profile')")
-    except (ValueError, FileNotFoundError) as e:
-        raise click.ClickException(str(e))
     except Exception as e:
         Log.handle_exception(logger, e, "FAILED ('profile')")
         raise click.ClickException("FAILED ('profile')")
