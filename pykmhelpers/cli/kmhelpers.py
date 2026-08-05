@@ -32,6 +32,7 @@ from pykmhelpers.cli.plan import plan
 from pykmhelpers.cli.profile import profile
 from pykmhelpers.cli.query import query
 from pykmhelpers.cli.registry import registry
+from pykmhelpers.cli.results import results
 from pykmhelpers.cli.test import test
 from pykmhelpers.core.constants import KMHELPERS_COMMIT
 from pykmhelpers.core.log import Log
@@ -388,6 +389,8 @@ cli.add_command(registry)
 # cli.add_command(kmindex)
 pipeline.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(pipeline)
+results.section = "Utilities"  # type: ignore[assignment]
+cli.add_command(results)
 
 # Register other commands
 # experimental.section = "Other"  # type: ignore[assignment]

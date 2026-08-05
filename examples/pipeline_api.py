@@ -15,15 +15,13 @@ must reset the process-global IndexDB registry between compose/build calls (see
 reset_index_registry). Requires kmindex and ntcard on PATH.
 """
 
-import json
 import os
 import random
 import shutil
 import sys
 import tempfile
-from pathlib import Path
 
-from pykmhelpers import Fasta, QueryRunner, QueryRunnerConfig
+from pykmhelpers import Fasta, KmindexQueryResult, QueryRunner, QueryRunnerConfig
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.pipeline.composer import IndexComposer
 from pykmhelpers.pipeline.index_db import IndexDB
@@ -87,24 +85,9 @@ def query(sample_file, workdir, output_dir):
     ).run([sample_file])
 
 
-def load_query_results(results_dir):
-    """Merge every <results_dir>/<query>/result/*.jsonl into {query: {sample: frac}}."""
-    merged = {}
-    for jf in sorted(Path(results_dir).rglob("*.jsonl")):
-        if jf.parent.name != "result":
-            continue
-        for line in jf.read_text().splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            rec = json.loads(line)
-            merged.setdefault(rec["query"], {}).update(rec["samples"])
-    return merged
-
-
 def assert_query_hit(results_dir, sample, min_score=MIN_SCORE):
-    merged = load_query_results(results_dir)
-    score = max((s.get(sample, 0.0) for s in merged.values()), default=0.0)
+    merged = KmindexQueryResult.from_dirs([results_dir])
+    score = merged.max_score(sample)
     assert score >= min_score, (
         f"FAIL: {sample} scored {score} (< {min_score}) in {results_dir}"
     )

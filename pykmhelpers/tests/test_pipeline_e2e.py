@@ -35,6 +35,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from pykmhelpers.pipeline.query import KmindexQueryResult
+
 # Entry point for the CLI as a subprocess (module has a ``__main__`` guard).
 CLI_MODULE = "pykmhelpers.cli.kmhelpers"
 
@@ -122,26 +124,18 @@ class PipelineE2EBase(unittest.TestCase):
     def load_query_results(self, results_dir):
         """Merge every per-sub-index result JSONL under ``results_dir``.
 
-        Layout: ``<results_dir>/<query_stem>/result/<subindex>.jsonl`` (the
-        middle dir is named after the query file), one record per line shaped
-        ``{"index": ..., "query": query_header, "samples": {sample: fraction}}``.
-        Returns a flat dict ``{query_header: {sample: fraction}}`` merged across
-        sub-indices.
+        Layout: ``<results_dir>/<query_stem>/kmindex_output/<subindex>.jsonl``
+        (the middle dir is named after the query file). Returns a flat dict
+        ``{query_header: {sample: fraction}}`` merged across sub-indices.
         """
         base = self.tmp / results_dir
         self.assertTrue(base.is_dir(), f"query output dir not found: {base}")
+        merged_result = KmindexQueryResult.from_dirs([str(base)])
+        self.assertTrue(merged_result.items, f"no result JSONL files under {base}")
         merged = {}
-        jsonl_files = sorted(
-            p for p in base.rglob("*.jsonl") if p.parent.name == "kmindex_output"
-        )
-        self.assertTrue(jsonl_files, f"no result JSONL files under {base}")
-        for jf in jsonl_files:
-            for line in jf.read_text().splitlines():
-                line = line.strip()
-                if not line:
-                    continue
-                record = json.loads(line)
-                merged.setdefault(record["query"], {}).update(record["samples"])
+        for queries in merged_result.items.values():
+            for query, samples in queries.items():
+                merged.setdefault(query, {}).update(samples)
         return merged
 
     def assert_query_hit(self, results_dir, query_header, sample, min_score=MIN_SCORE):

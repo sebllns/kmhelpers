@@ -24,6 +24,13 @@ def write_jsonl(directory, name, records):
     return str(path)
 
 
+def write_result_file(base, rel_dir, name, records):
+    # Writes into <base>/<rel_dir>/<name>, creating rel_dir as needed.
+    directory = Path(base) / rel_dir
+    directory.mkdir(parents=True, exist_ok=True)
+    return write_jsonl(directory, name, records)
+
+
 class QueryResultBase(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
@@ -92,6 +99,90 @@ class TestLoad(QueryResultBase):
         r = KmindexQueryResult(self.vec_file()).get_index_result("idx_0")
         self.assertEqual(r.vectors["idx_0"]["q0"]["s0"], VECTOR)
         self.assertEqual(KmindexQueryResult(self.vec_file()).get_index_result("x").items, {})
+
+
+class TestFromDirs(QueryResultBase):
+    def test_single_dir_single_file(self):
+        write_result_file(
+            self.tmp,
+            "run1/q0/kmindex_output",
+            "idx.jsonl",
+            [{"index": "idx_0", "query": "q0", "samples": {"s0": 0.5}}],
+        )
+        r = KmindexQueryResult.from_dirs([str(Path(self.tmp) / "run1")])
+        self.assertEqual(r.items, {"idx_0": {"q0": {"s0": 0.5}}})
+
+    def test_merges_disjoint_samples_across_dirs(self):
+        write_result_file(
+            self.tmp,
+            "run1/q0/kmindex_output",
+            "a.jsonl",
+            [{"index": "idx_0", "query": "q0", "samples": {"s0": 0.5}}],
+        )
+        write_result_file(
+            self.tmp,
+            "run2/q0/kmindex_output",
+            "b.jsonl",
+            [{"index": "idx_0", "query": "q0", "samples": {"s1": 0.7}}],
+        )
+        r = KmindexQueryResult.from_dirs(
+            [str(Path(self.tmp) / "run1"), str(Path(self.tmp) / "run2")]
+        )
+        self.assertEqual(r.items, {"idx_0": {"q0": {"s0": 0.5, "s1": 0.7}}})
+
+    def test_later_dir_overwrites_same_sample(self):
+        write_result_file(
+            self.tmp,
+            "run1/q0/kmindex_output",
+            "a.jsonl",
+            [{"index": "idx_0", "query": "q0", "samples": {"s0": 0.2}}],
+        )
+        write_result_file(
+            self.tmp,
+            "run2/q0/kmindex_output",
+            "b.jsonl",
+            [{"index": "idx_0", "query": "q0", "samples": {"s0": 0.8}}],
+        )
+        r = KmindexQueryResult.from_dirs(
+            [str(Path(self.tmp) / "run1"), str(Path(self.tmp) / "run2")]
+        )
+        self.assertEqual(r.items["idx_0"]["q0"]["s0"], 0.8)
+
+    def test_ignores_jsonl_outside_subdir(self):
+        write_result_file(
+            self.tmp,
+            "run1/q0/other_dir",
+            "a.jsonl",
+            [{"index": "idx_0", "query": "q0", "samples": {"s0": 0.5}}],
+        )
+        r = KmindexQueryResult.from_dirs([str(Path(self.tmp) / "run1")])
+        self.assertEqual(r.items, {})
+
+    def test_empty_dir_returns_empty_result(self):
+        empty_dir = Path(self.tmp) / "empty"
+        empty_dir.mkdir()
+        r = KmindexQueryResult.from_dirs([str(empty_dir)])
+        self.assertEqual(r.items, {})
+
+    def test_malformed_jsonl_is_skipped_with_warning(self):
+        directory = Path(self.tmp) / "run1" / "q0" / "kmindex_output"
+        directory.mkdir(parents=True)
+        (directory / "bad.jsonl").write_text("not json\n")
+        with self.assertLogs("pykmhelpers.pipeline.query", level="WARNING"):
+            r = KmindexQueryResult.from_dirs([str(Path(self.tmp) / "run1")])
+        self.assertEqual(r.items, {})
+
+    def test_custom_subdir(self):
+        write_result_file(
+            self.tmp,
+            "run1/q0/custom_out",
+            "a.jsonl",
+            [{"index": "idx_0", "query": "q0", "samples": {"s0": 0.5}}],
+        )
+        r = KmindexQueryResult.from_dirs(
+            [str(Path(self.tmp) / "run1")], subdir="custom_out"
+        )
+        self.assertEqual(r.items, {"idx_0": {"q0": {"s0": 0.5}}})
 
 
 class TestVectorHelpers(unittest.TestCase):

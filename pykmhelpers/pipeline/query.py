@@ -7,7 +7,8 @@ import tempfile
 import time
 from dataclasses import dataclass, field
 from itertools import groupby
-from typing import Callable, Iterable, Optional
+from pathlib import Path
+from typing import Callable, Iterable, Iterator, Optional
 
 import yaml
 
@@ -147,6 +148,30 @@ class KmindexQueryResult:
                         ] = vector
                 if not scores:
                     del self._items[index][query]
+
+    @staticmethod
+    def iter_result_files(
+        dirs: Iterable[str], subdir: str = KMINDEX_QUERY_OUTPUT
+    ) -> Iterator[Path]:
+        # Every **/<subdir>/*.jsonl file under each dir, sorted per dir.
+        # Matches the layout kmhelpers query writes: <output_dir>/<query_stem>/<subdir>/*.jsonl
+        for d in dirs:
+            for jf in sorted(Path(d).rglob("*.jsonl")):
+                if jf.parent.name == subdir:
+                    yield jf
+
+    @classmethod
+    def from_dirs(
+        cls, dirs: Iterable[str], subdir: str = KMINDEX_QUERY_OUTPUT
+    ) -> "KmindexQueryResult":
+        # Merge every jsonl fragment found under dirs (see iter_result_files).
+        result = cls()
+        for jf in cls.iter_result_files(dirs, subdir=subdir):
+            try:
+                result.load_jsonl(str(jf))
+            except Exception as e:
+                logger.warning(f"Failed to read {jf}: {e}")
+        return result
 
     def max_score(self, sample):
         max_score = 0
