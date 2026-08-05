@@ -954,7 +954,6 @@ class KmindexRegistry:
         reorder: bool = False,
         delete_uncompressed: bool = False,
         check_results: bool = False,
-        verbose: str = "info",
     ) -> dict:
         """
         Compress an index using kmindex compress command.
@@ -997,6 +996,13 @@ class KmindexRegistry:
                 f"Index '{index_name}' not found in registry. "
                 f"Available indices: {self.list_indices()}"
             )
+
+        if check_results:
+            logger.warning(
+                "check_results is currently bugged and has been deactivated, "
+                "forcing it to False"
+            )
+            check_results = False
 
         # Import here to avoid circular imports
         from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
