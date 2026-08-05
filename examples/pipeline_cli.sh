@@ -25,7 +25,7 @@ cd "$workdir"
 echo "Working directory: $workdir"
 
 # Fail if a query result does not contain the expected sample at MIN_SCORE.
-# Merges every <results_dir>/<query>/result/*.jsonl record ({query, samples}).
+# Merges every <results_dir>/<query>/kmindex_output/*.jsonl record ({query, samples}).
 check_hit() {
     local results_dir="$1" sample="$2"
     python3 - "$results_dir" "$sample" "$MIN_SCORE" <<'PY'
@@ -34,15 +34,20 @@ from pathlib import Path
 
 results_dir, sample, min_score = sys.argv[1], sys.argv[2], float(sys.argv[3])
 merged = {}
+found = False
 for jf in sorted(Path(results_dir).rglob("*.jsonl")):
-    if jf.parent.name != "result":
+    if jf.parent.name != "kmindex_output":
         continue
+    found = True
     for line in jf.read_text().splitlines():
         line = line.strip()
         if not line:
             continue
         rec = json.loads(line)
         merged.setdefault(rec["query"], {}).update(rec["samples"])
+
+if not found:
+    sys.exit(f"FAIL: no kmindex_output/*.jsonl under {results_dir}")
 
 score = max((s.get(sample, 0.0) for s in merged.values()), default=0.0)
 if score < min_score:
