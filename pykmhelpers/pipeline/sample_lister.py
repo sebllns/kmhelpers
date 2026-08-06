@@ -3,8 +3,10 @@
 import json
 import logging
 import os
+import re
 import typing
 from datetime import datetime, timezone
+from enum import Enum
 
 import yaml
 
@@ -14,6 +16,24 @@ from pykmhelpers.core.log import Log
 from pykmhelpers.pipeline.index_db import IndexDefinitionTools
 
 logger = logging.getLogger(__name__)
+
+# Trailing paired-end marker, e.g. "_R1", "_R1_001", "_r2", "_1", ".R2"
+_PAIR_SUFFIX_RE = re.compile(r"[._-][Rr]?[12](?:_\d+)?$")
+
+
+class GroupingMode(str, Enum):
+    """How files found while scanning a directory are grouped into samples.
+
+    NONE:   each file is its own sample (default).
+    NAME:   files sharing a common sample name once a trailing paired-end
+            marker (_R1/_R2, _1/_2, ...) is stripped are grouped together.
+    FOLDER: all files in a leaf directory are grouped under one sample,
+            named after the folder.
+    """
+
+    NONE = "none"
+    NAME = "name"
+    FOLDER = "folder"
 
 
 class SampleLister:
@@ -33,7 +53,12 @@ class SampleLister:
         is_assembled:    True for assembled sequences (distinct k-mer count),
                          False for raw reads (solid k-mer count).
         do_count:        Count k-mers with ntcard when no count is already known.
-        do_grouping:     Group all files in a leaf directory under one sample ID.
+        grouping:        How files found while scanning a directory are grouped
+                         into samples: "none" (each file its own sample),
+                         "name" (group by common sample name, stripping a
+                         trailing paired-end marker), or "folder" (group all
+                         files in a leaf directory under one sample). See
+                         GroupingMode.
         autorename:      Append ``_N`` suffix to duplicate IDs instead of skipping.
         ntcard_threads:  Thread count for ntcard (default 8).
     """
@@ -46,7 +71,7 @@ class SampleLister:
         kmer_size: int = 25,
         is_assembled: bool = True,
         do_count: bool = True,
-        do_grouping: bool = True,
+        grouping: str = GroupingMode.NONE,
         do_continue: bool = False,
         autorename: bool = False,
         ntcard_threads: int = 8,
@@ -57,7 +82,7 @@ class SampleLister:
         self.kmer_size = kmer_size
         self.is_assembled = is_assembled
         self.do_count = do_count
-        self.do_grouping = do_grouping
+        self.grouping = GroupingMode(grouping)
         self.autorename = autorename
         self._do_continue = do_continue
         self.ntcard_threads = ntcard_threads
