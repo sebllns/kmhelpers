@@ -317,8 +317,10 @@ class SampleLister:
     ) -> None:
         """Walk root and call process_callback(sample_id, files, kmer_count) for each sample.
 
-        do_grouping=True  -> group files by leaf folder name
-        do_grouping=False -> treat each file as its own sample
+        grouping=folder -> group files by leaf folder name
+        grouping=name   -> group files sharing a common sample name (a trailing
+                           paired-end marker is stripped) within the same folder
+        grouping=none   -> treat each file as its own sample
         """
         for dirpath, dirnames, filenames in os.walk(root):
             dirnames.sort()
@@ -331,22 +333,32 @@ class SampleLister:
             if not data_files:
                 continue
 
-            if self.do_grouping:
+            if self.grouping == GroupingMode.FOLDER:
                 sample_id = self._tools.clean_sample_id(os.path.basename(dirpath))
                 process_callback(sample_id, data_files, 0)
+            elif self.grouping == GroupingMode.NAME:
+                groups: dict[str, list[str]] = {}
+                for filepath in data_files:
+                    base = self._file_base(filepath, extensions)
+                    sample_id = self._tools.clean_sample_id(
+                        _PAIR_SUFFIX_RE.sub("", base)
+                    )
+                    groups.setdefault(sample_id, []).append(filepath)
+                for sample_id, files in groups.items():
+                    process_callback(sample_id, files, 0)
             else:
                 for filepath in data_files:
-                    fname = os.path.basename(filepath)
-                    base = next(
-                        (
-                            fname[: -len(ext)]
-                            for ext in extensions
-                            if fname.endswith(ext)
-                        ),
-                        fname,
-                    )
+                    base = self._file_base(filepath, extensions)
                     sample_id = self._tools.clean_sample_id(base)
                     process_callback(sample_id, [filepath], 0)
+
+    @staticmethod
+    def _file_base(filepath: str, extensions: tuple[str, ...]) -> str:
+        fname = os.path.basename(filepath)
+        return next(
+            (fname[: -len(ext)] for ext in extensions if fname.endswith(ext)),
+            fname,
+        )
 
     def _process_backup(self, backup_file: str) -> tuple:
         input_dir = self.input_dir

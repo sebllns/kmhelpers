@@ -10,7 +10,7 @@ from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.log import Log
 from pykmhelpers.core.utils import Toolbox
 from pykmhelpers.pipeline.composer import IndexComposer
-from pykmhelpers.pipeline.sample_lister import SampleLister
+from pykmhelpers.pipeline.sample_lister import GroupingMode, SampleLister
 from pykmhelpers.pipeline.span_profiler import SpanProfiler
 
 logger = logging.getLogger(__name__)
@@ -90,13 +90,16 @@ logger = logging.getLogger(__name__)
     help="🚩   Skip k-mer counting with ntcard.",
 )
 @click.option(
-    "--leaf-grouping",
-    "-lg",
-    "leaf_grouping",
-    is_flag=True,
-    default=False,
+    "--grouping",
+    "-gr",
+    "grouping",
+    type=click.Choice([m.value for m in GroupingMode], case_sensitive=False),
+    default=GroupingMode.NONE.value,
     show_default=True,
-    help="🚩  Group files by leaf folder; each leaf directory becomes one sample.",
+    help="🚩  How files are grouped into samples: none (each file its own "
+    "sample), name (group by common sample name, stripping a trailing "
+    "paired-end marker like _R1/_R2), or folder (each leaf directory "
+    "becomes one sample).",
 )
 @click.option(
     "--autorename",
@@ -144,7 +147,7 @@ def design(
     kmer_size,
     data_type,
     no_count,
-    leaf_grouping,
+    grouping,
     autorename,
     ntcard_threads,
     n_groups,
@@ -226,7 +229,7 @@ def design(
                 kmer_size=kmer_size,
                 is_assembled=is_assembled,
                 do_count=not no_count,
-                do_grouping=leaf_grouping,
+                grouping=grouping,
                 autorename=autorename,
                 ntcard_threads=ntcard_threads,
             ).run()

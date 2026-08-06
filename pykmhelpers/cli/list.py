@@ -5,7 +5,7 @@ import os
 
 import click
 
-from pykmhelpers.pipeline.sample_lister import SampleLister
+from pykmhelpers.pipeline.sample_lister import GroupingMode, SampleLister
 
 logger = logging.getLogger(__name__)
 
@@ -52,13 +52,16 @@ logger = logging.getLogger(__name__)
     help="🚩  Skip k-mer counting with ntcard.",
 )
 @click.option(
-    "--leaf-grouping",
-    "-lg",
-    "leaf_grouping",
-    is_flag=True,
-    default=False,
+    "--grouping",
+    "-gr",
+    "grouping",
+    type=click.Choice([m.value for m in GroupingMode], case_sensitive=False),
+    default=GroupingMode.NONE.value,
     show_default=True,
-    help="🚩  Group files by leaf folder; each leaf directory becomes one sample.",
+    help="🚩  How files are grouped into samples: none (each file its own "
+    "sample), name (group by common sample name, stripping a trailing "
+    "paired-end marker like _R1/_R2), or folder (each leaf directory "
+    "becomes one sample).",
 )
 @click.option(
     "--continue",
@@ -92,7 +95,7 @@ def list_samples(
     kmer_size,
     data_type,
     no_count,
-    leaf_grouping,
+    grouping,
     do_continue,
     autorename,
     ntcard_threads,
@@ -106,9 +109,11 @@ def list_samples(
     INPUT can be a directory (scanned recursively for sample files) or a
     plain-text / YAML file listing samples — the type is detected automatically.
 
-    By default, each file is treated as its own sample. Use --leaf-grouping
-    to group files by leaf folder, where each leaf directory becomes one
-    sample whose ID is the folder name.
+    By default (--grouping none), each file is treated as its own sample.
+    Use --grouping name to group files sharing a common sample name (a
+    trailing paired-end marker such as _R1/_R2 is stripped), or --grouping
+    folder to group files by leaf folder, where each leaf directory becomes
+    one sample whose ID is the folder name.
 
     K-mer counting is enabled by default. Use --no-count to skip it. If the
     output file already exists and is incomplete, the run will resume from
@@ -125,7 +130,7 @@ def list_samples(
             kmer_size=kmer_size,
             is_assembled=is_assembled,
             do_count=not no_count,
-            do_grouping=leaf_grouping,
+            grouping=grouping,
             do_continue=do_continue,
             autorename=autorename,
             ntcard_threads=ntcard_threads,

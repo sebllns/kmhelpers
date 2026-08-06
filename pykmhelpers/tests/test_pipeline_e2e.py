@@ -415,10 +415,10 @@ class TestDirectoryScanBuildQueryUpdateQuery(PipelineE2EBase):
         self.assert_query_hit("results_after", q0_header, "sample_0")
 
 
-class TestListLeafGrouping(PipelineE2EBase):
-    """`list --leaf-grouping` alone: each leaf folder becomes one grouped sample."""
+class TestListGrouping(PipelineE2EBase):
+    """`list --grouping`: none (default), name, and folder modes."""
 
-    def test_scan_dir_leaf_grouping_groups_by_folder(self):
+    def test_scan_dir_grouping_folder_groups_by_folder(self):
         # Two leaf folders, two files each.
         groups = {"g0": (0, 1), "g1": (2, 3)}
         for folder, idxs in groups.items():
@@ -431,7 +431,14 @@ class TestListLeafGrouping(PipelineE2EBase):
 
         self.mkdirs("db", "list")
         self.run_cli(
-            "list", grp_data, "-o", "db/list/grp.jsonl", "-lg", "-k", KMER_SIZE
+            "list",
+            grp_data,
+            "-o",
+            "db/list/grp.jsonl",
+            "-gr",
+            "folder",
+            "-k",
+            KMER_SIZE,
         )
 
         lines = [
@@ -452,6 +459,63 @@ class TestListLeafGrouping(PipelineE2EBase):
             )
             # Counting resolved the relative paths against root_path.
             self.assertGreater(rec.get("kmer_count", 0), 0)
+
+    def test_scan_dir_grouping_none_is_default(self):
+        # Default (no -gr passed): each file is its own sample.
+        d = self.mkdirs("flat_data")
+        for i in range(2):
+            (d / f"sample_{i}.fasta").write_text(f">sample_{i}\n{self.sequences[i]}\n")
+        flat_data = self.tmp / "flat_data"
+
+        self.mkdirs("db", "list")
+        self.run_cli(
+            "list", flat_data, "-o", "db/list/flat.jsonl", "-nc", "-k", KMER_SIZE
+        )
+
+        lines = [
+            ln
+            for ln in (self.tmp / "db" / "list" / "flat.jsonl").read_text().splitlines()
+            if ln.strip()
+        ]
+        records = {r["name"]: r for r in (json.loads(ln) for ln in lines[1:])}
+        self.assertEqual(set(records), {"sample_0", "sample_1"})
+
+    def test_scan_dir_grouping_name_pairs_by_stripped_marker(self):
+        # A paired-end style pair (shared name once _R1/_R2 is stripped) plus
+        # an unrelated singleton file that must stay its own sample.
+        d = self.mkdirs("paired_data")
+        (d / "sampleA_R1.fasta").write_text(f">a1\n{self.sequences[0]}\n")
+        (d / "sampleA_R2.fasta").write_text(f">a2\n{self.sequences[1]}\n")
+        (d / "sampleB.fasta").write_text(f">b\n{self.sequences[2]}\n")
+        paired_data = self.tmp / "paired_data"
+
+        self.mkdirs("db", "list")
+        self.run_cli(
+            "list",
+            paired_data,
+            "-o",
+            "db/list/paired.jsonl",
+            "-gr",
+            "name",
+            "-nc",
+            "-k",
+            KMER_SIZE,
+        )
+
+        lines = [
+            ln
+            for ln in (self.tmp / "db" / "list" / "paired.jsonl")
+            .read_text()
+            .splitlines()
+            if ln.strip()
+        ]
+        records = {r["name"]: r for r in (json.loads(ln) for ln in lines[1:])}
+        self.assertEqual(set(records), {"sampleA", "sampleB"})
+        self.assertEqual(
+            sorted(records["sampleA"]["files"]),
+            ["sampleA_R1.fasta", "sampleA_R2.fasta"],
+        )
+        self.assertEqual(records["sampleB"]["files"], ["sampleB.fasta"])
 
 
 class TestPipelineFailuresExitNonzero(PipelineE2EBase):

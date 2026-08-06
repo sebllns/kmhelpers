@@ -140,7 +140,7 @@ def main():
             kmer_size=KMER_SIZE,
             is_assembled=True,
             do_count=True,
-            do_grouping=False,
+            grouping="none",
         ).run()
         SpanProfiler(
             input_file="db/list/idx.jsonl",
@@ -178,7 +178,7 @@ def main():
             kmer_size=KMER_SIZE,
             is_assembled=True,
             do_count=True,
-            do_grouping=False,
+            grouping="none",
         ).run()
         reset_index_registry()
         IndexComposer(
