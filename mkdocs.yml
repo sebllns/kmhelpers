@@ -99,6 +99,8 @@ nav:
       - Tutorial:
               - Main tutorial: tutorials/ecoli.md
               - Step-by-step breakdown: tutorials/ecoli_steps.md
+      - Concepts:
+              - K-mer Counting: concepts/kmer-counting.md
       - Commands:
               - Overview: commands/index.md
               - Main pipeline:
