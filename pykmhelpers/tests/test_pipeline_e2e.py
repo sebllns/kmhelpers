@@ -347,7 +347,9 @@ class TestDirectoryScanBuildQueryUpdateQuery(PipelineE2EBase):
         # 1. list by scanning a directory tree (default: one sample per file).
         scan_data = self._write_tree(("scan_data",), range(N_SAMPLES))
         self.mkdirs("db", "list")
-        self.run_cli("list", scan_data, "-o", "db/list/idx.jsonl", "-k", KMER_SIZE)
+        self.run_cli(
+            "list", scan_data, "-o", "db/list/idx.jsonl", "-gr", "none", "-k", KMER_SIZE
+        )
 
         jsonl = self.tmp / "db" / "list" / "idx.jsonl"
         lines = [ln for ln in jsonl.read_text().splitlines() if ln.strip()]
@@ -416,7 +418,7 @@ class TestDirectoryScanBuildQueryUpdateQuery(PipelineE2EBase):
 
 
 class TestListGrouping(PipelineE2EBase):
-    """`list --grouping`: none (default), name, and folder modes."""
+    """`list --grouping`: none, name, and folder modes."""
 
     def test_scan_dir_grouping_folder_groups_by_folder(self):
         # Two leaf folders, two files each.
@@ -460,8 +462,8 @@ class TestListGrouping(PipelineE2EBase):
             # Counting resolved the relative paths against root_path.
             self.assertGreater(rec.get("kmer_count", 0), 0)
 
-    def test_scan_dir_grouping_none_is_default(self):
-        # Default (no -gr passed): each file is its own sample.
+    def test_scan_dir_grouping_none(self):
+        # Explicit "-gr none": each file is its own sample.
         d = self.mkdirs("flat_data")
         for i in range(2):
             (d / f"sample_{i}.fasta").write_text(f">sample_{i}\n{self.sequences[i]}\n")
@@ -469,7 +471,15 @@ class TestListGrouping(PipelineE2EBase):
 
         self.mkdirs("db", "list")
         self.run_cli(
-            "list", flat_data, "-o", "db/list/flat.jsonl", "-nc", "-k", KMER_SIZE
+            "list",
+            flat_data,
+            "-o",
+            "db/list/flat.jsonl",
+            "-gr",
+            "none",
+            "-nc",
+            "-k",
+            KMER_SIZE,
         )
 
         lines = [
