@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
     "-gr",
     "grouping",
     type=click.Choice([m.value for m in GroupingMode], case_sensitive=False),
-    default=GroupingMode.NONE.value,
+    default=GroupingMode.NAME.value,
     show_default=True,
     help="🚩  How files are grouped into samples: none (each file its own "
     "sample), name (group by common sample name, stripping a trailing "
