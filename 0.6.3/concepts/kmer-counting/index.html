@@ -13,6 +13,10 @@
       
       
       
+        <link rel="prev" href="../../tutorials/ecoli_steps/">
+      
+      
+        <link rel="next" href="../../commands/">
       
       
         
@@ -23,7 +27,7 @@
     
     
       
-        <title>Ecoli appendice - kmhelpers documentation</title>
+        <title>K-mer Counting - kmhelpers documentation</title>
       
     
     
@@ -80,7 +84,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#going-further" class="md-skip">
+        <a href="#k-mer-counting" class="md-skip">
           Skip to content
         </a>
       
@@ -117,7 +121,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Ecoli appendice
+              K-mer Counting
             
           </span>
         </div>
@@ -278,7 +282,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../ecoli/" class="md-tabs__link">
+        <a href="../../tutorials/ecoli/" class="md-tabs__link">
           
   
   
@@ -296,11 +300,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../concepts/kmer-counting/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
           
   
   
@@ -673,7 +679,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ecoli/" class="md-nav__link">
+      <a href="../../tutorials/ecoli/" class="md-nav__link">
         
   
   
@@ -701,7 +707,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ecoli_steps/" class="md-nav__link">
+      <a href="../../tutorials/ecoli_steps/" class="md-nav__link">
         
   
   
@@ -733,8 +739,10 @@
       
   
   
+    
   
   
+  
     
     
       
@@ -744,21 +752,22 @@
     
     
       
+        
+        
+      
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
-        
-          
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
             
   
   
@@ -776,7 +785,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -791,10 +800,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../concepts/kmer-counting/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    K-mer Counting
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -810,6 +846,59 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-a-k-mer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is a k-mer
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-kmhelpers-counts-solid-k-mers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why kmhelpers counts solid k-mers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#counting-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Counting modes
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -2246,6 +2335,8 @@
   
   
   
+    
+  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
@@ -2254,60 +2345,32 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#going-further" class="md-nav__link">
+  <a href="#what-is-a-k-mer" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Going Further
+        What is a k-mer
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Going Further">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#build-an-index-with-apply" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Build an index with apply
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#query-the-index-with-advanced-options-query" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Query the index with advanced options (query)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Next steps
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#3682" class="md-nav__link">
+  <a href="#why-kmhelpers-counts-solid-k-mers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3682
+        Why kmhelpers counts solid k-mers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#counting-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Counting modes
       
     </span>
   </a>
@@ -2332,6 +2395,46 @@
   
 
 
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="./" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Concepts
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
               
               <article class="md-content__inner md-typeset">
                 
@@ -2342,56 +2445,68 @@
   
 
 
-<h2 id="going-further">Going Further</h2>
-<h3 id="build-an-index-with-apply">Build an index with <a href="../../commands/apply/"><code>apply</code></a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli3682_db/index.yaml<span class="w"> </span>-w<span class="w"> </span>coli3682_db/<span class="w"> </span>-t<span class="w"> </span><span class="m">8</span>
-</code></pre></div>
-<p><code>apply</code> runs the build. The <code>-t 8</code> flag sets the number of threads; adjust it
-to match your machine.</p>
-<p>Useful options for long runs:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Show a progress bar</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli3682_db/index.yaml<span class="w"> </span>-w<span class="w"> </span>coli3682_db/<span class="w"> </span>-t<span class="w"> </span><span class="m">8</span><span class="w"> </span>--show-progress
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Abort immediately on any error</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli3682_db/index.yaml<span class="w"> </span>-w<span class="w"> </span>coli3682_db/<span class="w"> </span>-t<span class="w"> </span><span class="m">8</span><span class="w"> </span>--fail-on-error
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Get an email when the build finishes</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli3682_db/index.yaml<span class="w"> </span>-w<span class="w"> </span>coli3682_db/<span class="w"> </span>-t<span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span>--notify<span class="w"> </span>you@example.com
-</code></pre></div>
-<p>Once complete, the index is registered in <code>coli3682_db/</code> and ready to query.</p>
-<h3 id="query-the-index-with-advanced-options-query">Query the index with advanced options (<a href="../../commands/query/"><code>query</code></a>)</h3>
-<p>Results are written in JSON by default. Use <code>-f</code> to change the format:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># CSV output</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>coli3682_build/<span class="w"> </span>-o<span class="w"> </span>results/<span class="w"> </span>-f<span class="w"> </span>csv<span class="w"> </span>query.fa
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Print results to the console as well</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>coli3682_build/<span class="w"> </span>-n<span class="w"> </span>index<span class="w"> </span>-o<span class="w"> </span>results/<span class="w"> </span>-p<span class="w"> </span>query.fa
-</code></pre></div>
-<p>To query all sequences together as a single batch (one result row instead of
-one per sequence):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>coli3682_db/<span class="w"> </span>-n<span class="w"> </span>index<span class="w"> </span>-o<span class="w"> </span>results/<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>--single-query<span class="w"> </span>my_batch<span class="w"> </span>query.fa
-</code></pre></div>
-<p>Use <code>-R</code> to filter out low-confidence hits (fraction of shared k-mers below
-the threshold):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>coli3682_db/<span class="w"> </span>-n<span class="w"> </span>index<span class="w"> </span>-o<span class="w"> </span>results/<span class="w"> </span>-R<span class="w"> </span><span class="m">0</span>.5<span class="w"> </span>query.fa
-</code></pre></div>
-<h3 id="next-steps">Next steps</h3>
+<h1 id="k-mer-counting">K-mer Counting</h1>
+<h2 id="what-is-a-k-mer">What is a k-mer</h2>
+<p>A k-mer is a substring of length <code>k</code> extracted from a sequence. K-mer counting reduces
+a sequence file to a single number: how many solid k-mers it contains.</p>
+<h2 id="why-kmhelpers-counts-solid-k-mers">Why kmhelpers counts solid k-mers</h2>
+<p>Each sample's k-mer count drives its Bloom-filter size: more k-mers need a larger
+filter to hold a target false-positive rate. <a href="../../commands/list/"><code>list</code></a> counts
+k-mers per sample into the JSONL manifest; <a href="../../commands/profile/"><code>profile</code></a> uses
+those counts to assign each sample a size class (span) and group samples into
+storage-balanced sub-indices.</p>
+<h2 id="counting-modes">Counting modes</h2>
+<p>kmhelpers wraps <a href="https://github.com/BirolLab/ntCard">ntCard</a>, a streaming cardinality
+estimator, to avoid loading full k-mer sets in memory. ntCard reports two base
+statistics per file:</p>
 <ul>
-<li><strong>Compress</strong> the index to save disk space:
-  <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kmhelpers<span class="w"> </span>compress<span class="w"> </span>-r<span class="w"> </span>coli3682_db/<span class="w"> </span>-n<span class="w"> </span>index<span class="w"> </span>--reorder
-</code></pre></div></li>
-<li>See the <a href="../../commands/">Command Reference</a> for the full option list of
-  every command used here.</li>
+<li><strong>F0</strong>, number of distinct k-mers</li>
+<li><strong>F1</strong>, total k-mer occurrences, counted with multiplicity</li>
 </ul>
-<h1 id="3682">3682</h1>
-<p>This tutorial walks through the full kmhelpers workflow on a real public dataset:
-3 682 <em>E. coli</em> assemblies downloaded from NCBI and archived on Zenodo.</p>
-<blockquote>
-<p>Jarno N. Alanko. (2022). * E. coli assemblies from NCBI* [Data set].
-Zenodo. <a href="https://doi.org/10.5281/zenodo.6577997">https://doi.org/10.5281/zenodo.6577997</a></p>
-</blockquote>
+<div class="admonition note">
+<p class="admonition-title">Solid k-mer</p>
+<p>A k-mer is <strong>solid</strong> if it occurs at least twice in the dataset; singletons
+are likely sequencing errors. Assemblies are already curated, so
+every distinct k-mer is already solid: DISTINCT and SOLID coincide.</p>
+</div>
+<p>From these, <code>KmerCounter</code> (<code>pykmhelpers/core/kmer.py</code>) derives three modes:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Value</th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DISTINCT</code></td>
+<td>F0</td>
+<td>Assembled sequences, where every k-mer is expected to appear at least once</td>
+</tr>
+<tr>
+<td><code>SOLID</code></td>
+<td>F0 - freq[1]</td>
+<td>Raw reads, where k-mers occurring exactly once (<code>freq[1]</code>) are likely sequencing errors</td>
+</tr>
+<tr>
+<td><code>TOTAL</code></td>
+<td>F1</td>
+<td>Total k-mer occurrences across all reads</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>list</code> and <code>design</code> commands expose this choice through <code>-dt, --data-type</code>:
+<code>assembled</code> maps to <code>DISTINCT</code>, <code>unassembled</code> maps to <code>SOLID</code>.</p>
+<p><strong>Assembled sequences</strong> have already been through the assembler's own error
+correction and consensus step, so nearly every k-mer they contain is genuine.
+There is no singleton noise to filter, DISTINCT and SOLID coincide, so counting
+simply uses <code>DISTINCT</code> (F0).</p>
+<p><strong>Raw reads</strong> still carry uncorrected sequencing errors. A true k-mer is expected
+to recur across the reads that overlap its genome position, while an error
+almost always produces a k-mer seen only once. <code>SOLID</code> counting (F0 - freq[1])
+drops those singletons, keeping only the recurring, solid k-mers as a cleaner
+estimate of the sample's real k-mer content.</p>
 
 
 
@@ -2424,6 +2539,44 @@ Zenodo. <a href="https://doi.org/10.5281/zenodo.6577997">https://doi.org/10.5281
       
         <footer class="md-footer">
   
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../../tutorials/ecoli_steps/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Step-by-step breakdown">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Step-by-step breakdown
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../../commands/" class="md-footer__link md-footer__link--next" aria-label="Next: Overview">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Overview
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
     
   
   <div class="md-footer-meta md-typeset">
