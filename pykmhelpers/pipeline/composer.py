@@ -221,7 +221,7 @@ class IndexComposer:
         )
         for s, index in sorted(db_instance.span_table.items()):
             logger.info(
-                f"  {spans_properties[s]["name"]}: {index.get_sample_count()} samples → {str(index.get_total_stored_size())}"
+                f"  {spans_properties[s]['name']}: {index.get_sample_count()} samples → {str(index.get_total_stored_size())}"
             )
 
         original_distribution_file = os.path.join(run_dir, f"{self.name}_orig_dist.csv")
@@ -236,7 +236,7 @@ class IndexComposer:
             for span_id, span_obj in sorted(db_instance.span_table.items()):
                 size = span_obj.get_total_stored_size()
                 f.write(
-                    f"{spans_properties[span_id]["name"]},{span_id},{span_obj.get_sample_count()},{size.byte_count/(1000**3)}\n"
+                    f"{spans_properties[span_id]['name']},{span_id},{span_obj.get_sample_count()},{size.byte_count/(1000**3)}\n"
                 )
 
         logger.debug(f"Exporting database in {self.format} format to {run_dir}...")

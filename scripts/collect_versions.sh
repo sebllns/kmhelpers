@@ -23,8 +23,22 @@ report() {
     printf '%-10s: %s\n' "$label" "${out:-unknown}"
 }
 
+# kmhelpers commit: short hash, message, and date from the installed source tree.
+# Anchored to the package location so it matches KMHELPERS_COMMIT, not the cwd.
+# Returns "unknown" for a plain pip install (no .git).
+commit_info() {
+    local dir
+    dir="$(python3 -c 'import pykmhelpers, pathlib; print(pathlib.Path(pykmhelpers.__file__).resolve().parent)' 2>/dev/null)"
+    if [ -n "$dir" ] && git -C "$dir" rev-parse --git-dir >/dev/null 2>&1; then
+        git -C "$dir" log -1 --format='%h %s (%cd)' --date=short 2>/dev/null || echo "unknown"
+    else
+        echo "unknown"
+    fi
+}
+
 echo "=== kmhelpers version report ==="
 report "kmhelpers" kmhelpers --version
+printf '%-10s: %s\n' "commit" "$(commit_info)"
 report "kmindex"   kmindex --version
 report "kmtricks"  kmtricks --version
 report "ntcard"    ntcard --version

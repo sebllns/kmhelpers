@@ -1,8 +1,33 @@
+import subprocess
+from pathlib import Path
+
 from pykmhelpers import __version__
-from pykmhelpers._commit import GIT_COMMIT
 
 KMHELPERS_VERSION = __version__
-KMHELPERS_COMMIT = GIT_COMMIT
+
+
+def get_commit() -> str:
+    """Return the short git commit of this source tree, or "UNKNOWN".
+
+    Anchored to the package directory so it reports the commit kmhelpers was
+    installed from, not whatever repo the user happens to run inside. Non-git
+    installs (e.g. pip) fall back to "UNKNOWN".
+    """
+    try:
+        return (
+            subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"],
+                cwd=Path(__file__).resolve().parent,
+                text=True,
+                stderr=subprocess.DEVNULL,
+            ).strip()
+            or "UNKNOWN"
+        )
+    except Exception:
+        return "UNKNOWN"
+
+
+KMHELPERS_COMMIT = get_commit()
 
 DATA_EXT = (
     ".fasta.gz",

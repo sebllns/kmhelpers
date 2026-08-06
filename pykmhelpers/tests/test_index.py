@@ -140,9 +140,7 @@ class TestKmtricksIndexLoading(TestKmtricksIndexBase):
         """Test loading fails when options.txt is missing."""
         # auto_load=False so load runs after we remove the file (a loaded index
         # short-circuits load_kmtricks_index without re-checking files).
-        index = KmtricksIndex(
-            str(self.temp_path), self.test_index_id, auto_load=False
-        )
+        index = KmtricksIndex(str(self.temp_path), self.test_index_id, auto_load=False)
         options_path = os.path.join(index.dir_path, "options.txt")
         os.remove(options_path)
 
@@ -151,9 +149,7 @@ class TestKmtricksIndexLoading(TestKmtricksIndexBase):
 
     def test_load_kmtricks_index_missing_fof(self):
         """Test loading fails when kmtricks.fof is missing."""
-        index = KmtricksIndex(
-            str(self.temp_path), self.test_index_id, auto_load=False
-        )
+        index = KmtricksIndex(str(self.temp_path), self.test_index_id, auto_load=False)
         fof_path = os.path.join(index.dir_path, "kmtricks.fof")
         os.remove(fof_path)
 
@@ -631,9 +627,7 @@ class TestKmtricksIndexV063Params(TestKmtricksIndexBase):
 
     def test_auto_load_disabled(self):
         """With auto_load=False properties stay unloaded until explicitly loaded."""
-        index = KmtricksIndex(
-            str(self.temp_path), self.test_index_id, auto_load=False
-        )
+        index = KmtricksIndex(str(self.temp_path), self.test_index_id, auto_load=False)
         self.assertFalse(index.is_loaded)
         self.assertEqual(index.nb_samples, 0)
 

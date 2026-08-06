@@ -155,7 +155,7 @@ class SpanAnalyzer:
         Minimises the maximum per-group storage cost (minimax).
         Returns (boundaries, group_spans, costs, sample_count).
         """
-        assert n_groups > 1, "n_groups must be > 1"
+        assert n_groups > 0, "n_groups must be > 0"
 
         spans = self.spans
         m = len(spans)
@@ -285,7 +285,7 @@ class SpanAnalyzer:
         fig, ax = plt.subplots(1, 1, figsize=(12, 7))
         fig.patch.set_facecolor("#0f1117")
 
-        if n_groups is not None and n_groups > 1:
+        if n_groups is not None and n_groups > 0:
             boundaries, group_spans, group_costs, sample_count = self.compute_groups(
                 n_groups
             )

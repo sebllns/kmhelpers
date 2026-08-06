@@ -32,8 +32,8 @@ Build k-mer indices from index definition files.
 | `-t, --threads INT` | Number of threads (default: 1) |
 | `-p, --partition-count INT` | Override number of partitions |
 | `--existing TEXT` | Action for pre-existing index folders: `fail`, `register`, `rename`, `replace`, `register_or_replace`, `register_or_rename` (default: `fail`) |
-| `--skip-compression` | Skip compression of intermediate files during build |
-| `--show-progress` | Show progress bar with elapsed and estimated remaining time |
+| `--skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
+| `--show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
 | `--fail-on-error` | Abort on first failure instead of continuing |
 | `--notify EMAIL` | Send email notification on exit (requires sendmail) |
 

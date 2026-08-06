@@ -28,8 +28,8 @@ Validate paths and preview the build plan from an index definition file, then wr
 | `--minim-size INT` | Minimizer size (default: 10) |
 | `-t, --threads INT` | Number of threads (default: 1) |
 | `-p, --partition-count INT` | Override number of partitions |
-| `-NC, --skip-compression` | Skip compression of intermediate files |
-| `-SP, --show-progress` | Show progress bar during build |
+| `-NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
+| `-SP, --show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
 | `-X, --fail-fast` | Abort on first failure instead of continuing |
 | `--notify EMAIL` | Send email notification on exit (requires sendmail) |
 | `-r, --registry DIR` | Custom base path to kmindex registry |

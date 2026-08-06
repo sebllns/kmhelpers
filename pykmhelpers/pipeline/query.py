@@ -6,6 +6,7 @@ import sys
 import tempfile
 import time
 from dataclasses import dataclass, field
+from itertools import groupby
 from typing import Callable, Iterable, Optional
 
 import yaml
@@ -17,136 +18,509 @@ from pykmhelpers.core.utils import Toolbox
 
 logger = logging.getLogger(__name__)
 
+KMINDEX_QUERY_OUTPUT = "kmindex_output"
+
+
+class _InlineList(list):
+    """List kept on a single line by the yaml dumper."""
+
+
+class _QueryDumper(yaml.SafeDumper):
+    pass
+
+
+_QueryDumper.add_representer(
+    _InlineList,
+    lambda dumper, data: dumper.represent_sequence(
+        "tag:yaml.org,2002:seq", data, flow_style=True
+    ),
+)
+
 
 class KmindexQueryResult:
+    # Sequential blue ramp, light (score 0) to dark (score 1)
+    _SCORE_RAMP = (
+        "#cde2fb",
+        "#9ec5f4",
+        "#6da7ec",
+        "#3987e5",
+        "#256abf",
+        "#184f95",
+        "#0d366b",
+    )
+    # From this step on, the background is dark enough to need light text
+    _SCORE_RAMP_INVERT = 4
+    # Coverage track: bucket count (html), character count (markdown),
+    # and color of a fully absent bucket
+    _TRACK_BUCKETS = 200
+    _TRACK_TEXT_WIDTH = 120
+    _TRACK_EMPTY = "#eeeeee"
+
     _CONVERTERS: dict[str, str] = {
-        "md":   "generate_markdown",
+        "md": "generate_markdown",
         "html": "generate_html",
-        "csv":  "generate_csv",
+        "tsv": "generate_tsv",
         "json": "generate_json",
         "yaml": "generate_yaml",
     }
 
-    def __init__(self, file: str) -> None:
-        self._result = {}
+    def __init__(
+        self,
+        file: Optional[str] = None,
+        items: Optional[dict] = None,
+        vectors: Optional[dict] = None,
+    ) -> None:
+        self._items = items or {}
+        # {index: {query: {sample: [0/1 per k-mer]}}}, only filled by jsonl_vec input
+        self._vectors: dict[str, dict[str, dict[str, list[int]]]] = vectors or {}
         if file:
-            self.load_json(file)
+            self.load_jsonl(file)
 
     @property
-    def result(self):
-        return self._result
+    def items(self):
+        return self._items
 
-    def get_index_result(self, index_id) -> dict:
-        return self.result.get(index_id, dict)
+    @property
+    def vectors(self):
+        return self._vectors
+
+    @property
+    def has_vectors(self) -> bool:
+        return bool(self._vectors)
+
+    def get_index_result(self, index_id) -> "KmindexQueryResult":
+        items = {index_id: self._items[index_id]} if index_id in self._items else {}
+        vectors = (
+            {index_id: self._vectors[index_id]} if index_id in self._vectors else {}
+        )
+        return KmindexQueryResult(items=items, vectors=vectors)
 
     def __eq__(self, other) -> bool:
+        # Scores only: a jsonl_vec result equals the plain jsonl result it derives from.
         if not isinstance(other, KmindexQueryResult):
             return False
-        return self._result == other._result
+        return self._items == other._items
 
-    def load_json(self, file):
+    @staticmethod
+    def _parse_sample(value) -> tuple[Optional[float], Optional[list[int]]]:
+        # jsonl gives a plain score, jsonl_vec gives {"P": [0/1, ...], "R": score}
+        if isinstance(value, bool):
+            return None, None
+        if isinstance(value, (int, float)):
+            return float(value), None
+        if isinstance(value, dict):
+            vector = value.get("P")
+            score = value.get("R")
+            if score is None and vector:
+                score = sum(vector) / len(vector)
+            if score is None:
+                return None, None
+            return float(score), vector
+        return None, None
+
+    def load_jsonl(self, file):
+        # Each line is a record: {"index": ..., "query": ..., "samples": {...}}
+        # Records are grouped by index into {index: {query: {sample: score}}}.
         with open(file, "r") as f:
-            self._result = json.load(f)
-
-        if not self._result:
-            raise ValueError("Empty JSON file")
-
-        self.index_name = list(self._result.keys())[0]
-        self.queries = self._result[self.index_name]
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                record = json.loads(line)
+                index = record["index"]
+                query = record["query"]
+                samples = record["samples"]
+                if not (index and query and samples):
+                    continue
+                scores = self._items.setdefault(index, {}).setdefault(query, {})
+                for sample, value in samples.items():
+                    score, vector = self._parse_sample(value)
+                    if score is None:
+                        logger.warning(
+                            f"Unsupported sample entry for {index}/{query}/{sample}, skipped"
+                        )
+                        continue
+                    scores[sample] = score
+                    if vector:
+                        self._vectors.setdefault(index, {}).setdefault(query, {})[
+                            sample
+                        ] = vector
+                if not scores:
+                    del self._items[index][query]
 
     def max_score(self, sample):
         max_score = 0
-        for _, samples in self.queries.items():
-            max_score = max(max_score, samples.get(sample, 0))
+        for queries in self._items.values():
+            for samples in queries.values():
+                max_score = max(max_score, samples.get(sample, 0))
         return max_score
 
-    def _filtered_sorted_samples(
-        self, samples: dict, threshold: float
-    ) -> list[tuple[str, float]]:
-        return sorted(
-            [(s, sc) for s, sc in samples.items() if sc >= threshold],
-            key=lambda x: x[1],
-            reverse=True,
+    def _rows(self, threshold: float) -> list[tuple[str, str, str, float]]:
+        # Flattened (query, sample, location, score) rows, sorted by query then score desc
+        rows = []
+        for index_name, queries in self._items.items():
+            for query_name, samples in queries.items():
+                for sample, score in samples.items():
+                    if score >= threshold:
+                        rows.append((query_name, sample, index_name, score))
+        rows.sort(key=lambda r: (r[0], -r[3]))
+        return rows
+
+    def _matrix(self, threshold: float) -> tuple[list[str], list[str], dict]:
+        # Sample x query score matrix, max score across indices
+        # Queries and samples sorted by name
+        scores: dict[str, dict[str, float]] = {}
+        for queries in self._items.values():
+            for query_name, samples in queries.items():
+                for sample, score in samples.items():
+                    if score >= threshold:
+                        row = scores.setdefault(sample, {})
+                        row[query_name] = max(row.get(query_name, 0), score)
+        query_names = sorted({q for row in scores.values() for q in row})
+        sample_names = sorted(scores)
+        return query_names, sample_names, scores
+
+    @staticmethod
+    def _vector_stats(vector: list[int]) -> dict:
+        # Coverage summary of a per-k-mer presence vector
+        n = len(vector)
+        covered = 0
+        longest_run = 0
+        run = 0
+        gaps = 0
+        previous = 1
+        for v in vector:
+            if v:
+                covered += 1
+                run += 1
+                longest_run = max(longest_run, run)
+            else:
+                run = 0
+                if previous:
+                    gaps += 1
+            previous = v
+        return {
+            "n_kmers": n,
+            "covered": covered,
+            "ratio": covered / n if n else 0.0,
+            "longest_run": longest_run,
+            "gaps": gaps,
+        }
+
+    @staticmethod
+    def _rle(vector: list[int]) -> list[list[int]]:
+        # Run-length encoding: [[value, count], ...]
+        return [[value, len(list(group))] for value, group in groupby(vector)]
+
+    @staticmethod
+    def _track_buckets(vector: list[int], width: int) -> list[tuple[int, int, float]]:
+        # Downsample a presence vector to (start, end, mean) buckets
+        n = len(vector)
+        buckets = min(n, width)
+        out = []
+        for i in range(buckets):
+            lo = i * n // buckets
+            hi = max((i + 1) * n // buckets, lo + 1)
+            chunk = vector[lo:hi]
+            out.append((lo, hi, sum(chunk) / len(chunk)))
+        return out
+
+    @classmethod
+    def _track_text(cls, vector: list[int]) -> str:
+        # ASCII coverage track: + all found, ~ partial, - absent
+        return "".join(
+            "+" if mean == 1 else "-" if mean == 0 else "~"
+            for _, _, mean in cls._track_buckets(vector, cls._TRACK_TEXT_WIDTH)
         )
 
+    def _vector_rows(
+        self, threshold: float
+    ) -> list[tuple[str, str, str, float, list[int]]]:
+        # (query, sample, index, score, vector) rows, sorted by query then score desc
+        rows = []
+        for index_name, queries in self._vectors.items():
+            for query_name, samples in queries.items():
+                for sample, vector in samples.items():
+                    score = (
+                        self._items.get(index_name, {}).get(query_name, {}).get(sample)
+                    )
+                    if score is not None and score >= threshold:
+                        rows.append((query_name, sample, index_name, score, vector))
+        rows.sort(key=lambda r: (r[0], -r[3]))
+        return rows
+
+    _COVERAGE_HEADERS = (
+        "query",
+        "sample",
+        "index",
+        "R",
+        "n_kmers",
+        "covered",
+        "longest_run",
+        "gaps",
+    )
+
+    @classmethod
+    def _coverage_cells(cls, rows, with_runs: bool = False) -> list[list[str]]:
+        # One string cell list per row of _vector_rows, matching _COVERAGE_HEADERS
+        cells = []
+        for query, sample, index_name, score, vector in rows:
+            stats = cls._vector_stats(vector)
+            row = [
+                query,
+                sample,
+                index_name,
+                f"{score:.3f}",
+                str(stats["n_kmers"]),
+                str(stats["covered"]),
+                str(stats["longest_run"]),
+                str(stats["gaps"]),
+            ]
+            if with_runs:
+                row.append(json.dumps(cls._rle(vector), separators=(",", ":")))
+            cells.append(row)
+        return cells
+
+    def generate_coverage_tsv(self, threshold: float = 0.0) -> str:
+        lines = ["\t".join(self._COVERAGE_HEADERS + ("runs",))]
+        cells = self._coverage_cells(self._vector_rows(threshold), with_runs=True)
+        lines.extend("\t".join(row) for row in cells)
+        return "\n".join(lines)
+
     def generate_markdown(self, threshold: float = 0.0) -> str:
+        rows = self._rows(threshold)
+        headers = ("Query", "Sample", "Location")
+        widths = [
+            max([len(h)] + [len(str(row[i])) for row in rows])
+            for i, h in enumerate(headers)
+        ]
         lines = []
-        for query_name, samples in self.queries.items():
+
+        # lines.append(f"## kmindex results - Filter scores ≥ {threshold}\n")
+        # lines.append(
+        #     "| "
+        #     + " | ".join(f"{h:<{w}}" for h, w in zip(headers, widths))
+        #     + " | Score |"
+        # )
+        # lines.append("| " + " | ".join("-" * w for w in widths) + " | ----- |")
+        # for query_name, sample, index_name, score in rows:
+        #     lines.append(
+        #         f"| {query_name:<{widths[0]}} | {sample:<{widths[1]}} "
+        #         f"| {index_name:<{widths[2]}} | {score:.3f} |"
+        #     )
+        # lines.append("")
+
+        query_names, sample_names, scores = self._matrix(threshold)
+        corner = "Sequence \\ Sample"
+        q_w = max([len(corner)] + [len(q) for q in query_names])
+        s_ws = [max(len(s), len("0.000")) for s in sample_names]
+        # lines.append("## Score matrix\n")
+        lines.append(
+            f"| {corner:<{q_w}} | "
+            + " | ".join(f"{s:<{w}}" for s, w in zip(sample_names, s_ws))
+            + " |"
+        )
+        lines.append(f"| {'-' * q_w} | " + " | ".join("-" * w for w in s_ws) + " |")
+        for query in query_names:
+            cells = [
+                f"{scores[s][query]:.3f}".ljust(w) if query in scores[s] else " " * w
+                for s, w in zip(sample_names, s_ws)
+            ]
+            lines.append(f"| {query:<{q_w}} | " + " | ".join(cells) + " |")
+        lines.append("")
+
+        rows = self._vector_rows(threshold)
+        coverage = [
+            cells + [f"`{self._track_text(row[4])}`"]
+            for cells, row in zip(self._coverage_cells(rows), rows)
+        ]
+        if coverage:
+            headers = self._COVERAGE_HEADERS + ("k-mer presence",)
+            widths = [
+                max([len(h)] + [len(row[i]) for row in coverage])
+                for i, h in enumerate(headers)
+            ]
+            lines.append("## Coverage\n")
             lines.append(
-                f"## Query {query_name} on {self.index_name} - Filter scores ≥ {threshold}\n"
+                f"Track: {self._TRACK_TEXT_WIDTH} buckets along the query, "
+                "`+` all k-mers found, `~` partial, `-` none.\n"
             )
-            sorted_samples = self._filtered_sorted_samples(samples, threshold)
-            col_w = max((len(s) for s, _ in sorted_samples), default=len("Sample"))
-            col_w = max(col_w, len("Sample"))
-            lines.append(f"| {'Sample':<{col_w}} | Score |")
-            lines.append(f"| {'-' * col_w} | ----- |")
-            for sample, score in sorted_samples:
-                lines.append(f"| {sample:<{col_w}} | {score:.3f} |")
+            lines.append(
+                "| " + " | ".join(f"{h:<{w}}" for h, w in zip(headers, widths)) + " |"
+            )
+            lines.append("| " + " | ".join("-" * w for w in widths) + " |")
+            for row in coverage:
+                lines.append(
+                    "| " + " | ".join(f"{c:<{w}}" for c, w in zip(row, widths)) + " |"
+                )
             lines.append("")
         return "\n".join(lines)
 
+    @classmethod
+    def _score_style(cls, score: float) -> str:
+        # Map a 0..1 score onto a ramp step, plus a readable text color
+        ramp = cls._SCORE_RAMP
+        step = min(int(max(score, 0.0) * len(ramp)), len(ramp) - 1)
+        fg = "#ffffff" if step >= cls._SCORE_RAMP_INVERT else "#0b0b0b"
+        return f"background-color: {ramp[step]}; color: {fg}"
+
+    @classmethod
+    def _track_html(cls, vector: list[int]) -> str:
+        # Presence vector downsampled to fixed-width buckets, colored by bucket mean
+        cells = []
+        for lo, hi, mean in cls._track_buckets(vector, cls._TRACK_BUCKETS):
+            style = (
+                f"background-color: {cls._TRACK_EMPTY}"
+                if mean == 0
+                else cls._score_style(mean)
+            )
+            cells.append(f"<span style='{style}' title='{lo}-{hi}: {mean:.2f}'></span>")
+        return f"<div class='track'>{''.join(cells)}</div>"
+
+    def _coverage_html(self, threshold: float) -> str:
+        rows = self._vector_rows(threshold)
+        if not rows:
+            return ""
+        header = "".join(f"<th>{h}</th>" for h in self._COVERAGE_HEADERS)
+        body = "\n".join(
+            "        <tr>"
+            + "".join(f"<td>{c}</td>" for c in cells)
+            + f"<td class='track-cell'>{self._track_html(row[4])}</td></tr>"
+            for cells, row in zip(self._coverage_cells(rows), rows)
+        )
+        return (
+            f"    <h2>Coverage</h2>\n"
+            f"    <table>\n"
+            f"        <tr>{header}<th>k-mer presence</th></tr>\n"
+            f"{body}\n"
+            f"    </table>"
+        )
+
     def generate_html(self, threshold: float = 0.0) -> str:
-        rows = []
-        for query_name, samples in self.queries.items():
-            sorted_samples = self._filtered_sorted_samples(samples, threshold)
-            row_html = "\n".join(
-                f"        <tr><td>{s}</td><td>{sc:.3f}</td></tr>"
-                for s, sc in sorted_samples
+        row_html = "\n".join(
+            f"        <tr><td>{q}</td><td>{s}</td><td>{loc}</td><td>{sc:.3f}</td></tr>"
+            for q, s, loc, sc in self._rows(threshold)
+        )
+        query_names, sample_names, scores = self._matrix(threshold)
+        matrix_header = "".join(f"<th>{s}</th>" for s in sample_names)
+        matrix_html = "\n".join(
+            f"        <tr><td>{query}</td>"
+            + "".join(
+                (
+                    f"<td style='{self._score_style(scores[s][query])}'>"
+                    f"{scores[s][query]:.3f}</td>"
+                    if query in scores[s]
+                    else "<td class='empty'>-</td>"
+                )
+                for s in sample_names
             )
-            rows.append(
-                f"    <details open><summary>"
-                f"<h2>Query {query_name} on {self.index_name} - Filter scores ≥ {threshold}</h2>"
-                f"</summary>\n"
-                f"    <table>\n"
-                f"        <tr><th>Sample</th><th>Score</th></tr>\n"
-                f"{row_html}\n"
-                f"    </table></details>"
-            )
-        body = "\n".join(rows)
+            + "</tr>"
+            for query in query_names
+        )
+        body = (
+            # f"    <h2>kmindex results - Filter scores ≥ {threshold}</h2>\n"
+            # f"    <table>\n"
+            # f"        <tr><th>Query</th><th>Sample</th><th>Location</th><th>Score</th></tr>\n"
+            # f"{row_html}\n"
+            # f"    </table>\n"
+            f"    <h2>Score matrix</h2>\n"
+            f"    <table>\n"
+            f"        <tr><th>Sequence \\ Sample</th>{matrix_header}</tr>\n"
+            f"{matrix_html}\n"
+            f"    </table>\n"
+            f"    <div class='legend'>\n"
+            f"        <span>0.000</span><span class='scale'></span><span>1.000</span>\n"
+            f"    </div>"
+        )
+        coverage_html = self._coverage_html(threshold)
+        if coverage_html:
+            body = f"{body}\n{coverage_html}"
         return (
             f"<!DOCTYPE html>\n<html lang='en'>\n<head>\n"
             f"    <meta charset='UTF-8'>\n"
             f"    <meta name='viewport' content='width=device-width, initial-scale=1.0'>\n"
-            f"    <title>kmindex Results - {self.index_name}</title>\n"
+            f"    <title>kmindex Results - {', '.join(self._items)}</title>\n"
             f"    <style>\n"
             f"        body {{ font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }}\n"
             f"        h2 {{ color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 8px; margin-top: 30px; }}\n"
             f"        table {{ border-collapse: collapse; width: 100%; margin: 20px 0; }}\n"
-            f"        th, td {{ padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }}\n"
+            f"        th, td {{ padding: 10px; text-align: center; border-bottom: 1px solid #ddd; }}\n"
+            f"        th:first-child, td:first-child {{ text-align: left; }}\n"
             f"        th {{ background-color: #3498db; color: white; font-weight: bold; position: sticky; top: 0; }}\n"
-            f"        tr:hover {{ background-color: #f5f5f5; }}\n"
-            f"        tr:nth-child(even) {{ background-color: #f9f9f9; }}\n"
+            f"        tr:nth-child(even) td.empty {{ background-color: #f9f9f9; }}\n"
+            f"        td.empty {{ color: #52514e; }}\n"
+            f"        .legend {{ display: flex; align-items: center; gap: 8px; "
+            f"font-size: 0.85em; color: #52514e; }}\n"
+            f"        .legend .scale {{ width: 200px; height: 12px; border-radius: 2px; "
+            f"background: linear-gradient(to right, {', '.join(self._SCORE_RAMP)}); }}\n"
+            f"        td.track-cell {{ width: 40%; padding: 6px 10px; }}\n"
+            f"        .track {{ display: flex; height: 14px; border-radius: 2px; overflow: hidden; }}\n"
+            f"        .track span {{ flex: 1 1 0; }}\n"
             f"    </style>\n</head>\n<body>\n"
             f"{body}\n"
             f"</body>\n</html>"
         )
 
-    def generate_csv(self, threshold: float = 0.0) -> str:
-        lines = ["query,sample,score"]
-        for query_name, samples in self.queries.items():
-            for sample, score in self._filtered_sorted_samples(samples, threshold):
-                lines.append(f"{query_name},{sample},{score:.3f}")
+    def generate_tsv(self, threshold: float = 0.0) -> str:
+        query_names, sample_names, scores = self._matrix(threshold)
+        lines = ["\t".join(["seq"] + sample_names)]
+        for query in query_names:
+            cells = [
+                f"{scores[s][query]:.3f}" if query in scores[s] else ""
+                for s in sample_names
+            ]
+            lines.append("\t".join([query] + cells))
         return "\n".join(lines)
 
+    def _by_sample(self, threshold: float, with_rle: bool = False) -> dict:
+        # {index: {sample: {query: entry}}}, scores below threshold dropped.
+        # entry is the bare score, or a stats dict when a presence vector is known.
+        pivoted: dict[str, dict[str, dict[str, object]]] = {}
+        for index_name, queries in self._items.items():
+            samples_map = pivoted.setdefault(index_name, {})
+            for query_name, samples in queries.items():
+                for sample, score in samples.items():
+                    if score < threshold:
+                        continue
+                    vector = (
+                        self._vectors.get(index_name, {})
+                        .get(query_name, {})
+                        .get(sample)
+                    )
+                    entry: object = score
+                    if vector:
+                        entry = {"R": score, **self._vector_stats(vector)}
+                        if with_rle:
+                            entry["P"] = self._rle(vector)
+                    samples_map.setdefault(sample, {})[query_name] = entry
+        return pivoted
+
     def generate_json(self, threshold: float = 0.0) -> str:
-        filtered = {
-            self.index_name: {
-                query_name: {s: sc for s, sc in samples.items() if sc >= threshold}
-                for query_name, samples in self.queries.items()
-            }
-        }
-        return json.dumps(filtered, indent=2)
+        return json.dumps(self._by_sample(threshold, with_rle=True), indent=2)
 
     def generate_yaml(self, threshold: float = 0.0) -> str:
-        filtered = {
-            self.index_name: {
-                query_name: {
-                    s: round(sc, 3) for s, sc in samples.items() if sc >= threshold
+        def rounded(entry):
+            if isinstance(entry, dict):
+                return {
+                    k: (
+                        _InlineList(v)
+                        if k == "P"
+                        else round(v, 3) if isinstance(v, float) else v
+                    )
+                    for k, v in entry.items()
                 }
-                for query_name, samples in self.queries.items()
+            return round(entry, 3)
+
+        filtered = {
+            index_name: {
+                sample: {q: rounded(entry) for q, entry in queries.items()}
+                for sample, queries in samples.items()
             }
+            for index_name, samples in self._by_sample(threshold, with_rle=True).items()
         }
-        return yaml.dump(filtered, default_flow_style=False, sort_keys=False)
+        return yaml.dump(
+            filtered, Dumper=_QueryDumper, default_flow_style=False, sort_keys=False
+        )
 
     def convert(self, format: str, threshold: float = 0.01) -> str:
         key = format.lower()
@@ -188,6 +562,7 @@ class KmindexQuery:
         fast: bool = True,
         is_compressed: bool = False,
         method: str = "seq",
+        vec: bool = False,
     ):
         """Run a query against the kmindex registry.
 
@@ -203,9 +578,10 @@ class KmindexQuery:
             fast (bool): Enable fast mode (disabled automatically when `is_compressed` is True).
             is_compressed (bool): Whether the index is stored in compressed form.
             method (str): Query method passed to kmindex (e.g. ``"seq"``).
+            vec (bool): Use ``jsonl_vec`` output format instead of ``jsonl``.
         """
         index_ids = index_ids if index_ids is not None else []
-        result_dir = os.path.join(output_dir, "result")
+        result_dir = os.path.join(output_dir, KMINDEX_QUERY_OUTPUT)
         os.makedirs(output_dir, exist_ok=True)
 
         query_path = os.path.join(output_dir, os.path.basename(self._path))
@@ -224,6 +600,7 @@ class KmindexQuery:
             fast=fast and not is_compressed,
             threshold=threshold,
             method=method,
+            format="jsonl_vec" if vec else "jsonl",
         )
 
         # Save result to info.yaml
@@ -235,11 +612,11 @@ class KmindexQuery:
 
         for f in os.listdir(result_dir):
             fpath = os.path.join(result_dir, f)
-            if os.path.isfile(fpath) and f.endswith(".json"):
+            if os.path.isfile(fpath) and f.endswith(".jsonl"):
                 try:
                     result.append(KmindexQueryResult(fpath))
                 except Exception as e:
-                    print(f"Could not read result from {fpath}: {e}")
+                    logger.warning(f"Could not read result from {fpath}: {e}")
 
         return result
 
@@ -259,7 +636,7 @@ class QueryRunnerConfig:
         batch: Concatenate all input files into one query before running.
         aggregate: Aggregate batch results into a single output file.
         compressed: Whether the index is stored in compressed form.
-        output_format: Output format for result conversion (``json``, ``yaml``, ``md``, ``html``, ``csv``).
+        output_format: Output format for result conversion (``json``, ``yaml``, ``md``, ``html``, ``tsv``).
         timestamp: Append a ``YYYYmmdd_HHMMSS`` suffix to each per-query output directory.
         on_existing: Behaviour when the output directory already exists
             (``skip``, ``fail``, ``delete``, ``new-name``).
@@ -288,6 +665,7 @@ class QueryRunnerConfig:
     on_existing: str = "skip"
     parallel: str = "seq"
     force: bool = False
+    vec: bool = False
     print_output: bool = False
     on_result: Optional[Callable[[list["KmindexQueryResult"]], None]] = None
 
@@ -341,19 +719,24 @@ class QueryRunner:
                 with open(batch_path, "wb") as fout:
                     for qfile in resolved:
                         with open(qfile, "rb") as fin:
-                            fout.write(fin.read())
+                            data = fin.read()
+                        fout.write(data)
+                        if not data.endswith(b"\n"):
+                            fout.write(b"\n")
                 logger.info(f"Batching {len(resolved)} file(s) into a single query...")
-                result = self._run_single(batch_path, total=1, idx=1)
-                all_results.append(result)
+                result = self._run_single_safe(batch_path, total=1, idx=1)
+                if result:
+                    all_results.append(result)
+                else:
+                    errors.append(f"{os.path.basename(batch_path)}")
             else:
                 total = len(resolved)
                 for idx, qfile in enumerate(resolved, 1):
-                    try:
-                        result = self._run_single(qfile, total=total, idx=idx)
+                    result = self._run_single_safe(qfile, total=total, idx=idx)
+                    if result:
                         all_results.append(result)
-                    except Exception as e:
-                        logger.error(f"Error querying {os.path.basename(qfile)}: {e}")
-                        errors.append(f"{os.path.basename(qfile)}: {e}")
+                    else:
+                        errors.append(f"{os.path.basename(qfile)}")
         finally:
             for tmp in temp_files:
                 try:
@@ -371,9 +754,7 @@ class QueryRunner:
     # ---
     # PRIVATE METHODS
 
-    def _resolve_files(
-        self, query_files: Iterable[str]
-    ) -> tuple[list[str], list[str]]:
+    def _resolve_files(self, query_files: Iterable[str]) -> tuple[list[str], list[str]]:
         resolved: list[str] = []
         temp_files: list[str] = []
         for qfile in query_files:
@@ -393,6 +774,14 @@ class QueryRunner:
                     raise FileNotFoundError(f"Query file not found: {qfile}")
                 resolved.append(qfile)
         return resolved, temp_files
+
+    def _run_single_safe(self, qfile: str, total: int, idx: int):
+        try:
+            result = self._run_single(qfile, total=total, idx=idx)
+            return result
+        except Exception as e:
+            logger.error(f"[{os.path.basename(qfile)}] {e}")
+            return None
 
     def _run_single(
         self, qfile: str, total: int, idx: int
@@ -425,14 +814,15 @@ class QueryRunner:
             fast=not cfg.compressed,
             threshold=cfg.threshold,
             method=cfg.parallel,
+            vec=cfg.vec,
         )
 
         elapsed = time.time() - start
-        result_dir = os.path.join(query_output, "result")
+        result_dir = os.path.join(query_output, KMINDEX_QUERY_OUTPUT)
+        logger.debug(f"kmindex output dir: {result_dir}")
         logger.info(f"Time: {elapsed:.2f}s")
-        logger.info(f"Results: {result_dir}")
 
-        if cfg.output_format != "json":
+        if cfg.output_format:
             self._convert_results(result_dir)
 
         if cfg.on_result is not None:
@@ -470,21 +860,38 @@ class QueryRunner:
 
     def _convert_results(self, result_dir: str) -> None:
         fmt = self._config.output_format
+        out_file = os.path.join(os.path.dirname(result_dir), f"results.{fmt}")
+        logger.debug(f"Merge results to {out_file}...")
         threshold = self._config.threshold
-        for fname in os.listdir(result_dir):
-            if not fname.endswith(".json"):
+        merged = KmindexQueryResult()
+        for fname in sorted(os.listdir(result_dir)):
+            if not fname.endswith(".jsonl"):
                 continue
             json_path = os.path.join(result_dir, fname)
             try:
-                result = KmindexQueryResult(json_path)
-                converted = result.convert(format=fmt, threshold=threshold)
-                if self._config.print_output:
-                    sys.stdout.write(converted)
-                else:
-                    stem = os.path.splitext(fname)[0]
-                    out_file = os.path.join(result_dir, f"{stem}.{fmt}")
-                    with open(out_file, "w") as f:
-                        f.write(converted)
-                    logger.debug(f"Converted: {out_file}")
+                merged.load_jsonl(json_path)
             except Exception as e:
-                logger.warning(f"Failed to convert {fname}: {e}")
+                logger.warning(f"Failed to read {fname}: {e}")
+        if not merged.items:
+            logger.info(f"No match")
+            return
+        converted = merged.convert(format=fmt, threshold=threshold)
+        if self._config.print_output:
+            sys.stdout.write(f"{converted}\n")
+        else:
+            with open(out_file, "w") as f:
+                f.write(converted)
+            logger.info(f"Results: {out_file}")
+
+        # Other formats embed coverage, a matrix TSV cannot hold a second table
+        if fmt == "tsv" and merged.has_vectors:
+            coverage = merged.generate_coverage_tsv(threshold)
+            if self._config.print_output:
+                sys.stdout.write(f"{coverage}\n")
+            else:
+                coverage_file = os.path.join(
+                    os.path.dirname(result_dir), "coverage.tsv"
+                )
+                with open(coverage_file, "w") as f:
+                    f.write(coverage)
+                logger.info(f"Coverage: {coverage_file}")

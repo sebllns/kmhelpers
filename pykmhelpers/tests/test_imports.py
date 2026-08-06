@@ -9,6 +9,7 @@ class TestDirectImports(unittest.TestCase):
     def test_core_utils_imports(self):
         """Test importing from pykmhelpers.core.utils"""
         from pykmhelpers.core.utils import Main, Bin, Toolbox
+
         self.assertIsNotNone(Main)
         self.assertIsNotNone(Bin)
         self.assertIsNotNone(Toolbox)
@@ -16,33 +17,39 @@ class TestDirectImports(unittest.TestCase):
     def test_core_index_imports(self):
         """Test importing from pykmhelpers.core.index"""
         from pykmhelpers.core.index import KmtricksIndex, KmindexRegistry
+
         self.assertIsNotNone(KmtricksIndex)
         self.assertIsNotNone(KmindexRegistry)
 
     def test_core_wrapper_imports(self):
         """Test importing from pykmhelpers.core.wrapper"""
         from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
+
         self.assertIsNotNone(KmindexWrapper)
 
     def test_core_bloom_filter_imports(self):
         """Test importing from pykmhelpers.core.bloom_filter"""
         from pykmhelpers.core.bloom_filter import BloomFilterSpecs, SpanManager
+
         self.assertIsNotNone(BloomFilterSpecs)
         self.assertIsNotNone(SpanManager)
 
     def test_core_kmer_imports(self):
         """Test importing from pykmhelpers.core.kmer"""
         from pykmhelpers.core.kmer import Kmer
+
         self.assertIsNotNone(Kmer)
 
     def test_operations_builder_imports(self):
         """Test importing from pykmhelpers.operations.builder"""
         from pykmhelpers.operations.builder import IndexBuilder
+
         self.assertIsNotNone(IndexBuilder)
 
     def test_pipeline_fof_imports(self):
         """Test importing from pykmhelpers.pipeline.fof"""
         from pykmhelpers.pipeline.fof import FofManager
+
         self.assertIsNotNone(FofManager)
 
     def test_pipeline_query_imports(self):
@@ -53,6 +60,7 @@ class TestDirectImports(unittest.TestCase):
             QueryRunner,
             QueryRunnerConfig,
         )
+
         self.assertIsNotNone(KmindexQuery)
         self.assertIsNotNone(KmindexQueryResult)
         self.assertIsNotNone(QueryRunner)
@@ -61,17 +69,20 @@ class TestDirectImports(unittest.TestCase):
     def test_core_sequence_imports(self):
         """Test importing from pykmhelpers.core.sequence"""
         from pykmhelpers.core.sequence import Sequence
+
         self.assertIsNotNone(Sequence)
 
     def test_core_fasta_imports(self):
         """Test importing from pykmhelpers.core.fasta"""
         from pykmhelpers.core.fasta import Fasta, FASTAReader
+
         self.assertIsNotNone(Fasta)
         self.assertIsNotNone(FASTAReader)
 
     def test_core_byte_imports(self):
         """Test importing from pykmhelpers.core.byte"""
         from pykmhelpers.core.byte import ByteCounter, SizeFormat, SizeUnit
+
         self.assertIsNotNone(ByteCounter)
         self.assertIsNotNone(SizeFormat)
         self.assertIsNotNone(SizeUnit)
@@ -83,10 +94,18 @@ class TestCorePackageImports(unittest.TestCase):
     def test_all_core_imports(self):
         """Test importing all classes from pykmhelpers.core"""
         from pykmhelpers.core import (
-            Main, Bin, Toolbox,
-            KmtricksIndex, KmindexRegistry, KmindexWrapper,
-            BloomFilterSpecs, SpanManager, Kmer, Sequence
+            Main,
+            Bin,
+            Toolbox,
+            KmtricksIndex,
+            KmindexRegistry,
+            KmindexWrapper,
+            BloomFilterSpecs,
+            SpanManager,
+            Kmer,
+            Sequence,
         )
+
         self.assertIsNotNone(Main)
         self.assertIsNotNone(Bin)
         self.assertIsNotNone(Toolbox)
@@ -106,11 +125,16 @@ class TestOperationsPackageImports(unittest.TestCase):
         """Test importing all classes from pykmhelpers.operations"""
         from pykmhelpers.operations import (
             IndexBuilder,
-            Fasta, FASTAReader,
+            Fasta,
+            FASTAReader,
             FofManager,
-            KmindexQuery, KmindexQueryResult,
-            ByteCounter, SizeFormat, SizeUnit
+            KmindexQuery,
+            KmindexQueryResult,
+            ByteCounter,
+            SizeFormat,
+            SizeUnit,
         )
+
         self.assertIsNotNone(IndexBuilder)
         self.assertIsNotNone(Fasta)
         self.assertIsNotNone(FASTAReader)
@@ -129,18 +153,29 @@ class TestTopLevelImports(unittest.TestCase):
         """Test importing all classes from pykmhelpers"""
         from pykmhelpers import (
             # Core
-            Main, Bin, Toolbox,
-            KmtricksIndex, KmindexRegistry, KmindexWrapper,
+            Main,
+            Bin,
+            Toolbox,
+            KmtricksIndex,
+            KmindexRegistry,
+            KmindexWrapper,
             BloomFilterSpecs,
             # Operations
             IndexBuilder,
-            Fasta, FASTAReader,
+            Fasta,
+            FASTAReader,
             FofManager,
-            KmindexQuery, KmindexQueryResult,
-            QueryRunner, QueryRunnerConfig,
-            Sequence, Kmer,
-            ByteCounter, SizeFormat, SizeUnit
+            KmindexQuery,
+            KmindexQueryResult,
+            QueryRunner,
+            QueryRunnerConfig,
+            Sequence,
+            Kmer,
+            ByteCounter,
+            SizeFormat,
+            SizeUnit,
         )
+
         # Verify all are accessible
         self.assertIsNotNone(Main)
         self.assertIsNotNone(Bin)
@@ -166,16 +201,18 @@ class TestTopLevelImports(unittest.TestCase):
     def test_star_import(self):
         """Test that star import works"""
         import pykmhelpers
+
         # Verify __all__ is defined
-        self.assertTrue(hasattr(pykmhelpers, '__all__'))
+        self.assertTrue(hasattr(pykmhelpers, "__all__"))
         self.assertGreater(len(pykmhelpers.__all__), 0)
 
     def test_new_v063_exports_in_all(self):
         """Test that the classes exported in 0.6.3 are listed in __all__."""
         import pykmhelpers
+
         for name in ("Kmer", "QueryRunner", "QueryRunnerConfig"):
             self.assertIn(name, pykmhelpers.__all__)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

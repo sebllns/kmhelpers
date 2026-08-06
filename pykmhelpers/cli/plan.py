@@ -97,7 +97,7 @@ def plan(
     Output: shell script in WORK_DIR/assets/, validation report in WORK_DIR/logs/
 
     📄 INPUT_FILE is the NAME.yaml written by `compose` in OUTPUT_DIR/NAME/RUN_ID/.
-    Only indices matching --name or --span are processed; 
+    Only indices matching --name or --span are processed;
     if neither is specified, all declared indices
     are previewed. The resulting build commands are written to a shell script in
     the working directory.

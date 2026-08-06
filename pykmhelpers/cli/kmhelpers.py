@@ -7,6 +7,7 @@ import datetime
 import logging
 import os
 import platform
+import random
 import sys
 import time
 import traceback
@@ -15,7 +16,6 @@ import click
 import yaml
 
 from pykmhelpers import Bin, __version__
-from pykmhelpers._commit import GIT_COMMIT
 from pykmhelpers.cli.about import about
 from pykmhelpers.cli.apply import apply
 from pykmhelpers.cli.build import build
@@ -33,6 +33,7 @@ from pykmhelpers.cli.profile import profile
 from pykmhelpers.cli.query import query
 from pykmhelpers.cli.registry import registry
 from pykmhelpers.cli.test import test
+from pykmhelpers.core.constants import KMHELPERS_COMMIT
 from pykmhelpers.core.log import Log
 from pykmhelpers.core.utils import Toolbox
 
@@ -126,7 +127,8 @@ class SectionedGroup(click.Group):
         try:
             result = super().invoke(ctx)
             elapsed = time.monotonic() - _start
-            print(f"Done in {elapsed:.2f}s")
+            if ctx.invoked_subcommand != "about":
+                print(f"Done in {elapsed:.2f}s")
             return result
         except (click.ClickException, click.exceptions.Exit, click.Abort, SystemExit):
             # Let Click exceptions and sys.exit pass through
@@ -147,7 +149,7 @@ class SectionedGroup(click.Group):
                     )
                     f.write("=" * 60 + "\n\n")
                     f.write(f"kmhelpers version: {__version__}\n")
-                    f.write(f"kmhelpers commit:  {GIT_COMMIT}\n")
+                    f.write(f"kmhelpers commit:  {KMHELPERS_COMMIT}\n")
                     f.write(f"kmhelpers path:    {sys.executable}\n")
                     f.write(
                         f"OS:                {platform.system()} {platform.release()}\n"
@@ -168,7 +170,8 @@ class SectionedGroup(click.Group):
     cls=SectionedGroup,
     context_settings={"help_option_names": ["-h", "--help"]},
     epilog="Also honors KMHELPERS_LOG_LEVEL: default log level 0-4 "
-    "(0=CRITICAL, 4=DEBUG) before -v/-q adjustments. Default: 3 (INFO).",
+    "(0=CRITICAL, 4=DEBUG) before -v/-q adjustments. Default: 3 (INFO). "
+    "KMHELPERS_SEED: seed the random generator for reproducible test data.",
 )
 @click.version_option(version=__version__, prog_name="kmhelpers")
 @click.option(
@@ -262,7 +265,16 @@ def cli(
     #    logging.log()
     # Use Log. as interface
 
-    default_level = os.getenv("KMHELPERS_LOG_LEVEL", 3)
+    raw_level = os.getenv("KMHELPERS_LOG_LEVEL", "3")
+    try:
+        default_level = int(raw_level)
+    except (TypeError, ValueError):
+        default_level = 3
+        root_logger = logging.getLogger()
+        root_logger.warning(
+            f"Invalid KMHELPERS_LOG_LEVEL '{raw_level}' (expected integer 0-4), "
+            f"using default {default_level}."
+        )
     log_level = log_levels.get(
         max(min(default_level + verbose - quiet, 4), 0), logging.ERROR
     )
@@ -328,6 +340,16 @@ def cli(
             root_logger.info(f"cd {chdir}")
         except Exception as e:
             root_logger.warning(f"Could not set working directory '{chdir}': {e}")
+
+    # Seed the global random module for reproducible test-data generation.
+    seed = os.getenv("KMHELPERS_SEED")
+    if seed is not None:
+        try:
+            seed = int(seed)
+        except ValueError:
+            pass  # non-integer values are still valid seeds
+        random.seed(seed)
+        root_logger.debug(f"Random seed set from KMHELPERS_SEED: {seed}")
 
     try:
         Bin.check_kmindex()

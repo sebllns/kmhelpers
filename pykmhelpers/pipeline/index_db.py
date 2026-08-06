@@ -10,6 +10,14 @@ import yaml
 from ..core.bloom_filter import BloomFilterSpecs
 from ..core.byte import ByteCounter, SizeFormat
 
+# libyaml-backed loader/dumper when available, several times faster on large files
+try:
+    from yaml import CSafeDumper as YamlDumper
+    from yaml import CSafeLoader as YamlLoader
+except ImportError:
+    from yaml import SafeDumper as YamlDumper
+    from yaml import SafeLoader as YamlLoader
+
 
 class SerializedDataType(str, Enum):
     INDEX_DEFINITION = "index"
@@ -172,10 +180,10 @@ class IndexDefinition(Item, auto_increment=True):
         return len(self.samples)
 
     def add_sample(self, sample_id: str, sample: Sample):
-        # Check sample name uniqueness within this Index
-        if sample.name and any(s.name == sample.name for s in self.samples.values()):
+        # Check sample uniqueness within this Index (samples are keyed by name)
+        if sample_id in self.samples:
             raise ValueError(
-                f"Sample name '{sample.name}' already exists in Index '{self.name}'"
+                f"Sample name '{sample_id}' already exists in Index '{self.name}'"
             )
         sample.parent_index = self
         self.samples[sample_id] = sample
@@ -281,7 +289,7 @@ class IndexDefinitionTools:
         assert "data" in data, "Definition file is missing required field 'data'"
         assert (
             data["type"] == SerializedDataType.INDEX_DEFINITION
-        ), f"Bad input type: {data["type"]}"
+        ), f"Bad input type: {data['type']}"
 
         data = data["data"]
         index_db = IndexDB(name=os.path.splitext(os.path.basename(filename))[0])
@@ -345,7 +353,13 @@ class IndexDefinitionTools:
             if filename.endswith(".json"):
                 json.dump(data, f, indent=2, sort_keys=sort_keys)
             elif filename.endswith((".yaml", ".yml")):
-                yaml.dump(data, f, default_flow_style=False, sort_keys=sort_keys)
+                yaml.dump(
+                    data,
+                    f,
+                    Dumper=YamlDumper,
+                    default_flow_style=False,
+                    sort_keys=sort_keys,
+                )
             else:
                 raise ValueError(f"Unsupported file format: {filename}")
 
@@ -355,7 +369,7 @@ class IndexDefinitionTools:
             if filename.endswith(".json"):
                 data = json.load(f)
             elif filename.endswith((".yaml", ".yml")):
-                data = yaml.safe_load(f)
+                data = yaml.load(f, Loader=YamlLoader)
             else:
                 raise ValueError(f"Unsupported file format: {filename}")
         return data
