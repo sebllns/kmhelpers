@@ -151,7 +151,7 @@ For questions, bug reports, or contributions, please contact:
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 
-# Acknowledgements
+## Acknowledgements
 
 The authors thank Téo Lemane for developing `kmindex` and for his
 responsiveness in addressing feature requests and issues raised during the
@@ -159,3 +159,7 @@ development of `kmhelpers`. We acknowledge the GenOuest core facility
 (<https://www.genouest.org>) for providing the computing infrastructure.
 The work was funded by the Inria Challenge "OmicFinder"
 (<https://project.inria.fr/omicfinder/>), and by the state funding managed by the French National Research Agency under the France 2030 program [ANR-22-PEAE-0005].
+
+## Disclaimers
+
+`kmhelpers` is provided "as is", without warranty (see [LICENSE](LICENSE)). Operations that build, update, or compress indices modify data in place, so it might be useful to back up important data beforehand, and if you are not sure of something, [ask here](https://github.com/sebllns/kmhelpers/discussions) before running it.
