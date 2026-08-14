@@ -915,17 +915,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#partitioning" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Partitioning
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#compression" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2408,17 +2397,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#partitioning" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Partitioning
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#compression" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2539,12 +2517,6 @@ touches the partitions its k-mers fall into.</p>
     C --&gt; C1["partition 0&lt;br/&gt;matrix_0.cmbf"]
     C --&gt; C2["partition 1&lt;br/&gt;matrix_1.cmbf"]
     C --&gt; C3["partition N&lt;br/&gt;matrix_N.cmbf"]</code></pre>
-<h2 id="partitioning">Partitioning</h2>
-<p>k-mers are grouped into <code>nb_partitions</code> buckets by the minimizer of their sequence
-context, not by sample. Each <code>matrix_N.cmbf</code> holds the slice of every sample's Bloom
-filter that falls into partition <code>N</code>. Splitting the index this way bounds memory
-during build and lets queries touch only the partitions their k-mers' minimizers
-land in.</p>
 <h2 id="compression">Compression</h2>
 <p><code>matrices/*.cmbf</code> are stored uncompressed by default. <a href="../../commands/compress/"><code>compress</code></a>
 recompresses them in place to <code>matrices/blocks*</code>, optionally reordering sample columns first for a better
