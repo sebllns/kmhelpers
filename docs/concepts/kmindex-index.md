@@ -48,14 +48,6 @@ graph TD
     C --> C3["partition N<br/>matrix_N.cmbf"]
 ```
 
-## Partitioning
-
-k-mers are grouped into `nb_partitions` buckets by the minimizer of their sequence
-context, not by sample. Each `matrix_N.cmbf` holds the slice of every sample's Bloom
-filter that falls into partition `N`. Splitting the index this way bounds memory
-during build and lets queries touch only the partitions their k-mers' minimizers
-land in.
-
 ## Compression
 
 `matrices/*.cmbf` are stored uncompressed by default. [`compress`](../commands/compress.md)
