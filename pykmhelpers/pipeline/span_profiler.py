@@ -108,7 +108,7 @@ class SpanProfiler:
 
         sa = pykmhelpers.pipeline.span_analyzer.SpanAnalyzer(distribution_file)
 
-        n_groups = self.n_groups or len(spans)
+        n_groups = min(self.n_groups, len(spans)) or len(spans)
 
         sa.plot(n_groups=n_groups)
 
