@@ -1,20 +1,20 @@
 # Quick Start
 
-Once kmhelpers is [installed](installation.md), the fastest way to get hands-on is the [E. coli tutorial](../tutorials/ecoli.md) — it builds a queryable index from real data in three commands. For syntax and options on any command, see the [Command Reference](../commands/index.md).
+Once kmhelpers is [installed](installation.md), the fastest way to get hands-on is the [E. coli tutorial](../tutorials/ecoli.md) - it builds a queryable index from real data in three commands. For syntax and options on any command, see the [Command Reference](../commands/index.md).
 
 !!! tip
-    `kh` is available as a short alias for `kmhelpers` — both commands are identical.
+    `kh` is available as a short alias for `kmhelpers` - both commands are identical.
 
 ## The Pipeline
 
 `kmhelpers` exposes the index lifecycle as a sequence of commands, illustrated in figure below:
 
 ??? note "Command breakdown"
-    - **`list`** — recursively discovers all samples in a given directory and counts each sample's distinct $k$-mers using [**`ntcard`**](https://github.com/BirolLab/ntCard) (unless the counts are provided by the user).
-    - **`profile`** — determines the best set of sub-index BF sizes given the user-defined maximum number of sub-indexes and target false-positive rate.
-    - **`compose`** — assigns each sample to its sub-index and generates the *files-of-files* describing the data origin of each sub-index.
-    - **`plan`** — validates sample files, available disk space, and memory upfront, and emits ready-to-execute pipeline scripts.
-    - **`apply`** — builds all sub-indexes by invoking `kmindex`, with span-level and name-level filtering.
+    - **`list`** - recursively discovers all samples in a given directory and counts each sample's distinct $k$-mers using [**`ntcard`**](https://github.com/BirolLab/ntCard) (unless the counts are provided by the user).
+    - **`profile`** - determines the best set of sub-index BF sizes given the user-defined maximum number of sub-indexes and target false-positive rate.
+    - **`compose`** - assigns each sample to its sub-index and generates the *files-of-files* describing the data origin of each sub-index.
+    - **`plan`** - validates sample files, available disk space, and memory upfront, and emits ready-to-execute pipeline scripts.
+    - **`apply`** - builds all sub-indexes by invoking `kmindex`, with span-level and name-level filtering.
 
     For ease of use, steps `list`, `profile`, and `compose` can be grouped under a single command named **`design`**, and steps `plan` and `apply` can be grouped under the **`build`** command.
 
@@ -77,7 +77,7 @@ Re-run `design` with the same `-o`/`-n` and a new sample source, tagging the run
     kmhelpers build coli_db/compose/coli/update/coli.yaml -o coli_build/
     ```
 
-`design` detects the existing layout file at `coli_db/compose/coli_layout.yaml`, skips the `profile` step, and composes only the new samples. `build` then merges the new indices into the existing ones automatically — no need to rebuild from scratch.
+`design` detects the existing layout file at `coli_db/compose/coli_layout.yaml`, skips the `profile` step, and composes only the new samples. `build` then merges the new indices into the existing ones automatically - no need to rebuild from scratch.
 
 ### Query sequences in an index
 
@@ -129,7 +129,7 @@ Review `coli_build/assets/` and `coli_build/logs/`, then:
 
 **Manual build**
 
-`plan` also writes `OUTPUT_DIR/assets/kmhelpers_apply.sh`, a plain bash script equivalent to running `apply`. It can be run manually for a fully hands-on build, and being plain bash, it's easy to adapt for distributed computing — e.g. split it across nodes in a cluster job scheduler:
+`plan` also writes `OUTPUT_DIR/assets/kmhelpers_apply.sh`, a plain bash script equivalent to running `apply`. It can be run manually for a fully hands-on build, and being plain bash, it's easy to adapt for distributed computing - e.g. split it across nodes in a cluster job scheduler:
 
 ??? example "Commands"
     ```bash
@@ -137,7 +137,7 @@ Review `coli_build/assets/` and `coli_build/logs/`, then:
     bash coli_build/assets/kmhelpers_apply.sh
     ```
 
-`apply` itself remains as an useful alternative, including on distributed systems — it can be launched independently on each node (e.g. one `--span` or `--name` subset per node) just like the bash script, lets you filter or rerun specific builds by name/span, and can email a notification on completion:
+`apply` itself remains as an useful alternative, including on distributed systems - it can be launched independently on each node (e.g. one `--span` or `--name` subset per node) just like the bash script, lets you filter or rerun specific builds by name/span, and can email a notification on completion:
 
 ??? example "Commands"
     ```bash
@@ -148,5 +148,6 @@ Review `coli_build/assets/` and `coli_build/logs/`, then:
 
 ## Next Steps
 
-- **[Tutorial](../tutorials/ecoli.md)** — a full hands-on walkthrough indexing 10 *E. coli* assemblies
-- **[Command Reference](../commands/index.md)** — detailed syntax and options for every command
+- **[Tutorial](../tutorials/ecoli.md)** - a full hands-on walkthrough indexing 10 *E. coli* assemblies
+- **[Command Reference](../commands/index.md)** - detailed syntax and options for every command
+- **[Choosing Groups and Partitions](../concepts/tuning-groups-partitions.md)** - tune `-g` and `-p` for query time, RAM, or storage

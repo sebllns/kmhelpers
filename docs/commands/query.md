@@ -42,7 +42,7 @@ Searches one or more kmindex indices for sequences from FASTA/FASTQ files. Direc
 
 Each value in the output is the fraction of query k-mers found in that sample. Results below `--threshold` are filtered out.
 
-**Batch mode** — use `--batch-query` to treat all sequences across all query files as a single query, or `--single-query NAME` to assign them a specific identifier.
+**Batch mode** - use `--batch-query` to treat all sequences across all query files as a single query, or `--single-query NAME` to assign them a specific identifier.
 
 **Parallelization** - `seq` parallelises across sequences (default); `sub` parallelises across sub-indices (forced when `--compressed` is set).
 

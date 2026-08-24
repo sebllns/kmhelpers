@@ -14,7 +14,7 @@ This directory contains comprehensive unit tests for the kmhelpers package.
 - `test_pipeline_e2e.py` - End-to-end CLI pipeline tests. Each command runs in a
   fresh subprocess (`python -m pykmhelpers.cli.kmhelpers`) and shells out to
   `kmindex` and `ntcard`, which **must be installed and reachable** (guaranteed
-  in CI — there are no skip guards). Two flows are covered:
+  in CI - there are no skip guards). Two flows are covered:
   `design → build → query → update → query` and the decomposed
   `list → profile → compose` / `plan → apply`, plus negative tests asserting
   that failure paths exit non-zero.

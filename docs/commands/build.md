@@ -37,13 +37,13 @@ Validate paths then build k-mer indices from index definition files in a single 
 
 `build` takes the `NAME.yaml` file written by [`compose`](compose.md) in `OUTPUT_DIR/NAME/SESSION/` and chains [`plan`](plan.md) and [`apply`](apply.md) into a single invocation. It is equivalent to running the two commands in sequence.
 
-**Step 1 — plan:** validates all sample paths upfront and writes the equivalent `kmindex` shell script to `OUTPUT_DIR/assets/` and a validation report to `OUTPUT_DIR/logs/`. Fix any path errors before the build starts rather than discovering them mid-run.
+**Step 1 - plan:** validates all sample paths upfront and writes the equivalent `kmindex` shell script to `OUTPUT_DIR/assets/` and a validation report to `OUTPUT_DIR/logs/`. Fix any path errors before the build starts rather than discovering them mid-run.
 
-**Step 2 — apply:** executes the build and registers all completed indices in `OUTPUT_DIR/index.json`.
+**Step 2 - apply:** executes the build and registers all completed indices in `OUTPUT_DIR/index.json`.
 
-**Filtering** — use `--name` or `--span` to build only a subset of the declared indices.
+**Filtering** - use `--name` or `--span` to build only a subset of the declared indices.
 
-**Notifications** — use `--notify` to receive an email when the build exits (requires `sendmail`). The notification is sent on both success and failure, including on `SIGTERM`.
+**Notifications** - use `--notify` to receive an email when the build exits (requires `sendmail`). The notification is sent on both success and failure, including on `SIGTERM`.
 
 ## Examples
 
@@ -67,6 +67,6 @@ kmhelpers build index.yaml -o build/ --notify user@example.com
 
 ## See Also
 
-- [`plan`](plan.md) — plan step only
-- [`apply`](apply.md) — apply step only
-- [`design`](design.md) — design the index before building
+- [`plan`](plan.md) - plan step only
+- [`apply`](apply.md) - apply step only
+- [`design`](design.md) - design the index before building

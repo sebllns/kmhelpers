@@ -40,20 +40,20 @@ Output files are written to `OUTPUT_DIR/NAME/SESSION/`, where `SESSION` defaults
 current timestamp if `--session-id` is not provided. Pass the `NAME.yaml` file in that
 directory as the input to `plan`, `build` or `apply` to process the index.
 
-**Building a new index** — provide `--profiles-file` (produced by [`profile`](profile.md)).
+**Building a new index** - provide `--profiles-file` (produced by [`profile`](profile.md)).
 A layout file is written to `OUTPUT_DIR/NAME_layout.yaml` for future updates.
 
-**Updating an existing index** — omit `--profiles-file`. The layout file at
+**Updating an existing index** - omit `--profiles-file`. The layout file at
 `OUTPUT_DIR/NAME_layout.yaml` is detected and loaded automatically.
 
 If `--profile` is not specified, the `default_profile` field in the profiles file is used.
 
-**Partitioning** — each Bloom filter is split into N partition files. The partition count is
+**Partitioning** - each Bloom filter is split into N partition files. The partition count is
 determined automatically by default, or set explicitly with `--partition-count`. Use
 `--partition-min-size` to enforce a minimum file size per partition, or
 `--partition-count-limit` to cap the auto-computed count.
 
-**Splitting** — when the accumulated size of samples assigned to a span exceeds `--split-size`,
+**Splitting** - when the accumulated size of samples assigned to a span exceeds `--split-size`,
 they are distributed across multiple sub-indices rather than one. This is useful to keep
 individual index files manageable for large datasets.
 
@@ -85,6 +85,7 @@ kmhelpers compose samples.jsonl -o ./db -n my_index
 
 ## See Also
 
-- [`list`](list.md) — produce the JSONL sample list
-- [`profile`](profile.md) — produce the profiles YAML file
-- [`apply`](apply.md) — build indices from the generated definition files
+- [`list`](list.md) - produce the JSONL sample list
+- [`profile`](profile.md) - produce the profiles YAML file
+- [`apply`](apply.md) - build indices from the generated definition files
+- [Choosing Groups and Partitions](../concepts/tuning-groups-partitions.md) - how `-p` affects query time, RAM, and storage

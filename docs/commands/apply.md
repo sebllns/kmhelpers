@@ -41,11 +41,11 @@ Build k-mer indices from index definition files.
 
 `apply` reads the `NAME.yaml` file written by [`compose`](compose.md) in `OUTPUT_DIR/NAME/SESSION/` and builds the declared indices, registering them on completion.
 
-**Parent indices** — built automatically when required.
+**Parent indices** - built automatically when required.
 
-**Filtering** — use `--name` or `--span` to build only a subset of the declared indices.
+**Filtering** - use `--name` or `--span` to build only a subset of the declared indices.
 
-**Config file** — options can be loaded from a YAML file with `-c`; command-line flags take precedence.
+**Config file** - options can be loaded from a YAML file with `-c`; command-line flags take precedence.
 
 ## Examples
 
@@ -89,6 +89,6 @@ kmhelpers apply index.yaml -c config.yaml
 
 ## See Also
 
-- [`plan`](plan.md) — preview the build plan with path validation
-- [`compose`](compose.md) — generate index definition files
-- [`pipeline`](pipeline.md) — run multiple steps in sequence
+- [`plan`](plan.md) - preview the build plan with path validation
+- [`compose`](compose.md) - generate index definition files
+- [`pipeline`](pipeline.md) - run multiple steps in sequence

@@ -36,7 +36,9 @@ the metadata (such as hashing parameters) needed to query it.
     ```
 
 k-mers are split across partitions by minimizer, not by sample, so a query only
-touches the partitions its k-mers fall into.
+touches the partitions its k-mers fall into. See
+[Choosing Groups and Partitions](tuning-groups-partitions.md) for how the partition
+count (and the related group count) affect query time, RAM, and storage.
 
 ```mermaid
 graph TD

@@ -8,14 +8,14 @@ A Python toolkit for managing, compressing, and querying [kmindex](https://githu
 
 ## What is kmhelpers?
 
-**kmhelpers** is a command-line toolkit built on top of [kmindex](https://github.com/tlemane/kmindex) that automates the full k-mer index lifecycle: discovering and profiling samples, composing and building indices, and querying them against FASTA/FASTQ sequences — with compression and registry management *(under development)* on the way.
+**kmhelpers** is a command-line toolkit built on top of [kmindex](https://github.com/tlemane/kmindex) that automates the full k-mer index lifecycle: discovering and profiling samples, composing and building indices, and querying them against FASTA/FASTQ sequences - with compression and registry management *(under development)* on the way.
 
 This typical lifecycle breaks down into four steps, shown below:
 
-1. **DESIGN** — discover samples and generate index definitions.
-2. **BUILD** — build k-mer indices from those definitions.
-3. **QUERY** — search the indices with FASTA/FASTQ sequences.
-4. **UPDATE** — add new samples to an existing index without rebuilding from scratch.
+1. **DESIGN** - discover samples and generate index definitions.
+2. **BUILD** - build k-mer indices from those definitions.
+3. **QUERY** - search the indices with FASTA/FASTQ sequences.
+4. **UPDATE** - add new samples to an existing index without rebuilding from scratch.
 
 
 ![Pipeline diagram](diagrams/fig_pipeline_mini_animation.svg)
@@ -103,7 +103,7 @@ This typical lifecycle breaks down into four steps, shown below:
 
 ## Performance
 
-Most `kmhelpers` commands (`design`, `plan`, `query`, `compose`, ...) complete in a few seconds, since they mainly manipulate metadata and small files. The exception is **`build`** (and the underlying `apply` build/merge steps): actual k-mer counting and Bloom-filter construction are CPU- and I/O-bound, so runtime scales with sample count and data size — expect build/merge steps to take anywhere from seconds to hours depending on dataset size, `--threads`, and storage speed.
+Most `kmhelpers` commands (`design`, `plan`, `query`, `compose`, ...) complete in a few seconds, since they mainly manipulate metadata and small files. The exception is **`build`** (and the underlying `apply` build/merge steps): actual k-mer counting and Bloom-filter construction are CPU- and I/O-bound, so runtime scales with sample count and data size - expect build/merge steps to take anywhere from seconds to hours depending on dataset size, `--threads`, and storage speed.
 
 ## Quick links
 
@@ -127,4 +127,4 @@ See [Installation](getting-started/installation.md) for build instructions.
 
 ## License
 
-GPL-3.0-only — Copyright © 2026 Sébastien Bellenous, Genscale, INRIA
+GPL-3.0-only - Copyright © 2026 Sébastien Bellenous, Genscale, INRIA

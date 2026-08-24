@@ -102,6 +102,7 @@ nav:
       - Concepts:
               - K-mer Counting: concepts/kmer-counting.md
               - kmindex Index: concepts/kmindex-index.md
+              - Choosing Groups and Partitions: concepts/tuning-groups-partitions.md
       - Commands:
               - Overview: commands/index.md
               - Main pipeline:

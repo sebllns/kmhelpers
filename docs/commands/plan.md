@@ -42,9 +42,9 @@ Validate paths and preview the build plan from an index definition file, then wr
 
 `plan` takes the `NAME.yaml` file written by [`compose`](compose.md) in `OUTPUT_DIR/NAME/SESSION/`. It validates all sample paths upfront and previews the `kmindex` commands that would be executed by [`apply`](apply.md), without running them. It writes the equivalent shell script to `OUTPUT_DIR/assets/` and a validation report to `OUTPUT_DIR/logs/`.
 
-**Offline mode** — use `--offline` to skip local path validation when generating scripts destined for another machine.
+**Offline mode** - use `--offline` to skip local path validation when generating scripts destined for another machine.
 
-**Filtering** — use `--name` or `--span` to preview only a subset of the declared indices.
+**Filtering** - use `--name` or `--span` to preview only a subset of the declared indices.
 
 ## Examples
 
@@ -67,6 +67,6 @@ kmhelpers plan index.yaml -o /output --fail-fast
 
 ## See Also
 
-- [`build`](build.md) — run plan then apply in a single command
-- [`apply`](apply.md) — actually build the indices
-- [`compose`](compose.md) — generate index definition files
+- [`build`](build.md) - run plan then apply in a single command
+- [`apply`](apply.md) - actually build the indices
+- [`compose`](compose.md) - generate index definition files
