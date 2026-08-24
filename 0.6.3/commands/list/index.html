@@ -748,6 +748,8 @@
       
         
       
+        
+      
     
     
     
@@ -838,6 +840,34 @@
     
   
     kmindex Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/tuning-groups-partitions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choosing Groups and Partitions
   
 
     
@@ -2688,7 +2718,7 @@
 <tbody>
 <tr>
 <td><code>INPUT</code></td>
-<td>Directory to scan, or a plain-text / YAML sample list (required) — see <a href="#input-formats">Input formats</a></td>
+<td>Directory to scan, or a plain-text / YAML sample list (required) - see <a href="#input-formats">Input formats</a></td>
 </tr>
 <tr>
 <td><code>-o, --output FILE</code></td>
@@ -2700,7 +2730,7 @@
 </tr>
 <tr>
 <td><code>-dt, --data-type TEXT</code></td>
-<td>Data type: <code>a</code>/<code>assembled</code> (default) or <code>u</code>/<code>unassembled</code> (raw reads) — see <a href="#description">K-mer counting</a></td>
+<td>Data type: <code>a</code>/<code>assembled</code> (default) or <code>u</code>/<code>unassembled</code> (raw reads) - see <a href="#description">K-mer counting</a></td>
 </tr>
 </tbody>
 </table>
@@ -2750,9 +2780,9 @@
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>/data/sample_C.fa
 </code></pre></div>
 <ul>
-<li><code>sample_id</code> is optional — if omitted, it is derived from the first filename (without extension)</li>
+<li><code>sample_id</code> is optional - if omitted, it is derived from the first filename (without extension)</li>
 <li>Multiple files for one sample are comma-separated</li>
-<li><code>kmer_count</code> is optional — if omitted and <code>--no-count</code> is not set, it will be computed</li>
+<li><code>kmer_count</code> is optional - if omitted and <code>--no-count</code> is not set, it will be computed</li>
 </ul>
 <h3 id="yaml-yaml-yml">YAML (<code>.yaml</code> / <code>.yml</code>)</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">k</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">25</span>
@@ -2768,20 +2798,20 @@
 <a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/sample_B.fa</span>
 </code></pre></div>
 <h2 id="description">Description</h2>
-<p><code>INPUT</code> can be a directory (scanned recursively for sequence files) or a sample list file (plain text or YAML) — the type is detected automatically. K-mer counts are parsed or computed for each sample and written to the JSONL manifest.</p>
-<p><strong>Grouping</strong> — by default, each file is treated as its own sample. Use <code>--leaf-grouping</code> to group files by leaf folder, where each leaf directory becomes one sample whose ID is the folder name.</p>
-<p><strong>K-mer counting</strong> — enabled by default. Counting is skipped for any sample that already has a <code>kmer_count</code> value. Use <code>--no-count</code> to skip counting entirely. The <code>--data-type</code> option controls what is counted:</p>
+<p><code>INPUT</code> can be a directory (scanned recursively for sequence files) or a sample list file (plain text or YAML) - the type is detected automatically. K-mer counts are parsed or computed for each sample and written to the JSONL manifest.</p>
+<p><strong>Grouping</strong> - by default, each file is treated as its own sample. Use <code>--leaf-grouping</code> to group files by leaf folder, where each leaf directory becomes one sample whose ID is the folder name.</p>
+<p><strong>K-mer counting</strong> - enabled by default. Counting is skipped for any sample that already has a <code>kmer_count</code> value. Use <code>--no-count</code> to skip counting entirely. The <code>--data-type</code> option controls what is counted:</p>
 <ul>
-<li><code>assembled</code> (default) — counts all distinct k-mers; suited for assemblies where every k-mer is expected at least once</li>
-<li><code>unassembled</code> — counts only k-mers appearing at least twice, filtering out likely sequencing errors; suited for raw reads</li>
+<li><code>assembled</code> (default) - counts all distinct k-mers; suited for assemblies where every k-mer is expected at least once</li>
+<li><code>unassembled</code> - counts only k-mers appearing at least twice, filtering out likely sequencing errors; suited for raw reads</li>
 </ul>
-<p><strong>Resuming</strong> — if the output file already exists, it is backed up. Pass <code>--continue</code> to resume from that backup without reprocessing already-listed samples; otherwise the run starts fresh. Use <code>--autorename</code> to rename duplicate sample IDs instead of skipping them.</p>
+<p><strong>Resuming</strong> - if the output file already exists, it is backed up. Pass <code>--continue</code> to resume from that backup without reprocessing already-listed samples; otherwise the run starts fresh. Use <code>--autorename</code> to rename duplicate sample IDs instead of skipping them.</p>
 <p>Top-level keys other than <code>samples</code> are written as-is into the output header.</p>
 <h2 id="output-format">Output Format</h2>
 <p>The output is a JSONL file. The first line is a header and the remaining lines are one sample per line:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>{&quot;k&quot;: 25, &quot;assembled&quot;: true}
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>{&quot;name&quot;: &quot;sample_A&quot;, &quot;files&quot;: [&quot;/data/sequences/sample_A/reads_1.fa&quot;, &quot;/data/sequences/sample_A/reads_2.fa&quot;], &quot;kmer_count&quot;: 1234567}
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>{&quot;name&quot;: &quot;sample_B&quot;, &quot;files&quot;: [&quot;/data/sequences/sample_B/reads.fa&quot;], &quot;kmer_count&quot;: 987654}
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>{"k": 25, "assembled": true}
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>{"name": "sample_A", "files": ["/data/sequences/sample_A/reads_1.fa", "/data/sequences/sample_A/reads_2.fa"], "kmer_count": 1234567}
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>{"name": "sample_B", "files": ["/data/sequences/sample_B/reads.fa"], "kmer_count": 987654}
 </code></pre></div>
 <p>This file is the input for <a href="../profile/"><code>profile</code></a> and <a href="../compose/"><code>compose</code></a>.</p>
 <h2 id="examples">Examples</h2>
@@ -2816,8 +2846,8 @@
 </blockquote>
 <h2 id="see-also">See Also</h2>
 <ul>
-<li><a href="../profile/"><code>profile</code></a> — produce the profiles YAML file</li>
-<li><a href="../compose/"><code>compose</code></a> — use the JSONL output to compose index definitions</li>
+<li><a href="../profile/"><code>profile</code></a> - produce the profiles YAML file</li>
+<li><a href="../compose/"><code>compose</code></a> - use the JSONL output to compose index definitions</li>
 </ul>
 
 

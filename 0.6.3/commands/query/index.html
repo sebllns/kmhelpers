@@ -748,6 +748,8 @@
       
         
       
+        
+      
     
     
     
@@ -838,6 +840,34 @@
     
   
     kmindex Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/tuning-groups-partitions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choosing Groups and Partitions
   
 
     
@@ -2628,13 +2658,13 @@
 <h2 id="description">Description</h2>
 <p>Searches one or more kmindex indices for sequences from FASTA/FASTQ files. Directories are scanned recursively. Pass <code>-</code> to read from stdin.</p>
 <p>Each value in the output is the fraction of query k-mers found in that sample. Results below <code>--threshold</code> are filtered out.</p>
-<p><strong>Batch mode</strong> — use <code>--batch-query</code> to treat all sequences across all query files as a single query, or <code>--single-query NAME</code> to assign them a specific identifier.</p>
+<p><strong>Batch mode</strong> - use <code>--batch-query</code> to treat all sequences across all query files as a single query, or <code>--single-query NAME</code> to assign them a specific identifier.</p>
 <p><strong>Parallelization</strong> - <code>seq</code> parallelises across sequences (default); <code>sub</code> parallelises across sub-indices (forced when <code>--compressed</code> is set).</p>
 <p><strong>Presence vector</strong> - by default kmindex reports one coverage ratio <code>R</code> per sample:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span><span class="nt">&quot;index&quot;</span><span class="p">:</span><span class="s2">&quot;idx_0&quot;</span><span class="p">,</span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="s2">&quot;q0&quot;</span><span class="p">,</span><span class="nt">&quot;samples&quot;</span><span class="p">:{</span><span class="nt">&quot;sample_0&quot;</span><span class="p">:</span><span class="mf">0.69</span><span class="p">}}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span><span class="nt">"index"</span><span class="p">:</span><span class="s2">"idx_0"</span><span class="p">,</span><span class="nt">"query"</span><span class="p">:</span><span class="s2">"q0"</span><span class="p">,</span><span class="nt">"samples"</span><span class="p">:{</span><span class="nt">"sample_0"</span><span class="p">:</span><span class="mf">0.69</span><span class="p">}}</span>
 </code></pre></div>
 <p>With <code>--vec</code> it reports the per-k-mer presence vector <code>P</code> as well, <code>R</code> being its mean:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="p">{</span><span class="nt">&quot;index&quot;</span><span class="p">:</span><span class="s2">&quot;idx_0&quot;</span><span class="p">,</span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="s2">&quot;q0&quot;</span><span class="p">,</span><span class="nt">&quot;samples&quot;</span><span class="p">:{</span><span class="nt">&quot;sample_0&quot;</span><span class="p">:{</span><span class="nt">&quot;P&quot;</span><span class="p">:[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="err">...</span><span class="p">],</span><span class="nt">&quot;R&quot;</span><span class="p">:</span><span class="mf">0.69</span><span class="p">}}}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="p">{</span><span class="nt">"index"</span><span class="p">:</span><span class="s2">"idx_0"</span><span class="p">,</span><span class="nt">"query"</span><span class="p">:</span><span class="s2">"q0"</span><span class="p">,</span><span class="nt">"samples"</span><span class="p">:{</span><span class="nt">"sample_0"</span><span class="p">:{</span><span class="nt">"P"</span><span class="p">:[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="err">...</span><span class="p">],</span><span class="nt">"R"</span><span class="p">:</span><span class="mf">0.69</span><span class="p">}}}</span>
 </code></pre></div>
 <p>The score matrix is identical either way. <code>--vec</code> adds, per (query, sample), the coverage
 stats <code>n_kmers</code>, <code>covered</code>, <code>longest_run</code> (longest stretch of consecutive k-mers found) and

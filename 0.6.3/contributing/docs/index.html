@@ -746,6 +746,8 @@
       
         
       
+        
+      
     
     
     
@@ -836,6 +838,34 @@
     
   
     kmindex Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/tuning-groups-partitions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choosing Groups and Partitions
   
 
     
@@ -2599,10 +2629,10 @@
 <p>The docs are built with <a href="https://www.mkdocs.org/">MkDocs</a> using the <a href="https://squidfunk.github.io/mkdocs-material/">Material theme</a>.</p>
 <h2 id="install-dependencies">Install dependencies</h2>
 <p>For development:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[dev]&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[dev]"</span>
 </code></pre></div>
 <p>For docs only:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[docs]&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[docs]"</span>
 </code></pre></div>
 <h2 id="live-preview">Live preview</h2>
 <p>Starts a local server with hot-reload on file changes:</p>
@@ -2621,7 +2651,7 @@
 <li>Run <code>mkdocs serve</code> to preview.</li>
 </ol>
 <h2 id="deploying-to-github-pages">Deploying to GitHub Pages</h2>
-<p>Docs are versioned with <a href="https://github.com/jimporter/mike">mike</a>. Do <strong>not</strong> use <code>mkdocs gh-deploy</code> — it overwrites the entire <code>gh-pages</code> branch and destroys version history.</p>
+<p>Docs are versioned with <a href="https://github.com/jimporter/mike">mike</a>. Do <strong>not</strong> use <code>mkdocs gh-deploy</code> - it overwrites the entire <code>gh-pages</code> branch and destroys version history.</p>
 <h3 id="deploy-a-new-version">Deploy a new version</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mike<span class="w"> </span>deploy<span class="w"> </span>--push<span class="w"> </span>--update-aliases<span class="w"> </span>&lt;version&gt;<span class="w"> </span>latest
 </code></pre></div>

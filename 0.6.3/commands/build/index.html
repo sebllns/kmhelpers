@@ -748,6 +748,8 @@
       
         
       
+        
+      
     
     
     
@@ -838,6 +840,34 @@
     
   
     kmindex Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/tuning-groups-partitions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choosing Groups and Partitions
   
 
     
@@ -2633,10 +2663,10 @@
 </table>
 <h2 id="description">Description</h2>
 <p><code>build</code> takes the <code>NAME.yaml</code> file written by <a href="../compose/"><code>compose</code></a> in <code>OUTPUT_DIR/NAME/SESSION/</code> and chains <a href="../plan/"><code>plan</code></a> and <a href="../apply/"><code>apply</code></a> into a single invocation. It is equivalent to running the two commands in sequence.</p>
-<p><strong>Step 1 — plan:</strong> validates all sample paths upfront and writes the equivalent <code>kmindex</code> shell script to <code>OUTPUT_DIR/assets/</code> and a validation report to <code>OUTPUT_DIR/logs/</code>. Fix any path errors before the build starts rather than discovering them mid-run.</p>
-<p><strong>Step 2 — apply:</strong> executes the build and registers all completed indices in <code>OUTPUT_DIR/index.json</code>.</p>
-<p><strong>Filtering</strong> — use <code>--name</code> or <code>--span</code> to build only a subset of the declared indices.</p>
-<p><strong>Notifications</strong> — use <code>--notify</code> to receive an email when the build exits (requires <code>sendmail</code>). The notification is sent on both success and failure, including on <code>SIGTERM</code>.</p>
+<p><strong>Step 1 - plan:</strong> validates all sample paths upfront and writes the equivalent <code>kmindex</code> shell script to <code>OUTPUT_DIR/assets/</code> and a validation report to <code>OUTPUT_DIR/logs/</code>. Fix any path errors before the build starts rather than discovering them mid-run.</p>
+<p><strong>Step 2 - apply:</strong> executes the build and registers all completed indices in <code>OUTPUT_DIR/index.json</code>.</p>
+<p><strong>Filtering</strong> - use <code>--name</code> or <code>--span</code> to build only a subset of the declared indices.</p>
+<p><strong>Notifications</strong> - use <code>--notify</code> to receive an email when the build exits (requires <code>sendmail</code>). The notification is sent on both success and failure, including on <code>SIGTERM</code>.</p>
 <h2 id="examples">Examples</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Plan then build all indices in a definition file</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>build<span class="w"> </span>index.yaml<span class="w"> </span>-o<span class="w"> </span>build/
@@ -2656,9 +2686,9 @@
 </code></pre></div>
 <h2 id="see-also">See Also</h2>
 <ul>
-<li><a href="../plan/"><code>plan</code></a> — plan step only</li>
-<li><a href="../apply/"><code>apply</code></a> — apply step only</li>
-<li><a href="../design/"><code>design</code></a> — design the index before building</li>
+<li><a href="../plan/"><code>plan</code></a> - plan step only</li>
+<li><a href="../apply/"><code>apply</code></a> - apply step only</li>
+<li><a href="../design/"><code>design</code></a> - design the index before building</li>
 </ul>
 
 

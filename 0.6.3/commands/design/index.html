@@ -748,6 +748,8 @@
       
         
       
+        
+      
     
     
     
@@ -838,6 +840,34 @@
     
   
     kmindex Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/tuning-groups-partitions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choosing Groups and Partitions
   
 
     
@@ -2618,9 +2648,9 @@
 <p><strong>Input:</strong> directory to scan, a plain-text / YAML sample list, or a JSONL sample index (<code>.jsonl</code>, in which case the <code>list</code> step is skipped and INPUT is used as-is)<br />
 <strong>Output:</strong>  </p>
 <ul>
-<li><code>OUTPUT_DIR/list/NAME_samples_TIMESTAMP.jsonl</code> — sample manifest</li>
-<li><code>OUTPUT_DIR/profile/profile.yaml</code>, <code>groups.png</code> — span profile</li>
-<li><code>OUTPUT_DIR/compose/</code> — index definition files</li>
+<li><code>OUTPUT_DIR/list/NAME_samples_TIMESTAMP.jsonl</code> - sample manifest</li>
+<li><code>OUTPUT_DIR/profile/profile.yaml</code>, <code>groups.png</code> - span profile</li>
+<li><code>OUTPUT_DIR/compose/</code> - index definition files</li>
 </ul>
 </div>
 <h2 id="advanced-options">Advanced Options</h2>
@@ -2679,11 +2709,11 @@
 </code></pre></div>
 <h2 id="description">Description</h2>
 <p><code>design</code> chains <a href="../list/"><code>list</code></a>, <a href="../profile/"><code>profile</code></a>, and <a href="../compose/"><code>compose</code></a> into a single invocation. It is equivalent to running the three commands in sequence with the intermediate files automatically routed between steps.</p>
-<p><strong>Step 1 — list:</strong> scans <code>INPUT</code> recursively for sequence files (or imports a sample list), counts k-mers with ntcard, and writes a JSONL manifest to <code>OUTPUT_DIR/list/</code>. This step is <strong>skipped</strong> if <code>INPUT</code> is already a JSONL sample index (<code>.jsonl</code>); it is used directly as the manifest for the remaining steps.</p>
-<p><strong>Step 2 — profile:</strong> reads k-mer counts from the manifest, assigns each sample to a Bloom-filter span, computes a storage-balanced grouping, and writes <code>profile.yaml</code>, <code>baseline.csv</code>, and <code>groups.png</code> to <code>OUTPUT_DIR/profile/</code>. This step is <strong>skipped automatically</strong> if a layout file already exists at <code>OUTPUT_DIR/compose/NAME_layout.yaml</code> (re-run scenario).</p>
-<p><strong>Step 3 — compose:</strong> reads the manifest and the profile to generate index definition files in <code>OUTPUT_DIR/compose/</code>.</p>
-<p><strong>Updates</strong> — if the compose layout file already exists from a previous run, the profile step is skipped and the existing layout is used directly. This allows re-running <code>design</code> to add new samples to an existing index without re-profiling.</p>
-<p><strong>False-positive rate</strong> — a higher rate reduces Bloom-filter size and disk footprint. At query time the <a href="https://doi.org/10.1007/978-3-030-86692-1_13">findere</a> algorithm compensates by querying <span class="arithmatex">\((k+z)\)</span>-mers, reducing the effective FP rate to <span class="arithmatex">\(p^z\)</span>. Recommended: build with <code>--fp 0.25</code> (default), query with <code>-z 6</code>, giving <span class="arithmatex">\(0.25^6 \approx 0.024\,\%\)</span> effective FP rate.</p>
+<p><strong>Step 1 - list:</strong> scans <code>INPUT</code> recursively for sequence files (or imports a sample list), counts k-mers with ntcard, and writes a JSONL manifest to <code>OUTPUT_DIR/list/</code>. This step is <strong>skipped</strong> if <code>INPUT</code> is already a JSONL sample index (<code>.jsonl</code>); it is used directly as the manifest for the remaining steps.</p>
+<p><strong>Step 2 - profile:</strong> reads k-mer counts from the manifest, assigns each sample to a Bloom-filter span, computes a storage-balanced grouping, and writes <code>profile.yaml</code>, <code>baseline.csv</code>, and <code>groups.png</code> to <code>OUTPUT_DIR/profile/</code>. This step is <strong>skipped automatically</strong> if a layout file already exists at <code>OUTPUT_DIR/compose/NAME_layout.yaml</code> (re-run scenario).</p>
+<p><strong>Step 3 - compose:</strong> reads the manifest and the profile to generate index definition files in <code>OUTPUT_DIR/compose/</code>.</p>
+<p><strong>Updates</strong> - if the compose layout file already exists from a previous run, the profile step is skipped and the existing layout is used directly. This allows re-running <code>design</code> to add new samples to an existing index without re-profiling.</p>
+<p><strong>False-positive rate</strong> - a higher rate reduces Bloom-filter size and disk footprint. At query time the <a href="https://doi.org/10.1007/978-3-030-86692-1_13">findere</a> algorithm compensates by querying <span class="arithmatex">\((k+z)\)</span>-mers, reducing the effective FP rate to <span class="arithmatex">\(p^z\)</span>. Recommended: build with <code>--fp 0.25</code> (default), query with <code>-z 6</code>, giving <span class="arithmatex">\(0.25^6 \approx 0.024\,\%\)</span> effective FP rate.</p>
 <h2 id="examples">Examples</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Full pipeline from a directory</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>./run<span class="w"> </span>-n<span class="w"> </span>my_index
@@ -2711,10 +2741,11 @@
 </code></pre></div>
 <h2 id="see-also">See Also</h2>
 <ul>
-<li><a href="../list/"><code>list</code></a> — list step only</li>
-<li><a href="../profile/"><code>profile</code></a> — profile step only</li>
-<li><a href="../compose/"><code>compose</code></a> — compose step only</li>
-<li><a href="../build/"><code>build</code></a> — validate and build indices from the generated definition files</li>
+<li><a href="../list/"><code>list</code></a> - list step only</li>
+<li><a href="../profile/"><code>profile</code></a> - profile step only</li>
+<li><a href="../compose/"><code>compose</code></a> - compose step only</li>
+<li><a href="../build/"><code>build</code></a> - validate and build indices from the generated definition files</li>
+<li><a href="../../concepts/tuning-groups-partitions/">Choosing Groups and Partitions</a> - how <code>-g</code> and <code>-p</code> affect query time, RAM, and storage</li>
 </ul>
 
 

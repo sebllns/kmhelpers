@@ -748,6 +748,8 @@
       
         
       
+        
+      
     
     
     
@@ -838,6 +840,34 @@
     
   
     kmindex Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/tuning-groups-partitions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choosing Groups and Partitions
   
 
     
@@ -2653,8 +2683,8 @@
 </table>
 <h2 id="description">Description</h2>
 <p><code>plan</code> takes the <code>NAME.yaml</code> file written by <a href="../compose/"><code>compose</code></a> in <code>OUTPUT_DIR/NAME/SESSION/</code>. It validates all sample paths upfront and previews the <code>kmindex</code> commands that would be executed by <a href="../apply/"><code>apply</code></a>, without running them. It writes the equivalent shell script to <code>OUTPUT_DIR/assets/</code> and a validation report to <code>OUTPUT_DIR/logs/</code>.</p>
-<p><strong>Offline mode</strong> — use <code>--offline</code> to skip local path validation when generating scripts destined for another machine.</p>
-<p><strong>Filtering</strong> — use <code>--name</code> or <code>--span</code> to preview only a subset of the declared indices.</p>
+<p><strong>Offline mode</strong> - use <code>--offline</code> to skip local path validation when generating scripts destined for another machine.</p>
+<p><strong>Filtering</strong> - use <code>--name</code> or <code>--span</code> to preview only a subset of the declared indices.</p>
 <h2 id="examples">Examples</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Preview build plan for a definition file</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>plan<span class="w"> </span>index.yaml<span class="w"> </span>-o<span class="w"> </span>/output
@@ -2673,9 +2703,9 @@
 </code></pre></div>
 <h2 id="see-also">See Also</h2>
 <ul>
-<li><a href="../build/"><code>build</code></a> — run plan then apply in a single command</li>
-<li><a href="../apply/"><code>apply</code></a> — actually build the indices</li>
-<li><a href="../compose/"><code>compose</code></a> — generate index definition files</li>
+<li><a href="../build/"><code>build</code></a> - run plan then apply in a single command</li>
+<li><a href="../apply/"><code>apply</code></a> - actually build the indices</li>
+<li><a href="../compose/"><code>compose</code></a> - generate index definition files</li>
 </ul>
 
 

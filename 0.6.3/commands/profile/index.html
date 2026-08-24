@@ -748,6 +748,8 @@
       
         
       
+        
+      
     
     
     
@@ -838,6 +840,34 @@
     
   
     kmindex Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/tuning-groups-partitions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choosing Groups and Partitions
   
 
     
@@ -2660,12 +2690,12 @@ at query time, which improves query performance on I/O-bound storage.</p>
 <p><code>profile</code> reads <span class="arithmatex">\(k\)</span>-mer counts from a JSONL file produced by <a href="../list/"><code>list</code></a>, assigns
 each sample to its span, and writes a CSV summary, a profile YAML, and a distribution
 plot to the output directory. Samples without a <code>kmer_count</code> field are skipped.</p>
-<p><strong>False-positive rate</strong> — a higher rate reduces Bloom-filter size and therefore disk
+<p><strong>False-positive rate</strong> - a higher rate reduces Bloom-filter size and therefore disk
 footprint. At query time the <a href="https://doi.org/10.1007/978-3-030-86692-1_13">findere</a>
 algorithm compensates by querying <span class="arithmatex">\((k+z)\)</span>-mers, reducing the effective FP rate to <span class="arithmatex">\(p^z\)</span>.
 Recommended: build with <code>--fp 0.25</code> (default), query with <code>-z 6</code>, giving
 <span class="arithmatex">\(0.25^6 \approx 0.024\,\%\)</span> effective FP rate.</p>
-<p><strong>Grouping</strong> — use <code>-g N</code> to merge spans into <code>N</code> storage-balanced sub-indices. Fewer
+<p><strong>Grouping</strong> - use <code>-g N</code> to merge spans into <code>N</code> storage-balanced sub-indices. Fewer
 sub-indices reduce the number of partition files opened per query. The grouping is
 overlaid on the distribution plot for visual inspection.</p>
 <h2 id="examples">Examples</h2>
@@ -2683,8 +2713,9 @@ overlaid on the distribution plot for visual inspection.</p>
 </code></pre></div>
 <h2 id="see-also">See Also</h2>
 <ul>
-<li><a href="../list/"><code>list</code></a> — produce the JSONL input file</li>
-<li><a href="../compose/"><code>compose</code></a> — use the JSONL from <code>list</code> and a profile to compose index definitions</li>
+<li><a href="../list/"><code>list</code></a> - produce the JSONL input file</li>
+<li><a href="../compose/"><code>compose</code></a> - use the JSONL from <code>list</code> and a profile to compose index definitions</li>
+<li><a href="../../concepts/tuning-groups-partitions/">Choosing Groups and Partitions</a> - how <code>-g</code> affects query time, RAM, and storage</li>
 </ul>
 
 

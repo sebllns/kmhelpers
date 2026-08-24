@@ -848,6 +848,8 @@
       
         
       
+        
+      
     
     
     
@@ -938,6 +940,34 @@
     
   
     kmindex Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="concepts/tuning-groups-partitions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choosing Groups and Partitions
   
 
     
@@ -2479,13 +2509,13 @@
 <p>A Python toolkit for managing, compressing, and querying <a href="https://github.com/tlemane/kmindex">kmindex</a> indices efficiently.</p>
 <hr />
 <h2 id="what-is-kmhelpers">What is kmhelpers?</h2>
-<p><strong>kmhelpers</strong> is a command-line toolkit built on top of <a href="https://github.com/tlemane/kmindex">kmindex</a> that automates the full k-mer index lifecycle: discovering and profiling samples, composing and building indices, and querying them against FASTA/FASTQ sequences — with compression and registry management <em>(under development)</em> on the way.</p>
+<p><strong>kmhelpers</strong> is a command-line toolkit built on top of <a href="https://github.com/tlemane/kmindex">kmindex</a> that automates the full k-mer index lifecycle: discovering and profiling samples, composing and building indices, and querying them against FASTA/FASTQ sequences - with compression and registry management <em>(under development)</em> on the way.</p>
 <p>This typical lifecycle breaks down into four steps, shown below:</p>
 <ol>
-<li><strong>DESIGN</strong> — discover samples and generate index definitions.</li>
-<li><strong>BUILD</strong> — build k-mer indices from those definitions.</li>
-<li><strong>QUERY</strong> — search the indices with FASTA/FASTQ sequences.</li>
-<li><strong>UPDATE</strong> — add new samples to an existing index without rebuilding from scratch.</li>
+<li><strong>DESIGN</strong> - discover samples and generate index definitions.</li>
+<li><strong>BUILD</strong> - build k-mer indices from those definitions.</li>
+<li><strong>QUERY</strong> - search the indices with FASTA/FASTQ sequences.</li>
+<li><strong>UPDATE</strong> - add new samples to an existing index without rebuilding from scratch.</li>
 </ol>
 <p><img alt="Pipeline diagram" src="diagrams/fig_pipeline_mini_animation.svg" /></p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">1 - DESIGN</label><label for="__tabbed_1_2">2 - BUILD</label><label for="__tabbed_1_3">3 - QUERY</label><label for="__tabbed_1_4">4 - UPDATE</label></div>
@@ -2508,7 +2538,7 @@
 </div>
 </div>
 <h2 id="performance">Performance</h2>
-<p>Most <code>kmhelpers</code> commands (<code>design</code>, <code>plan</code>, <code>query</code>, <code>compose</code>, ...) complete in a few seconds, since they mainly manipulate metadata and small files. The exception is <strong><code>build</code></strong> (and the underlying <code>apply</code> build/merge steps): actual k-mer counting and Bloom-filter construction are CPU- and I/O-bound, so runtime scales with sample count and data size — expect build/merge steps to take anywhere from seconds to hours depending on dataset size, <code>--threads</code>, and storage speed.</p>
+<p>Most <code>kmhelpers</code> commands (<code>design</code>, <code>plan</code>, <code>query</code>, <code>compose</code>, ...) complete in a few seconds, since they mainly manipulate metadata and small files. The exception is <strong><code>build</code></strong> (and the underlying <code>apply</code> build/merge steps): actual k-mer counting and Bloom-filter construction are CPU- and I/O-bound, so runtime scales with sample count and data size - expect build/merge steps to take anywhere from seconds to hours depending on dataset size, <code>--threads</code>, and storage speed.</p>
 <h2 id="quick-links">Quick links</h2>
 <ul>
 <li><a href="getting-started/installation/">Installation</a></li>
@@ -2543,7 +2573,7 @@
 </table>
 <p>See <a href="getting-started/installation/">Installation</a> for build instructions.</p>
 <h2 id="license">License</h2>
-<p>GPL-3.0-only — Copyright © 2026 Sébastien Bellenous, Genscale, INRIA</p>
+<p>GPL-3.0-only - Copyright © 2026 Sébastien Bellenous, Genscale, INRIA</p>
 
 
 
