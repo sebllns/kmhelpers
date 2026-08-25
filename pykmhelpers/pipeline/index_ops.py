@@ -151,9 +151,9 @@ class IndexOps:
         config (IndexOpsConfig): The resolved configuration (paths are
             converted to absolute paths on construction).
         work_dir (str): Absolute path to the working directory.
-        asset_dir (str): ``<work_dir>/assets`` — output location for generated
+        asset_dir (str): ``<work_dir>/assets`` - output location for generated
             shell scripts.
-        log_dir (str): ``<work_dir>/logs`` — log file destination.
+        log_dir (str): ``<work_dir>/logs`` - log file destination.
         kmindex_registry_dir (str): Path to the kmindex registry directory.
         kmindex_data_dir (str): Path to the folder that holds index data.
         timestamp (str): ``YYYYmmdd_HHMMSS`` string captured at construction.
@@ -260,7 +260,7 @@ class IndexOps:
         Args:
             path: Path to a YAML or JSON file containing either an
                 ``IndexDefinition`` or a span registry.
-            mode: Execution mode — controls whether to dry-run, plan, or apply.
+            mode: Execution mode - controls whether to dry-run, plan, or apply.
             fail_on_error: Abort this run on the first build or merge error
                 instead of continuing and returning ``PARTIAL``.
 

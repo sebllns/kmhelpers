@@ -12,13 +12,17 @@ A Python toolkit for managing, compressing, and querying [kmindex](https://githu
 
 ## Table of Contents
 
+- [Disclaimers](#disclaimers)
 - [Getting Started](#getting-started)
-- [Documentation](https://sebllns.github.io/kmhelpers/)
-- [Update](#update)
+- [Documentation](#documentation)
 - [License](#license)
 - [Contact](#contact)
 - [Changelog](#changelog)
+- [Acknowledgements](#acknowledgements)
 
+## Disclaimers
+
+`kmhelpers` is provided "as is", without warranty (see [LICENSE](LICENSE)). Operations that build, update, or compress indices modify data in place, so it might be useful to back up important data beforehand, and if you are not sure of something, [ask here](https://github.com/sebllns/kmhelpers/discussions) before running it.
 
 ## Getting started
 
@@ -126,6 +130,12 @@ Check the installed version:
 kmhelpers --version
 ```
 
+## Documentation
+
+<https://sebllns.github.io/kmhelpers/>
+
+Covers installation, a full tutorial, command reference, core concepts, and the API reference.
+
 ## License
 
 This project is licensed under the GNU General Public License - see the [LICENSE](LICENSE) file for details.
@@ -151,7 +161,7 @@ For questions, bug reports, or contributions, please contact:
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 
-# Acknowledgements
+## Acknowledgements
 
 The authors thank Téo Lemane for developing `kmindex` and for his
 responsiveness in addressing feature requests and issues raised during the

@@ -11,10 +11,10 @@ Scan a directory or import a sample list, count k-mers, and produce a JSONL samp
 
     | Argument | Description |
     |----------|-------------|
-    | `INPUT` | Directory to scan, or a plain-text / YAML sample list (required) — see [Input formats](#input-formats) |
+    | `INPUT` | Directory to scan, or a plain-text / YAML sample list (required) - see [Input formats](#input-formats) |
     | `-o, --output FILE` | Path for the output JSONL file (required) |
     | `-k, --kmer-size INT` | K-mer size for counting (default: 25) |
-    | `-dt, --data-type TEXT` | Data type: `a`/`assembled` (default) or `u`/`unassembled` (raw reads) — see [K-mer counting](#description) |
+    | `-dt, --data-type TEXT` | Data type: `a`/`assembled` (default) or `u`/`unassembled` (raw reads) - see [K-mer counting](#description) |
 
 !!! abstract "I/O"
     **Input:** directory to scan, or a plain-text / YAML sample list  
@@ -42,9 +42,9 @@ sample_B  /data/sample_B.fa
 /data/sample_C.fa
 ```
 
-- `sample_id` is optional — if omitted, it is derived from the first filename (without extension)
+- `sample_id` is optional - if omitted, it is derived from the first filename (without extension)
 - Multiple files for one sample are comma-separated
-- `kmer_count` is optional — if omitted and `--no-count` is not set, it will be computed
+- `kmer_count` is optional - if omitted and `--no-count` is not set, it will be computed
 
 ### YAML (`.yaml` / `.yml`)
 
@@ -64,16 +64,16 @@ samples:
 
 ## Description
 
-`INPUT` can be a directory (scanned recursively for sequence files) or a sample list file (plain text or YAML) — the type is detected automatically. K-mer counts are parsed or computed for each sample and written to the JSONL manifest.
+`INPUT` can be a directory (scanned recursively for sequence files) or a sample list file (plain text or YAML) - the type is detected automatically. K-mer counts are parsed or computed for each sample and written to the JSONL manifest.
 
-**Grouping** — by default, each file is treated as its own sample. Use `--leaf-grouping` to group files by leaf folder, where each leaf directory becomes one sample whose ID is the folder name.
+**Grouping** - by default, each file is treated as its own sample. Use `--leaf-grouping` to group files by leaf folder, where each leaf directory becomes one sample whose ID is the folder name.
 
-**K-mer counting** — enabled by default. Counting is skipped for any sample that already has a `kmer_count` value. Use `--no-count` to skip counting entirely. The `--data-type` option controls what is counted:
+**K-mer counting** - enabled by default. Counting is skipped for any sample that already has a `kmer_count` value. Use `--no-count` to skip counting entirely. The `--data-type` option controls what is counted:
 
-- `assembled` (default) — counts all distinct k-mers; suited for assemblies where every k-mer is expected at least once
-- `unassembled` — counts only k-mers appearing at least twice, filtering out likely sequencing errors; suited for raw reads
+- `assembled` (default) - counts all distinct k-mers; suited for assemblies where every k-mer is expected at least once
+- `unassembled` - counts only k-mers appearing at least twice, filtering out likely sequencing errors; suited for raw reads
 
-**Resuming** — if the output file already exists, it is backed up. Pass `--continue` to resume from that backup without reprocessing already-listed samples; otherwise the run starts fresh. Use `--autorename` to rename duplicate sample IDs instead of skipping them.
+**Resuming** - if the output file already exists, it is backed up. Pass `--continue` to resume from that backup without reprocessing already-listed samples; otherwise the run starts fresh. Use `--autorename` to rename duplicate sample IDs instead of skipping them.
 
 
 Top-level keys other than `samples` are written as-is into the output header.
@@ -126,5 +126,5 @@ K-mer counting relies on [**ntcard**](https://github.com/BirolLab/ntCard), which
 
 ## See Also
 
-- [`profile`](profile.md) — produce the profiles YAML file
-- [`compose`](compose.md) — use the JSONL output to compose index definitions
+- [`profile`](profile.md) - produce the profiles YAML file
+- [`compose`](compose.md) - use the JSONL output to compose index definitions

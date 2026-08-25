@@ -13,7 +13,7 @@ The three steps below are equivalent to [Step 3](ecoli.md#step-3-design-the-inde
 
 ---
 
-### Step 3.1 — Scan samples and count k-mers ([`list`](../commands/list.md))
+### Step 3.1 - Scan samples and count k-mers ([`list`](../commands/list.md))
 
 ```bash
 mkdir -p coli_db/list
@@ -41,7 +41,7 @@ kmhelpers list coli_10.txt -o coli_db/list/coli.jsonl -k 25
 
 ---
 
-### Step 3.2 — Profile the k-mer distribution ([`profile`](../commands/profile.md))
+### Step 3.2 - Profile the k-mer distribution ([`profile`](../commands/profile.md))
 
 ```bash
 kmhelpers profile coli_db/list/coli.jsonl -o coli_db/profile/ -b 1.1 -g 2
@@ -63,7 +63,7 @@ kmhelpers profile coli_db/list/coli.jsonl -o coli_db/profile/ -b 1.1 -g 2
     and are indexed together in one sub-index.
 
     The Bloom filter allocated for that sub-index is sized for the **worst case**
-    of the bucket — the maximum k-mer count $\text{base}^{s+1}$ — so every sample
+    of the bucket - the maximum k-mer count $\text{base}^{s+1}$ - so every sample
     in the span fits:
 
     $$
@@ -99,7 +99,7 @@ kmhelpers profile coli_db/list/coli.jsonl -o coli_db/profile/ -b 1.1 -g 2
         spans. `-g 2` then requests that those spans be merged into 2 groups.
         For a dataset this small and uniform, `-g 1` (a single group) would
         actually be the optimal choice; we use `-g 2` here to illustrate how
-        grouping works — pick a value that fits your own distribution.
+        grouping works - pick a value that fits your own distribution.
 
 
 ??? success "RESULT"
@@ -147,7 +147,7 @@ kmhelpers profile coli_db/list/coli.jsonl -o coli_db/profile/ -b 1.1 -g 2
         ??? info "Storage"
             `kmindex` stores samples in packs of 8 (bit-packing), so a
             sub-index with 1 sample occupies the same disk space as one with 8. In the
-            `baseline` profile, spans 167, 169 and 170 hold only 1–2 samples each —
+            `baseline` profile, spans 167, 169 and 170 hold only 1–2 samples each -
             those near-empty packs waste most of their allocated space, bringing the
             total to **135 MB**. In this case, merging the 5 sub-indices into 2 reduces
             the number of packs from 5 to 2 (one per group), cutting the total to
@@ -164,7 +164,7 @@ kmhelpers profile coli_db/list/coli.jsonl -o coli_db/profile/ -b 1.1 -g 2
 
 ---
 
-### Step 3.3 — Compose index definitions ([`compose`](../commands/compose.md))
+### Step 3.3 - Compose index definitions ([`compose`](../commands/compose.md))
 
 ```bash
 kmhelpers compose coli_db/list/coli.jsonl \
@@ -182,8 +182,8 @@ kmhelpers compose coli_db/list/coli.jsonl \
     `compose` reads the sample list and the profile, then writes index definition
     files into `coli_db/compose/coli/initial/`. Pass the `coli.yaml` file in that
     directory to `plan`, `build` or `apply` in the next step. The sample-to-sub-index
-    repartition is driven by the selected profile — here `2_groups`, the default set
-    by `profile` — whose Bloom-filter sizes are read from `coli_db/profile/profile.yaml`.
+    repartition is driven by the selected profile - here `2_groups`, the default set
+    by `profile` - whose Bloom-filter sizes are read from `coli_db/profile/profile.yaml`.
 
 ---
 
@@ -193,7 +193,7 @@ The two steps below are equivalent to [Step 4](ecoli.md#step-4-build-the-index-b
 
 ---
 
-### Step 4.1 — Preview the build plan ([`plan`](../commands/plan.md))
+### Step 4.1 - Preview the build plan ([`plan`](../commands/plan.md))
 
 ```bash
 kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build/
@@ -205,7 +205,7 @@ kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build/
 
 ??? info "INFO"
     Before committing to a potentially long build, validate paths and preview the commands that will be executed: `plan` checks that every sample file exists, reports any missing paths, and
-    prints the equivalent `kmindex` commands — without running them. Fix any path
+    prints the equivalent `kmindex` commands - without running them. Fix any path
     errors now rather than discovering them mid-build.
 
 ??? success "RESULT"
@@ -221,7 +221,7 @@ kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build/
 
 ---
 
-### Step 4.2 — Build the index ([`apply`](../commands/apply.md) or `bash`)
+### Step 4.2 - Build the index ([`apply`](../commands/apply.md) or `bash`)
 
 === "apply"
 
@@ -231,7 +231,7 @@ kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build/
 
     ??? abstract "I/O"
         **Input:** `coli_db/compose/coli/initial/coli.yaml`  
-        **Output:** `coli_build/index.json` + sub-index data files in `coli_build/kmindex_data/` — ready-to-query index  
+        **Output:** `coli_build/index.json` + sub-index data files in `coli_build/kmindex_data/` - ready-to-query index  
 
 === "bash"
 
@@ -241,7 +241,7 @@ kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build/
 
     ??? abstract "I/O"
         **Input:** `coli_build/assets/kmhelpers_apply.sh`   
-        **Output:** `coli_build/index.json` + sub-index data files in `coli_build/kmindex_data/` — ready-to-query index 
+        **Output:** `coli_build/index.json` + sub-index data files in `coli_build/kmindex_data/` - ready-to-query index 
 
 
 ??? success "RESULT"

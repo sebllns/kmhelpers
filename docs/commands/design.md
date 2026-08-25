@@ -22,9 +22,9 @@ Scan a directory or import a sample list, then run the full [`list`](list.md) �
     **Input:** directory to scan, a plain-text / YAML sample list, or a JSONL sample index (`.jsonl`, in which case the `list` step is skipped and INPUT is used as-is)  
     **Output:**  
 
-    - `OUTPUT_DIR/list/NAME_samples_TIMESTAMP.jsonl` — sample manifest
-    - `OUTPUT_DIR/profile/profile.yaml`, `groups.png` — span profile
-    - `OUTPUT_DIR/compose/` — index definition files
+    - `OUTPUT_DIR/list/NAME_samples_TIMESTAMP.jsonl` - sample manifest
+    - `OUTPUT_DIR/profile/profile.yaml`, `groups.png` - span profile
+    - `OUTPUT_DIR/compose/` - index definition files
 
 ## Advanced Options
 
@@ -57,15 +57,15 @@ OUTPUT_DIR/
 
 `design` chains [`list`](list.md), [`profile`](profile.md), and [`compose`](compose.md) into a single invocation. It is equivalent to running the three commands in sequence with the intermediate files automatically routed between steps.
 
-**Step 1 — list:** scans `INPUT` recursively for sequence files (or imports a sample list), counts k-mers with ntcard, and writes a JSONL manifest to `OUTPUT_DIR/list/`. This step is **skipped** if `INPUT` is already a JSONL sample index (`.jsonl`); it is used directly as the manifest for the remaining steps.
+**Step 1 - list:** scans `INPUT` recursively for sequence files (or imports a sample list), counts k-mers with ntcard, and writes a JSONL manifest to `OUTPUT_DIR/list/`. This step is **skipped** if `INPUT` is already a JSONL sample index (`.jsonl`); it is used directly as the manifest for the remaining steps.
 
-**Step 2 — profile:** reads k-mer counts from the manifest, assigns each sample to a Bloom-filter span, computes a storage-balanced grouping, and writes `profile.yaml`, `baseline.csv`, and `groups.png` to `OUTPUT_DIR/profile/`. This step is **skipped automatically** if a layout file already exists at `OUTPUT_DIR/compose/NAME_layout.yaml` (re-run scenario).
+**Step 2 - profile:** reads k-mer counts from the manifest, assigns each sample to a Bloom-filter span, computes a storage-balanced grouping, and writes `profile.yaml`, `baseline.csv`, and `groups.png` to `OUTPUT_DIR/profile/`. This step is **skipped automatically** if a layout file already exists at `OUTPUT_DIR/compose/NAME_layout.yaml` (re-run scenario).
 
-**Step 3 — compose:** reads the manifest and the profile to generate index definition files in `OUTPUT_DIR/compose/`.
+**Step 3 - compose:** reads the manifest and the profile to generate index definition files in `OUTPUT_DIR/compose/`.
 
-**Updates** — if the compose layout file already exists from a previous run, the profile step is skipped and the existing layout is used directly. This allows re-running `design` to add new samples to an existing index without re-profiling.
+**Updates** - if the compose layout file already exists from a previous run, the profile step is skipped and the existing layout is used directly. This allows re-running `design` to add new samples to an existing index without re-profiling.
 
-**False-positive rate** — a higher rate reduces Bloom-filter size and disk footprint. At query time the [findere](https://doi.org/10.1007/978-3-030-86692-1_13) algorithm compensates by querying $(k+z)$-mers, reducing the effective FP rate to $p^z$. Recommended: build with `--fp 0.25` (default), query with `-z 6`, giving $0.25^6 \approx 0.024\,\%$ effective FP rate.
+**False-positive rate** - a higher rate reduces Bloom-filter size and disk footprint. At query time the [findere](https://doi.org/10.1007/978-3-030-86692-1_13) algorithm compensates by querying $(k+z)$-mers, reducing the effective FP rate to $p^z$. Recommended: build with `--fp 0.25` (default), query with `-z 6`, giving $0.25^6 \approx 0.024\,\%$ effective FP rate.
 
 ## Examples
 
@@ -97,7 +97,8 @@ kmhelpers design ./run/list/my_index_samples_20260101_120000.jsonl -o ./run -n m
 
 ## See Also
 
-- [`list`](list.md) — list step only
-- [`profile`](profile.md) — profile step only
-- [`compose`](compose.md) — compose step only
-- [`build`](build.md) — validate and build indices from the generated definition files
+- [`list`](list.md) - list step only
+- [`profile`](profile.md) - profile step only
+- [`compose`](compose.md) - compose step only
+- [`build`](build.md) - validate and build indices from the generated definition files
+- [Choosing Groups and Partitions](../concepts/tuning-groups-partitions.md) - how `-g` and `-p` affect query time, RAM, and storage

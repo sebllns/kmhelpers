@@ -45,7 +45,7 @@ The `site/` directory is git-ignored and should not be committed.
 
 ## Deploying to GitHub Pages
 
-Docs are versioned with [mike](https://github.com/jimporter/mike). Do **not** use `mkdocs gh-deploy` — it overwrites the entire `gh-pages` branch and destroys version history.
+Docs are versioned with [mike](https://github.com/jimporter/mike). Do **not** use `mkdocs gh-deploy` - it overwrites the entire `gh-pages` branch and destroys version history.
 
 ### Deploy a new version
 
