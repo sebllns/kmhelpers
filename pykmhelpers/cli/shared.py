@@ -161,6 +161,25 @@ _notify_option = click.option(
     metavar="EMAIL",
     help="📧  Send an email notification on exit (success, failure, or timeout).",
 )
+on_conflict_option = click.option(
+    "--on-conflict",
+    "existing",
+    required=False,
+    type=click.Choice(
+        [
+            "fail",
+            "register",
+            "rename",
+            "replace",
+            "register_or_replace",
+            "register_or_rename",
+        ],
+        case_sensitive=False,
+    ),
+    default="fail",
+    show_default=True,
+    help="⚙   Action when an existing unregistered index folder is found.",
+)
 
 _INDEX_BUILD_OPTIONS = [
     output_dir_option,

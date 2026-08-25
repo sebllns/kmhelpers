@@ -38,31 +38,7 @@ logger = logging.getLogger(__name__)
     type=click.Path(file_okay=False, dir_okay=True),
     help="📁  Custom base path to kmindex Bloom filters directory (created if doesn't exist).",
 )
-@click.option(
-    "--from",
-    "reuse_from",
-    required=False,
-    help="⚙   Parent index ID to reuse parameters from. Takes precedence over parent_index that can be specified in definition file.",
-)
-@click.option(
-    "--on-conflict",
-    "existing",
-    required=False,
-    type=click.Choice(
-        [
-            "fail",
-            "register",
-            "rename",
-            "replace",
-            "register_or_replace",
-            "register_or_rename",
-        ],
-        case_sensitive=False,
-    ),
-    default="fail",
-    show_default=True,
-    help="⚙   Action when an existing unregistered index folder is found.",
-)
+@shared.on_conflict_option
 @click.option(
     "--offline",
     "-O",
@@ -86,7 +62,6 @@ def plan(
     fail_on_error,
     registry,
     bloom_dir,
-    reuse_from,
     existing,
     offline,
 ):
@@ -194,7 +169,7 @@ def plan(
                 sample_rootpath=base_path,
                 kmindex_threads=threads,
                 kmindex_skip_compression=skip_compression,
-                kmindex_build_from=reuse_from,
+                kmindex_build_from=None,
                 filter_names=selected_ids,
                 filter_spans=selected_spans,
                 on_existing=existing,

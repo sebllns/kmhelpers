@@ -63,17 +63,7 @@ def _parse_spans(spans):
     type=click.Path(file_okay=False, dir_okay=True),
     help="📁  Custom base path to kmindex Bloom filters directory (created if doesn't exist).",
 )
-@click.option(
-    "--from",
-    "reuse_from",
-    required=False,
-    help="⚙   Parent index ID to reuse parameters from. Takes precedence over parent_index that can be specified in definition file.",
-)
-@click.option(
-    "--existing",
-    required=False,
-    help="⚙   Action when an existing unregistered index folder is found: fail, register, rename, replace, register_or_replace, register_or_rename (default: fail).",
-)
+@shared.on_conflict_option
 @click.pass_context
 def apply(
     ctx,
@@ -84,7 +74,6 @@ def apply(
     bloom_dir,
     span,
     index_ids,
-    reuse_from,
     minim_size,
     threads,
     partition_count,
@@ -210,8 +199,6 @@ def apply(
     try:
         selected_ids = [id for entry in index_ids for id in entry.split(",") if id]
         selected_spans = _parse_spans(span)
-        if not existing:
-            existing = "fail"
         if not minim_size:
             minim_size = 10
     except Exception as e:
@@ -286,7 +273,7 @@ def apply(
                     sample_rootpath=base_path,
                     kmindex_threads=threads,
                     kmindex_skip_compression=skip_compression,
-                    kmindex_build_from=reuse_from,
+                    kmindex_build_from=None,
                     filter_names=selected_ids,
                     filter_spans=selected_spans,
                     on_existing=existing,
