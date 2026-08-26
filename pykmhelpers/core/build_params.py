@@ -1,6 +1,7 @@
 """kmtricks build-parameter selection from hardware limits."""
 
 import json
+import logging
 
 from pykmhelpers.core.system import (
     get_available_ram,
@@ -8,6 +9,8 @@ from pykmhelpers.core.system import (
     get_max_open_files,
 )
 from pykmhelpers.vendor import kmparams
+
+logger = logging.getLogger(__name__)
 
 
 def get_best_params(
@@ -42,6 +45,11 @@ def get_best_params(
     So this returns the largest feasible thread count with its minimum
     partitions. Raises ValueError if not even one thread fits ``ulimit``.
     """
+    logger.debug(
+        f"get_best_params: kmers={kmers}, ram={ram}, samples={samples}, "
+        f"ulimit={ulimit}, n_threads={n_threads}, focus={focus}"
+    )
+
     max_s = min(ulimit - 1, samples)  # per-chunk sample cap for the split build
     # hard ceiling on threads: user cap and the merge-stage file limit
     max_t = min(n_threads, ulimit // (max_s + 1))
@@ -62,6 +70,10 @@ def get_best_params(
         if not isinstance(p.files, dict):
             raise TypeError(f"expected nb_open_files() to set a dict, got {p.files!r}")
         if max(p.files.values()) <= ulimit:
+            logger.debug(
+                f"get_best_params: chosen threads={t}, partitions={p.partitions}, "
+                f"samples={max_s}, files={max(p.files.values())}"
+            )
             return p
 
     raise ValueError("no feasible configuration under the given ulimit")
@@ -84,6 +96,9 @@ def auto_params(
 
     Returns:
         kmparams.kmtricks_params: best configuration for the given limits.
+
+    Raises:
+        ValueError: if the resolved configuration exceeds one of the limits.
     """
     parsed = json.loads(limits)
 
@@ -101,7 +116,7 @@ def auto_params(
 
     focus = parsed.get("focus", 0.5)
 
-    return get_best_params(
+    params = get_best_params(
         kmers=kmers,
         ram=ram,
         samples=samples,
@@ -109,3 +124,18 @@ def auto_params(
         n_threads=n_threads,
         focus=focus,
     )
+
+    # sanity check: the chosen configuration must stay within the limits
+    if params.threads is None or params.memory is None:
+        raise ValueError(f"incomplete configuration: {params}")
+    if not isinstance(params.files, dict):
+        raise TypeError(f"expected a files dict, got {params.files!r}")
+    max_files = max(params.files.values())
+    if max_files > ulimit:
+        raise ValueError(f"open files {max_files} exceeds limit {ulimit}")
+    if params.memory > ram:
+        raise ValueError(f"memory {params.memory} exceeds limit {ram}")
+    if params.threads > n_threads:
+        raise ValueError(f"threads {params.threads} exceeds limit {n_threads}")
+
+    return params
