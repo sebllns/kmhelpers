@@ -264,12 +264,7 @@ def design(
             layout_file=layout_file,
             selected_profile=None,
             name=name,
-            partition_count=partition_count,
-            bf_max_size=ByteCounter.from_str("512GB"),
-            partition_min_size=ByteCounter.from_str("4GB"),
             no_merge=False,
-            exact_partition_count=False,
-            partition_count_limit=256,
         ).run(
             input_file=jsonl_path,
             output_dir=compose_dir,
