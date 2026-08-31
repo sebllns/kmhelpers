@@ -52,33 +52,33 @@ logger = logging.getLogger(__name__)
     required=False,
     help="⚙️  Profile name to use (default: uses default_profile from the profiles file).",
 )
-@click.option(
-    "--partition-count",
-    "-p",
-    type=int,
-    default=0,
-    show_default=True,
-    help="💾  Desired number of partitions per index, 0 for automatic count.",
-)
-@click.option(
-    "--split-size",
-    "-b",
-    "bf_max_size",
-    help="💾  Maximum run size (e.g., '10GB', '5000MB') before splitting samples across indices.",
-)
-@click.option(
-    "--partition-min-size",
-    "-m",
-    help="💾  Minimum partition file size (e.g., '500MB', '1GB'). If not met, partition count will decrease to maintain this size limit per partition.",
-)
-@click.option(
-    "--partition-count-limit",
-    "-P",
-    type=int,
-    default=256,
-    show_default=True,
-    help="⚙️  Partition count limit for auto-partitioning.",
-)
+# @click.option(
+#     "--partition-count",
+#     "-p",
+#     type=int,
+#     default=0,
+#     show_default=True,
+#     help="💾  Desired number of partitions per index, 0 for automatic count.",
+# )
+# @click.option(
+#     "--split-size",
+#     "-b",
+#     "bf_max_size",
+#     help="💾  Maximum run size (e.g., '10GB', '5000MB') before splitting samples across indices.",
+# )
+# @click.option(
+#     "--partition-min-size",
+#     "-m",
+#     help="💾  Minimum partition file size (e.g., '500MB', '1GB'). If not met, partition count will decrease to maintain this size limit per partition.",
+# )
+# @click.option(
+#     "--partition-count-limit",
+#     "-P",
+#     type=int,
+#     default=256,
+#     show_default=True,
+#     help="⚙️  Partition count limit for auto-partitioning.",
+# )
 @click.pass_context
 def compose(
     ctx,
@@ -87,10 +87,10 @@ def compose(
     profiles_file,
     selected_profile,
     name,
-    partition_count,
-    bf_max_size,
-    partition_min_size,
-    partition_count_limit,
+    # partition_count,
+    # bf_max_size,
+    # partition_min_size,
+    # partition_count_limit,
     session_id,
 ):
     """Compose index definition file(s) from a sample list.
@@ -148,38 +148,38 @@ def compose(
                 ):
                     raise click.Abort()
 
-        if partition_count < 0:
-            raise click.BadParameter(
-                f"Constraint must be respected: partition_count >= 0 (got partition_count = {partition_count})"
-            )
+        # if partition_count < 0:
+        #     raise click.BadParameter(
+        #         f"Constraint must be respected: partition_count >= 0 (got partition_count = {partition_count})"
+        #     )
 
-        try:
-            bf_max_size = ByteCounter.from_str(bf_max_size) if bf_max_size else None
-        except ValueError:
-            raise click.BadParameter(
-                f"Invalid bf_max_size format: {bf_max_size} (use format like '1GB', '500MB')"
-            )
+        # try:
+        #     bf_max_size = ByteCounter.from_str(bf_max_size) if bf_max_size else None
+        # except ValueError:
+        #     raise click.BadParameter(
+        #         f"Invalid bf_max_size format: {bf_max_size} (use format like '1GB', '500MB')"
+        #     )
 
-        try:
-            partition_min_size = (
-                ByteCounter.from_str(partition_min_size) if partition_min_size else None
-            )
-        except ValueError:
-            raise click.BadParameter(
-                f"Invalid partition_min_size format: {partition_min_size} (use format like '1GB', '500MB')"
-            )
+        # try:
+        #     partition_min_size = (
+        #         ByteCounter.from_str(partition_min_size) if partition_min_size else None
+        #     )
+        # except ValueError:
+        #     raise click.BadParameter(
+        #         f"Invalid partition_min_size format: {partition_min_size} (use format like '1GB', '500MB')"
+        #     )
 
         IndexComposer(
             profiles_file=profiles_file,
             layout_file=layout_file,
             selected_profile=selected_profile,
             name=name,
-            partition_count=partition_count,
-            bf_max_size=bf_max_size,
-            partition_min_size=partition_min_size,
             no_merge=False,
-            exact_partition_count=False,
-            partition_count_limit=partition_count_limit,
+            # partition_count=partition_count,
+            # bf_max_size=bf_max_size,
+            # partition_min_size=partition_min_size,
+            # exact_partition_count=False,
+            # partition_count_limit=partition_count_limit,
         ).run(
             input_file=input_file,
             output_dir=output_dir,

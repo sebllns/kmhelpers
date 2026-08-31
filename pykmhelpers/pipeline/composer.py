@@ -27,12 +27,7 @@ class IndexComposer:
         selected_profile=None,
         name="index",
         abundance_min=1,
-        partition_count=0,
-        bf_max_size=None,
-        partition_min_size=None,
         no_merge=False,
-        exact_partition_count=False,
-        partition_count_limit=256,
         kmer_size: Optional[int] = None,
         false_positive_rate: Optional[float] = None,
         format="yaml",
@@ -43,12 +38,7 @@ class IndexComposer:
         self.selected_profile = selected_profile
         self.name = name or "index"
         self.abundance_min = abundance_min
-        self.partition_count = partition_count
-        self.bf_max_size = bf_max_size
-        self.partition_min_size = partition_min_size
         self.no_merge = no_merge
-        self.exact_partition_count = exact_partition_count
-        self.partition_count_limit = partition_count_limit
         self.kmer_size = kmer_size
         self.false_positive_rate = false_positive_rate
         self.format = format
@@ -117,11 +107,6 @@ class IndexComposer:
         kmer_size = self.kmer_size or file_k or 25
         false_positive_rate = self.false_positive_rate or file_fp or 0.25
 
-        partition_count = self.partition_count
-        auto_partitioning = partition_count == 0
-        if auto_partitioning:
-            partition_count = 256
-
         split_count: dict[int, int] = {}
         original_distribution: dict[int, int] = {}
         bf_sizes: dict[int, int] = {}
@@ -178,7 +163,6 @@ class IndexComposer:
                         index_type="kmindex",
                         span=span,
                         bf_size=bf_sizes[span],
-                        partition_count=partition_count,
                         abundance_min=self.abundance_min,
                         sample_file=f"{self.name}_samples.jsonl",
                         samples={},
@@ -194,14 +178,14 @@ class IndexComposer:
                     sample_id=sample.name, sample=sample
                 )
 
-                span_size[span] += 1
-                if (
-                    self.bf_max_size
-                    and span_size[span] % 8 == 0
-                    and self.bf_max_size
-                    <= db_instance.index_table[index_name].get_stored_size()
-                ):
-                    split_count[span] += 1
+                # span_size[span] += 1
+                # if (
+                #     self.bf_max_size
+                #     and span_size[span] % 8 == 0
+                #     and self.bf_max_size
+                #     <= db_instance.index_table[index_name].get_stored_size()
+                # ):
+                #     split_count[span] += 1
 
                 sample_count += 1
 
@@ -241,29 +225,28 @@ class IndexComposer:
 
         logger.debug(f"Exporting database in {self.format} format to {run_dir}...")
 
-        partition_min_size = self.partition_min_size
         for i in db_instance.index_table.values():
-            if partition_min_size or auto_partitioning:
-                partition_min_size = partition_min_size or ByteCounter.from_str("200MB")
-                index_name = self.db_tools.get_index_name(self.name, run_id, i.span, 0)
-                ref = db_instance.index_table[index_name]
-                bf_specs = BloomFilterSpecs(
-                    ref.bf_size,
-                    ref.sample_count if self.no_merge else span_size[i.span],
-                    1,
-                )
-                partition_max_count = bf_specs.get_auto_partition_count(
-                    partition_min_size.byte_count
-                )
-                if not auto_partitioning:
-                    partition_max_count = min(partition_max_count, partition_count)
-                i.partition_count = partition_max_count
-            if not self.exact_partition_count and i.partition_count > 1:
-                i.partition_count = 1 << (i.partition_count - 1).bit_length()
-            i.partition_count = min(
-                max(4, i.partition_count), self.partition_count_limit
+            # if partition_min_size or auto_partitioning:
+            # partition_min_size = partition_min_size or ByteCounter.from_str("200MB")
+            index_name = self.db_tools.get_index_name(self.name, run_id, i.span, 0)
+            ref = db_instance.index_table[index_name]
+            bf_specs = BloomFilterSpecs(
+                ref.bf_size,
+                ref.sample_count if self.no_merge else span_size[i.span],
+                1,
             )
-            logger.debug(f"  {i.name}: partitioning into {i.partition_count} files")
+            # partition_max_count = bf_specs.get_auto_partition_count(
+            #     partition_min_size.byte_count
+            # )
+        #     if not auto_partitioning:
+        #         partition_max_count = min(partition_max_count, partition_count)
+        #     i.partition_count = partition_max_count
+        # if not self.exact_partition_count and i.partition_count > 1:
+        #     i.partition_count = 1 << (i.partition_count - 1).bit_length()
+        # i.partition_count = min(
+        #     max(4, i.partition_count), self.partition_count_limit
+        # )
+        # logger.debug(f"  {i.name}: partitioning into {i.partition_count} files")
 
         export_db(
             indices_data=db_instance,
