@@ -4,9 +4,41 @@ on:
   push:
     branches:
       - docs
+  workflow_dispatch:
 
 jobs:
-  deploy:
+  # Push to docs branch: build and publish to gh-pages/preview
+  preview:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install docs dependencies
+        run: python -m pip install --upgrade pip && pip install -e .[docs]
+
+      - name: Build site
+        run: mkdocs build
+
+      - name: Deploy preview
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: site
+          target-folder: preview
+          commit-message: Deploy docs preview
+
+  # Manual trigger: publish the validated docs as the permanent version
+  production:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: write
