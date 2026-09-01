@@ -393,25 +393,13 @@ class IndexDefinitionTools:
             infos = {
                 self.get_field_name(DbFields.SPAN): index.span,
                 self.get_field_name(DbFields.INFO_SAMPLE_COUNT): index.sample_count,
-                # self.get_field_name(
-                #     DbFields.INFO_TOTAL_STORED_SIZE_BYTES
-                # ): stored_size.byte_count,
-                # self.get_field_name(DbFields.INFO_TOTAL_STORED_SIZE_STR): str(
-                #     stored_size
-                # ),
-                # self.get_field_name(
-                #     DbFields.INFO_PARTITION_STORED_SIZE_BYTES
-                # ): partition_stored_size.byte_count,
-                # self.get_field_name(DbFields.INFO_PARTITION_STORED_SIZE_STR): str(
-                #     partition_stored_size
-                # ),
             }
 
             parameters = {
                 self.get_field_name(DbFields.KMER_SIZE): str(index.kmer_size),
-                self.get_field_name(DbFields.PARTITION_COUNT): str(
-                    index.partition_count
-                ),
+                # self.get_field_name(DbFields.PARTITION_COUNT): str(
+                #     index.partition_count
+                # ),
                 self.get_field_name(DbFields.BF_SIZE): str(index.bf_size),
                 self.get_field_name(DbFields.ABUNDANCE_MIN): str(index.abundance_min),
             }
