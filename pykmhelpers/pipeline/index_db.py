@@ -34,6 +34,7 @@ class DbFields(str, Enum):
     ABUNDANCE_MIN = "abundance_min"
     KMER_SIZE = "kmer_size"
     PARTITION_COUNT = "partition_count"
+    FP_RATE = "fp_rate"
     SPAN = "span"
     BF_SIZE = "bf_size"
     KMHELPERS_VERSION = "kmhelpers_version"
@@ -61,6 +62,7 @@ class DbFields(str, Enum):
             DbFields.PARTITION_COUNT: 0,
             DbFields.SPAN: 0,
             DbFields.BF_SIZE: 0,
+            DbFields.FP_RATE: 0.25,
             DbFields.KMHELPERS_VERSION: "undefined",
             DbFields.KMHELPERS_COMMIT: "undefined",
             DbFields.INDEX_TYPE: "undefined",
@@ -170,6 +172,7 @@ class IndexDefinition(Item, auto_increment=True):
     partition_count: int = DbFields.PARTITION_COUNT.get_default() or 0
     span: int = DbFields.SPAN.get_default() or 0
     bf_size: int = DbFields.BF_SIZE.get_default() or 0
+    fp_rate: float = DbFields.FP_RATE.get_default() or 0.25
     abundance_min: int = DbFields.ABUNDANCE_MIN.get_default() or 2
     samples: dict[str, Sample] = field(default_factory=dict)
     merge_name: Optional[str] = None
@@ -323,6 +326,7 @@ class IndexDefinitionTools:
                     self.get_field(DbFields.PARTITION_COUNT, parameters)
                 ),
                 bf_size=int(self.get_field(DbFields.BF_SIZE, parameters)),
+                fp_rate=float(self.get_field(DbFields.FP_RATE, parameters)),
                 span=index_data.get(self.get_field_name(DbFields.INFOS), {}).get(
                     self.get_field_name(DbFields.SPAN), 0
                 ),
@@ -401,6 +405,7 @@ class IndexDefinitionTools:
                 #     index.partition_count
                 # ),
                 self.get_field_name(DbFields.BF_SIZE): str(index.bf_size),
+                self.get_field_name(DbFields.FP_RATE): str(index.fp_rate),
                 self.get_field_name(DbFields.ABUNDANCE_MIN): str(index.abundance_min),
             }
 

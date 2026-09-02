@@ -203,6 +203,9 @@ def plan(
                         )
                     logger.info(f"Result details written to {details_path}")
                     i += 1
+                if result.status in (ops.ApplyStatus.PARTIAL, ops.ApplyStatus.FAILED):
+                    failed = True
+                    logger.error(f"FAILED to plan {os.path.basename(input_file)}")
             except Exception as e:
                 failed = True
                 pykmhelpers.core.log.Log.handle_exception(

@@ -12,6 +12,7 @@ from time import sleep
 from typing import Optional
 
 import pykmhelpers
+from pykmhelpers.core.bloom_filter import bf_max_kmers
 from pykmhelpers.core.build_params import auto_params
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
@@ -354,8 +355,10 @@ class IndexOps:
     # PRIVATE METHODS
 
     def _update_span_stats(self, result: ApplyResult, i: IndexDefinition) -> None:
-        index_size = i.get_stored_size()
         sample_count = i.sample_count
+        if not i.partition_count:
+            self._resolve_build_params(i, sample_count)
+        index_size = i.get_stored_size()
 
         span_data = result.details["span"].setdefault(
             i.span, {"sample_count": 0, "bytes": 0, "size_str": "0B"}
@@ -562,15 +565,23 @@ class IndexOps:
         is set to the max samples one physical sub-build can hold; the
         caller is expected to split the build into
         ``ceil(sample_count / chunk_size)`` chunks (see ``_build_chunked``).
+
+        ``i.partition_count`` is updated in place to the resolved value, so
+        any size estimate computed from ``i`` (e.g. ``get_stored_size``)
+        matches what will actually be built, even when it started out unset
+        (``0``).
         """
         partition_count = self.config.partition_count or i.partition_count
 
         if self.config.kmindex_threads:
+            i.partition_count = partition_count
             return self.config.kmindex_threads, partition_count, None
 
-        kmers = max((s.kmer_count for s in i.samples.values()), default=0)
         params = auto_params(
-            kmers=kmers,
+            kmers=bf_max_kmers(
+                i.bf_size,
+                i.fp_rate,
+            ),
             samples=sample_count,
             limits=self.config.limits or "{}",
             safety_margin=self.config.safety_margin,
@@ -593,11 +604,12 @@ class IndexOps:
                 f"current open-files limit; splitting into chunks"
             )
 
-        logger.debug(
-            f"  └── Auto-sized: threads={params.threads}, "
-            f"partitions={max(partition_count, params.partitions)}"
+        partition_count = max(partition_count, params.partitions)
+        logger.info(
+            f"  └── Auto-sized: threads={params.threads}, partitions={partition_count}"
         )
-        return params.threads, max(partition_count, params.partitions), chunk_size
+        i.partition_count = partition_count
+        return params.threads, partition_count, chunk_size
 
     def _build_one(
         self,
