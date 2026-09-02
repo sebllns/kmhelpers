@@ -50,6 +50,6 @@ def maximize_nofile():
 
 
 if __name__ == "__main__":
-    print(f"Available RAM: {get_available_ram()} bytes")
-    print(f"Available threads: {get_available_threads()}")
-    print(f"Max open files: {get_max_open_files()}")
+    print(f"Available RAM: {get_available_ram():,} bytes")
+    print(f"Available threads: {get_available_threads():,}")
+    print(f"Max open files: {get_max_open_files():,}")
