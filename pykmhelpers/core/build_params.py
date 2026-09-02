@@ -80,7 +80,7 @@ def get_best_params(
 
 
 def auto_params(
-    kmers: int, samples: int, limits: str, safety_margin: float = 0.9
+    kmers: int, samples: int, limits: str, safety_margin: float = 1.0
 ) -> kmparams.kmtricks_params:
     """Resolve system limits and delegate to `get_best_params`.
 
