@@ -10,7 +10,7 @@ from typing import List, Optional, Union
 import yaml
 
 from pykmhelpers.core import kmindex_paths
-from pykmhelpers.core.system import maximize_nofile
+from pykmhelpers.core.resources import maximize_nofile
 from pykmhelpers.core.utils import Toolbox
 from pykmhelpers.core.wrapper import Wrapper
 

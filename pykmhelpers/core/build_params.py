@@ -3,7 +3,7 @@
 import json
 import logging
 
-from pykmhelpers.core.system import (
+from pykmhelpers.core.resources import (
     get_available_ram,
     get_available_threads,
     get_max_open_files,

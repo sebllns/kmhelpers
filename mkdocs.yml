@@ -126,7 +126,7 @@ nav:
                       - index: api/core/_index.md
                       - kmer: api/core/kmer.md
                       - log: api/core/log.md
-                      - system: api/core/system.md
+                      - resources: api/core/resources.md
                       - utils: api/core/utils.md
               - Pipeline:
                       - composer: api/pipeline/composer.md
