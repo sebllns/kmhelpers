@@ -1,5 +1,6 @@
 """Test data generation commands."""
 
+import dataclasses
 import json
 import math
 import os
@@ -9,7 +10,9 @@ from datetime import datetime
 import click
 import yaml
 
+from pykmhelpers.cli import shared
 from pykmhelpers.core import KmindexRegistry, KmtricksIndex
+from pykmhelpers.core.build_params import auto_params
 from pykmhelpers.core.fasta import Fasta, FASTAReader
 from pykmhelpers.core.sequence import Sequence
 from pykmhelpers.pipeline.fof import FofManager
@@ -468,3 +471,18 @@ def extract_dataset(registry_path, output_dir, n_samples, average_size, min_size
                 print(f"Failed to extract sequences from {i.id}: {str(e)}")
     except Exception as e:
         raise click.ClickException(f"Failed to create test database: {e}")
+
+
+@test.command(name="auto-params")
+@click.option("--kmers", type=int, required=True, help="Max k-mer count across samples.")
+@click.option("--samples", type=int, required=True, help="Total sample count of the dataset.")
+@shared.index_limits_options
+def auto_params_cmd(kmers, samples, limits, safety_margin):
+    """Print the kmtricks build parameters auto_params would choose, without running a build."""
+    try:
+        params = auto_params(
+            kmers=kmers, samples=samples, limits=limits or "{}", safety_margin=safety_margin
+        )
+    except ValueError as e:
+        raise click.ClickException(str(e))
+    click.echo(json.dumps(dataclasses.asdict(params), indent=2))

@@ -50,6 +50,9 @@ def get_best_params(
         f"ulimit={ulimit}, n_threads={n_threads}, focus={focus}"
     )
 
+    if ulimit < 1:
+        raise ValueError(f"ulimit {ulimit} too low: at least 1 open file required")
+
     max_s = min(ulimit - 1, samples)  # per-chunk sample cap for the split build
     # hard ceiling on threads: user cap and the merge-stage file limit
     max_t = min(n_threads, ulimit // (max_s + 1))

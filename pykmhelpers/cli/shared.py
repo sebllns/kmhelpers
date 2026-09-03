@@ -120,13 +120,13 @@ _limits_option = click.option(
     metavar="JSON",
     required=False,
     help="⚙   JSON line of resource limits used to auto-size threads/partitions "
-    'when --threads is not set, e.g. \'{"ram": 8000000000, "files": 4096}\'. '
+    'when --threads is not set, e.g. \'{"ram": 8000000000, "files": 4096, "threads": 8}\'. '
     "Keys omitted from the JSON are auto-detected from the system.",
 )
 _safety_margin_option = click.option(
     "--safety-margin",
     type=float,
-    default=0.9,
+    default=1.0,
     show_default=True,
     help="⚙   Fraction of a detected system limit to use for any key missing from --limits.",
 )
