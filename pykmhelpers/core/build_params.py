@@ -29,11 +29,17 @@ def get_best_params(
 
     ``samples`` is the TOTAL sample count of the dataset, which may exceed
     what a single kmtricks build can fit under ``ulimit``. When it does, the
-    returned params describe one CHUNK sized at most ``ulimit`` samples,
-    intended for a split build/merge workflow: build one sub-index per chunk
-    of ``ceil(samples / p.samples)`` samples, then merge the sub-indexes.
-    ``p.samples`` on the returned params is the per-chunk count, not the
-    original ``samples`` argument.
+    returned params describe one CHUNK, intended for a split build/merge
+    workflow: build one sub-index per chunk of ``ceil(samples / p.samples)``
+    samples, then merge the sub-indexes. ``p.samples`` on the returned params
+    is the per-chunk count, not the original ``samples`` argument.
+
+    The chunk size is normally ``min(ulimit - 1, samples)`` (as large as
+    ``ulimit`` allows, to minimize the number of chunks). But if that chunk
+    size cannot fit ``n_threads`` in the merge stage
+    (``threads*(samples+1) <= ulimit``), the chunk is shrunk to the largest
+    size that does fit ``n_threads``, trading more chunks for full requested
+    parallelism.
 
     The objective is lexicographic but conflict-free:
       * threads is capped by n_threads, by RAM (via the partitions needed),
@@ -53,20 +59,28 @@ def get_best_params(
     if ulimit < 1:
         raise ValueError(f"ulimit {ulimit} too low: at least 1 open file required")
 
-    max_s = min(ulimit - 1, samples)  # per-chunk sample cap for the split build
+    max_s = min(ulimit - 1, samples)  # largest per-chunk sample cap the ulimit allows
+
+    if ulimit // (max_s + 1) >= n_threads:
+        chunk_s = max_s  # already fits n_threads: keep chunks as large as possible
+    else:
+        # shrink the chunk so more threads fit the merge stage: largest S
+        # with n_threads * (S + 1) <= ulimit
+        chunk_s = max(1, ulimit // n_threads - 1)
+
     # hard ceiling on threads: user cap and the merge-stage file limit
-    max_t = min(n_threads, ulimit // (max_s + 1))
+    max_t = min(n_threads, ulimit // (chunk_s + 1))
     if max_t < 1:
         raise ValueError(
-            f"ulimit {ulimit} too low: merge stage needs {max_s + 1} "
-            f"open files for a single thread"
+            f"ulimit {ulimit} too low: merge stage needs at least "
+            f"{chunk_s + 1} open files for a single thread"
         )
 
     # walk down from the ceiling; first feasible t is the maximum, and its
     # RAM-minimum partitions is the minimum partition count for that t
     for t in range(max_t, 0, -1):
         p = kmparams.kmtricks_params(
-            kmers=kmers, memory=ram, threads=t, samples=max_s, focus=focus
+            kmers=kmers, memory=ram, threads=t, samples=chunk_s, focus=focus
         )
         p.nb_partitions()  # minimum partitions for t threads (RAM floor)
         p.nb_open_files()
@@ -75,7 +89,7 @@ def get_best_params(
         if max(p.files.values()) <= ulimit:
             logger.debug(
                 f"get_best_params: chosen threads={t}, partitions={p.partitions}, "
-                f"samples={max_s}, files={max(p.files.values())}"
+                f"samples={chunk_s}, files={max(p.files.values())}"
             )
             return p
 
