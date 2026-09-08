@@ -124,20 +124,22 @@ for full requested parallelism. Unchanged when the largest chunk already support
    stage:
 
 $$
-S_{\max} = \min(F - 1,\ S_{\text{total}})
+S = \max\!\left(1,\ \min\!\left(\left\lfloor \dfrac{F}{N} \right\rfloor - 1,\ S_{\text{total}}\right)\right)
 $$
 
-$$
-S = \begin{cases}
-S_{\max} & \text{if } \left\lfloor \dfrac{F}{S_{\max}+1} \right\rfloor \ge N \\[8pt]
-\max\left(1,\ \left\lfloor \dfrac{F}{N} \right\rfloor - 1\right) & \text{otherwise}
-\end{cases}
-$$
+$\lfloor F/N \rfloor - 1$ is the largest $S$ satisfying $N(S+1) \le F$ (i.e. $S+1 \le F/N$, and
+since $S+1$ is an integer, $S+1 \le \lfloor F/N \rfloor$): the merge-stage chunk size that fits
+$N$ threads. Capping it at $S_{\text{total}}$ never asks for a chunk bigger than the whole
+dataset; flooring at $1$ keeps a chunk non-empty.
 
-The second case is the largest $S$ satisfying $N(S+1) \le F$ (i.e. $S+1 \le F/N$, and since
-$S+1$ is an integer, $S+1 \le \lfloor F/N \rfloor$). This only relaxes the merge-stage thread
-ceiling below; it never affects the superk-stage infeasibility case, since superk
-($T \cdot P + n_w$) doesn't depend on $S$.
+This single expression is equivalent to a two-case split on $S_{\max} = \min(F - 1,\ S_{\text{total}})$
+(largest chunk `ulimit` allows, vs. shrunk to fit $N$ threads) for any $F \ge 2$: whenever
+$S_{\max}$ is capped by $F - 1$ rather than $S_{\text{total}}$, the fitted-$N$ term
+$\lfloor F/N \rfloor - 1$ never falls below it either, so the `min` with $S_{\text{total}}$ still
+picks the right value. It only diverges from the two-case form at the degenerate $F = 1$ corner
+(1 open file total), which has no practical meaning for kmtricks. This only relaxes the
+merge-stage thread ceiling below; it never affects the superk-stage infeasibility case, since
+superk ($T \cdot P + n_w$) doesn't depend on $S$.
 
 2. Hard thread ceiling, from the user cap and the merge-stage file limit ($T(S+1) \le F$):
 

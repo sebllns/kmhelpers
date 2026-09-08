@@ -34,12 +34,9 @@ def get_best_params(
     samples, then merge the sub-indexes. ``p.samples`` on the returned params
     is the per-chunk count, not the original ``samples`` argument.
 
-    The chunk size is normally ``min(ulimit - 1, samples)`` (as large as
-    ``ulimit`` allows, to minimize the number of chunks). But if that chunk
-    size cannot fit ``n_threads`` in the merge stage
-    (``threads*(samples+1) <= ulimit``), the chunk is shrunk to the largest
-    size that does fit ``n_threads``, trading more chunks for full requested
-    parallelism.
+    The chunk size is the largest that fits ``n_threads`` in the merge stage
+    (``n_threads*(samples+1) <= ulimit``), capped at the total sample count
+    and floored at 1.
 
     The objective is lexicographic but conflict-free:
       * threads is capped by n_threads, by RAM (via the partitions needed),
@@ -59,14 +56,9 @@ def get_best_params(
     if ulimit < 1:
         raise ValueError(f"ulimit {ulimit} too low: at least 1 open file required")
 
-    max_s = min(ulimit - 1, samples)  # largest per-chunk sample cap the ulimit allows
-
-    if ulimit // (max_s + 1) >= n_threads:
-        chunk_s = max_s  # already fits n_threads: keep chunks as large as possible
-    else:
-        # shrink the chunk so more threads fit the merge stage: largest S
-        # with n_threads * (S + 1) <= ulimit
-        chunk_s = max(1, ulimit // n_threads - 1)
+    # largest chunk that fits n_threads in the merge stage (n_threads * (S + 1) <= ulimit),
+    # capped at the total sample count and floored at 1
+    chunk_s = max(1, min(ulimit // n_threads - 1, samples))
 
     # hard ceiling on threads: user cap and the merge-stage file limit
     max_t = min(n_threads, ulimit // (chunk_s + 1))
