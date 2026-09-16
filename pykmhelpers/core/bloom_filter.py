@@ -20,7 +20,8 @@ def kmindex_matrix_storage_cost(rows, cols):
 
 class BloomFilterSpecs:
     def __init__(self, n_rows: int, n_cols: int, n_partitions: int):
-        self._n_parts = n_partitions
+        # 0 means "not resolved yet" (decided at build time), estimate as one partition
+        self._n_parts = max(1, n_partitions)
         self._n_rows = n_rows
         self._n_cols = n_cols
 
