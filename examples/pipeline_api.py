@@ -24,7 +24,6 @@ import tempfile
 from pathlib import Path
 
 from pykmhelpers import Fasta, QueryRunner, QueryRunnerConfig
-from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.pipeline.composer import IndexComposer
 from pykmhelpers.pipeline.index_db import IndexDB
 from pykmhelpers.pipeline.index_ops import (
@@ -49,7 +48,8 @@ def reset_index_registry():
     the names before each compose/build to get the same isolation.
     """
     for db in list(IndexDB.get_all() or []):
-        IndexDB.remove_instance(db.name)
+        if db.name:
+            IndexDB.remove_instance(db.name)
 
 
 def build(reg, workdir):
@@ -88,10 +88,10 @@ def query(sample_file, workdir, output_dir):
 
 
 def load_query_results(results_dir):
-    """Merge every <results_dir>/<query>/result/*.jsonl into {query: {sample: frac}}."""
+    """Merge every <results_dir>/<query>/kmindex_output/*.jsonl into {query: {sample: frac}}."""
     merged = {}
     for jf in sorted(Path(results_dir).rglob("*.jsonl")):
-        if jf.parent.name != "result":
+        if jf.parent.name != "kmindex_output":
             continue
         for line in jf.read_text().splitlines():
             line = line.strip()
@@ -152,8 +152,6 @@ def main():
         IndexComposer(
             profiles_file="db/profile/profile.yaml",
             name="idx",
-            bf_max_size=ByteCounter.from_str("512GB"),
-            partition_min_size=ByteCounter.from_str("4GB"),
         ).run(
             input_file="db/list/idx.jsonl",
             output_dir="db/compose",
