@@ -30,6 +30,14 @@ from pykmhelpers.pipeline.index_db import (
 
 logger = logging.getLogger(__name__)
 
+# kmtricks silently raises any lower --nb-partitions value to this floor
+KMTRICKS_MIN_PARTITIONS = 4
+
+
+def clamp_partitions(count: int) -> int:
+    """Apply the kmtricks partition floor; 0 (auto) is left untouched."""
+    return max(count, KMTRICKS_MIN_PARTITIONS) if count > 0 else count
+
 
 class ApplyMode(int, Enum):
     DRY_RUN = 0
@@ -571,7 +579,9 @@ class IndexOps:
         matches what will actually be built, even when it started out unset
         (``0``).
         """
-        partition_count = self.config.partition_count or i.partition_count
+        partition_count = clamp_partitions(
+            self.config.partition_count or i.partition_count
+        )
 
         if self.config.kmindex_threads:
             i.partition_count = partition_count
@@ -604,7 +614,7 @@ class IndexOps:
                 f"current open-files limit; splitting into chunks"
             )
 
-        partition_count = max(partition_count, params.partitions)
+        partition_count = clamp_partitions(max(partition_count, params.partitions))
         logger.info(
             f"  └── Auto-sized: threads={params.threads}, partitions={partition_count}"
         )
