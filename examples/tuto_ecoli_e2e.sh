@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+set -euo pipefail
+
+# Working directory: first argument, or a fresh temporary directory
+workdir="${1:-$(mktemp -d)}"
+mkdir -p "$workdir" && cd "$workdir"
+echo "Working directory: $PWD"
 
 mkdir -p coli_dataset && cd coli_dataset
 wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/780/515/GCA_000780515.1_ASM78051v1/GCA_000780515.1_ASM78051v1_genomic.fna.gz"
@@ -25,4 +31,19 @@ coli_dataset/GCA_001413795.1_ASM141379v1_genomic.fna.gz
 coli_dataset/GCA_001373195.1_57A_A7_assembly_genomic.fna.gz
 coli_dataset/GCA_000938575.1_D1C4_assembly_genomic.fna.gz
 EOF
+
+kmhelpers design coli_10.txt \
+    -o coli_db/ \
+    -n coli \
+    -S initial \
+    -k 25 \
+    -b 1.1 \
+    -g 2
+
+kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build/ --show-progress
+
+zcat coli_dataset/GCA_000780515.1_ASM78051v1_genomic.fna.gz \
+    | awk '/^>/{n++} n<2' > query.fa
+
+kmhelpers query -r coli_build/ -o results/ query.fa
 
