@@ -19,20 +19,7 @@ wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/001/373/195/GCA_001373195.1_5
 wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/938/575/GCA_000938575.1_D1C4_assembly/GCA_000938575.1_D1C4_assembly_genomic.fna.gz"
 cd ..
 
-cat > coli_10.txt << 'EOF'
-coli_dataset/GCA_000780515.1_ASM78051v1_genomic.fna.gz
-coli_dataset/GCA_001076125.1_ASM107612v1_genomic.fna.gz
-coli_dataset/GCA_001417575.1_ASM141757v1_genomic.fna.gz
-coli_dataset/GCA_000944435.1_Ec57A_E8C1_MIRA_assembly_genomic.fna.gz
-coli_dataset/GCA_001075925.1_ASM107592v1_genomic.fna.gz
-coli_dataset/GCA_000936715.1_E8C1_assembly_genomic.fna.gz
-coli_dataset/GCA_000939215.1_Ec57A_A7_MIRA_assembly_genomic.fna.gz
-coli_dataset/GCA_001413795.1_ASM141379v1_genomic.fna.gz
-coli_dataset/GCA_001373195.1_57A_A7_assembly_genomic.fna.gz
-coli_dataset/GCA_000938575.1_D1C4_assembly_genomic.fna.gz
-EOF
-
-kmhelpers design coli_10.txt \
+kmhelpers design coli_dataset \
     -o coli_db/ \
     -n coli \
     -S initial \
