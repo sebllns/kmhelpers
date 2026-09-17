@@ -36,6 +36,7 @@ Steps run internally by [`build`](build.md):
 |---------|-------------|
 | [`manage`](manage.md) | Manage k-mer index registries *(under development)* |
 | [`pipeline`](pipeline.md) | Run a sequence of commands defined in a YAML pipeline file |
+| [`install-deps`](install-deps.md) | Download and install kmtricks and kmindex prebuilt binaries |
 
 ## Global Options
 

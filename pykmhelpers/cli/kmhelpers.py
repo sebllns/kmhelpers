@@ -25,6 +25,7 @@ from pykmhelpers.cli.count_kmers import count_kmers
 from pykmhelpers.cli.design import design
 from pykmhelpers.cli.experimental import experimental
 from pykmhelpers.cli.fof import fof
+from pykmhelpers.cli.install_deps import install_deps
 from pykmhelpers.cli.kmindex import kmindex
 from pykmhelpers.cli.list import list_samples
 from pykmhelpers.cli.pipeline import pipeline
@@ -351,10 +352,11 @@ def cli(
         random.seed(seed)
         root_logger.debug(f"Random seed set from KMHELPERS_SEED: {seed}")
 
-    try:
-        Bin.check_kmindex()
-    except RuntimeError:
-        root_logger.warning("Could not find kmindex command in path.")
+    if ctx.invoked_subcommand != "install-deps":
+        try:
+            Bin.check_kmindex()
+        except RuntimeError:
+            root_logger.warning("Could not find kmindex command in path.")
 
 
 # Register main commands
@@ -388,6 +390,8 @@ cli.add_command(registry)
 # cli.add_command(kmindex)
 pipeline.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(pipeline)
+install_deps.section = "Utilities"  # type: ignore[assignment]
+cli.add_command(install_deps)
 
 # Register other commands
 # experimental.section = "Other"  # type: ignore[assignment]
