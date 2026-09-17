@@ -19,6 +19,7 @@ from pykmhelpers import Bin, __version__
 from pykmhelpers.cli.about import about
 from pykmhelpers.cli.apply import apply
 from pykmhelpers.cli.build import build
+from pykmhelpers.cli.check_deps import check_deps
 from pykmhelpers.cli.compose import compose
 from pykmhelpers.cli.compress import kmindex_compress
 from pykmhelpers.cli.count_kmers import count_kmers
@@ -352,7 +353,7 @@ def cli(
         random.seed(seed)
         root_logger.debug(f"Random seed set from KMHELPERS_SEED: {seed}")
 
-    if ctx.invoked_subcommand != "install-deps":
+    if ctx.invoked_subcommand not in ("install-deps", "check-deps"):
         try:
             Bin.check_kmindex()
         except RuntimeError:
@@ -392,6 +393,8 @@ pipeline.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(pipeline)
 install_deps.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(install_deps)
+check_deps.section = "Utilities"  # type: ignore[assignment]
+cli.add_command(check_deps)
 
 # Register other commands
 # experimental.section = "Other"  # type: ignore[assignment]

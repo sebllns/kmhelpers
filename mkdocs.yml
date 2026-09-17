@@ -120,6 +120,7 @@ nav:
               - Utilities:
                       - manage: commands/manage.md
                       - pipeline: commands/pipeline.md
+                      - check-deps: commands/check-deps.md
                       - install-deps: commands/install-deps.md
       - API Reference:
               - Overview: api/index.md
