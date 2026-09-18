@@ -30,11 +30,11 @@ def get_commit() -> str:
 KMHELPERS_COMMIT = get_commit()
 
 DATA_EXT = (
-    ".fasta.gz",
-    ".fastq.gz",
-    ".fa.gz",
-    ".fq.gz",
-    ".fna.gz",
+    # ".fasta.gz",
+    # ".fastq.gz",
+    # ".fa.gz",
+    # ".fq.gz",
+    # ".fna.gz",
     ".fasta",
     ".fastq",
     ".fa",
@@ -42,4 +42,10 @@ DATA_EXT = (
     ".fna",
 )
 
-COMPRESS_EXT = (".gz", ".bz2", ".zip", ".xz")
+COMPRESS_EXT = (".gz", ".bz2", ".zip", ".xz", ".zst")
+
+# Data extensions, plain and compressed. Compressed variants come first so
+# suffix matching strips the full extension (".fa.gz" before ".fa").
+DATA_EXT_ALL = (
+    tuple(f"{ext}{comp}" for ext in DATA_EXT for comp in COMPRESS_EXT) + DATA_EXT
+)

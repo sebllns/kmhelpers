@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 import yaml
 
-from pykmhelpers.core.constants import DATA_EXT
+from pykmhelpers.core.constants import DATA_EXT_ALL
 from pykmhelpers.core.kmer import KmerCounter, KmerCountMode
 from pykmhelpers.core.log import Log
 from pykmhelpers.pipeline.index_db import IndexDefinitionTools
@@ -139,7 +139,7 @@ class SampleLister:
 
             scan_dir = self.input_dir
             if scan_dir is not None and (do_scan or (backup_parsed and not do_import)):
-                self._process_samples(scan_dir, DATA_EXT, self._process_sample)
+                self._process_samples(scan_dir, DATA_EXT_ALL, self._process_sample)
 
             if not do_scan and not do_import and not backup_parsed:
                 logger.warning(
