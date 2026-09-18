@@ -69,10 +69,12 @@ jobs:
           cd ntCard
           # Apple clang has no OpenMP runtime and rejects -static-libgcc, so
           # both CC and CXX must point at the Homebrew GCC.
-          GXX=$(ls /opt/homebrew/bin/g++-1* /usr/local/bin/g++-1* 2>/dev/null | head -n1)
+          # Runners ship older GCCs too, so resolve through the brew formula prefix.
+          PREFIX="$(brew --prefix gcc)"
+          GXX=$(ls "$PREFIX"/bin/g++-[0-9]* | head -n1)
           GCC="${GXX/g++/gcc}"
           # link libgomp statically so the binary does not depend on Homebrew gcc
-          LIBGOMP="$(dirname "$GXX")/../opt/gcc/lib/gcc/current/libgomp.a"
+          LIBGOMP="$PREFIX/lib/gcc/current/libgomp.a"
           test -f "$LIBGOMP"
           ./autogen.sh
           ./configure CC="$GCC" CXX="$GXX" \
