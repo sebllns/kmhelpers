@@ -16,23 +16,34 @@ jobs:
   linux:
     runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - { arch: x86_64, runner: ubuntu-24.04 }
           - { arch: aarch64, runner: ubuntu-24.04-arm }
-    container: alpine:3.20
     env:
       ARCH: ${{ matrix.arch }}
     steps:
-      - run: apk add --no-cache build-base autoconf automake zlib-dev zlib-static git
       # clone + checkout so a commit sha works as well as a tag
       - run: git clone "$NTCARD_REPO" && git -C ntCard checkout "$NTCARD_REF"
+      # Build inside a throwaway Alpine container instead of a job container:
+      # JS actions (upload-artifact) cannot run in Alpine on arm64 runners.
+      - run: |
+          docker run --rm -v "$PWD:/w" -w /w alpine:3.20 sh -euc '
+            apk add --no-cache build-base autoconf automake zlib-dev zlib-static
+            cd ntCard
+            ./autogen.sh
+            # musl does not transitively include sys/types.h; GCC emits a false
+            # positive -Warray-bounds on inlined ntHash code, fatal under -Werror.
+            ./configure \
+              CXXFLAGS="-O3 -Wno-error -Wno-array-bounds -include sys/types.h" \
+              LDFLAGS="-static"
+            make -j"$(nproc)"
+            strip ntcard
+            file ntcard | grep -q "statically linked"
+          '
       - run: |
           cd ntCard
-          ./autogen.sh
-          ./configure CXXFLAGS="-O3" LDFLAGS="-static"
-          make -j"$(nproc)"
-          strip ntcard
           out="ntcard-${NTCARD_REF}-linux-${ARCH}"
           mv ntcard "$out"
           sha256sum "$out" > "$out.sha256"
@@ -44,6 +55,7 @@ jobs:
   macos:
     runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - { arch: arm64, runner: macos-15 }
@@ -55,15 +67,22 @@ jobs:
       - run: git clone "$NTCARD_REPO" && git -C ntCard checkout "$NTCARD_REF"
       - run: |
           cd ntCard
-          GXX=$(ls /opt/homebrew/bin/g++-* /usr/local/bin/g++-* 2>/dev/null | head -n1)
+          # Apple clang has no OpenMP runtime and rejects -static-libgcc, so
+          # both CC and CXX must point at the Homebrew GCC.
+          GXX=$(ls /opt/homebrew/bin/g++-1* /usr/local/bin/g++-1* 2>/dev/null | head -n1)
+          GCC="${GXX/g++/gcc}"
           # link libgomp statically so the binary does not depend on Homebrew gcc
           LIBGOMP="$(dirname "$GXX")/../opt/gcc/lib/gcc/current/libgomp.a"
+          test -f "$LIBGOMP"
           ./autogen.sh
-          ./configure CXX="$GXX" CXXFLAGS="-O3" \
-            LDFLAGS="-static-libgcc -static-libstdc++ $LIBGOMP -Wl,-dead_strip_dylibs"
+          ./configure CC="$GCC" CXX="$GXX" \
+            CXXFLAGS="-O3 -Wno-error -Wno-array-bounds" \
+            LDFLAGS="-static-libgcc -static-libstdc++ -Wl,-dead_strip_dylibs" \
+            LIBS="$LIBGOMP"
           make -j"$(sysctl -n hw.ncpu)"
           strip ntcard
           otool -L ntcard
+          ! otool -L ntcard | grep -qE '/opt/homebrew|/usr/local'
           out="ntcard-${NTCARD_REF}-macos-${ARCH}"
           mv ntcard "$out"
           shasum -a 256 "$out" > "$out.sha256"
