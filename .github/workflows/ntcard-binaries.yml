@@ -24,6 +24,7 @@ jobs:
     env:
       ARCH: ${{ matrix.arch }}
     steps:
+      - uses: actions/checkout@v4
       # clone + checkout so a commit sha works as well as a tag
       - run: git clone "$NTCARD_REPO" && git -C ntCard checkout "$NTCARD_REF"
       # Build inside a throwaway Alpine container instead of a job container:
@@ -32,16 +33,21 @@ jobs:
           docker run --rm -v "$PWD:/w" -w /w alpine:3.20 sh -euc '
             apk add --no-cache build-base autoconf automake zlib-dev zlib-static
             cd ntCard
+            # dlsym(RTLD_NEXT) does not work in a static binary; route the
+            # fopen/open hooks through the linker --wrap mechanism instead.
+            patch -p1 < ../.github/patches/ntcard-static-uncompress.patch
             ./autogen.sh
             # musl does not transitively include sys/types.h; GCC emits a false
             # positive -Warray-bounds on inlined ntHash code, fatal under -Werror.
             ./configure \
               CXXFLAGS="-O3 -Wno-error -Wno-array-bounds -include sys/types.h" \
               LDFLAGS="-static"
-            make -j"$(nproc)"
+            make -j"$(nproc)" \
+              LDFLAGS="-static -Wl,--wrap=fopen,--wrap=fopen64,--wrap=open"
             strip ntcard
             file ntcard | grep -q "statically linked"
           '
+      - run: .github/scripts/ntcard-smoke-test.sh ntCard/ntcard
       - run: |
           cd ntCard
           out="ntcard-${NTCARD_REF}-linux-${ARCH}"
@@ -63,6 +69,7 @@ jobs:
     env:
       ARCH: ${{ matrix.arch }}
     steps:
+      - uses: actions/checkout@v4
       - run: brew install autoconf automake gcc
       - run: git clone "$NTCARD_REPO" && git -C ntCard checkout "$NTCARD_REF"
       - run: |
@@ -85,6 +92,9 @@ jobs:
           strip ntcard
           otool -L ntcard
           ! otool -L ntcard | grep -qE '/opt/homebrew|/usr/local'
+      - run: .github/scripts/ntcard-smoke-test.sh ntCard/ntcard
+      - run: |
+          cd ntCard
           out="ntcard-${NTCARD_REF}-macos-${ARCH}"
           mv ntcard "$out"
           shasum -a 256 "$out" > "$out.sha256"

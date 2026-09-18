@@ -1,0 +1,57 @@
+--- a/Common/Uncompress.cpp	2026-09-18 14:45:35.682752537 +0200
++++ b/Common/Uncompress.cpp	2026-09-18 14:45:35.692798516 +0200
+@@ -54,6 +54,12 @@
+ 
+ extern "C" {
+ 
++    /* Static builds cannot dlsym(RTLD_NEXT); the hooks are renamed to
++     * __wrap_* and linked with -Wl,--wrap so __real_* are the libc ones. */
++    FILE *__real_fopen(const char *path, const char *mode);
++    FILE *__real_fopen64(const char *path, const char *mode);
++    int __real_open(const char *path, int flags, mode_t mode);
++
+     /** Open a pipe to uncompress the specified file.
+      * Not thread safe.
+      * @return a file descriptor
+@@ -123,11 +129,11 @@
+     /** If the specified file is compressed, return a pipe that
+      * uncompresses it.
+      */
+-    FILE *fopen(const char *path, const char *mode)
++    FILE *__wrap_fopen(const char *path, const char *mode)
+     {
+         static fopen_t real_fopen;
+         if (real_fopen == NULL)
+-            real_fopen = (fopen_t)dlsym(RTLD_NEXT, "fopen");
++            real_fopen = __real_fopen;
+         if (real_fopen == NULL) {
+             fprintf(stderr, "error: dlsym fopen: %s\n", dlerror());
+             exit(EXIT_FAILURE);
+@@ -150,11 +156,11 @@
+     /** If the specified file is compressed, return a pipe that
+      * uncompresses it.
+      */
+-    FILE *fopen64(const char *path, const char *mode)
++    FILE *__wrap_fopen64(const char *path, const char *mode)
+     {
+         static fopen_t real_fopen64;
+         if (real_fopen64 == NULL)
+-            real_fopen64 = (fopen_t)dlsym(RTLD_NEXT, "fopen64");
++            real_fopen64 = __real_fopen64;
+         if (real_fopen64 == NULL) {
+             fprintf(stderr, "error: dlsym fopen64: %s\n", dlerror());
+             exit(EXIT_FAILURE);
+@@ -179,11 +185,11 @@
+     /** If the specified file is compressed, return a pipe that
+      * uncompresses it.
+      */
+-    int open(const char *path, int flags, mode_t mode)
++    int __wrap_open(const char *path, int flags, mode_t mode)
+     {
+         static open_t real_open;
+         if (real_open == NULL)
+-            real_open = (open_t)dlsym(RTLD_NEXT, "open");
++            real_open = __real_open;
+         if (real_open == NULL) {
+             fprintf(stderr, "error: dlsym open: %s\n", dlerror());
+             exit(EXIT_FAILURE);
