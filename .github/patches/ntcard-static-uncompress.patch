@@ -1,13 +1,13 @@
---- a/Common/Uncompress.cpp	2026-09-18 14:45:35.682752537 +0200
-+++ b/Common/Uncompress.cpp	2026-09-18 14:45:35.692798516 +0200
+--- a/Common/Uncompress.cpp
++++ b/Common/Uncompress.cpp
 @@ -54,6 +54,12 @@
  
  extern "C" {
  
-+    /* Static builds cannot dlsym(RTLD_NEXT); the hooks are renamed to
-+     * __wrap_* and linked with -Wl,--wrap so __real_* are the libc ones. */
++    /* Static builds cannot dlsym(RTLD_NEXT): the hooks are renamed to
++     * __wrap_* and linked with -Wl,--wrap so __real_* are the libc ones.
++     * musl has no fopen64 symbol, so fopen64 falls back to fopen. */
 +    FILE *__real_fopen(const char *path, const char *mode);
-+    FILE *__real_fopen64(const char *path, const char *mode);
 +    int __real_open(const char *path, int flags, mode_t mode);
 +
      /** Open a pipe to uncompress the specified file.
@@ -37,7 +37,7 @@
          static fopen_t real_fopen64;
          if (real_fopen64 == NULL)
 -            real_fopen64 = (fopen_t)dlsym(RTLD_NEXT, "fopen64");
-+            real_fopen64 = __real_fopen64;
++            real_fopen64 = __real_fopen;
          if (real_fopen64 == NULL) {
              fprintf(stderr, "error: dlsym fopen64: %s\n", dlerror());
              exit(EXIT_FAILURE);

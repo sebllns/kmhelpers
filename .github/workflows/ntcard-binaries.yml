@@ -43,7 +43,7 @@ jobs:
               CXXFLAGS="-O3 -Wno-error -Wno-array-bounds -include sys/types.h" \
               LDFLAGS="-static"
             make -j"$(nproc)" \
-              LDFLAGS="-static -Wl,--wrap=fopen,--wrap=fopen64,--wrap=open"
+              LDFLAGS="-fopenmp -static -Wl,--wrap=fopen,--wrap=fopen64,--wrap=open"
             strip ntcard
             file ntcard | grep -q "statically linked"
           '
