@@ -1,5 +1,6 @@
-"""Download and install kmtricks and kmindex prebuilt binaries."""
+"""Download and install kmtricks, kmindex and ntcard prebuilt binaries."""
 
+import hashlib
 import logging
 import os
 import platform
@@ -15,6 +16,13 @@ from pykmhelpers.core.log import Log
 logger = logging.getLogger(__name__)
 
 RELEASE_URL = "https://github.com/tlemane/{name}/releases/download/v{version}/{name}-v{version}-{os}-{arch}.tar.gz"
+# Portable ntcard builds from the sebllns/ntCard fork (static on Linux)
+NTCARD_URL = "https://github.com/sebllns/ntCard/releases/download/{version}/{file}"
+NTCARD_OS = {"Linux": "linux", "macOS": "macos"}
+NTCARD_ARCH = {
+    "Linux": {"x86_64": "x86_64", "arm64": "aarch64"},
+    "macOS": {"x86_64": "x86_64", "arm64": "arm64"},
+}
 TARGETS = ["x86_64", "arm64"]
 MACHINE_TO_TARGET = {
     "x86_64": "x86_64",
@@ -71,6 +79,32 @@ def install_release(name: str, version: str, os_name: str, target: str, path: st
         logger.info(f"Installed {dest}")
 
 
+def install_ntcard(version: str, os_name: str, target: str, path: str):
+    """Download the ntcard binary and verify it against the release checksums."""
+    suffix = f"{version}-{NTCARD_OS[os_name]}-{NTCARD_ARCH[os_name][target]}"
+    name = f"ntcard-{suffix}"
+    url = NTCARD_URL.format(version=version, file=name)
+    logger.info(f"Downloading {url}")
+    with urllib.request.urlopen(url) as response:
+        data = response.read()
+    sums_url = NTCARD_URL.format(version=version, file=f"SHA256SUMS-{suffix}")
+    with urllib.request.urlopen(sums_url) as response:
+        sums = response.read().decode()
+    expected = {}
+    for line in sums.splitlines():
+        digest, file = line.split()
+        expected[file] = digest
+    if hashlib.sha256(data).hexdigest() != expected.get(name):
+        raise click.ClickException(f"Checksum mismatch for {url}")
+    dest = os.path.join(path, "ntcard")
+    if os.path.lexists(dest):
+        os.remove(dest)
+    with open(dest, "wb") as out:
+        out.write(data)
+    os.chmod(dest, 0o755)
+    logger.info(f"Installed {dest}")
+
+
 @click.command(name="install-deps")
 @click.option(
     "--kmtricks",
@@ -89,6 +123,14 @@ def install_release(name: str, version: str, os_name: str, target: str, path: st
     help="kmindex version to install (0 to skip).",
 )
 @click.option(
+    "--ntcard",
+    "ntcard_version",
+    metavar="VERSION",
+    default="1.2.2-portable1",
+    show_default=True,
+    help="ntcard release tag to install (0 to skip).",
+)
+@click.option(
     "--target",
     type=click.Choice(TARGETS),
     default=None,
@@ -103,12 +145,15 @@ def install_release(name: str, version: str, os_name: str, target: str, path: st
     help="Installation directory. Default: directory of the kmhelpers executable.",
 )
 @click.pass_context
-def install_deps(ctx, kmtricks_version, kmindex_version, target, bin_path):
-    """Download and install kmtricks and kmindex prebuilt binaries.
+def install_deps(
+    ctx, kmtricks_version, kmindex_version, ntcard_version, target, bin_path
+):
+    """Download and install kmtricks, kmindex and ntcard prebuilt binaries.
 
     \b
     Binaries are fetched from the GitHub releases of
-    github.com/tlemane/kmtricks and github.com/tlemane/kmindex.
+    github.com/tlemane/kmtricks, github.com/tlemane/kmindex and
+    github.com/sebllns/ntCard (portable builds of ntCard).
     Existing files with the same name are overwritten after confirmation.
     """
     os_name = detect_os()
@@ -117,21 +162,22 @@ def install_deps(ctx, kmtricks_version, kmindex_version, target, bin_path):
         bin_path or os.path.dirname(os.path.abspath(sys.argv[0]))
     )
 
-    releases = [
+    tools = [
         (name, version.lstrip("v"))
         for name, version in (
             ("kmtricks", kmtricks_version),
             ("kmindex", kmindex_version),
+            ("ntcard", ntcard_version),
         )
         if version != "0"
     ]
-    if not releases:
+    if not tools:
         logger.warning("Nothing to install")
         return
 
     existing = [
         os.path.join(bin_path, name)
-        for name, _ in releases
+        for name, _ in tools
         if os.path.exists(os.path.join(bin_path, name))
     ]
     if (
@@ -143,8 +189,11 @@ def install_deps(ctx, kmtricks_version, kmindex_version, target, bin_path):
 
     try:
         os.makedirs(bin_path, exist_ok=True)
-        for name, version in releases:
-            install_release(name, version, os_name, target, bin_path)
+        for name, version in tools:
+            if name == "ntcard":
+                install_ntcard(version, os_name, target, bin_path)
+            else:
+                install_release(name, version, os_name, target, bin_path)
         path_dirs = [
             os.path.abspath(p)
             for p in os.environ.get("PATH", "").split(os.pathsep)
