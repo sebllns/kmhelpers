@@ -2458,8 +2458,8 @@
 </table>
 <h2 id="description">Description</h2>
 <p>Registry-based compression using the KmindexWrapper. Provides a simpler interface for compressing indices managed in a registry compared to using <code>kmindex</code> directly.</p>
-<p><strong>Column reordering</strong> - use <code>--reorder</code> to reorder columns before compression, which can improve compression ratio. Use <code>--sampling</code> to control how many rows are sampled to determine the optimal column order.</p>
-<p><strong>Deletion</strong> - use <code>--delete</code> to remove the uncompressed index after successful compression. Requires confirmation unless <code>-y</code> is passed at the root level.</p>
+<p><strong>Column reordering</strong> — use <code>--reorder</code> to reorder columns before compression, which can improve compression ratio. Use <code>--sampling</code> to control how many rows are sampled to determine the optimal column order.</p>
+<p><strong>Deletion</strong> — use <code>--delete</code> to remove the uncompressed index after successful compression. Requires confirmation unless <code>-y</code> is passed at the root level.</p>
 <h2 id="examples">Examples</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Basic compression</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>compress<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-n<span class="w"> </span>my_index

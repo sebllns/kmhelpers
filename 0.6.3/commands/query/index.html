@@ -2483,7 +2483,7 @@
 <h2 id="description">Description</h2>
 <p>Searches one or more kmindex indices for sequences from FASTA/FASTQ files. Directories are scanned recursively. Pass <code>-</code> to read from stdin.</p>
 <p>Each value in the output is the fraction of query k-mers found in that sample. Results below <code>--threshold</code> are filtered out.</p>
-<p><strong>Batch mode</strong> - use <code>--batch-query</code> to treat all sequences across all query files as a single query, or <code>--single-query NAME</code> to assign them a specific identifier.</p>
+<p><strong>Batch mode</strong> — use <code>--batch-query</code> to treat all sequences across all query files as a single query, or <code>--single-query NAME</code> to assign them a specific identifier.</p>
 <p><strong>Parallelization</strong> - <code>seq</code> parallelises across sequences (default); <code>sub</code> parallelises across sub-indices (forced when <code>--compressed</code> is set).</p>
 <p><strong>Presence vector</strong> - by default kmindex reports one coverage ratio <code>R</code> per sample:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span><span class="nt">"index"</span><span class="p">:</span><span class="s2">"idx_0"</span><span class="p">,</span><span class="nt">"query"</span><span class="p">:</span><span class="s2">"q0"</span><span class="p">,</span><span class="nt">"samples"</span><span class="p">:{</span><span class="nt">"sample_0"</span><span class="p">:</span><span class="mf">0.69</span><span class="p">}}</span>

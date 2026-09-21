@@ -763,7 +763,7 @@
   <a href="#step-31-scan-samples-and-count-k-mers-list" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 3.1 - Scan samples and count k-mers (list)
+        Step 3.1 — Scan samples and count k-mers (list)
       
     </span>
   </a>
@@ -774,7 +774,7 @@
   <a href="#step-32-profile-the-k-mer-distribution-profile" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 3.2 - Profile the k-mer distribution (profile)
+        Step 3.2 — Profile the k-mer distribution (profile)
       
     </span>
   </a>
@@ -785,7 +785,7 @@
   <a href="#step-33-compose-index-definitions-compose" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 3.3 - Compose index definitions (compose)
+        Step 3.3 — Compose index definitions (compose)
       
     </span>
   </a>
@@ -813,7 +813,7 @@
   <a href="#step-41-preview-the-build-plan-plan" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 4.1 - Preview the build plan (plan)
+        Step 4.1 — Preview the build plan (plan)
       
     </span>
   </a>
@@ -824,7 +824,7 @@
   <a href="#step-42-build-the-index-apply-or-bash" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 4.2 - Build the index (apply or bash)
+        Step 4.2 — Build the index (apply or bash)
       
     </span>
   </a>
@@ -2301,7 +2301,7 @@
   <a href="#step-31-scan-samples-and-count-k-mers-list" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 3.1 - Scan samples and count k-mers (list)
+        Step 3.1 — Scan samples and count k-mers (list)
       
     </span>
   </a>
@@ -2312,7 +2312,7 @@
   <a href="#step-32-profile-the-k-mer-distribution-profile" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 3.2 - Profile the k-mer distribution (profile)
+        Step 3.2 — Profile the k-mer distribution (profile)
       
     </span>
   </a>
@@ -2323,7 +2323,7 @@
   <a href="#step-33-compose-index-definitions-compose" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 3.3 - Compose index definitions (compose)
+        Step 3.3 — Compose index definitions (compose)
       
     </span>
   </a>
@@ -2351,7 +2351,7 @@
   <a href="#step-41-preview-the-build-plan-plan" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 4.1 - Preview the build plan (plan)
+        Step 4.1 — Preview the build plan (plan)
       
     </span>
   </a>
@@ -2362,7 +2362,7 @@
   <a href="#step-42-build-the-index-apply-or-bash" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 4.2 - Build the index (apply or bash)
+        Step 4.2 — Build the index (apply or bash)
       
     </span>
   </a>
@@ -2451,7 +2451,7 @@ re-run a specific part of the pipeline.</p>
 <h2 id="design">design</h2>
 <p>The three steps below are equivalent to <a href="../ecoli/#step-3-design-the-index-design">Step 3</a> of the tutorial.</p>
 <hr />
-<h3 id="step-31-scan-samples-and-count-k-mers-list">Step 3.1 - Scan samples and count k-mers (<a href="../../commands/list/"><code>list</code></a>)</h3>
+<h3 id="step-31-scan-samples-and-count-k-mers-list">Step 3.1 — Scan samples and count k-mers (<a href="../../commands/list/"><code>list</code></a>)</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mkdir<span class="w"> </span>-p<span class="w"> </span>coli_db/list
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>coli_10.txt<span class="w"> </span>-o<span class="w"> </span>coli_db/list/coli.jsonl<span class="w"> </span>-k<span class="w"> </span><span class="m">25</span>
 </code></pre></div>
@@ -2476,7 +2476,7 @@ sample:</p>
 </code></pre></div>
 </details>
 <hr />
-<h3 id="step-32-profile-the-k-mer-distribution-profile">Step 3.2 - Profile the k-mer distribution (<a href="../../commands/profile/"><code>profile</code></a>)</h3>
+<h3 id="step-32-profile-the-k-mer-distribution-profile">Step 3.2 — Profile the k-mer distribution (<a href="../../commands/profile/"><code>profile</code></a>)</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kmhelpers<span class="w"> </span>profile<span class="w"> </span>coli_db/list/coli.jsonl<span class="w"> </span>-o<span class="w"> </span>coli_db/profile/<span class="w"> </span>-b<span class="w"> </span><span class="m">1</span>.1<span class="w"> </span>-g<span class="w"> </span><span class="m">2</span>
 </code></pre></div>
 <details class="abstract">
@@ -2494,7 +2494,7 @@ s = \left\lfloor \log_{\text{base}}(n) \right\rfloor
 falls in the same bucket <span class="arithmatex">\([\text{base}^s,\, \text{base}^{s+1})\)</span> share span <span class="arithmatex">\(s\)</span>
 and are indexed together in one sub-index.</p>
 <p>The Bloom filter allocated for that sub-index is sized for the <strong>worst case</strong>
-of the bucket - the maximum k-mer count <span class="arithmatex">\(\text{base}^{s+1}\)</span> - so every sample
+of the bucket — the maximum k-mer count <span class="arithmatex">\(\text{base}^{s+1}\)</span> — so every sample
 in the span fits:</p>
 <div class="arithmatex">\[
 \text{bf_size} = \left\lceil \frac{f \cdot \text{base}^{s+1}}{8} \right\rceil \times 8
@@ -2528,7 +2528,7 @@ each bucket to a 10 % range, giving finer resolution at the cost of more
 spans. <code>-g 2</code> then requests that those spans be merged into 2 groups.
 For a dataset this small and uniform, <code>-g 1</code> (a single group) would
 actually be the optimal choice; we use <code>-g 2</code> here to illustrate how
-grouping works - pick a value that fits your own distribution.</p>
+grouping works — pick a value that fits your own distribution.</p>
 </details>
 </details>
 <details class="success">
@@ -2573,7 +2573,7 @@ requested 2-group overlay.</p>
 <summary>Storage</summary>
 <p><code>kmindex</code> stores samples in packs of 8 (bit-packing), so a
 sub-index with 1 sample occupies the same disk space as one with 8. In the
-<code>baseline</code> profile, spans 167, 169 and 170 hold only 1–2 samples each -
+<code>baseline</code> profile, spans 167, 169 and 170 hold only 1–2 samples each —
 those near-empty packs waste most of their allocated space, bringing the
 total to <strong>135 MB</strong>. In this case, merging the 5 sub-indices into 2 reduces
 the number of packs from 5 to 2 (one per group), cutting the total to
@@ -2591,7 +2591,7 @@ partition files accessed per query, directly reducing that latency overhead.</p>
 </details>
 </details>
 <hr />
-<h3 id="step-33-compose-index-definitions-compose">Step 3.3 - Compose index definitions (<a href="../../commands/compose/"><code>compose</code></a>)</h3>
+<h3 id="step-33-compose-index-definitions-compose">Step 3.3 — Compose index definitions (<a href="../../commands/compose/"><code>compose</code></a>)</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>coli_db/list/coli.jsonl<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>-o<span class="w"> </span>coli_db/compose/<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>-n<span class="w"> </span>coli<span class="w"> </span><span class="se">\</span>
@@ -2608,14 +2608,14 @@ partition files accessed per query, directly reducing that latency overhead.</p>
 <p><code>compose</code> reads the sample list and the profile, then writes index definition
 files into <code>coli_db/compose/coli/initial/</code>. Pass the <code>coli.yaml</code> file in that
 directory to <code>plan</code>, <code>build</code> or <code>apply</code> in the next step. The sample-to-sub-index
-repartition is driven by the selected profile - here <code>2_groups</code>, the default set
-by <code>profile</code> - whose Bloom-filter sizes are read from <code>coli_db/profile/profile.yaml</code>.</p>
+repartition is driven by the selected profile — here <code>2_groups</code>, the default set
+by <code>profile</code> — whose Bloom-filter sizes are read from <code>coli_db/profile/profile.yaml</code>.</p>
 </details>
 <hr />
 <h2 id="build">build</h2>
 <p>The two steps below are equivalent to <a href="../ecoli/#step-4-build-the-index-build">Step 4</a> of the tutorial.</p>
 <hr />
-<h3 id="step-41-preview-the-build-plan-plan">Step 4.1 - Preview the build plan (<a href="../../commands/plan/"><code>plan</code></a>)</h3>
+<h3 id="step-41-preview-the-build-plan-plan">Step 4.1 — Preview the build plan (<a href="../../commands/plan/"><code>plan</code></a>)</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kmhelpers<span class="w"> </span>plan<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/
 </code></pre></div>
 <details class="abstract">
@@ -2626,7 +2626,7 @@ by <code>profile</code> - whose Bloom-filter sizes are read from <code>coli_db/p
 <details class="info">
 <summary>INFO</summary>
 <p>Before committing to a potentially long build, validate paths and preview the commands that will be executed: <code>plan</code> checks that every sample file exists, reports any missing paths, and
-prints the equivalent <code>kmindex</code> commands - without running them. Fix any path
+prints the equivalent <code>kmindex</code> commands — without running them. Fix any path
 errors now rather than discovering them mid-build.</p>
 </details>
 <details class="success">
@@ -2647,7 +2647,7 @@ size, k-mer size, and output paths pre-filled from the profile.</p>
 </details>
 </details>
 <hr />
-<h3 id="step-42-build-the-index-apply-or-bash">Step 4.2 - Build the index (<a href="../../commands/apply/"><code>apply</code></a> or <code>bash</code>)</h3>
+<h3 id="step-42-build-the-index-apply-or-bash">Step 4.2 — Build the index (<a href="../../commands/apply/"><code>apply</code></a> or <code>bash</code>)</h3>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">apply</label><label for="__tabbed_1_2">bash</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
@@ -2656,7 +2656,7 @@ size, k-mer size, and output paths pre-filled from the profile.</p>
 <details class="abstract">
 <summary>I/O</summary>
 <p><strong>Input:</strong> <code>coli_db/compose/coli/initial/coli.yaml</code><br />
-<strong>Output:</strong> <code>coli_build/index.json</code> + sub-index data files in <code>coli_build/kmindex_data/</code> - ready-to-query index  </p>
+<strong>Output:</strong> <code>coli_build/index.json</code> + sub-index data files in <code>coli_build/kmindex_data/</code> — ready-to-query index  </p>
 </details>
 </div>
 <div class="tabbed-block">
@@ -2665,7 +2665,7 @@ size, k-mer size, and output paths pre-filled from the profile.</p>
 <details class="abstract">
 <summary>I/O</summary>
 <p><strong>Input:</strong> <code>coli_build/assets/kmhelpers_apply.sh</code> <br />
-<strong>Output:</strong> <code>coli_build/index.json</code> + sub-index data files in <code>coli_build/kmindex_data/</code> - ready-to-query index </p>
+<strong>Output:</strong> <code>coli_build/index.json</code> + sub-index data files in <code>coli_build/kmindex_data/</code> — ready-to-query index </p>
 </details>
 </div>
 </div>
