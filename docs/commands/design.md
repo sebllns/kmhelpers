@@ -49,8 +49,9 @@ OUTPUT_DIR/
 │   ├── profile.yaml                   ← span profile (input for compose)
 │   ├── baseline.csv                   ← natural distribution
 │   └── groups.png                     ← distribution plot
-└── compose/
-    └── NAME_layout.yaml               ← index definition files
+└── compose/                           ← COMPOSE_DIR
+    ├── NAME_layout.yaml               ← layout reused by future updates
+    └── NAME/SESSION/NAME.yaml         ← index definition, INPUT_FILE for build/plan/apply
 ```
 
 ## Description

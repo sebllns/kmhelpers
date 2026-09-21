@@ -68,7 +68,7 @@ output_dir_option = click.option(
     "work_dir",
     required=True,
     type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Output (working) directory path.",
+    help="📁  Index directory (BUILD_DIR): receives the built index, reused across builds and passed to `query -r`.",
 )
 
 _base_path_option = click.option(

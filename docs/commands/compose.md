@@ -6,20 +6,20 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 
 !!! abstract "USAGE"
     ```
-    kmhelpers compose -o OUTPUT_DIR -n NAME [-pf PROFILES_FILE] [-S SESSION_NAME] [OPTIONS] INPUT_FILE
+    kmhelpers compose -o COMPOSE_DIR -n NAME [-pf PROFILES_FILE] [-S SESSION] [OPTIONS] INPUT_FILE
     ```
 
     | Argument | Description |
     |----------|-------------|
     | `INPUT_FILE` | JSONL sample list produced by `list` |
-    | `-o, --output-dir DIR` | Output directory for index definitions |
+    | `-o, --output-dir COMPOSE_DIR` | Output directory for index definitions |
     | `-n, --name TEXT` | Name of created or updated index |
     | `-pf, --profiles-file FILE` | Profiles YAML file with index configuration (required to build a new index) |
-    | `-S, --session-id TEXT` | Session tag appended to index names (default: timestamp) |
+    | `-S, --session-id SESSION` | Session name: subdirectory of `COMPOSE_DIR/NAME/` and tag appended to index names (default: timestamp) |
 
 !!! abstract "I/O"
     **Input:** JSONL sample list (from [`list`](list.md)), profiles YAML required only for new index creation (from [`profile`](profile.md))  
-    **Output:** index definition files in `OUTPUT_DIR/NAME/SESSION/`, with `NAME.yaml` as the entry point
+    **Output:** index definition files in `COMPOSE_DIR/NAME/SESSION/`, with `NAME.yaml` as the entry point (`INPUT_FILE` for `plan`, `build` and `apply`)
 
 ## Advanced Options
 
@@ -36,24 +36,24 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 Takes a JSONL sample list (produced by [`list`](list.md)) and generates index definition
 files that can be passed to [`plan`](plan.md), [`build`](build.md) or [`apply`](apply.md).
 
-Output files are written to `OUTPUT_DIR/NAME/SESSION/`, where `SESSION` defaults to the
+Output files are written to `COMPOSE_DIR/NAME/SESSION/`, where `SESSION` defaults to the
 current timestamp if `--session-id` is not provided. Pass the `NAME.yaml` file in that
 directory as the input to `plan`, `build` or `apply` to process the index.
 
-**Building a new index** — provide `--profiles-file` (produced by [`profile`](profile.md)).
-A layout file is written to `OUTPUT_DIR/NAME_layout.yaml` for future updates.
+**Building a new index** - provide `--profiles-file` (produced by [`profile`](profile.md)).
+A layout file is written to `COMPOSE_DIR/NAME_layout.yaml` for future updates.
 
-**Updating an existing index** — omit `--profiles-file`. The layout file at
-`OUTPUT_DIR/NAME_layout.yaml` is detected and loaded automatically.
+**Updating an existing index** - omit `--profiles-file`. The layout file at
+`COMPOSE_DIR/NAME_layout.yaml` is detected and loaded automatically.
 
 If `--profile` is not specified, the `default_profile` field in the profiles file is used.
 
-**Partitioning** — each Bloom filter is split into N partition files. The partition count is
+**Partitioning** - each Bloom filter is split into N partition files. The partition count is
 determined automatically by default, or set explicitly with `--partition-count`. Use
 `--partition-min-size` to enforce a minimum file size per partition, or
 `--partition-count-limit` to cap the auto-computed count.
 
-**Splitting** — when the accumulated size of samples assigned to a span exceeds `--split-size`,
+**Splitting** - when the accumulated size of samples assigned to a span exceeds `--split-size`,
 they are distributed across multiple sub-indices rather than one. This is useful to keep
 individual index files manageable for large datasets.
 
@@ -85,6 +85,6 @@ kmhelpers compose samples.jsonl -o ./db -n my_index
 
 ## See Also
 
-- [`list`](list.md) — produce the JSONL sample list
-- [`profile`](profile.md) — produce the profiles YAML file
-- [`apply`](apply.md) — build indices from the generated definition files
+- [`list`](list.md) - produce the JSONL sample list
+- [`profile`](profile.md) - produce the profiles YAML file
+- [`apply`](apply.md) - build indices from the generated definition files

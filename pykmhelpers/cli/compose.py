@@ -97,14 +97,13 @@ def compose(
 
     \b
     Input:  JSONL sample list (from `list`), profiles YAML for new index (from `profile`)
-    Output: index definition files in OUTPUT_DIR/NAME/RUN_ID/
+    Output: index definition files in COMPOSE_DIR/NAME/SESSION/
 
-    The run directory contains a NAME.yaml registry. Pass
-    OUTPUT_DIR/NAME/RUN_ID/NAME.yaml as INPUT_FILE to `plan`, `build` or `apply` to
-    process the index.
+    Pass COMPOSE_DIR/NAME/SESSION/NAME.yaml as INPUT_FILE to `plan`, `build` or
+    `apply` to build the index. SESSION is set by --session-id.
 
     Use --profiles-file to build a new index. To update an existing index, omit
-    --profiles-file: the layout file at OUTPUT_DIR/NAME_layout.yaml is loaded automatically.
+    --profiles-file: the layout file at COMPOSE_DIR/NAME_layout.yaml is loaded automatically.
 
     Examples:
 

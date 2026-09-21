@@ -124,7 +124,7 @@ Review `coli_build/assets/` and `coli_build/logs/`, then:
 
 ??? example "Commands"
     ```bash
-    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -w coli_build/
+    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build/
     ```
 
 **Manual build**
@@ -142,8 +142,8 @@ Review `coli_build/assets/` and `coli_build/logs/`, then:
 ??? example "Commands"
     ```bash
     # each node builds a disjoint subset, and emails when its share is done
-    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -w coli_build/ -n coli_g0 --notify you@example.com
-    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -w coli_build/ -n coli_g1 --notify you@example.com
+    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build/ -n coli_g0 --notify you@example.com
+    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build/ -n coli_g1 --notify you@example.com
     ```
 
 ## Next Steps
