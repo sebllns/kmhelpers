@@ -27,6 +27,23 @@ Scan a directory or import a sample list, then run the full [`list`](list.md) �
     - `DESIGN_DIR/profile/` - span profile (`profile.yaml`, `baseline.csv`, `groups.png`)
     - `DESIGN_DIR/compose/NAME_layout.yaml` - layout reused by updates
 
+## Output Structure
+
+```
+DESIGN_DIR/
+├── list/
+│   └── NAME_samples_TIMESTAMP.jsonl   intermediate: sample manifest (omitted if INPUT is already a JSONL index)
+├── profile/
+│   ├── profile.yaml                   intermediate: span profile (input for compose)
+│   ├── baseline.csv                   intermediate: natural distribution
+│   └── groups.png                     distribution plot
+└── compose/                           COMPOSE_DIR
+    ├── NAME_layout.yaml               intermediate: layout reused by updates
+    └── NAME/
+        └── SESSION/
+            └── NAME.yaml              -> INPUT_FILE for build/plan/apply
+```
+
 ## Next Step
 
 Pass the index definition file to [`build`](build.md):
@@ -50,23 +67,6 @@ Set `-S` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 | `-lg, --leaf-grouping` | Group files by leaf folder; each leaf directory becomes one sample |
 | `-r, --autorename` | Rename duplicate sample IDs by appending a numeric suffix instead of skipping |
 | `-ntt, --ntcard-threads INT` | Number of threads for ntcard k-mer counting (default: 8) |
-
-## Output Structure
-
-```
-DESIGN_DIR/
-├── list/
-│   └── NAME_samples_TIMESTAMP.jsonl   intermediate: sample manifest (omitted if INPUT is already a JSONL index)
-├── profile/
-│   ├── profile.yaml                   intermediate: span profile (input for compose)
-│   ├── baseline.csv                   intermediate: natural distribution
-│   └── groups.png                     distribution plot
-└── compose/                           COMPOSE_DIR
-    ├── NAME_layout.yaml               intermediate: layout reused by updates
-    └── NAME/
-        └── SESSION/
-            └── NAME.yaml              -> INPUT_FILE for build/plan/apply
-```
 
 ## Description
 
