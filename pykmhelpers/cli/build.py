@@ -50,23 +50,26 @@ def build(
     Runs the pipeline [plan → apply] in a single command.
 
     \b
-    Input:  NAME.yaml written by `compose` in OUTPUT_DIR/NAME/RUN_ID/
-    Output: built k-mer index in WORK_DIR/, registered in WORK_DIR/index.json
+    Input:  COMPOSE_DIR/NAME/SESSION/NAME.yaml written by `compose` or `design`
+    Output: Bloom filters in BUILD_DIR/kmindex_data/SESSION/, registered in BUILD_DIR/index.json
+
+    BUILD_DIR (-o) is the index directory, reused across builds and passed to
+    `query -r`. A given SESSION can only be built once into a BUILD_DIR.
 
     \b
     Steps:
-      1. plan  - validate paths and write a build script to WORK_DIR/assets/
+      1. plan  - validate paths and write a build script to BUILD_DIR/assets/
       2. apply - execute the build and register all indices
 
     Examples:
 
     \b
-    # Plan then build all indices in a definition file
-    kmhelpers build index.yaml -o build
+    # Build the index defined in session "initial"
+    kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build
 
     \b
-    # Set threads and show progress
-    kmhelpers build index.yaml -o build -t 8 --show-progress
+    # Add an update session to the same index directory
+    kmhelpers build coli_db/compose/coli/update/coli.yaml -o coli_build
     """
 
     abort_msg = "Command 'build' aborted."

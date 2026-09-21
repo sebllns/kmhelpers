@@ -93,14 +93,12 @@ def plan(
     """Validate paths and preview the build plan from an index definition file.
 
     \b
-    Input:  index definition file (.json/.yaml) from `compose`
-    Output: shell script in WORK_DIR/assets/, validation report in WORK_DIR/logs/
+    Input:  COMPOSE_DIR/NAME/SESSION/NAME.yaml written by `compose` or `design`
+    Output: shell script in BUILD_DIR/assets/, validation report in BUILD_DIR/logs/
 
-    📄 INPUT_FILE is the NAME.yaml written by `compose` in OUTPUT_DIR/NAME/RUN_ID/.
-    Only indices matching --name or --span are processed;
-    if neither is specified, all declared indices
-    are previewed. The resulting build commands are written to a shell script in
-    the working directory.
+    BUILD_DIR (-o) is the index directory later passed to `apply` or `build`.
+    Only indices matching --name or --span are processed; if neither is
+    specified, all declared indices are previewed.
 
     Use --offline to skip local path validation when generating scripts for
     another machine.
@@ -109,28 +107,16 @@ def plan(
 
     \b
     # Preview build plan for a definition file
-    kmhelpers plan index.yaml -w /output
+    kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build
 
     \b
-    # Preview only selected indices by name
-    kmhelpers plan index.yaml -w /output -n idx1,idx2
-
-    \b
-    # Preview only selected k-mer spans
-    kmhelpers plan registry.yaml -w /output -s 28
-    kmhelpers plan registry.yaml -w /output -s 27,28,29
-
-    \b
-    # Reuse parameters from an existing parent index
-    kmhelpers plan index.yaml -w /output -n my_index --from parent_index
-
-    \b
-    # Resolve sample paths from a base directory
-    kmhelpers plan index.yaml -w /output -b /data/samples
+    # Preview only selected indices or spans
+    kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build -n coli_g0,coli_g1
+    kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build -s 27-30
 
     \b
     # Skip path validation (for exporting scripts to another machine)
-    kmhelpers plan index.yaml -w /output --offline
+    kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build --offline
     """
     try:
         force = (ctx.obj or {}).get("yes", False)

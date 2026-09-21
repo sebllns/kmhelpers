@@ -4,7 +4,7 @@
 ### Build an index with [`apply`](../commands/apply.md)
 
 ```bash
-kmhelpers apply coli3682_db/index.yaml -w coli3682_db/ -t 8
+kmhelpers apply coli3682_db/index.yaml -o coli3682_db/ -t 8
 ```
 
 `apply` runs the build. The `-t 8` flag sets the number of threads; adjust it
@@ -14,13 +14,13 @@ Useful options for long runs:
 
 ```bash
 # Show a progress bar
-kmhelpers apply coli3682_db/index.yaml -w coli3682_db/ -t 8 --show-progress
+kmhelpers apply coli3682_db/index.yaml -o coli3682_db/ -t 8 --show-progress
 
 # Abort immediately on any error
-kmhelpers apply coli3682_db/index.yaml -w coli3682_db/ -t 8 --fail-on-error
+kmhelpers apply coli3682_db/index.yaml -o coli3682_db/ -t 8 --fail-fast
 
 # Get an email when the build finishes
-kmhelpers apply coli3682_db/index.yaml -w coli3682_db/ -t 8 \
+kmhelpers apply coli3682_db/index.yaml -o coli3682_db/ -t 8 \
     --notify you@example.com
 ```
 
