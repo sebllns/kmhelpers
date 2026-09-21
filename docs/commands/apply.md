@@ -15,7 +15,7 @@ Build k-mer indices from an index definition file.
     | `-o, --output-dir BUILD_DIR` | Index directory: receives the built index, reused across builds and passed to `query -r` (required) |
 
 !!! abstract "I/O"
-    **Input:** `COMPOSE_DIR/NAME/SESSION/NAME.yaml`  
+    **Input:** `COMPOSE_DIR/NAME/SESSION/NAME.yaml` written by `compose`, or `DESIGN_DIR/compose/NAME/SESSION/NAME.yaml` when produced by `design` (see [design - Next Step](design.md#next-step))  
     **Output:** Bloom filters in `BUILD_DIR/kmindex_data/`, registered in `BUILD_DIR/index.json`
 
 See [build - Paths](build.md#paths) for the directory layout.

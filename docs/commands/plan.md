@@ -15,7 +15,7 @@ Validate paths and preview the build plan from an index definition file, then wr
     | `-o, --output-dir BUILD_DIR` | Index directory the plan targets, same as for [`build`](build.md) and [`apply`](apply.md) (required) |
 
 !!! abstract "I/O"
-    **Input:** `COMPOSE_DIR/NAME/SESSION/NAME.yaml`  
+    **Input:** `COMPOSE_DIR/NAME/SESSION/NAME.yaml` written by `compose`, or `DESIGN_DIR/compose/NAME/SESSION/NAME.yaml` when produced by `design` (see [design - Next Step](design.md#next-step))  
     **Output:** shell script in `BUILD_DIR/assets/`, validation report in `BUILD_DIR/logs/`
 
 See [build - Paths](build.md#paths) for the directory layout.
