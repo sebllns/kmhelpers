@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 import yaml
 
-from pykmhelpers.core.constants import DATA_EXT_ALL
+from pykmhelpers.core.constants import DATA_EXT_ALL, strip_data_ext
 from pykmhelpers.core.kmer import KmerCounter, KmerCountMode
 from pykmhelpers.core.log import Log
 from pykmhelpers.pipeline.index_db import IndexDefinitionTools
@@ -164,10 +164,7 @@ class SampleLister:
         self._out.write(json.dumps(header) + "\n")
         for name, attrs in data["samples"].items():
             files = (
-                [
-                    f if os.path.isabs(f) else os.path.join(root_path, f)
-                    for f in attrs.get("files", [])
-                ]
+                [self._rel_to_root(f, root_path) for f in attrs.get("files", [])]
                 if root_path
                 else attrs.get("files", [])
             )
@@ -269,7 +266,7 @@ class SampleLister:
                 if len(parts) == 1:
                     files_str = parts[0]
                     sample_id = self._tools.clean_sample_id(
-                        os.path.splitext(os.path.basename(files_str.split(",")[0]))[0]
+                        strip_data_ext(os.path.basename(files_str.split(",")[0]))
                     )
                 else:
                     sample_id = self._tools.clean_sample_id(parts[0])
@@ -277,10 +274,7 @@ class SampleLister:
 
                 files = [f.strip().strip('"').strip("'") for f in files_str.split(",")]
                 if root_path:
-                    files = [
-                        f if os.path.isabs(f) else os.path.join(root_path, f)
-                        for f in files
-                    ]
+                    files = [self._rel_to_root(f, root_path) for f in files]
                 if files:
                     process_callback(sample_id, files, kmer_count)
 
@@ -311,16 +305,9 @@ class SampleLister:
                 process_callback(sample_id, data_files, 0)
             else:
                 for filepath in data_files:
-                    fname = os.path.basename(filepath)
-                    base = next(
-                        (
-                            fname[: -len(ext)]
-                            for ext in extensions
-                            if fname.endswith(ext)
-                        ),
-                        fname,
+                    sample_id = self._tools.clean_sample_id(
+                        strip_data_ext(os.path.basename(filepath))
                     )
-                    sample_id = self._tools.clean_sample_id(base)
                     process_callback(sample_id, [filepath], 0)
 
     def _process_backup(self, backup_file: str) -> tuple:
@@ -379,6 +366,13 @@ class SampleLister:
                         )
 
         return input_dir, kmer_size, parsed
+
+    @staticmethod
+    def _rel_to_root(path: str, root_path: str) -> str:
+        """Return path relative to root_path, or absolute if it lies outside."""
+        abs_path = os.path.normpath(os.path.join(root_path, path))
+        rel = os.path.relpath(abs_path, root_path)
+        return abs_path if rel.startswith("..") else rel
 
     @staticmethod
     def _new_header(input_dir, kmer_size, is_assembled, abundance_min) -> str:

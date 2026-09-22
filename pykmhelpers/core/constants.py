@@ -1,3 +1,4 @@
+import os
 import subprocess
 from pathlib import Path
 
@@ -49,3 +50,15 @@ COMPRESS_EXT = (".gz", ".bz2", ".zip", ".xz", ".zst")
 DATA_EXT_ALL = (
     tuple(f"{ext}{comp}" for ext in DATA_EXT for comp in COMPRESS_EXT) + DATA_EXT
 )
+
+
+def strip_data_ext(fname: str) -> str:
+    """Remove trailing compression suffixes (possibly stacked), then one data
+    extension. Otherwise fall back to removing the last suffix."""
+    base = fname
+    while base.endswith(COMPRESS_EXT):
+        base = base[: base.rfind(".")]
+    for ext in DATA_EXT:
+        if base.endswith(ext):
+            return base[: -len(ext)]
+    return os.path.splitext(fname)[0]

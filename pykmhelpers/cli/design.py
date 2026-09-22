@@ -193,11 +193,10 @@ def design(
     for d in dirs_to_make:
         os.makedirs(d, exist_ok=True)
 
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     jsonl_path = (
         Toolbox.get_canonical_path(input)
         if input_is_jsonl
-        else os.path.join(list_dir, f"{name}_samples_{timestamp}.jsonl")
+        else os.path.join(list_dir, f"{name}_samples_{session_id}.jsonl")
     )
     profiles_file = os.path.join(profile_dir, "profile.yaml")
     auto_layout = os.path.join(compose_dir, f"{name}_layout.yaml")
