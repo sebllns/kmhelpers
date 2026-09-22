@@ -52,7 +52,10 @@ coli_build/                       BUILD_DIR (build -o, query -r)
 ├── kmindex_data/
 │   ├── initial/                  Bloom filters, one folder per SESSION
 │   └── update/
-├── assets/                       generated kmindex scripts
+├── assets/
+│   ├── kmhelpers_apply.sh        runs the last built SESSION
+│   ├── initial/                  scripts and fof files, one folder per SESSION
+│   └── update/
 └── logs/
 ```
 
@@ -62,7 +65,7 @@ Reuse the same `BUILD_DIR` for every session of an index: each build adds its su
 
 `build` chains [`plan`](plan.md) and [`apply`](apply.md) into a single invocation. It is equivalent to running the two commands in sequence.
 
-**Step 1 - plan:** validates all sample paths upfront and writes the equivalent `kmindex` shell script to `BUILD_DIR/assets/` and a validation report to `BUILD_DIR/logs/`. Fix any path errors before the build starts rather than discovering them mid-run.
+**Step 1 - plan:** validates all sample paths upfront and writes the equivalent `kmindex` shell scripts to `BUILD_DIR/assets/SESSION/` (one per sub-index, plus `kmhelpers_apply.sh` running them in order) and a validation report to `BUILD_DIR/logs/`. Fix any path errors before the build starts rather than discovering them mid-run.
 
 **Step 2 - apply:** executes the build and registers all completed indices in `BUILD_DIR/index.json`.
 

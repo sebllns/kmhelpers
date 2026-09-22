@@ -57,6 +57,7 @@ class IndexOps:
         # Kept across runs: sample files are resolved relative to their definition file
         self._dbs = DbCache()
         self._script = ScriptRecorder(self.work_dir)
+        self._session: Optional[str] = None
 
         logger.debug(f"Init {type(self).__name__}")
         logger.debug("workdir: " + self.work_dir)
@@ -111,9 +112,15 @@ class IndexOps:
 
         One script per group of parts (``<db>_g<span>_<session>.sh``: builds,
         merge, then cleanup), plus ``kmhelpers_apply.sh`` running them in
-        order. Existing files are backed up with a ``.bak`` suffix.
+        order. With ``config.session_assets``, they go to
+        ``asset_dir/<session>/`` and ``asset_dir/kmhelpers_apply.sh`` runs
+        that session. Existing files are backed up with a ``.bak`` suffix.
         """
-        self._script.write(self.asset_dir)
+        run_dir = self._run_asset_dir
+        self._script.write(run_dir)
+        if run_dir != self.asset_dir:
+            runner = os.path.join(run_dir, ScriptRecorder.RUNNER_NAME)
+            self._script.write_entry(self.asset_dir, runner)
 
     def run(
         self, path: str, mode: ApplyMode, fail_on_error: bool = False
@@ -138,6 +145,11 @@ class IndexOps:
         """
         path = os.path.realpath(path)
         self._script = ScriptRecorder(self.work_dir)
+        self._session = (
+            os.path.basename(os.path.dirname(path))
+            if self.config.session_assets
+            else None
+        )
         report = RunReport(path, mode)
         idt = IndexDefinitionTools()
 
@@ -148,11 +160,13 @@ class IndexOps:
             report.result.status = ApplyStatus.FAILED
             return report.result
 
+        os.makedirs(self._run_asset_dir, exist_ok=True)
         builder = IndexBuilder(
             workdir=self.work_dir,
             registry_name=self.kmindex_registry_dir,
             data_folder=self.kmindex_data_dir,
             log_folder=self.log_dir,
+            assets_folder=os.path.relpath(self._run_asset_dir, self.work_dir),
         )
         try:
             plan = SOURCES[input_type](self.config, self._dbs).load(path, idt, data)
@@ -193,6 +207,13 @@ class IndexOps:
 
     # ---
     # PRIVATE METHODS
+
+    @property
+    def _run_asset_dir(self) -> str:
+        """Asset directory of the current run: per session, or flat."""
+        if self._session:
+            return os.path.join(self.asset_dir, self._session)
+        return self.asset_dir
 
     def _resolve_params(self, i: IndexDefinition, sample_count: int) -> BuildParams:
         params = resolve_build_params(i, sample_count, self.config)

@@ -98,6 +98,10 @@ class IndexOpsConfig:
             from the system. Defaults to ``None`` (all keys auto-detected).
         safety_margin: Fraction of a detected system limit to use for any
             key missing from ``limits``. Defaults to ``0.9``.
+        session_assets: When ``True``, generated assets and scripts go to
+            ``assets/<session>/``, where the session is the folder name of the
+            input file, and ``assets/kmhelpers_apply.sh`` runs the last
+            session. Defaults to ``False`` (flat ``assets/``).
     """
 
     workdir: str
@@ -114,3 +118,4 @@ class IndexOpsConfig:
     partition_count: Optional[int] = None
     limits: Optional[str] = None
     safety_margin: float = 0.9
+    session_assets: bool = False

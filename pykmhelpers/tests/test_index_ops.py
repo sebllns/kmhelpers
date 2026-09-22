@@ -248,6 +248,24 @@ class TestScriptRecorder(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             ScriptRecorder(str(self.tmp)).add("cmd")
 
+    def test_write_creates_directory_and_entry_runner(self):
+        rec = ScriptRecorder(str(self.tmp))
+        rec.select("a")
+        rec.add("build a_p0")
+        session_dir = self.assets / "initial"
+        rec.write(str(session_dir))
+        rec.write_entry(str(self.assets), str(session_dir / "kmhelpers_apply.sh"))
+
+        self.assertTrue((session_dir / "a.sh").is_file())
+        self.assertEqual(
+            self.lines("initial/kmhelpers_apply.sh")[-1],
+            'bash "${WORKDIR}/assets/initial/a.sh"',
+        )
+        self.assertEqual(
+            self.lines("kmhelpers_apply.sh")[-1],
+            'bash "${WORKDIR}/assets/initial/kmhelpers_apply.sh"',
+        )
+
     def test_rewrite_backs_up(self):
         for cmd in ("first", "second"):
             rec = ScriptRecorder(str(self.tmp))

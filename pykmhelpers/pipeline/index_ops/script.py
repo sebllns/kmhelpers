@@ -41,6 +41,7 @@ class ScriptRecorder:
 
         Existing files are backed up with a ``.bak`` suffix.
         """
+        os.makedirs(directory, exist_ok=True)
         for name, lines in self._groups.items():
             self._write_file(directory, f"{name}.sh", lines)
         runner = [
@@ -50,6 +51,11 @@ class ScriptRecorder:
             for name in self._groups
         ]
         self._write_file(directory, self.RUNNER_NAME, runner)
+
+    def write_entry(self, directory: str, script_path: str) -> None:
+        """Write ``<directory>/kmhelpers_apply.sh`` running ``script_path``."""
+        cmd = f'bash "{script_path}"'.replace(self._workdir, "${WORKDIR}")
+        self._write_file(directory, self.RUNNER_NAME, [cmd])
 
     def _write_file(self, directory: str, file_name: str, lines: list[str]) -> None:
         path = os.path.join(directory, file_name)

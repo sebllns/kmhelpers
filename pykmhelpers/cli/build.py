@@ -153,6 +153,7 @@ def build(
             on_existing="fail",
             partition_count=partition_count,
             safety_margin=0.75,
+            session_assets=True,
         )
     )
 
