@@ -227,31 +227,55 @@ class TestScriptRecorder(unittest.TestCase):
     def test_one_script_per_group_and_runner(self):
         rec = ScriptRecorder(str(self.tmp))
         rec.select("b")
-        rec.add(f"build {self.tmp}/b_p0")
+        rec.add(f"build {self.tmp}/b_p0", "build b_p0")
         rec.select("a")
-        rec.add("build a_p0")
+        rec.add("build a_p0", "build a_p0")
         rec.select("b")
-        rec.add("merge b")
+        rec.add("merge b", "merge b_p0 -> b")
         rec.write(str(self.assets))
 
-        header = ["#!/usr/bin/bash", "set -e", f"WORKDIR='{self.tmp}'", "cd ${WORKDIR}"]
+        header = [
+            "#!/usr/bin/bash",
+            "set -euo pipefail",
+            f"WORKDIR='{self.tmp}'",
+            "cd ${WORKDIR}",
+        ]
+        ts = "$(date '+%F %T')"
         self.assertEqual(
-            self.lines("b.sh"), header + ["build ${WORKDIR}/b_p0", "merge b"]
+            self.lines("b.sh"),
+            header
+            + [
+                f'echo "{ts} [b] build b_p0"',
+                "build ${WORKDIR}/b_p0",
+                f'echo "{ts} [b] merge b_p0 -> b"',
+                "merge b",
+                f'echo "{ts} [b] done"',
+            ],
         )
-        self.assertEqual(self.lines("a.sh"), header + ["build a_p0"])
+        self.assertEqual(
+            self.lines("a.sh"),
+            header
+            + [f'echo "{ts} [a] build a_p0"', "build a_p0", f'echo "{ts} [a] done"'],
+        )
         self.assertEqual(
             self.lines("kmhelpers_apply.sh"),
-            header + ['bash "${WORKDIR}/assets/b.sh"', 'bash "${WORKDIR}/assets/a.sh"'],
+            header
+            + [
+                f'echo "{ts} Running assets/b.sh"',
+                'bash "${WORKDIR}/assets/b.sh"',
+                f'echo "{ts} Running assets/a.sh"',
+                'bash "${WORKDIR}/assets/a.sh"',
+            ],
         )
 
     def test_add_requires_selection(self):
         with self.assertRaises(RuntimeError):
-            ScriptRecorder(str(self.tmp)).add("cmd")
+            ScriptRecorder(str(self.tmp)).add("cmd", "step")
 
     def test_write_creates_directory_and_entry_runner(self):
         rec = ScriptRecorder(str(self.tmp))
         rec.select("a")
-        rec.add("build a_p0")
+        rec.add("build a_p0", "step")
         session_dir = self.assets / "initial"
         rec.write(str(session_dir))
         rec.write_entry(str(self.assets), str(session_dir / "kmhelpers_apply.sh"))
@@ -270,10 +294,10 @@ class TestScriptRecorder(unittest.TestCase):
         for cmd in ("first", "second"):
             rec = ScriptRecorder(str(self.tmp))
             rec.select("a")
-            rec.add(cmd)
+            rec.add(cmd, "step")
             rec.write(str(self.assets))
-        self.assertEqual(self.lines("a.sh")[-1], "second")
-        self.assertEqual(self.lines("a.sh.bak")[-1], "first")
+        self.assertIn("second", self.lines("a.sh"))
+        self.assertIn("first", self.lines("a.sh.bak"))
 
 
 if __name__ == "__main__":

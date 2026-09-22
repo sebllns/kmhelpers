@@ -80,7 +80,8 @@ class IndexExecutor:
             target, parts, delete_old=False, dry_run=not self.executes, threads=threads
         )
         if result and "command" in result:
-            self._script.add(result["command"])
+            label = f"merge {','.join(parts)} -> {target}"
+            self._script.add(result["command"], label)
         return result
 
     def finalize_merge(self, target: str, parts: list[str]) -> None:
@@ -93,7 +94,9 @@ class IndexExecutor:
             # kmindex merge already unregisters the parts: only their data is left
             for part in parts:
                 path = os.path.join(self._config.index_data_folder, part)
-                self._script.add(f'rm -rf "$(realpath -m {path})" "{path}"')
+                self._script.add(
+                    f'rm -rf "$(realpath -m {path})" "{path}"', f"cleanup {part}"
+                )
             return
         self._verify(target)
         if self._builder.index.get_index(target).check_structure():
@@ -150,7 +153,7 @@ class IndexExecutor:
                 progress=progress.handler,
             )
             if result and "command" in result:
-                self._script.add(result["command"])
+                self._script.add(result["command"], f"build {name}")
 
         if self.executes:
             self._verify(name)
