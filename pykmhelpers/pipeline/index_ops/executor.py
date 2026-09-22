@@ -84,8 +84,16 @@ class IndexExecutor:
         return result
 
     def finalize_merge(self, target: str, parts: list[str]) -> None:
-        """Check that ``target`` exists and, if its structure is valid, delete ``parts``."""
+        """Check that ``target`` exists and, if its structure is valid, delete ``parts``.
+
+        When not executing, the deletion is scripted instead; the script stops
+        before it if the merge fails.
+        """
         if not self.executes:
+            # kmindex merge already unregisters the parts: only their data is left
+            for part in parts:
+                path = os.path.join(self._config.index_data_folder, part)
+                self._script.add(f'rm -rf "$(realpath -m {path})" "{path}"')
             return
         self._verify(target)
         if self._builder.index.get_index(target).check_structure():
@@ -93,7 +101,7 @@ class IndexExecutor:
                 self.delete_segment(part)
 
     def delete_segment(self, segment: str) -> None:
-        """Unregister ``segment`` and delete its data directory (or script the deletion)."""
+        """Unregister ``segment`` and delete its data directory."""
         logger.info(f"Delete {segment}...")
         try:
             self._builder.index.remove_index(
@@ -105,11 +113,6 @@ class IndexExecutor:
             )
 
         index_path = os.path.join(self._config.index_data_folder, segment)
-        if not self.executes:
-            self._script.add(f"rm -rf $(realpath {index_path})")
-            self._script.add(f"[ -L {index_path} ] && unlink {index_path}")
-            return
-
         shutil.rmtree(os.path.realpath(index_path), ignore_errors=True)
         try:
             if os.path.islink(index_path):

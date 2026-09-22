@@ -16,7 +16,7 @@ Validate paths and preview the build plan from an index definition file, then wr
 
 !!! abstract "I/O"
     **Input:** `COMPOSE_DIR/NAME/SESSION/NAME.yaml` written by `compose`, or `DESIGN_DIR/compose/NAME/SESSION/NAME.yaml` when produced by `design` (see [design - Next Step](design.md#next-step))  
-    **Output:** shell script in `BUILD_DIR/assets/`, validation report in `BUILD_DIR/logs/`
+    **Output:** shell scripts in `BUILD_DIR/assets/`, validation report in `BUILD_DIR/logs/`
 
 See [build - Paths](build.md#paths) for the directory layout.
 
@@ -42,7 +42,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 
 ## Description
 
-`plan` validates all sample paths of `INPUT_FILE` upfront and previews the `kmindex` commands that would be executed by [`apply`](apply.md), without running them. It writes the equivalent shell script to `BUILD_DIR/assets/` and a validation report to `BUILD_DIR/logs/`.
+`plan` validates all sample paths of `INPUT_FILE` upfront and previews the `kmindex` commands that would be executed by [`apply`](apply.md), without running them. It writes the equivalent shell scripts to `BUILD_DIR/assets/` (one per sub-index, `<name>_g<span>_<session>.sh`, plus `kmhelpers_apply.sh` running them in order) and a validation report to `BUILD_DIR/logs/`.
 
 **Offline mode** - use `--offline` to skip local path validation when generating scripts destined for another machine.
 

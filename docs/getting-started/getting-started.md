@@ -129,7 +129,7 @@ Review `coli_build/assets/` and `coli_build/logs/`, then:
 
 **Manual build**
 
-`plan` also writes `OUTPUT_DIR/assets/kmhelpers_apply.sh`, a plain bash script equivalent to running `apply`. It can be run manually for a fully hands-on build, and being plain bash, it's easy to adapt for distributed computing - e.g. split it across nodes in a cluster job scheduler:
+`plan` also writes plain bash scripts equivalent to running `apply` in `OUTPUT_DIR/assets/`: one self-contained script per sub-index (`<name>_g<span>_<session>.sh`: builds, merge, cleanup), and `kmhelpers_apply.sh`, which runs them all in order. They can be run manually for a fully hands-on build, and since each sub-index script is independent, they are easy to dispatch for distributed computing - e.g. one job per script in a cluster job scheduler:
 
 ??? example "Commands"
     ```bash

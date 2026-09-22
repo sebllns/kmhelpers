@@ -1,7 +1,7 @@
 """Unit tests for the index_ops components that do not need kmindex.
 
-Covers status aggregation, build parameter sizing, input source filtering
-and sample resolution. The full build/merge flow is covered by
+Covers status aggregation, build parameter sizing, input source filtering,
+sample resolution and script export. The full build/merge flow is covered by
 ``test_pipeline_e2e.py``.
 """
 
@@ -14,6 +14,7 @@ from types import SimpleNamespace
 from pykmhelpers.pipeline.index_ops import ApplyStatus, IndexOpsConfig
 from pykmhelpers.pipeline.index_ops.report import merge_status, run_status
 from pykmhelpers.pipeline.index_ops.samples import SampleResolver
+from pykmhelpers.pipeline.index_ops.script import ScriptRecorder, script_name
 from pykmhelpers.pipeline.index_ops.sizing import BuildParams, resolve_build_params
 from pykmhelpers.pipeline.index_ops.sources import (
     IndexDefinitionSource,
@@ -203,6 +204,58 @@ class TestSampleResolver(unittest.TestCase):
         s = SimpleNamespace(name="s", files=["/does/not/exist.fa"])
         self.assertEqual(self.build([s])[1], [])
         self.assertEqual(len(self.build([s], check_files=True)[1]), 1)
+
+
+class TestScriptRecorder(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.assets = self.tmp / "assets"
+        self.assets.mkdir()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def lines(self, name):
+        return (self.assets / name).read_text().splitlines()
+
+    def test_script_name(self):
+        self.assertEqual(script_name("coli_g170_update_p0"), "coli_g170_update")
+        self.assertEqual(script_name("coli_g170_update_p12"), "coli_g170_update")
+        self.assertEqual(script_name("coli_g1"), "coli_g1")
+        self.assertEqual(script_name("x_p0__chunk1"), "x_p0__chunk1")
+
+    def test_one_script_per_group_and_runner(self):
+        rec = ScriptRecorder(str(self.tmp))
+        rec.select("b")
+        rec.add(f"build {self.tmp}/b_p0")
+        rec.select("a")
+        rec.add("build a_p0")
+        rec.select("b")
+        rec.add("merge b")
+        rec.write(str(self.assets))
+
+        header = ["#!/usr/bin/bash", "set -e", f"WORKDIR='{self.tmp}'", "cd ${WORKDIR}"]
+        self.assertEqual(
+            self.lines("b.sh"), header + ["build ${WORKDIR}/b_p0", "merge b"]
+        )
+        self.assertEqual(self.lines("a.sh"), header + ["build a_p0"])
+        self.assertEqual(
+            self.lines("kmhelpers_apply.sh"),
+            header + ['bash "${WORKDIR}/assets/b.sh"', 'bash "${WORKDIR}/assets/a.sh"'],
+        )
+
+    def test_add_requires_selection(self):
+        with self.assertRaises(RuntimeError):
+            ScriptRecorder(str(self.tmp)).add("cmd")
+
+    def test_rewrite_backs_up(self):
+        for cmd in ("first", "second"):
+            rec = ScriptRecorder(str(self.tmp))
+            rec.select("a")
+            rec.add(cmd)
+            rec.write(str(self.assets))
+        self.assertEqual(self.lines("a.sh")[-1], "second")
+        self.assertEqual(self.lines("a.sh.bak")[-1], "first")
 
 
 if __name__ == "__main__":

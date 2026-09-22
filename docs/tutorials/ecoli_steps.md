@@ -201,7 +201,7 @@ kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build/
 
 ??? abstract "I/O"
     **Input:** `coli_db/compose/coli/initial/coli.yaml`  
-    **Output:** `coli_build/assets/kmhelpers_apply.sh` + validation report in `coli_build/logs/`
+    **Output:** build scripts in `coli_build/assets/` + validation report in `coli_build/logs/`
 
 ??? info "INFO"
     Before committing to a potentially long build, validate paths and preview the commands that will be executed: `plan` checks that every sample file exists, reports any missing paths, and
@@ -215,9 +215,12 @@ kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build/
         - **`span`** -- one entry per sub-index: sample count and estimated disk size
         - **`run`** -- validation result (`SUCCESS` / `FAILURE`) per sub-index
 
-    ??? tip "Build script `coli_build/assets/kmhelpers_apply.sh`"
-        One `kmindex build` call per sub-index (`coli_g0`, `coli_g1`), with Bloom-filter
-        size, k-mer size, and output paths pre-filled from the profile.
+    ??? tip "Build scripts in `coli_build/assets/`"
+        - **`coli_g<span>_initial.sh`** -- one script per sub-index (`coli_g0`, `coli_g1`):
+          one `kmindex build` call per part, with Bloom-filter size, k-mer size, and output
+          paths pre-filled from the profile, then the merge into the sub-index and the
+          deletion of the merged parts. Each script stops at the first failing command.
+        - **`kmhelpers_apply.sh`** -- runs every sub-index script in order.
 
 ---
 

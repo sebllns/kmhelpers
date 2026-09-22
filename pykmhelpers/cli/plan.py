@@ -162,7 +162,7 @@ def plan(
                 partition_count=partition_count,
                 limits=limits,
                 safety_margin=safety_margin,
-                minimizer_length=minim_size,
+                minimizer_length=int(minim_size) if minim_size else 10,
             )
         )
 
