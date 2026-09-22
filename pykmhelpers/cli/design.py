@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
     "-o",
     required=True,
     type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Output directory.",
+    help="📁  Output directory (DESIGN_DIR).",
 )
 @click.option(
     "--name",
@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
     required=False,
     default=lambda: datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),
     show_default="current timestamp",
-    help="🏷️   Session tag appended to index names.",
+    help="🏷️   Session name: subdirectory of DESIGN_DIR/compose/NAME/ and tag appended to index names.",
 )
 @click.option(
     "--kmer-size",
@@ -161,20 +161,28 @@ def design(
 
     \b
     Input:  directory to scan, a plain-text / YAML sample list, or a JSONL sample index
-    Output: OUTPUT_DIR/list/ (JSONL), OUTPUT_DIR/profile/ (profile.yaml, groups.png),
-            OUTPUT_DIR/compose/ (index definitions)
+    Output: DESIGN_DIR/compose/NAME/SESSION/NAME.yaml (INPUT_FILE for build/plan/apply)
+    Intermediate: DESIGN_DIR/list/ (JSONL), DESIGN_DIR/profile/ (profile.yaml, groups.png),
+                  DESIGN_DIR/compose/NAME_layout.yaml
 
     \b
     Steps:
-      1. list    - scan INPUT, count k-mers, write JSONL output file to OUTPUT_DIR/list/
+      1. list    - scan INPUT, count k-mers, write JSONL output file to DESIGN_DIR/list/
                    (skipped if INPUT is already a JSONL sample index)
-      2. profile - compute Bloom-filter span distribution, write profile.yaml to OUTPUT_DIR/profile/
-      3. compose - build index definition files to OUTPUT_DIR/compose/
+      2. profile - compute Bloom-filter span distribution, write profile.yaml to DESIGN_DIR/profile/
+      3. compose - write the index definition file to DESIGN_DIR/compose/NAME/SESSION/
 
     \b
     ► NOTE: At query time, the effective FP rate is reduced to p^z, where p is
       the build-time rate (--fp) and z is a query-time parameter.
     ► RECOMMENDED: build with p=0.25, query with z=6 (effective FP rate: 0.25^6 ≈ 0.024%).
+
+    Examples:
+
+    \b
+    # Design then build
+    kmhelpers design /data/sequences -o coli_db -n coli -S initial
+    kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build
     """
 
     is_assembled = data_type.lower() in ("a", "assembled")
@@ -271,6 +279,7 @@ def design(
             run_id=session_id,
         )
         logger.info("SUCCESS ('compose')")
+        logger.info(f"Suggested next step: kmhelpers build {session_file} -o BUILD_DIR")
     except Exception as e:
         Log.handle_exception(logger, e, "FAILED ('compose')")
         raise click.ClickException("FAILED ('compose')")
