@@ -360,16 +360,17 @@ def load_layout(path: str) -> tuple[float, int, int, dict]:
         shard_size = int(payload.get("shard_size") or 0)
         minim_size = int(payload.get("minim_size") or 0)
         props = {}
-        for i, (span, entry) in enumerate(sorted(payload["map"].items())):
-            if isinstance(entry, str):
-                entry = {"name": entry}
+        for i, (span, raw) in enumerate(sorted(payload["map"].items())):
+            # A span mapped to a plain name predates sharding
+            entry: dict = {"name": raw} if isinstance(raw, str) else dict(raw)
+            stored_shards: list[dict] = list(entry.get("shards") or [])
             shards = [
                 {
                     "id": n if shard_size else None,
                     "name": sh["name"],
                     "samples": int(sh.get("samples", 0)),
                 }
-                for n, sh in enumerate(entry.get("shards") or [])
+                for n, sh in enumerate(stored_shards)
             ]
             props[int(span)] = {
                 "id": i,
