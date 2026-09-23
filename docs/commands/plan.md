@@ -29,7 +29,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 | `-n, --name TEXT` | Index ID(s) to preview (repeatable or comma-separated) |
 | `--minim-size INT` | Minimizer size (default: 10) |
 | `-t, --threads INT` | Number of threads |
-| `-p, --partition-count INT` | Override number of partitions |
+| `-p, --partition-count INT` | Partitions per index; ignored when the layout already stores one (see [compose](compose.md)) |
 | `-NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
 | `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use (default: 0.9) |

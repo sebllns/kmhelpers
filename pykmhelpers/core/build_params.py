@@ -88,6 +88,85 @@ def get_best_params(
     raise ValueError("no feasible configuration under the given ulimit")
 
 
+def params_for_partitions(
+    kmers: int, samples: int, partitions: int, limits: str, safety_margin: float = 1.0
+) -> kmparams.kmtricks_params:
+    """Resolve threads and chunk size for a FIXED partition count.
+
+    Indexes can only be merged when they share their partition count, so an
+    index keeps the count decided for it once (see the layout). RAM is then
+    absorbed by the thread count instead: ``nb_threads`` gives the most
+    threads that fit ``ram`` at that partition count, capped by the thread
+    limit and by the open-files ceiling of the merge and superk stages.
+
+    ``p.samples`` on the returned params is the per-chunk sample count, as in
+    `get_best_params`.
+    """
+    ram, ulimit, n_threads, focus = _resolve_limits(limits, safety_margin)
+    if partitions < 1:
+        raise ValueError(f"partition count {partitions} must be at least 1")
+    if ulimit < 1:
+        raise ValueError(f"ulimit {ulimit} too low: at least 1 open file required")
+
+    ram_params = kmparams.kmtricks_params(
+        kmers=kmers, memory=ram, partitions=partitions, focus=focus
+    )
+    ram_params.nb_threads()
+    if ram_params.threads is None:
+        raise TypeError("expected nb_threads() to set threads")
+
+    chunk_s = max(1, min(ulimit // n_threads - 1, samples))
+    max_t = min(n_threads, ram_params.threads, ulimit // (chunk_s + 1))
+    if max_t < 1:
+        raise ValueError(
+            f"ulimit {ulimit} too low: merge stage needs at least "
+            f"{chunk_s + 1} open files for a single thread"
+        )
+
+    for t in range(max_t, 0, -1):
+        p = kmparams.kmtricks_params(
+            kmers=kmers,
+            memory=ram,
+            threads=t,
+            samples=chunk_s,
+            partitions=partitions,
+            focus=focus,
+        )
+        p.max_memory()
+        p.nb_open_files()
+        if not isinstance(p.files, dict):
+            raise TypeError(f"expected nb_open_files() to set a dict, got {p.files!r}")
+        if max(p.files.values()) <= ulimit:
+            logger.debug(
+                f"params_for_partitions: threads={t}, partitions={partitions}, "
+                f"samples={chunk_s}, files={max(p.files.values())}"
+            )
+            return p
+
+    raise ValueError(
+        f"no feasible configuration with {partitions} partitions under the given limits"
+    )
+
+
+def _resolve_limits(limits: str, safety_margin: float) -> tuple[int, int, int, float]:
+    """Fill the limits missing from ``limits`` with the system's own."""
+    parsed = json.loads(limits)
+
+    ram = parsed.get("ram")
+    if ram is None:
+        ram = get_available_ram(safety_margin)
+
+    ulimit = parsed.get("files")
+    if ulimit is None:
+        ulimit = get_max_open_files(safety_margin)
+
+    n_threads = parsed.get("threads")
+    if n_threads is None:
+        n_threads = get_available_threads(safety_margin)
+
+    return ram, ulimit, n_threads, parsed.get("focus", 0.5)
+
+
 def auto_params(
     kmers: int, samples: int, limits: str, safety_margin: float = 1.0
 ) -> kmparams.kmtricks_params:
@@ -109,21 +188,7 @@ def auto_params(
     Raises:
         ValueError: if the resolved configuration exceeds one of the limits.
     """
-    parsed = json.loads(limits)
-
-    ram = parsed.get("ram")
-    if ram is None:
-        ram = get_available_ram(safety_margin)
-
-    ulimit = parsed.get("files")
-    if ulimit is None:
-        ulimit = get_max_open_files(safety_margin)
-
-    n_threads = parsed.get("threads")
-    if n_threads is None:
-        n_threads = get_available_threads(safety_margin)
-
-    focus = parsed.get("focus", 0.5)
+    ram, ulimit, n_threads, focus = _resolve_limits(limits, safety_margin)
 
     params = get_best_params(
         kmers=kmers,

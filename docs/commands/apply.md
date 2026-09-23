@@ -31,7 +31,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 | `--from TEXT` | Reuse build parameters from a parent index |
 | `--minim-size INT` | Minimizer size (default: 10) |
 | `-t, --threads INT` | Number of threads |
-| `-p, --partition-count INT` | Override number of partitions |
+| `-p, --partition-count INT` | Partitions per index; ignored when the layout already stores one (see [compose](compose.md)) |
 | `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use (default: 0.9) |
 | `--existing TEXT` | Action for pre-existing index folders: `fail`, `register`, `rename`, `replace`, `register_or_replace`, `register_or_rename` (default: `fail`) |

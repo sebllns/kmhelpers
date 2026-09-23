@@ -98,16 +98,19 @@ class TestLayout(unittest.TestCase):
                 "id": 0,
                 "name": "idx_g0",
                 "max_samples": 80,
+                "total_samples": 85,
+                "updates": 2,
+                "partition_count": 16,
                 "shards": [
                     {"id": 0, "name": "idx_g0_p0", "samples": 80},
                     {"id": 1, "name": "idx_g0_p1", "samples": 5},
                 ],
             }
         }
-        IndexComposer(name="idx")._write_layout(self.path, 1.1, 10000, props)
-        base, shard_size, loaded = load_layout(self.path)
+        IndexComposer(name="idx")._write_layout(self.path, 1.1, 10000, 10, props)
+        base, shard_size, minim_size, loaded = load_layout(self.path)
 
-        self.assertEqual((base, shard_size), (1.1, 10000))
+        self.assertEqual((base, shard_size, minim_size), (1.1, 10000, 10))
         self.assertEqual(loaded, props)
 
     def test_layout_without_sharding(self):
@@ -116,10 +119,13 @@ class TestLayout(unittest.TestCase):
         with open(self.path, "w") as f:
             yaml.dump(legacy, f)
 
-        base, shard_size, loaded = load_layout(self.path)
-        self.assertEqual((base, shard_size), (1.1, 0))
+        base, shard_size, minim_size, loaded = load_layout(self.path)
+        self.assertEqual((base, shard_size, minim_size), (1.1, 0, 0))
         self.assertEqual(loaded[76]["name"], "idx_g0")
         self.assertEqual(loaded[76]["max_samples"], 0)
+        self.assertEqual(loaded[76]["partition_count"], 0)
+        self.assertEqual(loaded[76]["total_samples"], 0)
+        self.assertEqual(loaded[76]["updates"], 0)
         self.assertEqual(loaded[76]["shards"], [])
 
 

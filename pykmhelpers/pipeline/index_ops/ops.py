@@ -7,6 +7,7 @@ from pykmhelpers.core.log import Log
 from pykmhelpers.operations.builder import IndexBuilder
 from pykmhelpers.pipeline.index_db import IndexDefinition, IndexDefinitionTools
 from pykmhelpers.pipeline.index_ops.executor import IndexExecutor, validate_definition
+from pykmhelpers.pipeline.index_ops.layout import LayoutStore
 from pykmhelpers.pipeline.index_ops.report import RunReport, indent_prefix
 from pykmhelpers.pipeline.index_ops.samples import SampleResolver
 from pykmhelpers.pipeline.index_ops.script import ScriptRecorder
@@ -175,6 +176,7 @@ class IndexOps:
             report.result.status = ApplyStatus.FAILED
             return report.result
 
+        layout = LayoutStore.next_to(path)
         executor = IndexExecutor(builder, mode, self.config, self._script)
         samples = SampleResolver(
             self.config.sample_rootpath, mode.checks_files, self._dbs
@@ -189,10 +191,13 @@ class IndexOps:
                 continue
             try:
                 self._script.select(plan.script_of(i.name))
-                self._build(report, executor, samples, i)
+                self._build(
+                    report, executor, samples, i, layout, plan.script_of(i.name)
+                )
             except Exception as e:
                 msg = f"   Failed to build index '{i.name}'"
                 if report.fail(e, msg, i.name, fail_on_error):
+                    layout.save()
                     return report.result
 
         for target, parts in plan.merges.items():
@@ -201,8 +206,10 @@ class IndexOps:
             except Exception as e:
                 msg = f"Failed to merge index '{target}'"
                 if report.fail(e, msg, target, fail_on_error):
+                    layout.save()
                     return report.result
 
+        layout.save()
         return report.finish()
 
     # ---
@@ -215,8 +222,18 @@ class IndexOps:
             return os.path.join(self.asset_dir, self._session)
         return self.asset_dir
 
-    def _resolve_params(self, i: IndexDefinition, sample_count: int) -> BuildParams:
-        params = resolve_build_params(i, sample_count, self.config)
+    def _store_params(
+        self, layout: LayoutStore, i: IndexDefinition, params: BuildParams
+    ) -> None:
+        """Keep the layout in line with what is actually built."""
+        layout.set_partition_count(i.span, params.partitions)
+        layout.set_minim_size(params.minim_size)
+        i.partition_count = params.partitions
+
+    def _resolve_params(
+        self, i: IndexDefinition, sample_count: int, layout: LayoutStore
+    ) -> BuildParams:
+        params = resolve_build_params(i, sample_count, self.config, layout)
         # Keeps size estimates of i in line with what is built
         i.partition_count = params.partitions
         return params
@@ -227,12 +244,14 @@ class IndexOps:
         executor: IndexExecutor,
         samples: SampleResolver,
         i: IndexDefinition,
+        layout: LayoutStore,
+        target: str,
     ) -> None:
         """Build index ``i`` and record its outcome in ``report``."""
         # Partitions must be known before estimating the size
         params: Optional[BuildParams] = None
         if not i.partition_count:
-            params = self._resolve_params(i, i.sample_count)
+            params = self._resolve_params(i, i.sample_count, layout)
         size = i.get_stored_size()
         report.add_span_stats(i.span, i.sample_count, size.byte_count)
         logger.info(f"  └── Sample count: {i.sample_count}")
@@ -254,7 +273,9 @@ class IndexOps:
         else:
             # Samples may have been skipped since the estimate: resolve for the actual count
             if params is None or sample_count != i.sample_count:
-                params = self._resolve_params(i, sample_count)
+                params = self._resolve_params(i, sample_count, layout)
+            params = executor.align_with(target, params)
+            self._store_params(layout, i, params)
             result = executor.build(i, fof, params)
 
         if not result:

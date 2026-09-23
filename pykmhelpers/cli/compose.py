@@ -53,14 +53,14 @@ logger = logging.getLogger(__name__)
     required=False,
     help="⚙️  Profile name to use (default: uses default_profile from the profiles file).",
 )
-# @click.option(
-#     "--partition-count",
-#     "-p",
-#     type=int,
-#     default=0,
-#     show_default=True,
-#     help="💾  Desired number of partitions per index, 0 for automatic count.",
-# )
+@click.option(
+    "--partition-count",
+    "-p",
+    type=int,
+    default=0,
+    show_default=True,
+    help="💾  Number of partitions per index, fixed for the life of the index. 0 lets the first build size it from the system limits.",
+)
 @click.option(
     "--shard-size",
     "-si",
@@ -88,7 +88,7 @@ def compose(
     profiles_file,
     selected_profile,
     name,
-    # partition_count,
+    partition_count,
     shard_size,
     # partition_min_size,
     # partition_count_limit,
@@ -176,7 +176,7 @@ def compose(
             name=name,
             no_merge=False,
             shard_size=parse_shard_size(shard_size),
-            # partition_count=partition_count,
+            partition_count=partition_count,
             # bf_max_size=bf_max_size,
             # partition_min_size=partition_min_size,
             # exact_partition_count=False,

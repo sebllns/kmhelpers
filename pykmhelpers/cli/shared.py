@@ -138,7 +138,7 @@ _limits_option = click.option(
 _safety_margin_option = click.option(
     "--safety-margin",
     type=float,
-    default=1.0,
+    default=0.9,
     show_default=True,
     help="⚙   Fraction of a detected system limit to use for any key missing from --limits.",
 )
@@ -218,8 +218,7 @@ _INDEX_APPLY_OPTIONS = [
     _notify_option,
 ]
 
-# Only meaningful for commands that let threads be auto-sized (plan, apply);
-# `build` always relies on system-detected limits, with no override.
+# For commands that auto-size threads/partitions (plan, apply, build).
 _INDEX_LIMITS_OPTIONS = [
     _limits_option,
     _safety_margin_option,
@@ -248,7 +247,7 @@ def index_apply_options(f):
 
 
 def index_limits_options(f):
-    """Extra options for commands that let resource limits be overridden (plan, apply), not `build`."""
+    """Extra options for commands that let resource limits be overridden (plan, apply, build)."""
     for opt in reversed(_INDEX_LIMITS_OPTIONS):
         f = opt(f)
     return f

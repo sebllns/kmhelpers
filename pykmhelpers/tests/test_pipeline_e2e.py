@@ -281,6 +281,87 @@ class TestStepByStepDesignAndBuild(PipelineE2EBase):
         self.assert_query_hit("results", q0_header, "sample_0")
 
 
+class TestPartitionCountStaysFixed(PipelineE2EBase):
+    """An index keeps its partition count and minimizer size across sessions."""
+
+    def test_update_reuses_the_stored_build_invariants(self):
+        self.run_cli(
+            "design",
+            self.samples_txt,
+            "-o",
+            "db",
+            "-n",
+            "idx",
+            "-S",
+            "initial",
+            "-k",
+            KMER_SIZE,
+            "-b",
+            "1.1",
+            "-g",
+            "1",
+        )
+        self.run_cli(
+            "build",
+            self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml",
+            "-o",
+            "build",
+            "--limits",
+            '{"ram": 500000000, "files": 4096, "threads": 2}',
+        )
+
+        layout = yaml.safe_load(
+            (self.tmp / "db" / "compose" / "idx_layout.yaml").read_text()
+        )["data"]
+        registry = json.loads((self.tmp / "build" / "index.json").read_text())["index"]
+        # what was built is what the layout records
+        self.assertEqual(layout["minim_size"], 10)
+        for span in layout["map"].values():
+            self.assertGreater(span["partition_count"], 0)
+            for shard in span["shards"]:
+                self.assertEqual(
+                    registry[shard["name"]]["nb_partitions"], span["partition_count"]
+                )
+
+        # a second session on a very different machine profile, asking for
+        # other values: the stored ones win, so the merge succeeds
+        random.seed(SEED + 2)
+        new_seq = "".join(random.choice("ACGT") for _ in range(SAMPLE_LEN - 400))
+        self.sequences.append(new_seq)
+        (self.tmp / "data" / "sample_new.fasta").write_text(f">sample_new\n{new_seq}\n")
+        new_list = self.tmp / "new_samples.txt"
+        new_list.write_text(
+            str((self.tmp / "data" / "sample_new.fasta").resolve()) + "\n"
+        )
+
+        self.mkdirs("db", "list")
+        self.run_cli("list", new_list, "-o", "db/list/upd.jsonl", "-k", KMER_SIZE)
+        self.run_cli(
+            "compose", "db/list/upd.jsonl", "-o", "db/compose", "-n", "idx", "-S", "upd"
+        )
+        self.run_cli(
+            "build",
+            self.tmp / "db" / "compose" / "idx" / "upd" / "idx.yaml",
+            "-o",
+            "build",
+            "--limits",
+            '{"ram": 512000000000, "files": 65536, "threads": 32}',
+            "-p",
+            "16",
+            "--minim-size",
+            "12",
+        )
+
+        updated = json.loads((self.tmp / "build" / "index.json").read_text())["index"]
+        for name, props in registry.items():
+            self.assertEqual(updated[name]["nb_partitions"], props["nb_partitions"])
+            self.assertEqual(updated[name]["minim_size"], props["minim_size"])
+        self.assertIn(
+            "sample_new",
+            [s for props in updated.values() for s in props["samples"]],
+        )
+
+
 class TestShardedBuild(PipelineE2EBase):
     """--shard-size splits a span into independent shards, never merged together."""
 

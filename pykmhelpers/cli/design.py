@@ -282,6 +282,7 @@ def design(
             name=name,
             no_merge=False,
             shard_size=parse_shard_size(shard_size),
+            partition_count=partition_count,
         ).run(
             input_file=jsonl_path,
             output_dir=compose_dir,

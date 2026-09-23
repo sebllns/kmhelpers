@@ -8,6 +8,7 @@ import sys
 
 import click
 import yaml
+from click.core import ParameterSource
 
 import pykmhelpers.cli.shared as shared
 import pykmhelpers.core.log
@@ -32,6 +33,7 @@ class PartialError(click.ClickException):
 @click.argument("input_file", nargs=1, required=True, type=click.Path(exists=True))
 @shared.index_build_options
 @shared.index_apply_options
+@shared.index_limits_options
 @click.pass_context
 def build(
     ctx,
@@ -44,6 +46,8 @@ def build(
     skip_compression,
     show_progress,
     notify,
+    limits,
+    safety_margin,
 ):
     """Validate paths then build indices from definition files.
 
@@ -138,6 +142,10 @@ def build(
 
     logger.info(f"Working directory: {work_dir}")
 
+    # build keeps a conservative margin unless --safety-margin is given
+    # if ctx.get_parameter_source("safety_margin") is ParameterSource.DEFAULT:
+    #     safety_margin = 0.75
+
     iops = ops.IndexOps(
         config=ops.IndexOpsConfig(
             workdir=work_dir,
@@ -152,7 +160,8 @@ def build(
             filter_spans=None,
             on_existing="fail",
             partition_count=partition_count,
-            safety_margin=0.75,
+            limits=limits,
+            safety_margin=safety_margin,
             session_assets=True,
         )
     )

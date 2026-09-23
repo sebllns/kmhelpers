@@ -26,7 +26,7 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 | Option | Description |
 |--------|-------------|
 | `-pr, --profile TEXT` | Profile name to use (default: `default_profile` from profiles file) |
-| `-p, --partition-count INT` | Desired number of partitions per index, 0 for automatic (default: 0) |
+| `-p, --partition-count INT` | Partitions per index, fixed for its whole life; 0 lets the first build size it (default: 0) |
 | `-si, --shard-size SIZE` | Max size of one shard (e.g. `256GB`, `500000MB`); omit for a single unlimited index per span |
 | `-m, --partition-min-size SIZE` | Minimum partition file size (e.g. `500MB`, `1GB`) |
 | `-P, --partition-count-limit INT` | Upper bound on auto partition count (default: 256) |
@@ -48,10 +48,17 @@ A layout file is written to `COMPOSE_DIR/NAME_layout.yaml` for future updates.
 
 If `--profile` is not specified, the `default_profile` field in the profiles file is used.
 
-**Partitioning** - each Bloom filter is split into N partition files. The partition count is
-determined automatically by default, or set explicitly with `--partition-count`. Use
-`--partition-min-size` to enforce a minimum file size per partition, or
-`--partition-count-limit` to cap the auto-computed count.
+**Partitioning** - each Bloom filter is split into N partition files. Two indexes can only be
+merged when they share that count, and an update merges new samples into an existing shard, so
+the count is fixed once for the life of the index and stored in the layout file.
+
+Set it with `--partition-count`, or leave it at 0: the first `plan`, `apply` or `build` then
+sizes it from the resource limits (`--limits`), for a full shard when sharding is on, and writes
+it to the layout. Later runs reuse the stored value and warn when `-p` asks for another one.
+The minimizer size (`--minim-size`) is stored the same way.
+
+The layout also records, per span, the samples composed so far (`total_samples`) and the number
+of sessions that added samples to it (`updates`).
 
 **Sharding** - with `--shard-size`, a span is split into independent shards of at most that
 size, instead of one index growing without bound. Shards are never merged together: each one

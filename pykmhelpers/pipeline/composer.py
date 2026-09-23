@@ -29,6 +29,7 @@ class IndexComposer:
         abundance_min=1,
         no_merge=False,
         shard_size: int = 0,
+        partition_count: int = 0,
         kmer_size: Optional[int] = None,
         false_positive_rate: Optional[float] = None,
         format="yaml",
@@ -41,6 +42,7 @@ class IndexComposer:
         self.abundance_min = abundance_min
         self.no_merge = no_merge
         self.shard_size = shard_size
+        self.partition_count = partition_count
         self.kmer_size = kmer_size
         self.false_positive_rate = false_positive_rate
         self.format = format
@@ -75,10 +77,13 @@ class IndexComposer:
             pass
 
         shard_size = self.shard_size
+        minim_size = 0
         out_layout = None
 
         if self.layout_file:
-            span_base, shard_size, spans_properties = load_layout(self.layout_file)
+            span_base, shard_size, minim_size, spans_properties = load_layout(
+                self.layout_file
+            )
             allowed_spans = sorted(spans_properties.keys())
             out_layout = os.path.realpath(self.layout_file)
             logger.debug(
@@ -120,6 +125,13 @@ class IndexComposer:
                 f"Layout re-sharded with a {ByteCounter.auto(shard_size)} limit"
             )
 
+        if self.partition_count:
+            # Fixed by the user: every shard of the index keeps this count
+            for props in spans_properties.values():
+                props["partition_count"] = self.partition_count
+            logger.info(f"Partition count fixed to {self.partition_count}")
+
+        touched: set[int] = set()
         sample_count = 0
         kmer_count_limit = (
             span_manager.max_kmer_count(allowed_spans[-1]) if allowed_spans else 0
@@ -152,6 +164,7 @@ class IndexComposer:
                     bf_sizes[promoted] = span_manager.get_bf_size(promoted)
 
                 props = spans_properties[span]
+                touched.add(span)
                 shard = self._current_shard(props, shard_size)
 
                 index_name = self.db_tools.get_index_name(
@@ -172,6 +185,7 @@ class IndexComposer:
                         abundance_min=self.abundance_min,
                         sample_file=f"{self.name}_samples.jsonl",
                         samples={},
+                        partition_count=props.get("partition_count") or 0,
                     )
                     i.merge_name = shard["name"]
                     db_instance.add_index(i)
@@ -185,6 +199,7 @@ class IndexComposer:
                 )
 
                 shard["samples"] += 1
+                props["total_samples"] += 1
                 sample_count += 1
 
             except Exception as e:
@@ -197,6 +212,9 @@ class IndexComposer:
 
         if sample_count == 0:
             raise ValueError(f"No valid sample found in {input_file}")
+
+        for span in touched:
+            spans_properties[span]["updates"] += 1
 
         logger.info(
             f"Composed {sample_count} samples into {len(db_instance.index_table)} "
@@ -236,7 +254,9 @@ class IndexComposer:
         logger.info(f"Exported database to {run_dir}")
 
         if out_layout:
-            self._write_layout(out_layout, span_base, shard_size, spans_properties)
+            self._write_layout(
+                out_layout, span_base, shard_size, minim_size, spans_properties
+            )
 
     def _fill_span_props(
         self, allowed_spans: list[int], span_manager: SpanManager, shard_size: int
@@ -249,6 +269,9 @@ class IndexComposer:
                 "id": i,
                 "name": self.db_tools.get_merge_name(self.name, i),
                 "max_samples": max_samples,
+                "total_samples": 0,
+                "updates": -1,
+                "partition_count": 0,
                 "shards": [],
             }
         return props
@@ -271,18 +294,27 @@ class IndexComposer:
         return current
 
     def _write_layout(
-        self, path: str, span_base: float, shard_size: int, spans_properties: dict
+        self,
+        path: str,
+        span_base: float,
+        shard_size: int,
+        minim_size: int,
+        spans_properties: dict,
     ) -> None:
-        """Write the layout, including the shard state reused by later sessions."""
+        """Write the layout: shard state and build invariants of later sessions."""
         layout_data = {
             "type": "layout",
             "data": {
                 "base": span_base,
                 "shard_size": shard_size,
+                "minim_size": minim_size,
                 "map": {
                     span: {
                         "name": props["name"],
                         "max_samples": props["max_samples"],
+                        "total_samples": props["total_samples"],
+                        "updates": props["updates"],
+                        "partition_count": props["partition_count"],
                         "shards": [
                             {"name": sh["name"], "samples": sh["samples"]}
                             for sh in props["shards"]
@@ -309,8 +341,8 @@ def max_samples_for(bf_size: int, shard_size: int) -> int:
     return max(8, (8 * shard_size // bf_size) // 8 * 8)
 
 
-def load_layout(path: str) -> tuple[float, int, dict]:
-    """Load ``(span_base, shard_size, spans_properties)`` from a layout file.
+def load_layout(path: str) -> tuple[float, int, int, dict]:
+    """Load ``(span_base, shard_size, minim_size, spans_properties)`` from a layout.
 
     Layouts written before sharding map a span to a plain index name; they are
     read as one unlimited shard, so existing indexes keep their names.
@@ -326,10 +358,11 @@ def load_layout(path: str) -> tuple[float, int, dict]:
             raise ValueError(f"Missing 'map' in layout file: {path}")
 
         shard_size = int(payload.get("shard_size") or 0)
+        minim_size = int(payload.get("minim_size") or 0)
         props = {}
         for i, (span, entry) in enumerate(sorted(payload["map"].items())):
             if isinstance(entry, str):
-                entry = {"name": entry, "max_samples": 0, "shards": []}
+                entry = {"name": entry}
             shards = [
                 {
                     "id": n if shard_size else None,
@@ -342,9 +375,12 @@ def load_layout(path: str) -> tuple[float, int, dict]:
                 "id": i,
                 "name": entry["name"],
                 "max_samples": int(entry.get("max_samples") or 0),
+                "total_samples": int(entry.get("total_samples") or 0),
+                "updates": int(entry.get("updates") or 0),
+                "partition_count": int(entry.get("partition_count") or 0),
                 "shards": shards,
             }
-        return base, shard_size, props
+        return base, shard_size, minim_size, props
     except Exception as e:
         logger.error(f"Could not parse layout file {path}: {e}")
         raise

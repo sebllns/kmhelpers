@@ -1,6 +1,7 @@
 import logging
 import os
 import shutil
+from dataclasses import replace
 
 from pykmhelpers.core.log import Log
 from pykmhelpers.operations.builder import IndexBuilder
@@ -57,6 +58,32 @@ class IndexExecutor:
             return False
         self._claimed.add(name)
         return True
+
+    def align_with(self, target: str, params: BuildParams) -> BuildParams:
+        """Match ``params`` to an already registered ``target``.
+
+        kmindex refuses to merge indexes whose partition count or minimizer
+        size differ, so a part joining an existing shard must reuse them.
+        """
+        if not self._builder.index.has_index(target):
+            return params
+
+        registered = self._builder.index.get_index(target)
+        aligned = params
+        if registered.nb_partitions and registered.nb_partitions != params.partitions:
+            logger.warning(
+                f"'{target}' is registered with {registered.nb_partitions} partitions, "
+                f"not {params.partitions}: building with the registered count"
+            )
+            aligned = replace(aligned, partitions=registered.nb_partitions)
+        if registered.minim_size and registered.minim_size != params.minim_size:
+            logger.warning(
+                f"'{target}' is registered with minimizer size "
+                f"{registered.minim_size}, not {params.minim_size}: building with "
+                f"the registered size"
+            )
+            aligned = replace(aligned, minim_size=registered.minim_size)
+        return aligned
 
     def build(
         self, i: IndexDefinition, fof: FofManager, params: BuildParams
@@ -146,7 +173,7 @@ class IndexExecutor:
                 n_threads=params.threads,
                 auto_check=True,
                 compress_intermediate=not self._config.kmindex_skip_compression,
-                minim_size=self._config.minimizer_length,
+                minim_size=params.minim_size,
                 dry_run=not self.executes,
                 kmer_size=i.kmer_size,
                 on_existing=self._config.on_existing,

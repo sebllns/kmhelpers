@@ -11,7 +11,10 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
+import yaml
+
 from pykmhelpers.pipeline.index_ops import ApplyStatus, IndexOpsConfig
+from pykmhelpers.pipeline.index_ops.layout import LayoutStore
 from pykmhelpers.pipeline.index_ops.report import merge_status, run_status
 from pykmhelpers.pipeline.index_ops.samples import SampleResolver
 from pykmhelpers.pipeline.index_ops.script import ScriptRecorder
@@ -75,29 +78,77 @@ class TestStatus(unittest.TestCase):
 
 
 class TestResolveBuildParams(unittest.TestCase):
-    def test_explicit_threads_keep_storage_partitions(self):
-        i = make_definition(partition_count=2)
-        params = resolve_build_params(i, 10, make_config(kmindex_threads=3))
-        self.assertEqual(params, BuildParams(threads=3, partitions=4))
-        self.assertEqual(i.partition_count, 2)
+    """Partitions and minimizer size are index invariants read from the layout."""
 
-    def test_partition_override(self):
-        config = make_config(kmindex_threads=3, partition_count=8)
-        params = resolve_build_params(make_definition(partition_count=2), 10, config)
-        self.assertEqual(params.partitions, 8)
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.path = str(self.tmp / "idx_layout.yaml")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def layout(self, **span_fields):
+        """A layout whose span 1 carries the given fields."""
+        data = {
+            "type": "layout",
+            "data": {"base": 1.1, "map": {1: {"name": "idx_g0", **span_fields}}},
+        }
+        with open(self.path, "w") as f:
+            yaml.dump(data, f)
+        return LayoutStore(self.path)
+
+    def test_explicit_threads_keep_stored_partitions(self):
+        i = make_definition(partition_count=8)
+        params = resolve_build_params(
+            i, 10, make_config(kmindex_threads=3), self.layout()
+        )
+        self.assertEqual(params, BuildParams(3, 8, None, 10))
+        self.assertEqual(i.partition_count, 8)
+
+    def test_layout_wins_over_the_cli(self):
+        layout = self.layout(partition_count=16)
+        config = make_config(kmindex_threads=3, partition_count=8, minimizer_length=12)
+        layout.set_minim_size(10)
+
+        params = resolve_build_params(make_definition(), 10, config, layout)
+        self.assertEqual(params.partitions, 16)
+        self.assertEqual(params.minim_size, 10)
+
+    def test_resolved_values_are_stored(self):
+        layout = self.layout()
+        config = make_config(limits='{"ram": 8000000000, "files": 4096, "threads": 4}')
+
+        params = resolve_build_params(make_definition(), 7, config, layout)
+        self.assertEqual(layout.partition_count(1), params.partitions)
+        self.assertEqual(layout.minim_size(), config.minimizer_length)
+
+    def test_partitions_sized_on_the_shard_capacity(self):
+        """A full shard, not the current session, sets the partition count."""
+        config = make_config(limits='{"ram": 200000000, "files": 4096, "threads": 4}')
+        small = resolve_build_params(make_definition(), 5, config, self.layout())
+        large = resolve_build_params(
+            make_definition(), 5, config, self.layout(max_samples=100000)
+        )
+        self.assertGreaterEqual(large.partitions, small.partitions)
 
     def test_auto_sizing_fits(self):
         config = make_config(limits='{"ram": 8000000000, "files": 4096, "threads": 4}')
-        params = resolve_build_params(make_definition(), 7, config)
+        params = resolve_build_params(make_definition(), 7, config, self.layout())
         self.assertIsNone(params.chunk_size)
         self.assertGreaterEqual(params.partitions, 4)
         self.assertGreater(params.threads, 0)
 
     def test_auto_sizing_chunks_under_low_files_limit(self):
-        config = make_config(limits='{"ram": 8000000000, "files": 4, "threads": 4}')
-        params = resolve_build_params(make_definition(), 7, config)
+        config = make_config(limits='{"ram": 8000000000, "files": 8, "threads": 4}')
+        params = resolve_build_params(make_definition(), 7, config, self.layout())
         self.assertIsNotNone(params.chunk_size)
         self.assertLess(params.chunk_size, 7)
+
+    def test_limits_too_low_for_the_partition_count(self):
+        """kmtricks needs at least one open file per partition, plus one."""
+        config = make_config(limits='{"ram": 8000000000, "files": 4, "threads": 4}')
+        with self.assertRaises(ValueError):
+            resolve_build_params(make_definition(), 7, config, self.layout())
 
 
 class TestIndexDefinitionSource(unittest.TestCase):

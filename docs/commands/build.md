@@ -25,7 +25,9 @@ Validate paths then build k-mer indices from an index definition file in a singl
 | `-b, --base-path DIR` | Base path to resolve relative sample paths |
 | `--minim-size INT` | Minimizer size (default: 10) |
 | `-t, --threads INT` | Number of threads |
-| `-p, --partition-count INT` | Override number of partitions |
+| `-p, --partition-count INT` | Partitions per index; ignored when the layout already stores one |
+| `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set |
+| `--safety-margin FLOAT` | Fraction of a detected system limit to use for any key missing from `--limits` (default: 0.75) |
 | `-NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
 | `-SP, --show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
 | `--notify EMAIL` | Send email notification on exit (requires sendmail) |
