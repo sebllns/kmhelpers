@@ -11,25 +11,25 @@ workdir="${1:-$(mktemp -d)}"
 mkdir -p "$workdir" && cd "$workdir"
 echo "Working directory: $PWD"
 
-# Resource limits of the target build node: 128 GB RAM, 65536 open files
+# Resource limits of the target build node: 64 GB RAM, 65536 open files
 # (ulimit -n), 32 threads. Used by plan to size threads/partitions and to
 # split builds whose samples do not fit the open-files limit.
-LIMITS='{"ram": 128000000000, "files": 65536, "threads": 32}'
+LIMITS='{"ram": 64000000000, "files": 65536, "threads": 32}'
 
 # Number of storage-balanced groups the spans are gathered into
-NB_GROUPS=10
+NB_GROUPS=5
 
 # Maximum size of one shard: a span holding more is split into independent
 # shards. Empty for a single unlimited index per span.
-SHARD_SIZE=20GB
+SHARD_SIZE=100GB
 
-# 1. Fake manifest of 200K bacterial-like assemblies: median 5M distinct
-#    31-mers, spread of 1 span. Only the JSONL is written, no FASTA.
+# 1. Fake manifest of 300K bacterial-like assemblies: median 5M distinct
+#    25-mers, spread of 1 span. Only the JSONL is written, no FASTA.
 mkdir -p db/list
 kmhelpers test create-list \
     -o db/list/bact.jsonl \
-    -n 200000 \
-    -k 31 \
+    -n 300000 \
+    -k 25 \
     -mu 5000000 \
     -sd 1 \
     -p bact \
