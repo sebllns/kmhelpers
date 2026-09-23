@@ -11,6 +11,18 @@ from pykmhelpers.core.byte import ByteCounter, SizeFormat
 from pykmhelpers.pipeline.fof import FofManager
 
 
+def parse_shard_size(value: str | None) -> int:
+    """Parse a shard size such as '10GB' into bytes; 0 when not set."""
+    if not value:
+        return 0
+    try:
+        return int(ByteCounter.from_str(value).byte_count)
+    except ValueError:
+        raise click.BadParameter(
+            f"Invalid shard size: {value} (use a format like '10GB' or '500MB')"
+        )
+
+
 def deserialize(filename: str) -> Any:
     data = None
     with open(filename, "r") as f:

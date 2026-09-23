@@ -1,16 +1,7 @@
 import logging
 import os
-import re
 
 logger = logging.getLogger(__name__)
-
-
-def script_name(index_name: str) -> str:
-    """Script of an index: its name without the ``_p<n>`` part suffix.
-
-    Parts of one merge target share this prefix (``{db}_g{span}_{session}``).
-    """
-    return re.sub(r"_p\d+$", "", index_name)
 
 
 def _echo(msg: str) -> str:
@@ -20,8 +11,8 @@ def _echo(msg: str) -> str:
 class ScriptRecorder:
     """Collects build/merge commands into replayable shell scripts.
 
-    Commands are grouped per script (see ``script_name``); ``write`` emits one
-    script per group and a runner script calling them in order.
+    Commands are grouped per script (one per shard, see ``WorkPlan.scripts``);
+    ``write`` emits one script per group and a runner calling them in order.
     """
 
     RUNNER_NAME = "kmhelpers_apply.sh"

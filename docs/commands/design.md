@@ -61,6 +61,7 @@ Set `-S` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 |--------|-------------|
 | `-g, --group N` | Partition Bloom Filters into `N` storage-balanced groups and overlay on plot (default: 20) |
 | `-b, --base FLOAT` | Base for span bucket boundaries (default: 1.1) |
+| `-si, --shard-size SIZE` | Max size of one shard (e.g. `10GB`); a span is split into independent shards, see [compose](compose.md) |
 | `-fp, --false-positive-rate FLOAT` | Target Bloom-filter false-positive rate (default: 0.25) |
 | `-p, --partition-count INT` | Desired number of partitions per index, 0 for automatic (default: 0) |
 | `-nc, --no-count` | Skip k-mer counting with ntcard |

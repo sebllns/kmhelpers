@@ -6,6 +6,7 @@ import os
 
 import click
 
+from pykmhelpers.cli.shared import parse_shard_size
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.log import Log
 from pykmhelpers.pipeline.composer import IndexComposer
@@ -60,12 +61,12 @@ logger = logging.getLogger(__name__)
 #     show_default=True,
 #     help="💾  Desired number of partitions per index, 0 for automatic count.",
 # )
-# @click.option(
-#     "--split-size",
-#     "-b",
-#     "bf_max_size",
-#     help="💾  Maximum run size (e.g., '10GB', '5000MB') before splitting samples across indices.",
-# )
+@click.option(
+    "--shard-size",
+    "-si",
+    "shard_size",
+    help="💾  Maximum size of one shard (e.g., '256GB', '500000MB'). A span is split into independent shards of at most this size; omit for a single unlimited index per span.",
+)
 # @click.option(
 #     "--partition-min-size",
 #     "-m",
@@ -88,7 +89,7 @@ def compose(
     selected_profile,
     name,
     # partition_count,
-    # bf_max_size,
+    shard_size,
     # partition_min_size,
     # partition_count_limit,
     session_id,
@@ -174,6 +175,7 @@ def compose(
             selected_profile=selected_profile,
             name=name,
             no_merge=False,
+            shard_size=parse_shard_size(shard_size),
             # partition_count=partition_count,
             # bf_max_size=bf_max_size,
             # partition_min_size=partition_min_size,

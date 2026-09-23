@@ -276,13 +276,23 @@ class IndexDefinitionTools:
         else:
             return value
 
-    def get_merge_name(self, db_name: str, group: int) -> str:
-        return f"{db_name}_g{group}"
+    def get_merge_name(
+        self, db_name: str, group: int, shard: Optional[int] = None
+    ) -> str:
+        """Name of a shard: the index samples are merged into.
+
+        ``shard`` is the shard number when sharding is enabled, ``None``
+        when the span holds a single unlimited index.
+        """
+        suffix = "" if shard is None else f"_p{shard}"
+        return f"{db_name}_g{group}{suffix}"
 
     def get_index_name(
-        self, db_name: str, session: str, group: int, segment: int
+        self, db_name: str, session: str, group: int, shard: Optional[int] = None
     ) -> str:
-        return f"{db_name}_g{group}_{session}_p{segment}"
+        """Name of one session's part, built then merged into its shard."""
+        suffix = "" if shard is None else f"_p{shard}"
+        return f"{db_name}_g{group}_{session}{suffix}"
 
     def _load_db_file(self, filename: str) -> IndexDB:
         """Load index database from JSON or YAML file."""

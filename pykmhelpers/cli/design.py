@@ -6,6 +6,7 @@ import os
 
 import click
 
+from pykmhelpers.cli.shared import parse_shard_size
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.log import Log
 from pykmhelpers.core.utils import Toolbox
@@ -35,6 +36,12 @@ logger = logging.getLogger(__name__)
     "-n",
     required=True,
     help="🏷️   Name of created index.",
+)
+@click.option(
+    "--shard-size",
+    "-si",
+    "shard_size",
+    help="💾  Maximum size of one shard (e.g., '256GB', '500000MB'). A span is split into independent shards of at most this size; omit for a single unlimited index per span.",
 )
 @click.option(
     "--session-id",
@@ -140,6 +147,7 @@ def design(
     input,
     output_dir,
     name,
+    shard_size,
     session_id,
     kmer_size,
     data_type,
@@ -273,6 +281,7 @@ def design(
             selected_profile=None,
             name=name,
             no_merge=False,
+            shard_size=parse_shard_size(shard_size),
         ).run(
             input_file=jsonl_path,
             output_dir=compose_dir,

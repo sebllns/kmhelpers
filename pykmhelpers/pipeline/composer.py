@@ -10,7 +10,7 @@ from typing import Generator, Optional
 import yaml
 
 import pykmhelpers.pipeline.index_db as db
-from pykmhelpers.core.bloom_filter import BloomFilterSpecs, SpanManager
+from pykmhelpers.core.bloom_filter import SpanManager
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.constants import KMHELPERS_COMMIT, KMHELPERS_VERSION
 from pykmhelpers.core.log import Log
@@ -28,6 +28,7 @@ class IndexComposer:
         name="index",
         abundance_min=1,
         no_merge=False,
+        shard_size: int = 0,
         kmer_size: Optional[int] = None,
         false_positive_rate: Optional[float] = None,
         format="yaml",
@@ -39,6 +40,7 @@ class IndexComposer:
         self.name = name or "index"
         self.abundance_min = abundance_min
         self.no_merge = no_merge
+        self.shard_size = shard_size
         self.kmer_size = kmer_size
         self.false_positive_rate = false_positive_rate
         self.format = format
@@ -58,7 +60,7 @@ class IndexComposer:
 
         span_base = 2.0
         allowed_spans: list[int] = []
-        spans_properties = {}
+        spans_properties: dict[int, dict] = {}
 
         run_id = run_id or datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -72,14 +74,16 @@ class IndexComposer:
         except shutil.SameFileError:
             pass
 
+        shard_size = self.shard_size
+        out_layout = None
+
         if self.layout_file:
-            span_base, map = load_layout(self.layout_file)
-            allowed_spans = sorted(int(s) for s in map.keys())
-            spans_properties = {
-                s: {"id": i, "name": map[s]} for i, s in enumerate(allowed_spans)
-            }
+            span_base, shard_size, spans_properties = load_layout(self.layout_file)
+            allowed_spans = sorted(spans_properties.keys())
+            out_layout = os.path.realpath(self.layout_file)
             logger.debug(
-                f"Loaded layout: {self.layout_file} (base={span_base}, spans={allowed_spans})"
+                f"Loaded layout: {self.layout_file} (base={span_base}, "
+                f"spans={allowed_spans}, shard_size={shard_size})"
             )
 
         if self.profiles_file:
@@ -89,30 +93,32 @@ class IndexComposer:
             if not profile.get("span_list"):
                 raise ValueError(f"Profile has no 'span_list' in {self.profiles_file}")
             allowed_spans = sorted(int(s) for s in profile["span_list"])
-            spans_properties = self._fill_span_props(allowed_spans)
             out_layout = os.path.realpath(
                 os.path.join(output_dir, f"{self.name}_layout.yaml")
             )
-            layout_data = {
-                "type": "layout",
-                "data": {
-                    "base": span_base,
-                    "map": {s: spans_properties[s]["name"] for s in allowed_spans},
-                },
-            }
-            with open(out_layout, "w") as f:
-                yaml.dump(layout_data, f, default_flow_style=False, sort_keys=True)
-            logger.info(f"Wrote layout: {out_layout}")
 
         kmer_size = self.kmer_size or file_k or 25
         false_positive_rate = self.false_positive_rate or file_fp or 0.25
 
-        split_count: dict[int, int] = {}
         original_distribution: dict[int, int] = {}
         bf_sizes: dict[int, int] = {}
-        span_size: dict[int, int] = {}
         db_instance = db_instance or db.IndexDB(name=self.name)
         span_manager = span_manager or SpanManager(p=false_positive_rate, b=span_base)
+
+        if self.profiles_file:
+            spans_properties = self._fill_span_props(
+                allowed_spans, span_manager, shard_size
+            )
+        elif self.shard_size and self.shard_size != shard_size:
+            # A layout can be re-sharded: only shards opened later are affected
+            shard_size = self.shard_size
+            for span, props in spans_properties.items():
+                props["max_samples"] = max_samples_for(
+                    span_manager.get_bf_size(span), shard_size
+                )
+            logger.info(
+                f"Layout re-sharded with a {ByteCounter.auto(shard_size)} limit"
+            )
 
         sample_count = 0
         kmer_count_limit = (
@@ -145,11 +151,11 @@ class IndexComposer:
                     span = promoted
                     bf_sizes[promoted] = span_manager.get_bf_size(promoted)
 
-                split_count.setdefault(span, 0)
-                span_size.setdefault(span, 0)
+                props = spans_properties[span]
+                shard = self._current_shard(props, shard_size)
 
                 index_name = self.db_tools.get_index_name(
-                    self.name, run_id, span, split_count[span]
+                    self.name, run_id, span, shard["id"]
                 )
                 if index_name not in db_instance.index_table:
                     logger.debug(
@@ -167,7 +173,7 @@ class IndexComposer:
                         sample_file=f"{self.name}_samples.jsonl",
                         samples={},
                     )
-                    i.merge_name = spans_properties[span]["name"]
+                    i.merge_name = shard["name"]
                     db_instance.add_index(i)
                 else:
                     logger.debug(f"Adding to existing index: {index_name}")
@@ -178,15 +184,7 @@ class IndexComposer:
                     sample_id=sample.name, sample=sample
                 )
 
-                # span_size[span] += 1
-                # if (
-                #     self.bf_max_size
-                #     and span_size[span] % 8 == 0
-                #     and self.bf_max_size
-                #     <= db_instance.index_table[index_name].get_stored_size()
-                # ):
-                #     split_count[span] += 1
-
+                shard["samples"] += 1
                 sample_count += 1
 
             except Exception as e:
@@ -201,11 +199,12 @@ class IndexComposer:
             raise ValueError(f"No valid sample found in {input_file}")
 
         logger.info(
-            f"Composed {sample_count} samples into {len(db_instance.span_table)} indices"
+            f"Composed {sample_count} samples into {len(db_instance.index_table)} "
+            f"parts over {len(db_instance.span_table)} spans"
         )
-        for s, index in sorted(db_instance.span_table.items()):
+        for i in db_instance.index_table.values():
             logger.info(
-                f"  {spans_properties[s]['name']}: {index.get_sample_count()} samples → {str(index.get_total_stored_size())}"
+                f"  {i.merge_name}: {i.sample_count} samples → {str(i.get_stored_size())}"
             )
 
         original_distribution_file = os.path.join(run_dir, f"{self.name}_orig_dist.csv")
@@ -217,36 +216,13 @@ class IndexComposer:
         index_summary_file = os.path.join(run_dir, f"{self.name}_summary.csv")
         with open(index_summary_file, "w") as f:
             f.write("name,span,sample_count,stored_size_GB\n")
-            for span_id, span_obj in sorted(db_instance.span_table.items()):
-                size = span_obj.get_total_stored_size()
+            for i in db_instance.index_table.values():
+                size = i.get_stored_size()
                 f.write(
-                    f"{spans_properties[span_id]['name']},{span_id},{span_obj.get_sample_count()},{size.byte_count/(1000**3)}\n"
+                    f"{i.merge_name},{i.span},{i.sample_count},{size.byte_count/(1000**3)}\n"
                 )
 
         logger.debug(f"Exporting database in {self.format} format to {run_dir}...")
-
-        for i in db_instance.index_table.values():
-            # if partition_min_size or auto_partitioning:
-            # partition_min_size = partition_min_size or ByteCounter.from_str("200MB")
-            index_name = self.db_tools.get_index_name(self.name, run_id, i.span, 0)
-            ref = db_instance.index_table[index_name]
-            bf_specs = BloomFilterSpecs(
-                ref.bf_size,
-                ref.sample_count if self.no_merge else span_size[i.span],
-                1,
-            )
-            # partition_max_count = bf_specs.get_auto_partition_count(
-            #     partition_min_size.byte_count
-            # )
-        #     if not auto_partitioning:
-        #         partition_max_count = min(partition_max_count, partition_count)
-        #     i.partition_count = partition_max_count
-        # if not self.exact_partition_count and i.partition_count > 1:
-        #     i.partition_count = 1 << (i.partition_count - 1).bit_length()
-        # i.partition_count = min(
-        #     max(4, i.partition_count), self.partition_count_limit
-        # )
-        # logger.debug(f"  {i.name}: partitioning into {i.partition_count} files")
 
         export_db(
             indices_data=db_instance,
@@ -259,15 +235,86 @@ class IndexComposer:
 
         logger.info(f"Exported database to {run_dir}")
 
-    def _fill_span_props(self, allowed_spans):
-        return {
-            s: {"id": i, "name": self.db_tools.get_merge_name(self.name, i)}
-            for i, s in enumerate(allowed_spans)
+        if out_layout:
+            self._write_layout(out_layout, span_base, shard_size, spans_properties)
+
+    def _fill_span_props(
+        self, allowed_spans: list[int], span_manager: SpanManager, shard_size: int
+    ) -> dict:
+        """Per-span properties of a new index: name, sample limit, shards."""
+        props = {}
+        for i, span in enumerate(allowed_spans):
+            max_samples = max_samples_for(span_manager.get_bf_size(span), shard_size)
+            props[span] = {
+                "id": i,
+                "name": self.db_tools.get_merge_name(self.name, i),
+                "max_samples": max_samples,
+                "shards": [],
+            }
+        return props
+
+    def _current_shard(self, props: dict, shard_size: int) -> dict:
+        """Shard receiving the next sample: the last one, or a new one if full."""
+        shards = props["shards"]
+        max_samples = props["max_samples"]
+        if not shards or (max_samples and shards[-1]["samples"] >= max_samples):
+            # Without sharding a span holds one unlimited index, named without suffix
+            shard_id = len(shards) if shard_size else None
+            name = self.db_tools.get_merge_name(self.name, props["id"], shard_id)
+            shards.append({"id": shard_id, "name": name, "samples": 0})
+            if shard_id:
+                logger.debug(
+                    f"Shard {shards[-2]['name']} is full ({max_samples} samples), "
+                    f"starting {name}"
+                )
+        current: dict = shards[-1]
+        return current
+
+    def _write_layout(
+        self, path: str, span_base: float, shard_size: int, spans_properties: dict
+    ) -> None:
+        """Write the layout, including the shard state reused by later sessions."""
+        layout_data = {
+            "type": "layout",
+            "data": {
+                "base": span_base,
+                "shard_size": shard_size,
+                "map": {
+                    span: {
+                        "name": props["name"],
+                        "max_samples": props["max_samples"],
+                        "shards": [
+                            {"name": sh["name"], "samples": sh["samples"]}
+                            for sh in props["shards"]
+                        ],
+                    }
+                    for span, props in sorted(spans_properties.items())
+                },
+            },
         }
+        with open(path, "w") as f:
+            yaml.dump(layout_data, f, default_flow_style=False, sort_keys=True)
+        logger.info(f"Wrote layout: {path}")
 
 
-def load_layout(path: str) -> tuple[float, dict]:
-    """Load span_base and allowed span list from a layout YAML file."""
+def max_samples_for(bf_size: int, shard_size: int) -> int:
+    """Samples a shard of at most ``shard_size`` bytes can hold, 0 if unlimited.
+
+    A shard stores one Bloom filter row per k-mer slot and one bit column per
+    sample, so it costs about ``bf_size * samples / 8`` bytes. Rows are byte
+    aligned, hence the rounding down to a multiple of 8 samples.
+    """
+    if not shard_size or not bf_size:
+        return 0
+    return max(8, (8 * shard_size // bf_size) // 8 * 8)
+
+
+def load_layout(path: str) -> tuple[float, int, dict]:
+    """Load ``(span_base, shard_size, spans_properties)`` from a layout file.
+
+    Layouts written before sharding map a span to a plain index name; they are
+    read as one unlimited shard, so existing indexes keep their names.
+    """
     try:
         with open(path) as f:
             data = yaml.safe_load(f)
@@ -277,7 +324,27 @@ def load_layout(path: str) -> tuple[float, dict]:
         base = float(payload["base"])
         if "map" not in payload:
             raise ValueError(f"Missing 'map' in layout file: {path}")
-        return base, payload["map"]
+
+        shard_size = int(payload.get("shard_size") or 0)
+        props = {}
+        for i, (span, entry) in enumerate(sorted(payload["map"].items())):
+            if isinstance(entry, str):
+                entry = {"name": entry, "max_samples": 0, "shards": []}
+            shards = [
+                {
+                    "id": n if shard_size else None,
+                    "name": sh["name"],
+                    "samples": int(sh.get("samples", 0)),
+                }
+                for n, sh in enumerate(entry.get("shards") or [])
+            ]
+            props[int(span)] = {
+                "id": i,
+                "name": entry["name"],
+                "max_samples": int(entry.get("max_samples") or 0),
+                "shards": shards,
+            }
+        return base, shard_size, props
     except Exception as e:
         logger.error(f"Could not parse layout file {path}: {e}")
         raise

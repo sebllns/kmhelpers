@@ -474,14 +474,21 @@ def extract_dataset(registry_path, output_dir, n_samples, average_size, min_size
 
 
 @test.command(name="auto-params")
-@click.option("--kmers", type=int, required=True, help="Max k-mer count across samples.")
-@click.option("--samples", type=int, required=True, help="Total sample count of the dataset.")
+@click.option(
+    "--kmers", type=int, required=True, help="Max k-mer count across samples."
+)
+@click.option(
+    "--samples", type=int, required=True, help="Total sample count of the dataset."
+)
 @shared.index_limits_options
 def auto_params_cmd(kmers, samples, limits, safety_margin):
     """Print the kmtricks build parameters auto_params would choose, without running a build."""
     try:
         params = auto_params(
-            kmers=kmers, samples=samples, limits=limits or "{}", safety_margin=safety_margin
+            kmers=kmers,
+            samples=samples,
+            limits=limits or "{}",
+            safety_margin=safety_margin,
         )
     except ValueError as e:
         raise click.ClickException(str(e))

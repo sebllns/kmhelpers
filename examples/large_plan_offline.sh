@@ -16,6 +16,13 @@ echo "Working directory: $PWD"
 # split builds whose samples do not fit the open-files limit.
 LIMITS='{"ram": 128000000000, "files": 65536, "threads": 32}'
 
+# Number of storage-balanced groups the spans are gathered into
+NB_GROUPS=10
+
+# Maximum size of one shard: a span holding more is split into independent
+# shards. Empty for a single unlimited index per span.
+SHARD_SIZE=20GB
+
 # 1. Fake manifest of 200K bacterial-like assemblies: median 5M distinct
 #    31-mers, spread of 1 span. Only the JSONL is written, no FASTA.
 mkdir -p db/list
@@ -34,7 +41,9 @@ kmhelpers design db/list/bact.jsonl \
     -o db/ \
     -n bact \
     -S initial \
-    -k 25
+    -k 25 \
+    -g "$NB_GROUPS" \
+    ${SHARD_SIZE:+-si "$SHARD_SIZE"}
 
 # 3. Plan offline: sample files are not checked (they do not exist), and
 #    the build scripts are written to build/assets/

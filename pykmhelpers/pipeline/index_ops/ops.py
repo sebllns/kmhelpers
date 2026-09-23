@@ -9,7 +9,7 @@ from pykmhelpers.pipeline.index_db import IndexDefinition, IndexDefinitionTools
 from pykmhelpers.pipeline.index_ops.executor import IndexExecutor, validate_definition
 from pykmhelpers.pipeline.index_ops.report import RunReport, indent_prefix
 from pykmhelpers.pipeline.index_ops.samples import SampleResolver
-from pykmhelpers.pipeline.index_ops.script import ScriptRecorder, script_name
+from pykmhelpers.pipeline.index_ops.script import ScriptRecorder
 from pykmhelpers.pipeline.index_ops.sizing import BuildParams, resolve_build_params
 from pykmhelpers.pipeline.index_ops.sources import SOURCES, DbCache, detect_input
 from pykmhelpers.pipeline.index_ops.types import (
@@ -188,7 +188,7 @@ class IndexOps:
                 report.record(i.name, ApplyStatus.NONE)
                 continue
             try:
-                self._script.select(script_name(i.name))
+                self._script.select(plan.script_of(i.name))
                 self._build(report, executor, samples, i)
             except Exception as e:
                 msg = f"   Failed to build index '{i.name}'"
@@ -281,7 +281,7 @@ class IndexOps:
             return
 
         threads = self.config.kmindex_threads or os.cpu_count() or 1
-        self._script.select(script_name(parts[0]) if parts else target)
+        self._script.select(target)
         result = executor.merge(target, parts, threads)
         if not result or "command" not in result:
             raise Exception("Malformed result")

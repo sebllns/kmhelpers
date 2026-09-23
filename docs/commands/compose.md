@@ -27,7 +27,7 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 |--------|-------------|
 | `-pr, --profile TEXT` | Profile name to use (default: `default_profile` from profiles file) |
 | `-p, --partition-count INT` | Desired number of partitions per index, 0 for automatic (default: 0) |
-| `-b, --split-size SIZE` | Max run size (e.g. `10GB`, `5000MB`) before splitting samples across indices |
+| `-si, --shard-size SIZE` | Max size of one shard (e.g. `256GB`, `500000MB`); omit for a single unlimited index per span |
 | `-m, --partition-min-size SIZE` | Minimum partition file size (e.g. `500MB`, `1GB`) |
 | `-P, --partition-count-limit INT` | Upper bound on auto partition count (default: 256) |
 
@@ -53,9 +53,21 @@ determined automatically by default, or set explicitly with `--partition-count`.
 `--partition-min-size` to enforce a minimum file size per partition, or
 `--partition-count-limit` to cap the auto-computed count.
 
-**Splitting** - when the accumulated size of samples assigned to a span exceeds `--split-size`,
-they are distributed across multiple sub-indices rather than one. This is useful to keep
-individual index files manageable for large datasets.
+**Sharding** - with `--shard-size`, a span is split into independent shards of at most that
+size, instead of one index growing without bound. Shards are never merged together: each one
+is built and registered on its own, and a query hits them all.
+
+The per-span sample limit is derived from the Bloom filter size of the span, since a shard
+costs about `bf_size x samples / 8` bytes, and is rounded down to a multiple of 8 samples
+(minimum 8). It is written to the layout file, together with the shards and their sample
+counts, so a later session knows where to continue.
+
+An update fills the last shard of the span until that limit is reached, then opens a new one.
+Filling a shard means merging the session's new samples into it; only chunks (a build-time
+split, see [plan](plan.md)) are merged as well.
+
+Without `--shard-size`, a span keeps a single index named `NAME_g<i>`. With it, shards are
+named `NAME_g<i>_p<k>`.
 
 
 ## Examples

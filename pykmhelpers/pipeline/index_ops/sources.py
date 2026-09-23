@@ -37,11 +37,17 @@ class DbCache:
 class WorkPlan:
     """What a run has to do: definitions to build, then merges to perform.
 
-    ``definitions`` is already filtered by name and span.
+    ``definitions`` is already filtered by name and span. ``scripts`` maps an
+    index name to the script it belongs to: parts go with the shard they are
+    merged into, so one script builds one shard.
     """
 
     definitions: list[IndexDefinition] = field(default_factory=list)
     merges: dict[str, list[str]] = field(default_factory=dict)
+    scripts: dict[str, str] = field(default_factory=dict)
+
+    def script_of(self, name: str) -> str:
+        return self.scripts.get(name, name)
 
 
 def detect_input(
@@ -124,7 +130,8 @@ class SpanRegistrySource:
                     if target in merges or (names and part in names):
                         dbs.extend(self._cache.load(self._part_path(path, part), idt))
 
-        return WorkPlan(definitions=_named(dbs), merges=merges)
+        scripts = {part: target for target, parts in merges.items() for part in parts}
+        return WorkPlan(definitions=_named(dbs), merges=merges, scripts=scripts)
 
     @staticmethod
     def _part_path(registry_path: str, part: str) -> str:

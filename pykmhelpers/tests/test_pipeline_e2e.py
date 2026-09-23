@@ -35,6 +35,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import yaml
+
 # Entry point for the CLI as a subprocess (module has a ``__main__`` guard).
 CLI_MODULE = "pykmhelpers.cli.kmhelpers"
 
@@ -276,6 +278,65 @@ class TestStepByStepDesignAndBuild(PipelineE2EBase):
         # query
         q0, q0_header = self.write_query("s0", sample_idx=0)
         self.run_cli("query", q0, "-r", "build2", "-o", "results", "-f", "json")
+        self.assert_query_hit("results", q0_header, "sample_0")
+
+
+class TestShardedBuild(PipelineE2EBase):
+    """--shard-size splits a span into independent shards, never merged together."""
+
+    def test_design_build_query_with_shards(self):
+        # -b 4 buckets every sample into one span; a shard size small enough
+        # for the per-span limit to be the 8-sample floor then forces a second
+        # shard (N_SAMPLES is 5, plus 4 added below).
+        for extra in range(4):
+            path = self.tmp / "data" / f"extra_{extra}.fasta"
+            seq = "".join(random.choice("ACGT") for _ in range(SAMPLE_LEN))
+            self.sequences.append(seq)
+            path.write_text(f">extra_{extra}\n{seq}\n")
+
+        self.run_cli(
+            "design",
+            self.tmp / "data",
+            "-o",
+            "db",
+            "-n",
+            "idx",
+            "-S",
+            "initial",
+            "-k",
+            KMER_SIZE,
+            "-b",
+            "4",
+            "-g",
+            "1",
+            "-si",
+            "1KB",
+        )
+        layout = yaml.safe_load(
+            (self.tmp / "db" / "compose" / "idx_layout.yaml").read_text()
+        )["data"]
+        self.assertGreater(layout["shard_size"], 0)
+        shards = [
+            sh["name"] for entry in layout["map"].values() for sh in entry["shards"]
+        ]
+        self.assertGreater(len(shards), 1, f"expected several shards, got {shards}")
+
+        span_reg = self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml"
+        self.run_cli("build", span_reg, "-o", "build")
+
+        registry = json.loads((self.tmp / "build" / "index.json").read_text())["index"]
+        # every shard is registered on its own; nothing merges them together
+        self.assertEqual(sorted(registry), sorted(shards))
+
+        # one build script per shard
+        scripts = sorted(
+            p.stem for p in (self.tmp / "build" / "assets" / "initial").glob("*.sh")
+        )
+        self.assertEqual(scripts, sorted(shards + ["kmhelpers_apply"]))
+
+        # samples stay queryable through their shard
+        q0, q0_header = self.write_query("s0", sample_idx=0)
+        self.run_cli("query", q0, "-r", "build", "-o", "results", "-f", "json")
         self.assert_query_hit("results", q0_header, "sample_0")
 
 

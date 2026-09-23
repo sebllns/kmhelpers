@@ -14,7 +14,7 @@ from types import SimpleNamespace
 from pykmhelpers.pipeline.index_ops import ApplyStatus, IndexOpsConfig
 from pykmhelpers.pipeline.index_ops.report import merge_status, run_status
 from pykmhelpers.pipeline.index_ops.samples import SampleResolver
-from pykmhelpers.pipeline.index_ops.script import ScriptRecorder, script_name
+from pykmhelpers.pipeline.index_ops.script import ScriptRecorder
 from pykmhelpers.pipeline.index_ops.sizing import BuildParams, resolve_build_params
 from pykmhelpers.pipeline.index_ops.sources import (
     IndexDefinitionSource,
@@ -163,6 +163,15 @@ class TestSpanRegistrySource(unittest.TestCase):
     def test_filter_part_name_builds_without_merge(self):
         self.assertEqual(self.load(filter_names=["p2"]), ({}, ["p2"]))
 
+    def test_scripts_group_parts_under_their_target(self):
+        cache = FakeCache()
+        plan = SpanRegistrySource(make_config(), cache).load(
+            self.registry, None, self.DATA
+        )
+        self.assertEqual(plan.scripts, {"p1": "t1", "p2": "t1", "p3": "t2"})
+        self.assertEqual(plan.script_of("p2"), "t1")
+        self.assertEqual(plan.script_of("unknown"), "unknown")
+
     def test_missing_indices(self):
         with self.assertRaises(ValueError):
             self.load({"data": {1: {"infos": {}}}})
@@ -217,12 +226,6 @@ class TestScriptRecorder(unittest.TestCase):
 
     def lines(self, name):
         return (self.assets / name).read_text().splitlines()
-
-    def test_script_name(self):
-        self.assertEqual(script_name("coli_g170_update_p0"), "coli_g170_update")
-        self.assertEqual(script_name("coli_g170_update_p12"), "coli_g170_update")
-        self.assertEqual(script_name("coli_g1"), "coli_g1")
-        self.assertEqual(script_name("x_p0__chunk1"), "x_p0__chunk1")
 
     def test_one_script_per_group_and_runner(self):
         rec = ScriptRecorder(str(self.tmp))
