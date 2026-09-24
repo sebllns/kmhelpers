@@ -625,6 +625,8 @@
       
         
       
+        
+      
     
     
     
@@ -715,6 +717,34 @@
     
   
     Step-by-step breakdown
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/ecoli_update/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Update an existing index
   
 
     
@@ -2584,7 +2614,7 @@
 <p>Compose index definition file(s) from a sample list produced by <a href="../list/"><code>list</code></a>. Building a new index requires a profile from <a href="../profile/"><code>profile</code></a>.</p>
 <div class="admonition abstract">
 <p class="admonition-title">USAGE</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers compose -o OUTPUT_DIR -n NAME [-pf PROFILES_FILE] [-S SESSION_NAME] [OPTIONS] INPUT_FILE
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers compose -o COMPOSE_DIR -n NAME [-pf PROFILES_FILE] [-S SESSION] [OPTIONS] INPUT_FILE
 </code></pre></div>
 <table>
 <thead>
@@ -2599,7 +2629,7 @@
 <td>JSONL sample list produced by <code>list</code></td>
 </tr>
 <tr>
-<td><code>-o, --output-dir DIR</code></td>
+<td><code>-o, --output-dir COMPOSE_DIR</code></td>
 <td>Output directory for index definitions</td>
 </tr>
 <tr>
@@ -2611,8 +2641,8 @@
 <td>Profiles YAML file with index configuration (required to build a new index)</td>
 </tr>
 <tr>
-<td><code>-S, --session-id TEXT</code></td>
-<td>Session tag appended to index names (default: timestamp)</td>
+<td><code>-S, --session-id SESSION</code></td>
+<td>Session name: subdirectory of <code>COMPOSE_DIR/NAME/</code> and tag appended to index names (default: timestamp)</td>
 </tr>
 </tbody>
 </table>
@@ -2620,7 +2650,7 @@
 <div class="admonition abstract">
 <p class="admonition-title">I/O</p>
 <p><strong>Input:</strong> JSONL sample list (from <a href="../list/"><code>list</code></a>), profiles YAML required only for new index creation (from <a href="../profile/"><code>profile</code></a>)<br />
-<strong>Output:</strong> index definition files in <code>OUTPUT_DIR/NAME/SESSION/</code>, with <code>NAME.yaml</code> as the entry point</p>
+<strong>Output:</strong> index definition files in <code>COMPOSE_DIR/NAME/SESSION/</code>, with <code>NAME.yaml</code> as the entry point (<code>INPUT_FILE</code> for <code>plan</code>, <code>build</code> and <code>apply</code>)</p>
 </div>
 <h2 id="advanced-options">Advanced Options</h2>
 <table>
@@ -2656,13 +2686,13 @@
 <h2 id="description">Description</h2>
 <p>Takes a JSONL sample list (produced by <a href="../list/"><code>list</code></a>) and generates index definition
 files that can be passed to <a href="../plan/"><code>plan</code></a>, <a href="../build/"><code>build</code></a> or <a href="../apply/"><code>apply</code></a>.</p>
-<p>Output files are written to <code>OUTPUT_DIR/NAME/SESSION/</code>, where <code>SESSION</code> defaults to the
+<p>Output files are written to <code>COMPOSE_DIR/NAME/SESSION/</code>, where <code>SESSION</code> defaults to the
 current timestamp if <code>--session-id</code> is not provided. Pass the <code>NAME.yaml</code> file in that
 directory as the input to <code>plan</code>, <code>build</code> or <code>apply</code> to process the index.</p>
 <p><strong>Building a new index</strong> - provide <code>--profiles-file</code> (produced by <a href="../profile/"><code>profile</code></a>).
-A layout file is written to <code>OUTPUT_DIR/NAME_layout.yaml</code> for future updates.</p>
+A layout file is written to <code>COMPOSE_DIR/NAME_layout.yaml</code> for future updates.</p>
 <p><strong>Updating an existing index</strong> - omit <code>--profiles-file</code>. The layout file at
-<code>OUTPUT_DIR/NAME_layout.yaml</code> is detected and loaded automatically.</p>
+<code>COMPOSE_DIR/NAME_layout.yaml</code> is detected and loaded automatically.</p>
 <p>If <code>--profile</code> is not specified, the <code>default_profile</code> field in the profiles file is used.</p>
 <p><strong>Partitioning</strong> - each Bloom filter is split into N partition files. The partition count is
 determined automatically by default, or set explicitly with <code>--partition-count</code>. Use

@@ -758,6 +758,8 @@
       
         
       
+        
+      
     
     
     
@@ -848,6 +850,34 @@
     
   
     Step-by-step breakdown
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/ecoli_update/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Update an existing index
   
 
     
@@ -2698,7 +2728,12 @@
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>kmhelpers<span class="w"> </span>build<span class="w"> </span>coli_db/compose/coli/update/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/
 </code></pre></div>
 </details>
-<p><code>design</code> detects the existing layout file at <code>coli_db/compose/coli_layout.yaml</code>, skips the <code>profile</code> step, and composes only the new samples. <code>build</code> then merges the new indices into the existing ones automatically - no need to rebuild from scratch.</p>
+<p><code>design</code> detects the existing layout file at <code>coli_db/compose/coli_layout.yaml</code>, skips the <code>profile</code> step, and composes only the new samples. <code>build</code> then merges the new samples into the existing index automatically, without recounting the samples already indexed.</p>
+<div class="admonition warning">
+<p class="admonition-title">Disk space</p>
+<p><code>kmindex</code> cannot add samples to an existing index in place, so the update merges the previous samples and the new ones into a complete new index, written to <code>coli_build/kmindex_data/update/</code>, next to the previous version left in <code>coli_build/kmindex_data/initial/</code>. Both coexist on disk, so plan for at least twice the size of the sub-indices being updated.</p>
+<p>The files of the previous version are no longer registered, so queries ignore them. They are kept on purpose, so you can validate the updated index before deleting anything - see <a href="../../commands/build/#updating-an-index"><code>build</code> - Updating an index</a>.</p>
+</div>
 <h3 id="query-sequences-in-an-index">Query sequences in an index</h3>
 <div class="admonition abstract">
 <p>Check whether given sequences are present in your samples.<br />
@@ -2736,7 +2771,7 @@
 <p>Review <code>coli_build/assets/</code> and <code>coli_build/logs/</code>, then:</p>
 <details class="example">
 <summary>Commands</summary>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-w<span class="w"> </span>coli_build/
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/
 </code></pre></div>
 </details>
 <p><strong>Manual build</strong></p>
@@ -2751,8 +2786,8 @@
 <details class="example">
 <summary>Commands</summary>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># each node builds a disjoint subset, and emails when its share is done</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-w<span class="w"> </span>coli_build/<span class="w"> </span>-n<span class="w"> </span>coli_g0<span class="w"> </span>--notify<span class="w"> </span>you@example.com
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-w<span class="w"> </span>coli_build/<span class="w"> </span>-n<span class="w"> </span>coli_g1<span class="w"> </span>--notify<span class="w"> </span>you@example.com
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>-n<span class="w"> </span>coli_g0<span class="w"> </span>--notify<span class="w"> </span>you@example.com
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>-n<span class="w"> </span>coli_g1<span class="w"> </span>--notify<span class="w"> </span>you@example.com
 </code></pre></div>
 </details>
 <h2 id="next-steps">Next Steps</h2>
