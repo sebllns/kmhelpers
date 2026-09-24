@@ -6,6 +6,8 @@ import os
 import click
 
 from pykmhelpers import KmindexRegistry, KmtricksIndex
+from pykmhelpers.core.bloom_filter import BloomFilterSpecs
+from pykmhelpers.core.byte import ByteCounter
 
 
 @click.group("manage")
@@ -214,10 +216,22 @@ def registry_info(obj, index_id, output_json):
 
         index = registry.get_index(index_id)
 
+        # Data location, resolved through the registry symlink
+        data_path = os.path.realpath(index.dir_path)
+
+        # Estimated on-disk size of the Bloom filter matrices
+        specs = BloomFilterSpecs(
+            n_rows=index.bloom_size,
+            n_cols=index.nb_samples,
+            n_partitions=index.nb_partitions,
+        )
+        estimated_size = specs.total_storage_size()
+
         if output_json:
             # Output as JSON
             data = {
                 "index_id": index.id,
+                "path": data_path,
                 "nb_samples": index.nb_samples,
                 "nb_partitions": index.nb_partitions,
                 "kmer_size": index.kmer_size,
@@ -225,6 +239,7 @@ def registry_info(obj, index_id, output_json):
                 "bloom_size": index.bloom_size,
                 "bytes_per_row": index.bytes_per_row,
                 "index_size": index.index_size,
+                "estimated_data_size": estimated_size,
                 "kmindex_version": index.kmindex_version,
                 "kmtricks_version": index.kmtricks_version,
             }
@@ -232,13 +247,14 @@ def registry_info(obj, index_id, output_json):
         else:
             # Output as formatted text
             click.echo(f"Index Information: {index_id}")
+            click.echo(f"  Path: {data_path}")
             click.echo(f"  Samples: {index.nb_samples}")
             click.echo(f"  Partitions: {index.nb_partitions}")
             click.echo(f"  K-mer size: {index.kmer_size}")
             click.echo(f"  Minimizer size: {index.minim_size}")
             click.echo(f"  Bloom filter size: {index.bloom_size}")
             click.echo(f"  Bytes per row: {index.bytes_per_row}")
-            click.echo(f"  Index size: {index.index_size} bytes")
+            click.echo(f"  Estimated data size: {ByteCounter.auto(estimated_size)}")
             click.echo(f"  kmindex version: {index.kmindex_version}")
             click.echo(f"  kmtricks version: {index.kmtricks_version}")
 

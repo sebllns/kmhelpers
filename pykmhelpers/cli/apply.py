@@ -99,58 +99,32 @@ def apply(
     """Apply changes and build indices from definition files.
 
     \b
-    Input:  NAME.yaml written by `compose` in OUTPUT_DIR/NAME/RUN_ID/
-    Output: built k-mer index in WORK_DIR/, registered in WORK_DIR/index.json
+    Input:  COMPOSE_DIR/NAME/SESSION/NAME.yaml written by `compose` or `design`
+    Output: Bloom filters in BUILD_DIR/kmindex_data/, registered in BUILD_DIR/index.json
 
-    📄 INPUT_FILE is the NAME.yaml written by `compose` in OUTPUT_DIR/NAME/RUN_ID/.
-    The declared indices are built and registered. Parent indices are built
-    automatically when required. Only indices matching --name or --span are
-    processed; if neither is specified, all declared indices are built.
+    BUILD_DIR (-o) is the index directory, reused across builds and passed to
+    `query -r`. Parent indices are built automatically when required. Only
+    indices matching --name or --span are processed; if neither is specified,
+    all declared indices are built.
 
     Examples:
 
     \b
     # Build all indices declared in a definition file
-    kmhelpers apply index.yaml -o /output
+    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build
 
     \b
-    # Build only selected indices by name (comma-separated or repeated flags)
-    kmhelpers apply index.yaml -o /output -n idx1,idx2
-    kmhelpers apply index.yaml -o /output -n idx1 -n idx2
-
-    \b
-    # Build only selected k-mer spans from a span registry
-    kmhelpers apply registry.yaml -o /output -s 28
-    kmhelpers apply registry.yaml -o /output -s 27,28,29
-
-    \b
-    # Dry run: print build commands without executing
-    kmhelpers apply index.yaml -o /output --dry-run
+    # Build only selected indices or spans
+    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build -n coli_g0,coli_g1
+    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build -s 27-30
 
     \b
     # Reuse parameters from an existing parent index
-    kmhelpers apply index.yaml -o /output -n my_index --from parent_index
+    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build -n my_index --from parent_index
 
     \b
-    # Show progress bar during building
-    kmhelpers apply index.yaml -o /output --show-progress
-
-    \b
-    # Plan: check paths and preview build without executing
-    kmhelpers apply index.yaml -o /output --plan
-
-    \b
-    # Skip compression of intermediate files
-    kmhelpers apply index.yaml -o /output --skip-compression
-
-    \b
-    # Resolve sample paths from a base directory
-    kmhelpers apply index.yaml -o /output -b /data/samples
-
-    \b
-    # Set number of threads and minimizer size
-    kmhelpers apply index.yaml -o /output -t 8 --minim-size 12
-
+    # Set threads and show progress
+    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build -t 8 --show-progress
     """
 
     force = (ctx.obj or {}).get("yes", False)

@@ -1,0 +1,73 @@
+# .github/workflows/ntcard-binaries.yml
+name: ntcard-binaries
+on:
+  workflow_dispatch:
+    inputs:
+      ntcard_ref:
+        description: "ntCard git tag or commit"
+        default: "1.2.2"
+        required: true
+
+env:
+  NTCARD_REF: ${{ inputs.ntcard_ref || '1.2.2' }}
+  NTCARD_REPO: https://github.com/bcgsc/ntCard
+
+jobs:
+  linux:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - { arch: x86_64, runner: ubuntu-24.04 }
+          - { arch: aarch64, runner: ubuntu-24.04-arm }
+    container: alpine:3.20
+    env:
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - run: apk add --no-cache build-base autoconf automake zlib-dev zlib-static git
+      # clone + checkout so a commit sha works as well as a tag
+      - run: git clone "$NTCARD_REPO" && git -C ntCard checkout "$NTCARD_REF"
+      - run: |
+          cd ntCard
+          ./autogen.sh
+          ./configure CXXFLAGS="-O3" LDFLAGS="-static"
+          make -j"$(nproc)"
+          strip ntcard
+          out="ntcard-${NTCARD_REF}-linux-${ARCH}"
+          mv ntcard "$out"
+          sha256sum "$out" > "$out.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: "ntcard-linux-${{ matrix.arch }}"
+          path: ntCard/ntcard-*
+
+  macos:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - { arch: arm64, runner: macos-15 }
+          - { arch: x86_64, runner: macos-15-intel }
+    env:
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - run: brew install autoconf automake gcc
+      - run: git clone "$NTCARD_REPO" && git -C ntCard checkout "$NTCARD_REF"
+      - run: |
+          cd ntCard
+          GXX=$(ls /opt/homebrew/bin/g++-* /usr/local/bin/g++-* 2>/dev/null | head -n1)
+          # link libgomp statically so the binary does not depend on Homebrew gcc
+          LIBGOMP="$(dirname "$GXX")/../opt/gcc/lib/gcc/current/libgomp.a"
+          ./autogen.sh
+          ./configure CXX="$GXX" CXXFLAGS="-O3" \
+            LDFLAGS="-static-libgcc -static-libstdc++ $LIBGOMP -Wl,-dead_strip_dylibs"
+          make -j"$(sysctl -n hw.ncpu)"
+          strip ntcard
+          otool -L ntcard
+          out="ntcard-${NTCARD_REF}-macos-${ARCH}"
+          mv ntcard "$out"
+          shasum -a 256 "$out" > "$out.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: "ntcard-macos-${{ matrix.arch }}"
+          path: ntCard/ntcard-*

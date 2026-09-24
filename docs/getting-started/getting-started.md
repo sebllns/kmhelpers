@@ -77,7 +77,12 @@ Re-run `design` with the same `-o`/`-n` and a new sample source, tagging the run
     kmhelpers build coli_db/compose/coli/update/coli.yaml -o coli_build/
     ```
 
-`design` detects the existing layout file at `coli_db/compose/coli_layout.yaml`, skips the `profile` step, and composes only the new samples. `build` then merges the new indices into the existing ones automatically - no need to rebuild from scratch.
+`design` detects the existing layout file at `coli_db/compose/coli_layout.yaml`, skips the `profile` step, and composes only the new samples. `build` then merges the new samples into the existing index automatically, without recounting the samples already indexed.
+
+!!! warning "Disk space"
+    `kmindex` cannot add samples to an existing index in place, so the update merges the previous samples and the new ones into a complete new index, written to `coli_build/kmindex_data/update/`, next to the previous version left in `coli_build/kmindex_data/initial/`. Both coexist on disk, so plan for at least twice the size of the sub-indices being updated.
+
+    The files of the previous version are no longer registered, so queries ignore them. They are kept on purpose, so you can validate the updated index before deleting anything - see [`build` - Updating an index](../commands/build.md#updating-an-index).
 
 ### Query sequences in an index
 
@@ -124,7 +129,7 @@ Review `coli_build/assets/` and `coli_build/logs/`, then:
 
 ??? example "Commands"
     ```bash
-    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -w coli_build/
+    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build/
     ```
 
 **Manual build**
@@ -142,8 +147,8 @@ Review `coli_build/assets/` and `coli_build/logs/`, then:
 ??? example "Commands"
     ```bash
     # each node builds a disjoint subset, and emails when its share is done
-    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -w coli_build/ -n coli_g0 --notify you@example.com
-    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -w coli_build/ -n coli_g1 --notify you@example.com
+    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build/ -n coli_g0 --notify you@example.com
+    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build/ -n coli_g1 --notify you@example.com
     ```
 
 ## Next Steps
