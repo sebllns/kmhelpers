@@ -51,7 +51,9 @@ coli_build/                       BUILD_DIR (build -o, query -r)
 ├── index.json                    registry of all built indices
 ├── kmindex_data/
 │   ├── initial/                  Bloom filters, one folder per SESSION
+│   │   └── coli_g0/              previous version, kept after the update
 │   └── update/
+│       └── coli_g0/              merged version (initial + update samples)
 ├── assets/                       generated kmindex scripts
 └── logs/
 ```
@@ -69,6 +71,30 @@ Reuse the same `BUILD_DIR` for every session of an index: each build adds its su
 **Filtering** - `build` always processes every index declared in `INPUT_FILE`. Use [`plan`](plan.md) and [`apply`](apply.md) with `--name` or `--span` to build a subset.
 
 **Notifications** - use `--notify` to receive an email when the build exits (requires `sendmail`). The notification is sent on both success and failure, including on `SIGTERM`.
+
+### Updating an index
+
+Building a new `SESSION` into a `BUILD_DIR` that already holds the same index triggers a `kmindex merge`. `kmindex` cannot add samples to an existing index in place, so an update merges the previous samples and the new ones into a **new** index:
+
+- The updated index `NAME_gN`, holding the previous samples plus the new ones, is written to `BUILD_DIR/kmindex_data/<new session>/NAME_gN/`. It keeps its name in `index.json`, so queries need no change.
+- The files of the previous version are left at `BUILD_DIR/kmindex_data/<previous session>/NAME_gN/`. They are no longer registered, so queries ignore them.
+- Only the sub-indices that receive new samples are merged. The others stay where they were built, still registered and untouched.
+
+!!! warning "Disk space"
+    Both versions coexist on disk, during and after the merge. Plan for at least twice the size of the sub-indices being updated.
+
+The previous version is not deleted on purpose, so the updated index can be validated first. Once validated, delete its directory to reclaim the space:
+
+```bash
+# Registered indices and the samples they hold
+kmhelpers manage -r coli_build/ list
+kmhelpers manage -r coli_build/ info -n coli_g0
+
+# Leftover files of the previous version, delete once validated
+rm -rf coli_build/kmindex_data/initial/coli_g0
+```
+
+Delete the sub-index directory, not the whole session directory: a session folder can still hold sub-indices that were not merged and are in use.
 
 ## Examples
 
