@@ -2173,10 +2173,77 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
+  <a href="#update-the-index-with-new-samples" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Next steps
+        Update the index with new samples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Update the index with new samples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-download-a-new-sample" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1 - Download a new sample
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-create-a-file-list-for-the-new-samples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2 - Create a file list for the new samples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-design-the-update-session-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3 - Design the update session (design)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-build-the-update-session-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4 - Build the update session (build)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-query-the-updated-index-query" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5 - Query the updated index (query)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-6-check-the-result-and-delete-the-previous-version" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6 - Check the result and delete the previous version
       
     </span>
   </a>
@@ -2187,8 +2254,19 @@
     </nav>
   
 </li>
+        
+          <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
       
-        <li class="md-nav__item">
+        Next steps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#3682" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2196,6 +2274,11 @@
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -2226,6 +2309,8 @@
   
   
 
+
+  <h1>Ecoli appendice</h1>
 
 <h2 id="going-further">Going Further</h2>
 <h3 id="build-an-index-with-apply">Build an index with <a href="../../commands/apply/"><code>apply</code></a></h3>
@@ -2262,15 +2347,118 @@ one per sequence):</p>
 the threshold):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>coli3682_db/<span class="w"> </span>-n<span class="w"> </span>index<span class="w"> </span>-o<span class="w"> </span>results/<span class="w"> </span>-R<span class="w"> </span><span class="m">0</span>.5<span class="w"> </span>query.fa
 </code></pre></div>
+<h3 id="update-the-index-with-new-samples">Update the index with new samples</h3>
+<p>Add samples to the index built in the tutorial, without rebuilding it from
+scratch.</p>
+<h4 id="step-1-download-a-new-sample">Step 1 - Download a new sample</h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">cd</span><span class="w"> </span>coli_dataset
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>wget<span class="w"> </span><span class="s2">"https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/005/845/GCA_000005845.2_ASM584v2/GCA_000005845.2_ASM584v2_genomic.fna.gz"</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="nb">cd</span><span class="w"> </span>..
+</code></pre></div>
+<details class="abstract">
+<summary>I/O</summary>
+<p><strong>Input:</strong> one NCBI FTP URL (<em>E. coli</em> K-12 MG1655 reference assembly)<br />
+<strong>Output:</strong> <code>coli_dataset/GCA_000005845.2_ASM584v2_genomic.fna.gz</code></p>
+</details>
+<h4 id="step-2-create-a-file-list-for-the-new-samples">Step 2 - Create a file list for the new samples</h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>cat<span class="w"> </span>&gt;<span class="w"> </span>coli_update.txt<span class="w"> </span><span class="s">&lt;&lt; 'EOF'</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="s">coli_dataset/GCA_000005845.2_ASM584v2_genomic.fna.gz</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="s">EOF</span>
+</code></pre></div>
+<details class="abstract">
+<summary>I/O</summary>
+<p><strong>Input:</strong> path to the new <code>.fna.gz</code> file<br />
+<strong>Output:</strong> <code>coli_update.txt</code></p>
+</details>
+<details class="info">
+<summary>INFO</summary>
+<p>List only the <strong>new</strong> samples. Samples already indexed must <strong>not</strong> be repeated.</p>
+</details>
+<h4 id="step-3-design-the-update-session-design">Step 3 - Design the update session (<a href="../../commands/design/"><code>design</code></a>)</h4>
+<p>Re-run <code>design</code> with the same <code>-o</code> and <code>-n</code> as the tutorial, and a fresh <code>-S</code>
+session ID:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>coli_update.txt<span class="w"> </span>-o<span class="w"> </span>coli_db/<span class="w"> </span>-n<span class="w"> </span>coli<span class="w"> </span>-S<span class="w"> </span>update
+</code></pre></div>
+<details class="abstract">
+<summary>I/O</summary>
+<p><strong>Input:</strong> <code>coli_update.txt</code>, existing layout <code>coli_db/compose/coli_layout.yaml</code><br />
+<strong>Output:</strong> <code>coli_db/compose/coli/update/coli.yaml</code></p>
+</details>
+<details class="info">
+<summary>INFO</summary>
+<p><code>design</code> detects the existing layout file at <code>coli_db/compose/coli_layout.yaml</code>,
+skips the <a href="../../commands/profile/"><code>profile</code></a> step, and composes only the new
+samples. The k-mer size, span base and grouping of the initial run are reused,
+so the new sub-indices stay compatible with the existing ones.</p>
+</details>
+<h4 id="step-4-build-the-update-session-build">Step 4 - Build the update session (<a href="../../commands/build/"><code>build</code></a>)</h4>
+<p>Build into the <strong>same</strong> <code>BUILD_DIR</code> as the initial run:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>kmhelpers<span class="w"> </span>build<span class="w"> </span>coli_db/compose/coli/update/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--show-progress
+</code></pre></div>
+<details class="abstract">
+<summary>I/O</summary>
+<p><strong>Input:</strong> <code>coli_db/compose/coli/update/coli.yaml</code><br />
+<strong>Output:</strong> updated <code>coli_g0</code> in <code>coli_build/kmindex_data/update/coli_g0/</code>,
+previous version left in <code>coli_build/kmindex_data/initial/coli_g0/</code>,
+updated <code>coli_build/index.json</code></p>
+</details>
+<details class="info">
+<summary>INFO</summary>
+<p>Each session gets its own Bloom filter folder named after its <code>SESSION</code>
+directory, and is registered in <code>coli_build/index.json</code>. A given session can
+therefore be built only once into a given <code>BUILD_DIR</code>.</p>
+<p>Building a session into a <code>BUILD_DIR</code> that already holds the index triggers a
+merge. <code>kmindex</code> cannot add samples to an existing index in place, so the
+update merges the old and the new samples into a new index: <code>coli_g0</code> now
+holds the 10 initial samples plus the new one and lives in
+<code>coli_build/kmindex_data/update/coli_g0/</code>. The files of the previous version
+are left in <code>coli_build/kmindex_data/initial/coli_g0/</code>, no longer registered.</p>
+<p><code>GCA_000005845</code> falls in the span bucket of <code>coli_g0</code>, so only that
+sub-index is merged. <code>coli_g1</code> is untouched and stays in
+<code>coli_build/kmindex_data/initial/coli_g1/</code>.</p>
+</details>
+<details class="warning">
+<summary>Disk space</summary>
+<p>The previous version and the updated one coexist on disk, during and after
+the merge. Plan for at least twice the size of the sub-indices being updated.</p>
+</details>
+<h4 id="step-5-query-the-updated-index-query">Step 5 - Query the updated index (<a href="../../commands/query/"><code>query</code></a>)</h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>coli_build/<span class="w"> </span>-o<span class="w"> </span>results_update/<span class="w"> </span>query.fa
+</code></pre></div>
+<details class="success">
+<summary>RESULT</summary>
+<p><code>coli_g0</code> now holds 6 samples, the 5 initial ones plus <code>GCA_000005845</code>.
+<code>query.fa</code> comes from <code>GCA_000780515</code>, indexed in <code>coli_g1</code>, which still
+scores <strong>1.0</strong>.</p>
+<p>The previous version is no longer registered, so the query reads only the
+updated index.</p>
+</details>
+<h4 id="step-6-check-the-result-and-delete-the-previous-version">Step 6 - Check the result and delete the previous version</h4>
+<p>The files of the previous version are kept, so the updated index can be
+validated first. Once satisfied, delete them to reclaim the disk space:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Registered indices and the samples they hold</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>-r<span class="w"> </span>coli_build/<span class="w"> </span>list
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>-r<span class="w"> </span>coli_build/<span class="w"> </span>info<span class="w"> </span>-n<span class="w"> </span>coli_g0
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="c1"># Leftover files of the previous version of coli_g0</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>rm<span class="w"> </span>-rf<span class="w"> </span>coli_build/kmindex_data/initial/coli_g0
+</code></pre></div>
+<details class="warning">
+<summary>WARNING</summary>
+<p>Delete the sub-index directory, not the whole <code>initial/</code> folder:
+<code>coli_build/kmindex_data/initial/coli_g1/</code> was not merged and is still in
+use by the registry.</p>
+</details>
+<hr />
 <h3 id="next-steps">Next steps</h3>
 <ul>
 <li><strong>Compress</strong> the index to save disk space:
-  <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kmhelpers<span class="w"> </span>compress<span class="w"> </span>-r<span class="w"> </span>coli3682_db/<span class="w"> </span>-n<span class="w"> </span>index<span class="w"> </span>--reorder
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>kmhelpers<span class="w"> </span>compress<span class="w"> </span>-r<span class="w"> </span>coli3682_db/<span class="w"> </span>-n<span class="w"> </span>index<span class="w"> </span>--reorder
 </code></pre></div></li>
 <li>See the <a href="../../commands/">Command Reference</a> for the full option list of
   every command used here.</li>
 </ul>
-<h1 id="3682">3682</h1>
+<h3 id="3682">3682</h3>
 <p>This tutorial walks through the full kmhelpers workflow on a real public dataset:
 3 682 <em>E. coli</em> assemblies downloaded from NCBI and archived on Zenodo.</p>
 <blockquote>
