@@ -157,6 +157,13 @@ kmhelpers query -r coli_build/ -o results/ query.fa
 
 ---
 
+## Next steps
+
+To add samples to this index later without rebuilding it from scratch, see
+[Update an existing index](ecoli_update.md).
+
+---
+
 ## References
 
 - Jarno N. Alanko. (2022). *E. coli assemblies from NCBI* [Data set]. Zenodo. <https://doi.org/10.5281/zenodo.6577997>

@@ -78,7 +78,7 @@ Set `-S` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 
 **Step 3 - compose:** reads the manifest and the profile to generate the index definition file `DESIGN_DIR/compose/NAME/SESSION/NAME.yaml`.
 
-**Updates** - if the compose layout file already exists from a previous run, the profile step is skipped and the existing layout is used directly. This allows re-running `design` with a new `-S` to add samples to an existing index without re-profiling, then building the new session into the same `BUILD_DIR`.
+**Updates** - if the compose layout file already exists from a previous run, the profile step is skipped and the existing layout is used directly. This allows re-running `design` with a new `-S` to add samples to an existing index without re-profiling, then building the new session into the same `BUILD_DIR`. The new session is merged with the existing index at build time, which keeps both versions on disk - see [`build` - Updating an index](build.md#updating-an-index).
 
 **False-positive rate** - a higher rate reduces Bloom-filter size and disk footprint. At query time the [findere](https://doi.org/10.1007/978-3-030-86692-1_13) algorithm compensates by querying $(k+z)$-mers, reducing the effective FP rate to $p^z$. Recommended: build with `--fp 0.25` (default), query with `-z 6`, giving $0.25^6 \approx 0.024\,\%$ effective FP rate.
 
