@@ -189,12 +189,12 @@ class IndexExecutor:
     def _build_chunked(
         self, i: IndexDefinition, fof: FofManager, params: BuildParams
     ) -> dict | None:
-        """Build ``i`` as transient ``{name}__chunk{n}`` sub-indexes, then merge them into ``i.name``."""
+        """Build ``i`` as transient ``{name}_chunk{n}`` sub-indexes, then merge them into ``i.name``."""
         assert i.name and params.chunk_size
         size = params.chunk_size
         items = list(fof.samples.items())
         chunks = [items[n : n + size] for n in range(0, len(items), size)]
-        chunk_names = [f"{i.name}__chunk{n}" for n in range(len(chunks))]
+        chunk_names = [f"{i.name}_chunk{n}" for n in range(len(chunks))]
 
         logger.info(
             f"  └── Splitting '{i.name}' into {len(chunks)} chunks of up to "

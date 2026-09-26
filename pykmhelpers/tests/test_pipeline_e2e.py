@@ -454,7 +454,7 @@ class TestChunkedBuild(PipelineE2EBase):
         self.assertTrue(index_json.is_file(), "apply did not produce index.json")
         registry = json.loads(index_json.read_text())["index"]
 
-        chunk_names = [name for name in registry if "__chunk" in name]
+        chunk_names = [name for name in registry if "_chunk" in name]
         self.assertFalse(
             chunk_names, f"transient chunk sub-indexes left registered: {chunk_names}"
         )
