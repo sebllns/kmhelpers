@@ -33,6 +33,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 | `-NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
 | `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use (default: 0.9) |
+| `--max-chunks INT` | Max number of chunks a single index is split into; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 200) |
 | `-X, --fail-fast` | Abort on first failure instead of continuing |
 | `-r, --registry DIR` | Registry directory (default: `BUILD_DIR`, holds `index.json`) |
 | `-bl, --bloom-dir DIR` | Bloom filters directory (default: `BUILD_DIR/kmindex_data`) |

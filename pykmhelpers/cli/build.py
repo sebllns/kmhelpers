@@ -48,6 +48,7 @@ def build(
     notify,
     limits,
     safety_margin,
+    max_chunks,
 ):
     """Validate paths then build indices from definition files.
 
@@ -162,6 +163,7 @@ def build(
             partition_count=partition_count,
             limits=limits,
             safety_margin=safety_margin,
+            max_chunks=max_chunks,
             session_assets=True,
         )
     )

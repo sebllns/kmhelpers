@@ -144,6 +144,27 @@ class TestResolveBuildParams(unittest.TestCase):
         self.assertIsNotNone(params.chunk_size)
         self.assertLess(params.chunk_size, 7)
 
+    def test_max_chunks_caps_the_chunk_count(self):
+        """A chunk cap raises the chunk size above the open-files optimum."""
+        limits = '{"ram": 8000000000, "files": 4096, "threads": 64}'
+        capped = resolve_build_params(
+            make_definition(),
+            1000,
+            make_config(limits=limits, max_chunks=4),
+            self.layout(),
+        )
+        self.assertEqual(capped.chunk_size, 250)
+
+    def test_max_chunks_zero_disables_the_cap(self):
+        limits = '{"ram": 8000000000, "files": 4096, "threads": 64}'
+        params = resolve_build_params(
+            make_definition(),
+            1000,
+            make_config(limits=limits, max_chunks=0),
+            self.layout(),
+        )
+        self.assertEqual(params.chunk_size, 63)
+
     def test_limits_too_low_for_the_partition_count(self):
         """kmtricks needs at least one open file per partition, plus one."""
         config = make_config(limits='{"ram": 8000000000, "files": 4, "threads": 4}')

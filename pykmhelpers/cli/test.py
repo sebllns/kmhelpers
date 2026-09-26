@@ -484,7 +484,7 @@ def extract_dataset(registry_path, output_dir, n_samples, average_size, min_size
     "--samples", type=int, required=True, help="Total sample count of the dataset."
 )
 @shared.index_limits_options
-def auto_params_cmd(kmers, samples, limits, safety_margin):
+def auto_params_cmd(kmers, samples, limits, safety_margin, max_chunks):
     """Print the kmtricks build parameters auto_params would choose, without running a build."""
     try:
         params = auto_params(
@@ -492,6 +492,7 @@ def auto_params_cmd(kmers, samples, limits, safety_margin):
             samples=samples,
             limits=limits or "{}",
             safety_margin=safety_margin,
+            max_chunks=max_chunks or None,
         )
     except ValueError as e:
         raise click.ClickException(str(e))

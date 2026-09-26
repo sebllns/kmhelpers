@@ -28,6 +28,7 @@ Validate paths then build k-mer indices from an index definition file in a singl
 | `-p, --partition-count INT` | Partitions per index; ignored when the layout already stores one |
 | `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use for any key missing from `--limits` (default: 0.75) |
+| `--max-chunks INT` | Max number of chunks a single index is split into; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 200) |
 | `-NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
 | `-SP, --show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
 | `--notify EMAIL` | Send email notification on exit (requires sendmail) |

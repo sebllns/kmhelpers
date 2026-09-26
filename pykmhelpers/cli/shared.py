@@ -142,6 +142,14 @@ _safety_margin_option = click.option(
     show_default=True,
     help="⚙   Fraction of a detected system limit to use for any key missing from --limits.",
 )
+_max_chunks_option = click.option(
+    "--max-chunks",
+    type=click.IntRange(min=0),
+    default=200,
+    show_default=True,
+    help="⚙   Max number of chunks a single index is split into. Bigger chunks mean "
+    "fewer build/merge passes but fewer threads. Use 0 to disable the cap.",
+)
 _skip_compression_option = click.option(
     "--skip-compression",
     "-NC",
@@ -222,6 +230,7 @@ _INDEX_APPLY_OPTIONS = [
 _INDEX_LIMITS_OPTIONS = [
     _limits_option,
     _safety_margin_option,
+    _max_chunks_option,
 ]
 
 

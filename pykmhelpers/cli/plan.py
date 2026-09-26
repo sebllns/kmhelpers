@@ -58,6 +58,7 @@ def plan(
     partition_count,
     limits,
     safety_margin,
+    max_chunks,
     skip_compression,
     fail_on_error,
     registry,
@@ -162,6 +163,7 @@ def plan(
                 partition_count=partition_count,
                 limits=limits,
                 safety_margin=safety_margin,
+                max_chunks=max_chunks,
                 minimizer_length=int(minim_size) if minim_size else 10,
             )
         )

@@ -1,4 +1,5 @@
 import logging
+import math
 from dataclasses import dataclass
 from typing import Optional
 
@@ -78,6 +79,7 @@ def resolve_partitions(
             samples=max(1, samples),
             limits=config.limits or "{}",
             safety_margin=config.safety_margin,
+            max_chunks=config.max_chunks or None,
         )
         if params.partitions is None:
             raise TypeError("expected auto_params() to set partitions")
@@ -100,7 +102,7 @@ def resolve_build_params(
     ``resolve_partitions``). Threads and chunking are per run: threads are
     the most that fit RAM at that partition count, unless
     ``config.kmindex_threads`` sets them, and chunking follows the open-files
-    ceiling.
+    ceiling and ``config.max_chunks``.
     """
     minim_size = resolve_minim_size(config, layout)
     partitions = resolve_partitions(i, sample_count, config, layout)
@@ -114,6 +116,7 @@ def resolve_build_params(
         partitions=partitions,
         limits=config.limits or "{}",
         safety_margin=config.safety_margin,
+        max_chunks=config.max_chunks or None,
     )
     if params.threads is None or params.samples is None:
         raise TypeError(
@@ -125,8 +128,8 @@ def resolve_build_params(
     if chunk_size is not None:
         logger.info(
             f"  └── '{i.name}' has {sample_count} samples, exceeding the "
-            f"{chunk_size} a single kmtricks build can fit under the "
-            f"current open-files limit; splitting into chunks"
+            f"{chunk_size} a single kmtricks build can fit under the current "
+            f"limits; splitting into {math.ceil(sample_count / chunk_size)} chunks"
         )
 
     logger.info(f"  └── Auto-sized: threads={params.threads}, partitions={partitions}")

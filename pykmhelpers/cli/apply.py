@@ -79,6 +79,7 @@ def apply(
     partition_count,
     limits,
     safety_margin,
+    max_chunks,
     existing,
     skip_compression,
     show_progress,
@@ -254,6 +255,7 @@ def apply(
                     partition_count=partition_count,
                     limits=limits,
                     safety_margin=safety_margin,
+                    max_chunks=max_chunks,
                 )
             )
             log_dir = iops.log_dir

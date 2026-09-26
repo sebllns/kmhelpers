@@ -34,6 +34,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 | `-p, --partition-count INT` | Partitions per index; ignored when the layout already stores one (see [compose](compose.md)) |
 | `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use (default: 0.9) |
+| `--max-chunks INT` | Max number of chunks a single index is split into; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 200) |
 | `--existing TEXT` | Action for pre-existing index folders: `fail`, `register`, `rename`, `replace`, `register_or_replace`, `register_or_rename` (default: `fail`) |
 | `-NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
 | `-SP, --show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
