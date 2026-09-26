@@ -1,6 +1,5 @@
 """Test data generation commands."""
 
-import dataclasses
 import json
 import logging
 import math
@@ -496,5 +495,7 @@ def auto_params_cmd(kmers, samples, limits, safety_margin, max_chunks):
         )
     except ValueError as e:
         raise click.ClickException(str(e))
-    logger.info(f"Chunks: {math.ceil(samples / params.samples)}")
-    click.echo(json.dumps(dataclasses.asdict(params), indent=2))
+    click.echo(f"Chunks:            {math.ceil(samples / params.samples)}")
+    click.echo(f"Max samples per chunk: {params.samples}")
+    click.echo(f"Partitions:        {params.partitions}")
+    click.echo(f"Threads:           {params.threads}")
