@@ -2,6 +2,7 @@
 
 import dataclasses
 import json
+import logging
 import math
 import os
 import random
@@ -17,6 +18,8 @@ from pykmhelpers.core.fasta import Fasta, FASTAReader
 from pykmhelpers.core.sequence import Sequence
 from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.pipeline.sample_lister import SampleLister
+
+logger = logging.getLogger(__name__)
 
 # Guard against a stddev given in kmer counts instead of spans
 MAX_SPAN_STDDEV: float = 64.0
@@ -419,7 +422,7 @@ def _create_single_dataset(
                     max_length = random.randint(min_size, average_size)
                     f.write(reader.fetch_first_n(max_length).to_fasta())
             except Exception as e:
-                print(f"Failed to extract sequences from {path}: {str(e)}")
+                logger.error(f"Failed to extract sequences from {path}: {e}")
 
 
 @test.command(name="extract-dataset")
@@ -463,12 +466,12 @@ def extract_dataset(registry_path, output_dir, n_samples, average_size, min_size
         kreg = KmindexRegistry(registry_path, auto_create=False)
         for i in kreg:
             try:
-                print(f"Extract sequences from {i.id}...")
+                logger.info(f"Extract sequences from {i.id}...")
                 _create_single_dataset(
                     i, os.path.join(output_dir, i.id), n_samples, average_size, min_size
                 )
             except Exception as e:
-                print(f"Failed to extract sequences from {i.id}: {str(e)}")
+                logger.error(f"Failed to extract sequences from {i.id}: {e}")
     except Exception as e:
         raise click.ClickException(f"Failed to create test database: {e}")
 
@@ -492,4 +495,5 @@ def auto_params_cmd(kmers, samples, limits, safety_margin):
         )
     except ValueError as e:
         raise click.ClickException(str(e))
+    logger.info(f"Chunks: {math.ceil(samples / params.samples)}")
     click.echo(json.dumps(dataclasses.asdict(params), indent=2))
