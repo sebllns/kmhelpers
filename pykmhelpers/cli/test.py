@@ -12,7 +12,9 @@ import yaml
 
 from pykmhelpers.cli import shared
 from pykmhelpers.core import KmindexRegistry, KmtricksIndex
+from pykmhelpers.core.bloom_filter import BloomFilterSpecs, bf_size_for_kmers
 from pykmhelpers.core.build_params import auto_params
+from pykmhelpers.core.byte import ByteCounter, SizeFormat
 from pykmhelpers.core.fasta import Fasta, FASTAReader
 from pykmhelpers.core.sequence import Sequence
 from pykmhelpers.pipeline.fof import FofManager
@@ -482,8 +484,15 @@ def extract_dataset(registry_path, output_dir, n_samples, average_size, min_size
 @click.option(
     "--samples", type=int, required=True, help="Total sample count of the dataset."
 )
+@click.option(
+    "--fp-rate",
+    type=float,
+    default=0.25,
+    show_default=True,
+    help="False positive rate, used for the size estimate only.",
+)
 @shared.index_limits_options
-def auto_params_cmd(kmers, samples, limits, safety_margin, max_chunks):
+def auto_params_cmd(kmers, samples, fp_rate, limits, safety_margin, max_chunks):
     """Print the kmtricks build parameters auto_params would choose, without running a build."""
     try:
         params = auto_params(
@@ -495,7 +504,18 @@ def auto_params_cmd(kmers, samples, limits, safety_margin, max_chunks):
         )
     except ValueError as e:
         raise click.ClickException(str(e))
-    click.echo(f"Chunks:            {math.ceil(samples / params.samples)}")
-    click.echo(f"Max samples per chunk: {params.samples}")
-    click.echo(f"Partitions:        {params.partitions}")
-    click.echo(f"Threads:           {params.threads}")
+    bf_size = bf_size_for_kmers(kmers, fp_rate)
+    total = BloomFilterSpecs(bf_size, samples, params.partitions).total_storage_size()
+    per_chunk = BloomFilterSpecs(
+        bf_size, params.samples, params.partitions
+    ).total_storage_size()
+
+    def row(label, value):
+        click.echo(f"{label:<23}{value}")
+
+    row("Chunks:", math.ceil(samples / params.samples))
+    row("Max samples per chunk:", params.samples)
+    row("Partitions:", params.partitions)
+    row("Threads:", params.threads)
+    row("Total size:", ByteCounter.auto(total, SizeFormat.BYTE))
+    row("Size per chunk:", ByteCounter.auto(per_chunk, SizeFormat.BYTE))
