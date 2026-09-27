@@ -277,22 +277,31 @@ class IndexDefinitionTools:
             return value
 
     def get_merge_name(
-        self, db_name: str, group: int, shard: Optional[int] = None
+        self, db_name: str, group_id: int, shard: Optional[int] = None
     ) -> str:
-        """Name of a shard: the index samples are merged into.
+        """Name of the index a span's samples are merged into.
+
+        ``group_id`` is the group ordinal of the span, never the span value.
+        Only a new span entry needs this: once the layout records the name,
+        shards derive from it through ``get_shard_name``.
+        """
+        return self.get_shard_name(f"{db_name}_g{group_id}", shard)
+
+    def get_shard_name(self, span_name: str, shard: Optional[int] = None) -> str:
+        """Name of one shard of ``span_name``, the name the layout records.
 
         ``shard`` is the shard number when sharding is enabled, ``None``
         when the span holds a single unlimited index.
         """
-        suffix = "" if shard is None else f"_p{shard}"
-        return f"{db_name}_g{group}{suffix}"
+        return span_name if shard is None else f"{span_name}_p{shard}"
 
-    def get_index_name(
-        self, db_name: str, session: str, group: int, shard: Optional[int] = None
-    ) -> str:
-        """Name of one session's part, built then merged into its shard."""
-        suffix = "" if shard is None else f"_p{shard}"
-        return f"{db_name}_g{group}_{session}{suffix}"
+    def get_part_name(self, shard_name: str, session: str) -> str:
+        """Name of one session's part, built then merged into ``shard_name``.
+
+        A part is named after the shard it belongs to, so ``g`` always
+        designates the group ordinal and the two can never disagree.
+        """
+        return f"{shard_name}_{session}"
 
     def _load_db_file(self, filename: str) -> IndexDB:
         """Load index database from JSON or YAML file."""

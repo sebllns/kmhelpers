@@ -167,9 +167,7 @@ class IndexComposer:
                 touched.add(span)
                 shard = self._current_shard(props, shard_size)
 
-                index_name = self.db_tools.get_index_name(
-                    self.name, run_id, span, shard["id"]
-                )
+                index_name = self.db_tools.get_part_name(shard["name"], run_id)
                 if index_name not in db_instance.index_table:
                     logger.debug(
                         f"Creating new index: {index_name}, span={span}, bf_size={bf_sizes[span]}"
@@ -283,7 +281,9 @@ class IndexComposer:
         if not shards or (max_samples and shards[-1]["samples"] >= max_samples):
             # Without sharding a span holds one unlimited index, named without suffix
             shard_id = len(shards) if shard_size else None
-            name = self.db_tools.get_merge_name(self.name, props["id"], shard_id)
+            # Derived from the span's recorded name, so a shard never drifts
+            # from it (the group ordinal only ever mints that name)
+            name = self.db_tools.get_shard_name(props["name"], shard_id)
             shards.append({"id": shard_id, "name": name, "samples": 0})
             if shard_id:
                 logger.debug(

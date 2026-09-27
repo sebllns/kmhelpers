@@ -10,6 +10,7 @@ from pathlib import Path
 
 import yaml
 
+from pykmhelpers.operations.builder import _backup_pattern, backup_name
 from pykmhelpers.pipeline.composer import IndexComposer, load_layout, max_samples_for
 from pykmhelpers.pipeline.index_db import IndexDefinitionTools
 
@@ -36,14 +37,31 @@ class TestShardNaming(unittest.TestCase):
 
     def test_without_sharding(self):
         self.assertEqual(self.tools.get_merge_name("idx", 0), "idx_g0")
+        self.assertEqual(self.tools.get_shard_name("idx_g0"), "idx_g0")
         self.assertEqual(
-            self.tools.get_index_name("idx", "initial", 76), "idx_g76_initial"
+            self.tools.get_part_name("idx_g0", "initial"), "idx_g0_initial"
         )
 
     def test_with_sharding(self):
         self.assertEqual(self.tools.get_merge_name("idx", 0, 2), "idx_g0_p2")
+        self.assertEqual(self.tools.get_shard_name("idx_g0", 2), "idx_g0_p2")
         self.assertEqual(
-            self.tools.get_index_name("idx", "initial", 76, 2), "idx_g76_initial_p2"
+            self.tools.get_part_name("idx_g0_p2", "initial"), "idx_g0_p2_initial"
+        )
+
+    def test_part_carries_the_group_of_its_shard(self):
+        """A part is named after its shard, so 'g' never means the span."""
+        shard = self.tools.get_shard_name(self.tools.get_merge_name("idx", 0), 2)
+        self.assertEqual(
+            self.tools.get_part_name(shard, "initial"), "idx_g0_p2_initial"
+        )
+
+    def test_a_part_is_not_mistaken_for_an_update_backup(self):
+        """The default session id is a timestamp, like the backup suffix."""
+        part = self.tools.get_part_name("idx_g0", "20260927_120000")
+        self.assertFalse(_backup_pattern("idx_g0").match(part))
+        self.assertTrue(
+            _backup_pattern("idx_g0").match(backup_name("idx_g0", "20260927_120000"))
         )
 
 
@@ -82,6 +100,13 @@ class TestCurrentShard(unittest.TestCase):
         shard = self.composer()._current_shard(props, 1000)
         self.assertEqual(shard["name"], "idx_g0_p0")
         self.assertEqual(len(props["shards"]), 1)
+
+    def test_shard_follows_the_recorded_span_name(self):
+        """A shard derives from the span's name, not from its group ordinal."""
+        props = self.props(8)
+        props["name"] = "idx_g7"
+        shard = self.composer()._current_shard(props, 1000)
+        self.assertEqual(shard["name"], "idx_g7_p0")
 
 
 class TestLayout(unittest.TestCase):
