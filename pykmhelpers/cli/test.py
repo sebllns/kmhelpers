@@ -511,11 +511,12 @@ def auto_params_cmd(kmers, samples, fp_rate, limits, safety_margin, max_chunks):
     ).total_storage_size()
 
     def row(label, value):
-        click.echo(f"{label:<23}{value}")
+        click.echo(f"- {label:<23}{value}")
 
-    row("Chunks:", math.ceil(samples / params.samples))
-    row("Max samples per chunk:", params.samples)
-    row("Partitions:", params.partitions)
+    click.echo("Build infos:")
     row("Threads:", params.threads)
+    row("Partitions:", params.partitions)
+    row("Max samples per chunk:", params.samples)
+    row("Chunks count:", math.ceil(samples / params.samples))
     row("Total size:", ByteCounter.auto(total, SizeFormat.BYTE))
     row("Size per chunk:", ByteCounter.auto(per_chunk, SizeFormat.BYTE))
