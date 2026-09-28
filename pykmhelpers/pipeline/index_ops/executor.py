@@ -1,9 +1,11 @@
 import logging
 import os
+import shlex
 import shutil
 from dataclasses import replace
 
 from pykmhelpers.core.log import Log
+from pykmhelpers.core.utils import summarize_names
 from pykmhelpers.operations.builder import IndexBuilder
 from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.pipeline.index_db import IndexDefinition
@@ -107,7 +109,7 @@ class IndexExecutor:
             target, parts, delete_old=False, dry_run=not self.executes, threads=threads
         )
         if result and "command" in result:
-            label = f"merge {','.join(parts)} -> {target}"
+            label = f"merge {summarize_names(parts)} -> {target}"
             self._script.add(result["command"], label)
         return result
 
@@ -118,21 +120,27 @@ class IndexExecutor:
         before it if the merge fails.
         """
         if not self.executes:
-            # kmindex merge already unregisters the parts: only their data is left
-            for part in parts:
-                path = os.path.join(self._config.index_data_folder, part)
-                self._script.add(
-                    f'rm -rf "$(realpath -m {path})" "{path}"', f"cleanup {part}"
-                )
+            # kmindex merge already unregisters the parts: only their data is
+            # left. One loop rather than a line per part: a chunked build has
+            # as many of them as it has chunks.
+            paths = " ".join(
+                shlex.quote(os.path.join(self._config.index_data_folder, part))
+                for part in parts
+            )
+            self._script.add(
+                f'for d in {paths}; do rm -rf "$(realpath -m "$d")" "$d"; done',
+                f"cleanup {summarize_names(parts)}",
+            )
             return
         self._verify(target)
         if self._builder.index.get_index(target).check_structure():
+            logger.info(f"Deleting merged {summarize_names(parts)}...")
             for part in parts:
                 self.delete_segment(part)
 
     def delete_segment(self, segment: str) -> None:
         """Unregister ``segment`` and delete its data directory."""
-        logger.info(f"Delete {segment}...")
+        logger.debug(f"Delete {segment}...")
         try:
             self._builder.index.remove_index(
                 segment, delete_files=False, skip_unregistered=True

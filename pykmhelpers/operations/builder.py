@@ -13,6 +13,7 @@ import pykmhelpers.core.fasta
 import pykmhelpers.core.kmindex_paths
 import pykmhelpers.pipeline.fof
 import pykmhelpers.pipeline.query
+from pykmhelpers.core.utils import summarize_names
 
 logger = logging.getLogger(__name__)
 
@@ -541,14 +542,17 @@ class IndexBuilder:
                 if idx not in to_merge and pattern.match(idx)
             ]
             if leftover_names:
-                logger.info(f"Found backup version of '{new_name}': {leftover_names}")
+                logger.info(
+                    f"Found backup version of '{new_name}': "
+                    f"{summarize_names(leftover_names)}"
+                )
 
         if is_update and old_name:
             to_merge.append(old_name)
         elif is_update and leftover_names:
             to_merge.extend(leftover_names)
 
-        logger.info(f"Merging {to_merge} into '{new_name}'")
+        logger.info(f"Merging {summarize_names(to_merge)} into '{new_name}'")
 
         wrapper = pykmhelpers.core.KmindexWrapper(dry_run=dry_run)
         try:

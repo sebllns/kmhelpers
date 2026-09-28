@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 from pykmhelpers.core.log import Log
+from pykmhelpers.core.utils import summarize_names
 from pykmhelpers.operations.builder import IndexBuilder
 from pykmhelpers.pipeline.index_db import IndexDefinition, IndexDefinitionTools
 from pykmhelpers.pipeline.index_ops.executor import IndexExecutor, validate_definition
@@ -294,7 +295,8 @@ class IndexOps:
         missing = executor.missing_parts(parts)
         if missing:
             logger.warning(
-                f"Cannot merge '{target}' due to some sub-indexes missing: {missing}"
+                f"Cannot merge '{target}' due to some sub-indexes missing: "
+                f"{summarize_names(missing)}"
             )
             report.record(
                 target, ApplyStatus.FAILED, error=f"Missing sub-indexes: {missing}"

@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import shutil
 
 logger = logging.getLogger(__name__)
@@ -202,3 +203,57 @@ class Toolbox:
             str: The base name of the path.
         """
         return os.path.basename(Toolbox.get_canonical_path(path))
+
+
+#########################################################
+# name formatting
+########################################################
+def summarize_names(names, max_groups: int = 4) -> str:
+    """Render a list of index names short enough to log.
+
+    Names sharing a prefix and ending in a number collapse to
+    `prefix{first..last}`, so a build split into a thousand chunks logs one
+    group instead of a thousand names. Other names are listed as they are, and
+    a result made of too many groups is truncated.
+    """
+    names = [str(n) for n in names]
+    groups = _group_by_prefix(names)
+    rendered = [_render_group(prefix, numbers) for prefix, numbers in groups]
+    if len(rendered) > max_groups:
+        shown = ", ".join(rendered[:max_groups])
+        return f"{shown}, ... ({len(names)} in total)"
+    return ", ".join(rendered)
+
+
+def _group_by_prefix(names: list) -> list:
+    """Split names into `[prefix, numbers]` groups, keeping their order.
+
+    `numbers` is None for a name that does not end in a digit, which is then
+    held in `prefix` whole.
+    """
+    groups: list = []
+    position: dict = {}
+    for name in names:
+        match = re.match(r"^(.*\D)(\d+)$", name)
+        if not match:
+            groups.append([name, None])
+            continue
+        prefix, number = match.group(1), int(match.group(2))
+        if prefix in position:
+            groups[position[prefix]][1].append(number)
+        else:
+            position[prefix] = len(groups)
+            groups.append([prefix, [number]])
+    return groups
+
+
+def _render_group(prefix: str, numbers) -> str:
+    if numbers is None:
+        return prefix
+    if len(numbers) == 1:
+        return f"{prefix}{numbers[0]}"
+    first, last = min(numbers), max(numbers)
+    # A gap makes the range misleading on its own, so state how many there are
+    if len(numbers) == last - first + 1:
+        return f"{prefix}{{{first}..{last}}}"
+    return f"{prefix}{{{first}..{last}}} ({len(numbers)})"
