@@ -518,5 +518,5 @@ def auto_params_cmd(kmers, samples, fp_rate, limits, safety_margin, max_chunks):
     row("Partitions:", params.partitions)
     row("Max samples per chunk:", params.samples)
     row("Chunks count:", math.ceil(samples / params.samples))
-    row("Total size:", ByteCounter.auto(total, SizeFormat.BYTE))
-    row("Size per chunk:", ByteCounter.auto(per_chunk, SizeFormat.BYTE))
+    # row("Total size:", ByteCounter.auto(total, SizeFormat.BYTE))
+    # row("Size per chunk:", ByteCounter.auto(per_chunk, SizeFormat.BYTE))
