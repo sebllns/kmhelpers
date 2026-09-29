@@ -2615,28 +2615,14 @@ or <code>apply</code>, see <a href="../ecoli_steps/#step-41-preview-the-build-pl
 </details>
 <details class="success">
 <summary>RESULT</summary>
-<p><code>query</code> writes one JSON file per sub-index into <code>results/query/result</code>:</p>
-<details class="tip">
-<summary><code>coli_g0.json</code></summary>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">{</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span><span class="nt">"coli_g0"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">        </span><span class="nt">"JSPL01000060.1"</span><span class="p">:</span><span class="w"> </span><span class="p">{}</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="p">}</span>
+<p><code>query</code> merges the results of all sub-indices into <code>results/query/results.tsv</code>,
+one row per query sequence and one column per matching sample:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>seq GCA_000780515_1_ASM78051v1_genomic_fna
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>JSPL01000060.1  1.000
 </code></pre></div>
-</details>
-<details class="tip">
-<summary><code>coli_g1.json</code></summary>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="p">{</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span><span class="nt">"coli_g1"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">        </span><span class="nt">"JSPL01000060.1"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">            </span><span class="nt">"GCA_000780515_1_ASM78051v1_genomic_fna"</span><span class="p">:</span><span class="w"> </span><span class="mf">1.0</span>
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">        </span><span class="p">}</span>
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="p">}</span>
-</code></pre></div>
-</details>
-<p>Each value is the fraction of query k-mers found in that sample.
+<p>Each value is the fraction of query k-mers found in that sample. Samples
+scoring below the threshold (<code>-R</code>, default 0.05) are omitted. Use <code>-f</code> to
+select another output format (<code>json</code>, <code>yaml</code>, <code>md</code>, <code>html</code>).
 <code>GCA_000780515</code> scores <strong>1.0</strong> -- a perfect match, as expected since <code>query.fa</code> was
 extracted from that assembly.</p>
 </details>
