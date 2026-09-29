@@ -59,8 +59,8 @@ This typical lifecycle breaks down into four steps, shown below:
 
     [1/1] Querying: query...
     Time: 0.10s
-    Results: results/query/result
-    Completed in 0.10s
+    Results: results/query/results.tsv
+    Completed all queries in 0.10s
     Output directory: results/
     Done in 0.11s
     ```
