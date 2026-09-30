@@ -1,47 +1,59 @@
+{% set name = "kmhelpers" %}
+{% set version = "0.6.4" %}
+
 package:
-  name: kmhelpers
-  version: "{{ environ['GIT_DESCRIBE_TAG'] }}"
+  name: {{ name }}
+  version: {{ version }}
 
 source:
-  git_url: https://github.com/sebllns/kmhelpers.git
-  git_rev: "{{ environ['GIT_DESCRIBE_TAG'] }}"
+  url: https://github.com/sebllns/kmhelpers/archive/refs/tags/v{{ version }}.tar.gz
+  sha256: 0000000000000000000000000000000000000000000000000000000000000000  # fill after tagging
 
 build:
   number: 0
   noarch: python
-  script: python -m pip install --no-deps --ignore-installed .
+  script: {{ PYTHON }} -m pip install . --no-deps --no-build-isolation -vvv
+  entry_points:
+    - kmhelpers = pykmhelpers.cli.kmhelpers:cli
+    - kh = pykmhelpers.cli.kmhelpers:cli
+  run_exports:
+    - {{ pin_subpackage(name, max_pin="x.x") }}
 
 requirements:
   host:
     - python >=3.8
     - pip
-    - setuptools
+    - setuptools >=61
+    - wheel
   run:
     - python >=3.8
     - psutil >=5.8.0
     - pyyaml >=5.4
-    - bioconda::kmindex >=0.6.1
+    - click >=8.1
+    - matplotlib-base >=3.5
+    - zstandard >=0.19
+    - kmindex >=0.6.1
+    - ntcard >=1.2.2
 
 test:
   imports:
-    - kmhelpers
-    - kmhelpers.core
-    - kmhelpers.operations
-    - kmhelpers.cli
+    - pykmhelpers
+    - pykmhelpers.core.build_params
+  commands:
+    - kmhelpers --help
+    - kh --version
 
 about:
   home: https://github.com/sebllns/kmhelpers
-  license: MIT
-  license_family: BSD
+  license: GPL-3.0-only
+  license_family: GPL3
+  license_file: LICENSE
   summary: A Python toolkit for managing, compressing, and querying indexes with kmindex
   description: |
-    kmhelpers provides a comprehensive interface for working with k-mer indices,
-    specifically designed for handling large-scale genomic data. It offers tools for:
-    - Index management, validation, and querying
-    - Index compression with intelligent reordering and block compression
-    - Fast k-mer lookup with resource monitoring
-    - Compression metrics and performance tracking
-  doc_url: https://github.com/sebllns/kmhelpers/blob/main/README.md
+    kmhelpers designs, builds, updates, and queries large collections of
+    kmindex k-mer indexes, grouping samples by k-mer count to size Bloom
+    filters per group.
+  doc_url: https://sebllns.github.io/kmhelpers/
   dev_url: https://github.com/sebllns/kmhelpers
 
 extra:
