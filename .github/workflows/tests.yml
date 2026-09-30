@@ -63,3 +63,13 @@ jobs:
       - name: Run tests
         shell: bash -el {0}
         run: pytest pykmhelpers/tests
+
+      # Keep the examples in sync with the code
+      - name: Run CLI example
+        shell: bash -el {0}
+        working-directory: ${{ runner.temp }}
+        run: bash "$GITHUB_WORKSPACE/examples/pipeline_cli.sh"
+
+      - name: Run API example
+        shell: bash -el {0}
+        run: python examples/pipeline_api.py
