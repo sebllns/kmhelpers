@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.4] - 2026-09-30
+
+### Added
+
+- **`manage info`**: Shows the resolved data path of the index and the estimated on-disk size of its Bloom filter matrices (`path` and `estimated_data_size` in JSON output)
+- **`design`**: Logs the suggested `build` command once the index definition is written
+- **Bioconda recipe**: `recipe/meta.yaml` rewritten for a bioconda submission (tagged tarball source, `noarch: python`, full runtime dependencies)
+- **E. coli end-to-end script**: `examples/tuto_ecoli_e2e.sh` runs the tutorial from download to query
+- **Index update tutorial**: Dedicated page (`docs/tutorials/ecoli_update.md`) covering the merge, the disk cost, and the old/new index paths
+- **ntCard binaries workflow**: Manually triggered GitHub Actions workflow building `ntcard` binaries
+
+### Changed
+
+- **Help messages**: `design`, `compose`, `plan`, `build`, and `apply` now use consistent directory names (`DESIGN_DIR`, `COMPOSE_DIR/NAME/SESSION/`, `BUILD_DIR`) and example paths from the E. coli tutorial
+- **Documentation**: Clarified paths for `compose`, `plan`, `build`, and `apply`, the `design` output and its handoff to `build`; query pages reflect TSV as the default output format
+- **Docs deployment**: Push to `docs` publishes a preview, production deploy is triggered manually
+- **kmindex**: The bioconda release of `kmindex` (>= 0.6.1) supports `static_repart`; building from source with `scripts/setup.sh` is no longer required
+
+### Fixed
+
+- Installed package missing `pykmhelpers.vendor`, which broke `build_params` imports outside a source checkout
+- `profile`: Number of groups capped at the number of spans
+- `manage info`: Size estimate for indices with an unresolved partition count
+- `examples/pipeline_cli.sh`: Query results read from `kmindex_output/` and a missing result fails explicitly
+- Paper DOIs
+
 ## [0.6.3] - 2026-08-04
 
 ### Added

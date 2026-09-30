@@ -115,7 +115,7 @@ Most `kmhelpers` commands (`design`, `plan`, `query`, `compose`, ...) complete i
 
 ## Version & Requirements
 
-**kmhelpers v0.6.3**  · Python ≥ 3.8
+**kmhelpers v0.6.4**  · Python ≥ 3.8
 
 | Tool | Version |
 |---|---|
