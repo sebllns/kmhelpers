@@ -129,31 +129,26 @@ kmhelpers query -r coli_build/ -o results/ query.fa
     **Output:** `results/` 
 
 ??? success "RESULT"
-    `query` writes one JSON file per sub-index into `results/query/result`:
+    `query` merges the results of all sub-indices into `results/query/results.tsv`,
+    one row per query sequence and one column per matching sample:
 
-    ??? tip "`coli_g0.json`"
-        ```json
-        {
-            "coli_g0": {
-                "JSPL01000060.1": {}
-            }
-        }
-        ```
+    ```tsv
+    seq	GCA_000780515_1_ASM78051v1_genomic_fna
+    JSPL01000060.1	1.000
+    ```
 
-    ??? tip "`coli_g1.json`"
-        ```json
-        {
-            "coli_g1": {
-                "JSPL01000060.1": {
-                    "GCA_000780515_1_ASM78051v1_genomic_fna": 1.0
-                }
-            }
-        }
-        ```
-
-    Each value is the fraction of query k-mers found in that sample.
+    Each value is the fraction of query k-mers found in that sample. Samples
+    scoring below the threshold (`-R`, default 0.05) are omitted. Use `-f` to
+    select another output format (`json`, `yaml`, `md`, `html`).
     `GCA_000780515` scores **1.0** -- a perfect match, as expected since `query.fa` was
     extracted from that assembly.
+
+---
+
+## Next steps
+
+To add samples to this index later without rebuilding it from scratch, see
+[Update an existing index](ecoli_update.md).
 
 ---
 

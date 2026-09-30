@@ -17,7 +17,7 @@ Query indices with FASTA/FASTQ sequences.
 
 !!! abstract "I/O"
     **Input:** FASTA/FASTQ file(s), kmindex registry (`-r`)  
-    **Output:** result files in output directory (`-o`)
+    **Output:** `results.<format>` per query file in output directory (`-o`), TSV by default
 
 ## Advanced Options
 | Option | Description |
