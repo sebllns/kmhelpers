@@ -3,6 +3,8 @@ import subprocess
 import tempfile
 from enum import Enum
 
+import zstandard
+
 from pykmhelpers.core.sequence import Sequence
 from pykmhelpers.core.wrapper import Wrapper
 
@@ -39,6 +41,7 @@ class KmerCountMode(Enum):
 
 # Accepted input formats: fasta, fastq, sam, bam (plain or compressed gz, bz2, zip, xz).
 # A file listing input paths one per line can also be passed with a '@' prefix.
+# ntcard has no zstd support, so .zst inputs are decompressed to a temporary file.
 class KmerCounter(Wrapper):
     """Wrapper around ntcard for counting k-mers in sequence files.
 
@@ -131,6 +134,8 @@ class KmerCounter(Wrapper):
         with tempfile.NamedTemporaryFile(mode="w", delete=False) as tmp:
             tmp_file = tmp.name
 
+        inputs, temp_inputs = self._prepare_inputs(files)
+
         try:
             cmd = [
                 "ntcard",
@@ -140,7 +145,7 @@ class KmerCounter(Wrapper):
                 str(self._k),
                 "-o",
                 tmp_file,
-            ] + files
+            ] + inputs
 
             result = self._run_cmd(cmd, print_trace=verbose)
 
@@ -221,9 +226,43 @@ class KmerCounter(Wrapper):
 
         finally:
             hist_file = f"{tmp_file}_k{self._k}.hist"
-            for path in (tmp_file, hist_file):
+            for path in (tmp_file, hist_file, *temp_inputs):
                 if os.path.exists(path):
                     os.remove(path)
+
+    def _prepare_inputs(self, files: list) -> tuple[list[str], list[str]]:
+        """Return (input paths for ntcard, temporary paths to delete afterwards).
+
+        ntcard reads gz, bz2 and xz natively but not zstd, so .zst inputs are
+        decompressed to temporary files first. A named pipe is not usable here:
+        ntcard does not read its inputs as a stream.
+        """
+        inputs: list[str] = []
+        temp_inputs: list[str] = []
+
+        try:
+            for file_path in files:
+                if self.dry_run or not file_path.endswith(".zst"):
+                    inputs.append(file_path)
+                    continue
+
+                # Keep the inner extension (.fa, .fastq, ...) for format detection.
+                suffix = os.path.splitext(os.path.splitext(file_path)[0])[1]
+                with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+                    decompressed = tmp.name
+                temp_inputs.append(decompressed)
+
+                with open(file_path, "rb") as src, open(decompressed, "wb") as dst:
+                    zstandard.ZstdDecompressor().copy_stream(src, dst)
+
+                inputs.append(decompressed)
+        except Exception:
+            for path in temp_inputs:
+                if os.path.exists(path):
+                    os.remove(path)
+            raise
+
+        return inputs, temp_inputs
 
     def count_all(
         self,
