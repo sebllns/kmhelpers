@@ -1,0 +1,34 @@
+name: Tutorial
+
+# Downloads genomes from NCBI: run weekly and on demand, not on every push
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+jobs:
+  ecoli:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up conda environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          environment-file: conda/environment.yml
+          activate-environment: kmhelpers
+
+      - name: Run E. coli tutorial
+        shell: bash -el {0}
+        run: bash examples/tuto_ecoli_e2e.sh "$RUNNER_TEMP/ecoli"
+
+      - name: Upload outputs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecoli-tutorial
+          path: |
+            ${{ runner.temp }}/ecoli
+            !${{ runner.temp }}/ecoli/coli_dataset
