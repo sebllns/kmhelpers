@@ -5,6 +5,11 @@ on:
     branches:
       - docs
   workflow_dispatch:
+    inputs:
+      delete_version:
+        description: "Docs version to delete after deploy (optional, e.g. 0.6.3)"
+        required: false
+        default: ""
 
 jobs:
   # Push to docs branch: build and publish to gh-pages/preview
@@ -70,3 +75,16 @@ jobs:
 
       - name: Deploy with mike
         run: mike deploy --push --update-aliases "${{ steps.version.outputs.version }}" latest
+
+      - name: Delete old docs version
+        if: inputs.delete_version != ''
+        env:
+          OLD: ${{ inputs.delete_version }}
+          NEW: ${{ steps.version.outputs.version }}
+        run: |
+          # Never delete the version that was just deployed (it holds latest)
+          if [ "$OLD" = "$NEW" ]; then
+            echo "Refusing to delete the deployed version $NEW" >&2
+            exit 1
+          fi
+          mike delete --push "$OLD"
