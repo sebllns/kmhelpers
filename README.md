@@ -36,7 +36,7 @@ cd kmhelpers
 To clone a specific version tag directly:
 
 ```bash
-git clone --branch v0.6.3 https://github.com/sebllns/kmhelpers
+git clone --branch v0.6.4 https://github.com/sebllns/kmhelpers
 cd kmhelpers
 ```
 
@@ -107,7 +107,7 @@ To pull from a specific branch (e.g., a development or release branch):
 git pull origin <branch-name>
 
 # Examples
-git pull origin release/v0.6.3
+git pull origin release/v0.6.4
 git pull origin feature/my-feature
 ```
 
@@ -115,7 +115,7 @@ To check out a specific tag instead:
 
 ```bash
 git fetch --tags
-git checkout v0.6.3
+git checkout v0.6.4
 ```
 
 If your local branch is already tracking a remote branch, you can simply run:
@@ -153,7 +153,7 @@ For questions, bug reports, or contributions, please contact:
 
 ---
 
-**Version**: 0.6.3
+**Version**: 0.6.4
 **Status**: Development
 
 ## Changelog
