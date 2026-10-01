@@ -123,6 +123,7 @@ nav:
                             - pipeline: commands/pipeline.md
                             - check-deps: commands/check-deps.md
                             - install-deps: commands/install-deps.md
+                            - map: commands/map.md
         - API Reference:
                   - Overview: api/index.md
                   - Core:

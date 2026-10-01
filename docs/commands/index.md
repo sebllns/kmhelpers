@@ -35,6 +35,7 @@ Steps run internally by [`build`](build.md):
 | Command | Description |
 |---------|-------------|
 | [`manage`](manage.md) | Manage k-mer index registries *(under development)* |
+| [`map`](map.md) | Show the state of the indices of a build directory |
 | [`pipeline`](pipeline.md) | Run a sequence of commands defined in a YAML pipeline file |
 | [`check-deps`](check-deps.md) | Check that kmindex, kmtricks and ntcard are callable |
 | [`install-deps`](install-deps.md) | Download and install kmtricks, kmindex and ntcard prebuilt binaries |
