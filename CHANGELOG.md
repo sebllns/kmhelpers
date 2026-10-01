@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **`map`**: Shows the state of the indices of a build directory per session (active, superseded, missing, orphan, broken), optionally checked against the compose definitions, as a table, JSON, or image
+
 ## [0.6.4] - 2026-09-30
 
 ### Added

@@ -43,7 +43,7 @@ kmhelpers design db/list/bact.jsonl \
     -S initial \
     -k 25 \
     -g "$NB_GROUPS" \
-    ${SHARD_SIZE:+-si "$SHARD_SIZE"}
+    # ${SHARD_SIZE:+-si "$SHARD_SIZE"}
 
 # 3. Plan offline: sample files are not checked (they do not exist), and
 #    the build scripts are written to build/assets/

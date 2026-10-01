@@ -116,6 +116,7 @@ nav:
                       - apply: commands/apply.md
               - Utilities:
                       - manage: commands/manage.md
+                      - map: commands/map.md
                       - pipeline: commands/pipeline.md
       - API Reference:
               - Overview: api/index.md
