@@ -98,8 +98,8 @@ flowchart LR
     main[("main<br/>protected")]
     develop[("develop<br/>protected")]
     feat["feature/my-feature"]
-    devv["dev/v0.6.4"]
-    rel[("release/v0.6.4<br/>protected, frozen")]
+    devv["dev/v0.7.0"]
+    rel[("release/v0.7.0<br/>protected, frozen")]
     hot["hotfix/fix-crash"]
 
     %% feature cycle

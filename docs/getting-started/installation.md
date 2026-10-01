@@ -16,7 +16,7 @@ cd kmhelpers
 To clone a specific version tag directly:
 
 ```bash
-git clone --branch v0.6.4 https://github.com/sebllns/kmhelpers
+git clone --branch v0.7.0 https://github.com/sebllns/kmhelpers
 cd kmhelpers
 ```
 
@@ -69,14 +69,14 @@ git pull origin main
 To pull from a specific branch:
 
 ```bash
-git pull origin release/v0.6.4
+git pull origin release/v0.7.0
 ```
 
 To check out a specific tag instead:
 
 ```bash
 git fetch --tags
-git checkout v0.6.4
+git checkout v0.7.0
 ```
 
 Then verify the installed version:

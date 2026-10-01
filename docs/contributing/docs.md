@@ -56,7 +56,7 @@ mike deploy --push --update-aliases <version> latest
 Example for a release:
 
 ```bash
-mike deploy --push --update-aliases 0.6.4 latest
+mike deploy --push --update-aliases 0.7.0 latest
 ```
 
 This builds the docs, pushes them to `gh-pages` under `/<version>/`, and updates the `latest` alias to point to it.

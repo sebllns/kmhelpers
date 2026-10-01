@@ -20,7 +20,7 @@ body:
     attributes:
       label: Version
       description: kmhelpers/documentation version
-      placeholder: "0.6.4"
+      placeholder: "0.7.0"
     validations:
       required: true
 
