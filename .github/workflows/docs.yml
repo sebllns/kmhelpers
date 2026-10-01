@@ -70,7 +70,7 @@ jobs:
         id: version
         run: |
           # Strip pre/dev suffix so 0.6.3.dev0 -> 0.6.3
-          version=$(python -c "from importlib.metadata import version; from packaging.version import Version; v=Version(version('pykmhelpers')); print(v.base_version)")
+          version=$(python -c "from importlib.metadata import version; from packaging.version import Version; v=Version(version('kmhelpers')); print(v.base_version)")
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Deploy with mike

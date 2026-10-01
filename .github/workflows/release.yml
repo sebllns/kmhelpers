@@ -39,7 +39,8 @@ jobs:
   publish:
     # Disabled for now. To enable: remove this `if: false` line and configure
     # a PyPI trusted publisher for this repo/workflow at
-    # https://pypi.org/manage/project/pykmhelpers/settings/publishing/
+    # https://pypi.org/manage/account/publishing/ (pending publisher, project
+    # "kmhelpers"), then https://pypi.org/manage/project/kmhelpers/settings/publishing/
     if: false
     needs: build
     runs-on: ubuntu-latest
