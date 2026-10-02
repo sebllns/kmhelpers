@@ -31,9 +31,23 @@ jobs:
           name: dist
           path: dist/
 
+      # Without a body, GitHub shows the tag message as plain text
+      - name: Build release notes from CHANGELOG
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          {
+            sed "s/@VERSION@/$v/g" .github/release-notes.md
+            printf '\n## Changes\n'
+            awk -v v="$v" '/^## \[/{p=index($0,"["v"]")>0; next} p' CHANGELOG.md
+          } > notes.md
+
       - name: Publish release with dists
         uses: softprops/action-gh-release@v2
         with:
+          name: kmhelpers ${{ github.ref_name }}
+          body_path: notes.md
+          # Appends merged PRs and a compare link to the previous tag
+          generate_release_notes: true
           files: dist/*
 
   publish:
