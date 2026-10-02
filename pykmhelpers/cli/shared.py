@@ -11,6 +11,18 @@ from pykmhelpers.core.byte import ByteCounter, SizeFormat
 from pykmhelpers.pipeline.fof import FofManager
 
 
+def parse_shard_size(value: str | None) -> int:
+    """Parse a shard size such as '10GB' into bytes; 0 when not set."""
+    if not value:
+        return 0
+    try:
+        return int(ByteCounter.from_str(value).byte_count)
+    except ValueError:
+        raise click.BadParameter(
+            f"Invalid shard size: {value} (use a format like '10GB' or '500MB')"
+        )
+
+
 def deserialize(filename: str) -> Any:
     data = None
     with open(filename, "r") as f:
@@ -120,7 +132,7 @@ _limits_option = click.option(
     metavar="JSON",
     required=False,
     help="⚙   JSON line of resource limits used to auto-size threads/partitions "
-    'when --threads is not set, e.g. \'{"ram": 8000000000, "files": 4096}\'. '
+    'when --threads is not set, e.g. \'{"ram": 8000000000, "files": 4096, "threads": 8}\'. '
     "Keys omitted from the JSON are auto-detected from the system.",
 )
 _safety_margin_option = click.option(
@@ -129,6 +141,14 @@ _safety_margin_option = click.option(
     default=0.9,
     show_default=True,
     help="⚙   Fraction of a detected system limit to use for any key missing from --limits.",
+)
+_max_chunks_option = click.option(
+    "--max-chunks",
+    type=click.IntRange(min=0),
+    default=200,
+    show_default=True,
+    help="⚙   Max number of chunks a single index is split into. Bigger chunks mean "
+    "fewer build/merge passes but fewer threads. Use 0 to disable the cap.",
 )
 _skip_compression_option = click.option(
     "--skip-compression",
@@ -161,6 +181,25 @@ _notify_option = click.option(
     metavar="EMAIL",
     help="📧  Send an email notification on exit (success, failure, or timeout).",
 )
+on_conflict_option = click.option(
+    "--on-conflict",
+    "existing",
+    required=False,
+    type=click.Choice(
+        [
+            "fail",
+            "register",
+            "rename",
+            "replace",
+            "register_or_replace",
+            "register_or_rename",
+        ],
+        case_sensitive=False,
+    ),
+    default="fail",
+    show_default=True,
+    help="⚙   Action when an existing unregistered index folder is found.",
+)
 
 _INDEX_BUILD_OPTIONS = [
     output_dir_option,
@@ -187,11 +226,11 @@ _INDEX_APPLY_OPTIONS = [
     _notify_option,
 ]
 
-# Only meaningful for commands that let threads be auto-sized (plan, apply);
-# `build` always relies on system-detected limits, with no override.
+# For commands that auto-size threads/partitions (plan, apply, build).
 _INDEX_LIMITS_OPTIONS = [
     _limits_option,
     _safety_margin_option,
+    _max_chunks_option,
 ]
 
 
@@ -217,7 +256,7 @@ def index_apply_options(f):
 
 
 def index_limits_options(f):
-    """Extra options for commands that let resource limits be overridden (plan, apply), not `build`."""
+    """Extra options for commands that let resource limits be overridden (plan, apply, build)."""
     for opt in reversed(_INDEX_LIMITS_OPTIONS):
         f = opt(f)
     return f

@@ -16,12 +16,12 @@ three commands:
 
 The following tools are installed alongside kmhelpers when using the conda environment:
 
-- **[kmindex](https://github.com/tlemane/kmindex)** — the underlying indexing engine
-- **[ntcard](https://github.com/BirolLab/ntCard)** — k-mer counter used by `list`
+- **[kmindex](https://github.com/tlemane/kmindex)** - the underlying indexing engine
+- **[ntcard](https://github.com/BirolLab/ntCard)** - k-mer counter used by `list`
 
 ---
 
-## Step 1 — Download the dataset
+## Step 1 - Download the dataset
 
 ```bash
 mkdir -p coli_dataset && cd coli_dataset
@@ -44,7 +44,7 @@ cd ..
 
 ---
 
-## Step 2 — Create a file list
+## Step 2 - Create a file list
 
 ```bash
 cat > coli_10.txt << 'EOF'
@@ -67,7 +67,7 @@ EOF
 
 ---
 
-## Step 3 — Design the index ([`design`](../commands/design.md))
+## Step 3 - Design the index ([`design`](../commands/design.md))
 
 ```bash
 kmhelpers design coli_10.txt \
@@ -91,7 +91,7 @@ kmhelpers design coli_10.txt \
 
 ---
 
-## Step 4 — Build the index ([`build`](../commands/build.md))
+## Step 4 - Build the index ([`build`](../commands/build.md))
 
 ```bash
 kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build/ --show-progress
@@ -99,7 +99,7 @@ kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build/ --show-pro
 
 ??? abstract "I/O"
     **Input:** `coli_db/compose/coli/initial/coli.yaml`  
-    **Output:** `coli_build/index.json` + sub-index data files in `coli_build/kmindex_data/` — ready-to-query index
+    **Output:** `coli_build/index.json` + sub-index data files in `coli_build/kmindex_data/` - ready-to-query index
 
 ??? info "INFO"
     `build` runs [`plan`](../commands/plan.md) → [`apply`](../commands/apply.md) in a single command, validating all paths before
@@ -109,7 +109,7 @@ kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build/ --show-pro
 
 ---
 
-## Step 5 — Query the index ([`query`](../commands/query.md))
+## Step 5 - Query the index ([`query`](../commands/query.md))
 
 Extract the first contig of the first sample as a query sequence:
 

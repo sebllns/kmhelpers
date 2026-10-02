@@ -25,7 +25,10 @@ Validate paths then build k-mer indices from an index definition file in a singl
 | `-b, --base-path DIR` | Base path to resolve relative sample paths |
 | `--minim-size INT` | Minimizer size (default: 10) |
 | `-t, --threads INT` | Number of threads |
-| `-p, --partition-count INT` | Override number of partitions |
+| `-p, --partition-count INT` | Partitions per index; ignored when the layout already stores one |
+| `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set |
+| `--safety-margin FLOAT` | Fraction of a detected system limit to use for any key missing from `--limits` (default: 0.9) |
+| `--max-chunks INT` | Max number of chunks a single index is split into; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 200) |
 | `-NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
 | `-SP, --show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
 | `--notify EMAIL` | Send email notification on exit (requires sendmail) |
@@ -51,10 +54,12 @@ coli_build/                       BUILD_DIR (build -o, query -r)
 ├── index.json                    registry of all built indices
 ├── kmindex_data/
 │   ├── initial/                  Bloom filters, one folder per SESSION
-│   │   └── coli_g0/              previous version, kept after the update
+│   │   └── coli_g0/              previous version, kept after the update (need manual delete)
 │   └── update/
-│       └── coli_g0/              merged version (initial + update samples)
-├── assets/                       generated kmindex scripts
+├── assets/
+│   ├── kmhelpers_apply.sh        runs the last built SESSION
+│   ├── initial/                  scripts and fof files, one folder per SESSION
+│   └── update/
 └── logs/
 ```
 
@@ -64,7 +69,7 @@ Reuse the same `BUILD_DIR` for every session of an index: each build adds its su
 
 `build` chains [`plan`](plan.md) and [`apply`](apply.md) into a single invocation. It is equivalent to running the two commands in sequence.
 
-**Step 1 - plan:** validates all sample paths upfront and writes the equivalent `kmindex` shell script to `BUILD_DIR/assets/` and a validation report to `BUILD_DIR/logs/`. Fix any path errors before the build starts rather than discovering them mid-run.
+**Step 1 - plan:** validates all sample paths upfront and writes the equivalent `kmindex` shell scripts to `BUILD_DIR/assets/SESSION/` (one per sub-index, plus `kmhelpers_apply.sh` running them in order) and a validation report to `BUILD_DIR/logs/`. Fix any path errors before the build starts rather than discovering them mid-run.
 
 **Step 2 - apply:** executes the build and registers all completed indices in `BUILD_DIR/index.json`.
 

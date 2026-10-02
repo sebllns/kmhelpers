@@ -24,7 +24,6 @@ import tempfile
 from pathlib import Path
 
 from pykmhelpers import Fasta, QueryRunner, QueryRunnerConfig
-from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.pipeline.composer import IndexComposer
 from pykmhelpers.pipeline.index_db import IndexDB
 from pykmhelpers.pipeline.index_ops import (
@@ -49,7 +48,8 @@ def reset_index_registry():
     the names before each compose/build to get the same isolation.
     """
     for db in list(IndexDB.get_all() or []):
-        IndexDB.remove_instance(db.name)
+        if db.name:
+            IndexDB.remove_instance(db.name)
 
 
 def build(reg, workdir):
@@ -155,8 +155,6 @@ def main():
         IndexComposer(
             profiles_file="db/profile/profile.yaml",
             name="idx",
-            bf_max_size=ByteCounter.from_str("512GB"),
-            partition_min_size=ByteCounter.from_str("4GB"),
         ).run(
             input_file="db/list/idx.jsonl",
             output_dir="db/compose",

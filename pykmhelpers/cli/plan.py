@@ -38,31 +38,7 @@ logger = logging.getLogger(__name__)
     type=click.Path(file_okay=False, dir_okay=True),
     help="📁  Custom base path to kmindex Bloom filters directory (created if doesn't exist).",
 )
-@click.option(
-    "--from",
-    "reuse_from",
-    required=False,
-    help="⚙   Parent index ID to reuse parameters from. Takes precedence over parent_index that can be specified in definition file.",
-)
-@click.option(
-    "--on-conflict",
-    "existing",
-    required=False,
-    type=click.Choice(
-        [
-            "fail",
-            "register",
-            "rename",
-            "replace",
-            "register_or_replace",
-            "register_or_rename",
-        ],
-        case_sensitive=False,
-    ),
-    default="fail",
-    show_default=True,
-    help="⚙   Action when an existing unregistered index folder is found.",
-)
+@shared.on_conflict_option
 @click.option(
     "--offline",
     "-O",
@@ -82,11 +58,11 @@ def plan(
     partition_count,
     limits,
     safety_margin,
+    max_chunks,
     skip_compression,
     fail_on_error,
     registry,
     bloom_dir,
-    reuse_from,
     existing,
     offline,
 ):
@@ -180,14 +156,15 @@ def plan(
                 sample_rootpath=base_path,
                 kmindex_threads=threads,
                 kmindex_skip_compression=skip_compression,
-                kmindex_build_from=reuse_from,
+                kmindex_build_from=None,
                 filter_names=selected_ids,
                 filter_spans=selected_spans,
                 on_existing=existing,
                 partition_count=partition_count,
                 limits=limits,
                 safety_margin=safety_margin,
-                minimizer_length=minim_size,
+                max_chunks=max_chunks,
+                minimizer_length=int(minim_size) if minim_size else 10,
             )
         )
 
@@ -214,6 +191,9 @@ def plan(
                         )
                     logger.info(f"Result details written to {details_path}")
                     i += 1
+                if result.status in (ops.ApplyStatus.PARTIAL, ops.ApplyStatus.FAILED):
+                    failed = True
+                    logger.error(f"FAILED to plan {os.path.basename(input_file)}")
             except Exception as e:
                 failed = True
                 pykmhelpers.core.log.Log.handle_exception(

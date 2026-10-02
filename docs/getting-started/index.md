@@ -11,5 +11,5 @@
 
 ![Rocket](Rocket_Launch.gif){ width="50%" style="display: block; margin: 0 auto;" }
 
-*By Glosome — Own work, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0), via [Wikimedia Commons](https://commons.wikimedia.org/w/index.php?curid=79068729)*
+*By Glosome - Own work, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0), via [Wikimedia Commons](https://commons.wikimedia.org/w/index.php?curid=79068729)*
 {: style="text-align: center; font-size: 0.85em;" }

@@ -13,8 +13,31 @@ import pykmhelpers.core.fasta
 import pykmhelpers.core.kmindex_paths
 import pykmhelpers.pipeline.fof
 import pykmhelpers.pipeline.query
+from pykmhelpers.core.utils import summarize_names
 
 logger = logging.getLogger(__name__)
+
+# Marker between a merge target and the timestamp of its pre-update backup.
+# It keeps a backup name distinct from a session part, which is the target
+# suffixed by a session id - a timestamp of the same shape by default.
+BACKUP_MARKER = "prev"
+_BACKUP_TIMESTAMP = r"\d{8}_\d{6}"
+
+
+def backup_name(index_name: str, timestamp: str) -> str:
+    """Name an existing merge target is renamed to before an update merge."""
+    return f"{index_name}_{BACKUP_MARKER}_{timestamp}"
+
+
+def _backup_pattern(index_name: str) -> re.Pattern:
+    """Backups of ``index_name``.
+
+    The marker is required: without it the pattern would also match a part of
+    ``index_name`` built in a default session, whose id is a timestamp of the
+    same shape. A backup left by a version that did not write the marker has
+    to be merged back by name.
+    """
+    return re.compile(rf"^{re.escape(index_name)}_{BACKUP_MARKER}_{_BACKUP_TIMESTAMP}$")
 
 
 class IndexBuilder:
@@ -496,7 +519,7 @@ class IndexBuilder:
                     f"pass is_update=True to merge into it"
                 )
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            old_name = f"{new_name}_{timestamp}"
+            old_name = backup_name(new_name, timestamp)
             logger.info(
                 f"Renaming existing index '{new_name}' to '{old_name}' (required for update)"
             )
@@ -510,19 +533,26 @@ class IndexBuilder:
             # input (e.g. the "plan" phase of `kmhelpers build`, which performs
             # this rename for real so the exported script has fixed names).
             # Pick up any leftover renamed copy instead of silently dropping it.
-            pattern = re.compile(rf"^{re.escape(new_name)}_\d{{8}}_\d{{6}}$")
+            # Names already being merged are parts, not backups: a part is its
+            # target plus a session id, which the legacy form cannot tell apart.
+            pattern = _backup_pattern(new_name)
             leftover_names = [
-                idx for idx in self.index.list_indices() if pattern.match(idx)
+                idx
+                for idx in self.index.list_indices()
+                if idx not in to_merge and pattern.match(idx)
             ]
             if leftover_names:
-                logger.info(f"Found backup version of '{new_name}': {leftover_names}")
+                logger.info(
+                    f"Found backup version of '{new_name}': "
+                    f"{summarize_names(leftover_names)}"
+                )
 
         if is_update and old_name:
             to_merge.append(old_name)
         elif is_update and leftover_names:
             to_merge.extend(leftover_names)
 
-        logger.info(f"Merging {to_merge} into '{new_name}'")
+        logger.info(f"Merging {summarize_names(to_merge)} into '{new_name}'")
 
         wrapper = pykmhelpers.core.KmindexWrapper(dry_run=dry_run)
         try:

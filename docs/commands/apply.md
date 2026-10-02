@@ -28,13 +28,13 @@ See [build - Paths](build.md#paths) for the directory layout.
 | `-bl, --bloom-dir DIR` | Bloom filters directory (default: `BUILD_DIR/kmindex_data`) |
 | `-s, --span TEXT` | Span(s) to build: single value, comma-separated, or range (e.g. `27-30`) |
 | `-n, --name TEXT` | Index ID(s) to build (repeatable or comma-separated) |
-| `--from TEXT` | Reuse build parameters from a parent index |
 | `--minim-size INT` | Minimizer size (default: 10) |
 | `-t, --threads INT` | Number of threads |
-| `-p, --partition-count INT` | Override number of partitions |
+| `-p, --partition-count INT` | Partitions per index; ignored when the layout already stores one (see [compose](compose.md)) |
 | `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use (default: 0.9) |
-| `--existing TEXT` | Action for pre-existing index folders: `fail`, `register`, `rename`, `replace`, `register_or_replace`, `register_or_rename` (default: `fail`) |
+| `--max-chunks INT` | Max number of chunks a single index is split into; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 200) |
+| `--on-conflict TEXT` | Action for pre-existing index folders: `fail`, `register`, `rename`, `replace`, `register_or_replace`, `register_or_rename` (default: `fail`) |
 | `-NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
 | `-SP, --show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
 | `-X, --fail-fast` | Abort on first failure instead of continuing |
@@ -61,9 +61,6 @@ kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build/ -n coli_g0
 # Build only specific spans
 kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build/ -s 28
 kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build/ -s 27-30
-
-# Reuse parameters from an existing parent index
-kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build/ -n my_index --from parent_index
 
 # Resolve sample paths from a base directory
 kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build/ -b /data/samples

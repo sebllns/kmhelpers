@@ -18,6 +18,24 @@ def kmindex_matrix_storage_cost(rows, cols):
     )
 
 
+def f_value(fp_rate):
+    return -math.log(fp_rate) / (math.log(2) ** 2)
+
+
+def bf_max_kmers(bf_size, fp_rate):
+    return int(math.floor(bf_size / f_value(fp_rate))) - 1
+
+
+def bf_size_for_kmers(kmers, fp_rate):
+    """Bloom filter size in bits holding ``kmers`` at ``fp_rate``.
+
+    Inverse of `bf_max_kmers`, rounded up to a whole byte as
+    `SpanManager.get_bf_size` does.
+    """
+    bits = math.ceil((kmers + 1) * f_value(fp_rate))
+    return ((bits + BYTE_SIZE - 1) // BYTE_SIZE) * BYTE_SIZE
+
+
 class BloomFilterSpecs:
     def __init__(self, n_rows: int, n_cols: int, n_partitions: int):
         # 0 means "not resolved yet" (decided at build time), estimate as one partition
@@ -79,7 +97,7 @@ class SpanManager:
             raise ValueError(f"Constraint must be respected: b > 0 (got b = {b})")
         self._p = p
         self._b = b
-        self._f = -math.log(self._p) / (math.log(2) ** 2)
+        self._f = f_value(p)
 
     def dispatch(self, kmer_count):
         if kmer_count <= 0:

@@ -26,7 +26,7 @@ Run a sequence of commands defined in a YAML pipeline file.
 
 `pipeline` executes a series of `kmhelpers` commands in order, as defined in a YAML file. Steps run sequentially. Use `-x` to override parameters for all steps at runtime.
 
-**Priority** — global config (`-C`) < pipeline YAML < `-x` overrides.
+**Priority** - global config (`-C`) < pipeline YAML < `-x` overrides.
 
 ## Pipeline File Formats
 

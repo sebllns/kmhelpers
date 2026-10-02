@@ -32,11 +32,12 @@ class Wrapper:
                 f"{self.env_path}{os.pathsep}{os.environ.get('PATH', '')}"
             )
 
-        self._which = shutil.which(self.main_cmd)
-        if not self._which:
+        which = shutil.which(self.main_cmd)
+        if not which:
             raise FileNotFoundError(
                 f"{self.main_cmd} not found. Either add its installation directory to PATH, or set the {self.env_var} environment variable to that directory."
             )
+        self._which: str = which
         logger.debug(f"Found {self._which}")
 
     @property
@@ -55,7 +56,7 @@ class Wrapper:
         return None
 
     @property
-    def which(self):
+    def which(self) -> str:
         return self._which
 
     def _run_byte_cmd(

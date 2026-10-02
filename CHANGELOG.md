@@ -2,6 +2,63 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2026-09-30
+
+### Added
+
+- **`install-deps` Command**: Download `kmtricks`, `kmindex` and `ntcard` binaries
+  - `ntcard` comes from the portable builds of the `sebllns/ntCard` fork, verified against the release `SHA256SUMS`
+  - `--ntcard VERSION` selects the release, `0` skips it
+
+- **`check-deps` Command**: Verify that `kmindex`, `kmtricks` and `ntcard` are available
+
+- **`test auto-params` Subcommand**: Print the build parameters chosen from the hardware limits, without running a build
+
+- **Index sharding**: `compose` / `design` `--shard-size` splits a span into independent shards that are never merged together
+  - The per-span sample limit is derived from the Bloom filter size
+  - Updates fill the last shard, then open a new one
+
+- **Resource limits for builds**: `--limits`, `--safety-margin` and `--max-chunks` on `build`, `plan` and `apply`
+  - `--max-chunks` caps the number of build chunks (default 200, `0` disables), trading threads for fewer build/merge passes
+  - Resource detection works on SLURM nodes (`core/resources.py`, formerly `core/system.py`)
+
+- **Per-group build scripts**: `plan` and `build` export one script per group of parts (build, merge into the target, cleanup of merged data)
+  - `build` writes scripts and fof/param files to `assets/<session>/`, `assets/kmhelpers_apply.sh` runs the last session
+  - Scripts use `set -euo pipefail` and print timestamped step logs
+
+- **Compressed samples**: `list` detects compressed data extensions and supports `.zst` decompression
+
+- **Query run metadata**: HTML and Markdown query reports include the command, execution time, max CPU and max memory
+
+- **Examples**: `examples/mini_e2e.sh` (random-data end-to-end run) and a large-scale offline planning example
+
+- **Documentation**: k-mer counting, index definition, and groups/partitions tuning pages; kmtricks parameter formulas (`vendor/kmparams_formulas.md`)
+
+- **CI**: `ntcard-binaries` workflow for portable `ntcard` builds (since moved to the `sebllns/ntCard` fork)
+
+### Changed
+
+- **Breaking**: `apply` option `--existing` renamed to `--on-conflict`, as in `plan`
+- **Breaking**: `--from` removed from `plan` and `apply`
+- **Breaking**: `compose` / `design` partitioning options (`--split-size`, `--partition-min-size`, `--partition-count-limit`) replaced by `--shard-size`
+- **Breaking**: `build-subindex` command removed
+- **Breaking**: `list` stores imported sample paths relative to `root_path`
+- **Layout**: Stores the partition count, minimizer size, shard size and per-span sample counts; `compose -p` fixes the partition count, otherwise the first build sizes it; the `_p<n>` suffix is dropped when sharding is off
+- **Build parameters**: The kmtricks minimum partition count is applied; `auto_params` checks its bounds; with a fixed partition count, threads absorb the RAM limit
+- **Merge naming**: A part is named after the index it is merged into; chunk name lists are collapsed in logs and scripts
+- **`index_ops`**: Split into a package of single-purpose components; build parameters are resolved once per index
+- **Logging**: `test` commands use the logger instead of `print`
+
+### Fixed
+
+- `plan` passing `--minim-size None` to kmindex (defaults to 10)
+- Partition count and minimizer size per index in the layout
+- `pipeline_api` example after the composer option removal
+- E. coli end-to-end tutorial script
+
+### Known issues
+
+- `test auto-params`: the estimated index size display is inconsistent and has been removed from the output
 ## [0.6.4] - 2026-09-30
 
 ### Added

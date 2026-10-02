@@ -21,6 +21,8 @@ on:
       - '**.md'
       - 'mkdocs.yml'
       - 'LICENSE'
+  # Called by release.yml to gate the release on the tests
+  workflow_call:
 
 jobs:
   # Pure syntax check on the lowest supported Pythons. Catches version-specific

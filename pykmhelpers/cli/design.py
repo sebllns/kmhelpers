@@ -6,6 +6,7 @@ import os
 
 import click
 
+from pykmhelpers.cli.shared import parse_shard_size
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.log import Log
 from pykmhelpers.core.utils import Toolbox
@@ -35,6 +36,12 @@ logger = logging.getLogger(__name__)
     "-n",
     required=True,
     help="🏷️   Name of created index.",
+)
+@click.option(
+    "--shard-size",
+    "-si",
+    "shard_size",
+    help="💾  Maximum size of one shard (e.g., '256GB', '500000MB'). A span is split into independent shards of at most this size; omit for a single unlimited index per span.",
 )
 @click.option(
     "--session-id",
@@ -140,6 +147,7 @@ def design(
     input,
     output_dir,
     name,
+    shard_size,
     session_id,
     kmer_size,
     data_type,
@@ -201,11 +209,10 @@ def design(
     for d in dirs_to_make:
         os.makedirs(d, exist_ok=True)
 
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     jsonl_path = (
         Toolbox.get_canonical_path(input)
         if input_is_jsonl
-        else os.path.join(list_dir, f"{name}_samples_{timestamp}.jsonl")
+        else os.path.join(list_dir, f"{name}_samples_{session_id}.jsonl")
     )
     profiles_file = os.path.join(profile_dir, "profile.yaml")
     auto_layout = os.path.join(compose_dir, f"{name}_layout.yaml")
@@ -272,12 +279,9 @@ def design(
             layout_file=layout_file,
             selected_profile=None,
             name=name,
-            partition_count=partition_count,
-            bf_max_size=ByteCounter.from_str("512GB"),
-            partition_min_size=ByteCounter.from_str("4GB"),
             no_merge=False,
-            exact_partition_count=False,
-            partition_count_limit=256,
+            shard_size=parse_shard_size(shard_size),
+            partition_count=partition_count,
         ).run(
             input_file=jsonl_path,
             output_dir=compose_dir,

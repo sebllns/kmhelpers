@@ -16,7 +16,7 @@ Validate paths and preview the build plan from an index definition file, then wr
 
 !!! abstract "I/O"
     **Input:** `COMPOSE_DIR/NAME/SESSION/NAME.yaml` written by `compose`, or `DESIGN_DIR/compose/NAME/SESSION/NAME.yaml` when produced by `design` (see [design - Next Step](design.md#next-step))  
-    **Output:** shell script in `BUILD_DIR/assets/`, validation report in `BUILD_DIR/logs/`
+    **Output:** shell scripts in `BUILD_DIR/assets/`, validation report in `BUILD_DIR/logs/`
 
 See [build - Paths](build.md#paths) for the directory layout.
 
@@ -29,20 +29,20 @@ See [build - Paths](build.md#paths) for the directory layout.
 | `-n, --name TEXT` | Index ID(s) to preview (repeatable or comma-separated) |
 | `--minim-size INT` | Minimizer size (default: 10) |
 | `-t, --threads INT` | Number of threads |
-| `-p, --partition-count INT` | Override number of partitions |
+| `-p, --partition-count INT` | Partitions per index; ignored when the layout already stores one (see [compose](compose.md)) |
 | `-NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
 | `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use (default: 0.9) |
+| `--max-chunks INT` | Max number of chunks a single index is split into; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 200) |
 | `-X, --fail-fast` | Abort on first failure instead of continuing |
 | `-r, --registry DIR` | Registry directory (default: `BUILD_DIR`, holds `index.json`) |
 | `-bl, --bloom-dir DIR` | Bloom filters directory (default: `BUILD_DIR/kmindex_data`) |
-| `--from TEXT` | Reuse build parameters from a parent index |
 | `--on-conflict TEXT` | Action for pre-existing index folders: `fail`, `register`, `rename`, `replace`, `register_or_replace`, `register_or_rename` (default: `fail`) |
 | `-O, --offline` | Skip local path validation (useful when exporting scripts for another machine) |
 
 ## Description
 
-`plan` validates all sample paths of `INPUT_FILE` upfront and previews the `kmindex` commands that would be executed by [`apply`](apply.md), without running them. It writes the equivalent shell script to `BUILD_DIR/assets/` and a validation report to `BUILD_DIR/logs/`.
+`plan` validates all sample paths of `INPUT_FILE` upfront and previews the `kmindex` commands that would be executed by [`apply`](apply.md), without running them. It writes the equivalent shell scripts to `BUILD_DIR/assets/` (one per sub-index, `<name>_g<span>_<session>.sh`, plus `kmhelpers_apply.sh` running them in order) and a validation report to `BUILD_DIR/logs/`.
 
 **Offline mode** - use `--offline` to skip local path validation when generating scripts destined for another machine.
 

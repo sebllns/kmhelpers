@@ -104,7 +104,7 @@ def list_samples(
     Output: JSONL sample manifest (-o)
 
     INPUT can be a directory (scanned recursively for sample files) or a
-    plain-text / YAML file listing samples — the type is detected automatically.
+    plain-text / YAML file listing samples - the type is detected automatically.
 
     By default, each file is treated as its own sample. Use --leaf-grouping
     to group files by leaf folder, where each leaf directory becomes one

@@ -34,6 +34,7 @@ class DbFields(str, Enum):
     ABUNDANCE_MIN = "abundance_min"
     KMER_SIZE = "kmer_size"
     PARTITION_COUNT = "partition_count"
+    FP_RATE = "fp_rate"
     SPAN = "span"
     BF_SIZE = "bf_size"
     KMHELPERS_VERSION = "kmhelpers_version"
@@ -61,6 +62,7 @@ class DbFields(str, Enum):
             DbFields.PARTITION_COUNT: 0,
             DbFields.SPAN: 0,
             DbFields.BF_SIZE: 0,
+            DbFields.FP_RATE: 0.25,
             DbFields.KMHELPERS_VERSION: "undefined",
             DbFields.KMHELPERS_COMMIT: "undefined",
             DbFields.INDEX_TYPE: "undefined",
@@ -170,6 +172,7 @@ class IndexDefinition(Item, auto_increment=True):
     partition_count: int = DbFields.PARTITION_COUNT.get_default() or 0
     span: int = DbFields.SPAN.get_default() or 0
     bf_size: int = DbFields.BF_SIZE.get_default() or 0
+    fp_rate: float = DbFields.FP_RATE.get_default() or 0.25
     abundance_min: int = DbFields.ABUNDANCE_MIN.get_default() or 2
     samples: dict[str, Sample] = field(default_factory=dict)
     merge_name: Optional[str] = None
@@ -273,13 +276,32 @@ class IndexDefinitionTools:
         else:
             return value
 
-    def get_merge_name(self, db_name: str, group: int) -> str:
-        return f"{db_name}_g{group}"
-
-    def get_index_name(
-        self, db_name: str, session: str, group: int, segment: int
+    def get_merge_name(
+        self, db_name: str, group_id: int, shard: Optional[int] = None
     ) -> str:
-        return f"{db_name}_g{group}_{session}_p{segment}"
+        """Name of the index a span's samples are merged into.
+
+        ``group_id`` is the group ordinal of the span, never the span value.
+        Only a new span entry needs this: once the layout records the name,
+        shards derive from it through ``get_shard_name``.
+        """
+        return self.get_shard_name(f"{db_name}_g{group_id}", shard)
+
+    def get_shard_name(self, span_name: str, shard: Optional[int] = None) -> str:
+        """Name of one shard of ``span_name``, the name the layout records.
+
+        ``shard`` is the shard number when sharding is enabled, ``None``
+        when the span holds a single unlimited index.
+        """
+        return span_name if shard is None else f"{span_name}_p{shard}"
+
+    def get_part_name(self, shard_name: str, session: str) -> str:
+        """Name of one session's part, built then merged into ``shard_name``.
+
+        A part is named after the shard it belongs to, so ``g`` always
+        designates the group ordinal and the two can never disagree.
+        """
+        return f"{shard_name}_{session}"
 
     def _load_db_file(self, filename: str) -> IndexDB:
         """Load index database from JSON or YAML file."""
@@ -323,6 +345,7 @@ class IndexDefinitionTools:
                     self.get_field(DbFields.PARTITION_COUNT, parameters)
                 ),
                 bf_size=int(self.get_field(DbFields.BF_SIZE, parameters)),
+                fp_rate=float(self.get_field(DbFields.FP_RATE, parameters)),
                 span=index_data.get(self.get_field_name(DbFields.INFOS), {}).get(
                     self.get_field_name(DbFields.SPAN), 0
                 ),
@@ -393,26 +416,15 @@ class IndexDefinitionTools:
             infos = {
                 self.get_field_name(DbFields.SPAN): index.span,
                 self.get_field_name(DbFields.INFO_SAMPLE_COUNT): index.sample_count,
-                # self.get_field_name(
-                #     DbFields.INFO_TOTAL_STORED_SIZE_BYTES
-                # ): stored_size.byte_count,
-                # self.get_field_name(DbFields.INFO_TOTAL_STORED_SIZE_STR): str(
-                #     stored_size
-                # ),
-                # self.get_field_name(
-                #     DbFields.INFO_PARTITION_STORED_SIZE_BYTES
-                # ): partition_stored_size.byte_count,
-                # self.get_field_name(DbFields.INFO_PARTITION_STORED_SIZE_STR): str(
-                #     partition_stored_size
-                # ),
             }
 
             parameters = {
                 self.get_field_name(DbFields.KMER_SIZE): str(index.kmer_size),
-                self.get_field_name(DbFields.PARTITION_COUNT): str(
-                    index.partition_count
-                ),
+                # self.get_field_name(DbFields.PARTITION_COUNT): str(
+                #     index.partition_count
+                # ),
                 self.get_field_name(DbFields.BF_SIZE): str(index.bf_size),
+                self.get_field_name(DbFields.FP_RATE): str(index.fp_rate),
                 self.get_field_name(DbFields.ABUNDANCE_MIN): str(index.abundance_min),
             }
 

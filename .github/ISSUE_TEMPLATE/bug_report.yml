@@ -40,7 +40,7 @@ body:
       render: shell
       placeholder: |
         === kmhelpers version report ===
-        kmhelpers : kmhelpers, version 0.6.4
+        kmhelpers : kmhelpers, version 0.7.0
         kmindex   : kmindex v0.6.1
         kmtricks  : kmtricks v1.6.0
         ntcard    : ntCard 1.2.2

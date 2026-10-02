@@ -26,8 +26,8 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 | Option | Description |
 |--------|-------------|
 | `-pr, --profile TEXT` | Profile name to use (default: `default_profile` from profiles file) |
-| `-p, --partition-count INT` | Desired number of partitions per index, 0 for automatic (default: 0) |
-| `-b, --split-size SIZE` | Max run size (e.g. `10GB`, `5000MB`) before splitting samples across indices |
+| `-p, --partition-count INT` | Partitions per index, fixed for its whole life; 0 lets the first build size it (default: 0) |
+| `-si, --shard-size SIZE` | Max size of one shard (e.g. `256GB`, `500000MB`); omit for a single unlimited index per span |
 | `-m, --partition-min-size SIZE` | Minimum partition file size (e.g. `500MB`, `1GB`) |
 | `-P, --partition-count-limit INT` | Upper bound on auto partition count (default: 256) |
 
@@ -48,14 +48,33 @@ A layout file is written to `COMPOSE_DIR/NAME_layout.yaml` for future updates.
 
 If `--profile` is not specified, the `default_profile` field in the profiles file is used.
 
-**Partitioning** - each Bloom filter is split into N partition files. The partition count is
-determined automatically by default, or set explicitly with `--partition-count`. Use
-`--partition-min-size` to enforce a minimum file size per partition, or
-`--partition-count-limit` to cap the auto-computed count.
+**Partitioning** - each Bloom filter is split into N partition files. Two indexes can only be
+merged when they share that count, and an update merges new samples into an existing shard, so
+the count is fixed once for the life of the index and stored in the layout file.
 
-**Splitting** - when the accumulated size of samples assigned to a span exceeds `--split-size`,
-they are distributed across multiple sub-indices rather than one. This is useful to keep
-individual index files manageable for large datasets.
+Set it with `--partition-count`, or leave it at 0: the first `plan`, `apply` or `build` then
+sizes it from the resource limits (`--limits`), for a full shard when sharding is on, and writes
+it to the layout. Later runs reuse the stored value and warn when `-p` asks for another one.
+The minimizer size (`--minim-size`) is stored the same way.
+
+The layout also records, per span, the samples composed so far (`total_samples`) and the number
+of sessions that added samples to it (`updates`).
+
+**Sharding** - with `--shard-size`, a span is split into independent shards of at most that
+size, instead of one index growing without bound. Shards are never merged together: each one
+is built and registered on its own, and a query hits them all.
+
+The per-span sample limit is derived from the Bloom filter size of the span, since a shard
+costs about `bf_size x samples / 8` bytes, and is rounded down to a multiple of 8 samples
+(minimum 8). It is written to the layout file, together with the shards and their sample
+counts, so a later session knows where to continue.
+
+An update fills the last shard of the span until that limit is reached, then opens a new one.
+Filling a shard means merging the session's new samples into it; only chunks (a build-time
+split, see [plan](plan.md)) are merged as well.
+
+Without `--shard-size`, a span keeps a single index named `NAME_g<i>`. With it, shards are
+named `NAME_g<i>_p<k>`.
 
 
 ## Examples

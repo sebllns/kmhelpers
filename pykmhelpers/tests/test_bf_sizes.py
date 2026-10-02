@@ -8,8 +8,11 @@ the module-level matrix cost functions, and ``BloomFilterSpecs.matrix_size``.
 import unittest
 
 from pykmhelpers.core.bloom_filter import (
+    BYTE_SIZE,
     BloomFilterSpecs,
     SpanManager,
+    bf_max_kmers,
+    bf_size_for_kmers,
     kmindex_matrix_bit_count,
     kmindex_matrix_storage_cost,
 )
@@ -172,6 +175,31 @@ class TestBloomFilterSpecsByteCounts(unittest.TestCase):
         parted = BloomFilterSpecs(128, 16, 2)
         self.assertEqual(parted.column_byte_count(), 128)
         self.assertEqual(parted.total_byte_count(), 256)
+
+
+class TestBfSizeForKmers(unittest.TestCase):
+    """bf_size_for_kmers is the inverse of bf_max_kmers."""
+
+    CASES = [(10**6, 0.25), (10**9, 0.25), (10**6, 0.01), (10**9, 0.01)]
+
+    def test_holds_the_requested_kmer_count(self):
+        for kmers, fp_rate in self.CASES:
+            with self.subTest(kmers=kmers, fp_rate=fp_rate):
+                self.assertGreaterEqual(
+                    bf_max_kmers(bf_size_for_kmers(kmers, fp_rate), fp_rate), kmers
+                )
+
+    def test_no_more_than_one_byte_of_slack(self):
+        """The rounding never overshoots by more than the byte alignment."""
+        for kmers, fp_rate in self.CASES:
+            with self.subTest(kmers=kmers, fp_rate=fp_rate):
+                size = bf_size_for_kmers(kmers, fp_rate)
+                self.assertLess(bf_max_kmers(size - BYTE_SIZE, fp_rate), kmers)
+
+    def test_size_is_byte_aligned(self):
+        for kmers, fp_rate in self.CASES:
+            with self.subTest(kmers=kmers, fp_rate=fp_rate):
+                self.assertEqual(bf_size_for_kmers(kmers, fp_rate) % BYTE_SIZE, 0)
 
 
 if __name__ == "__main__":

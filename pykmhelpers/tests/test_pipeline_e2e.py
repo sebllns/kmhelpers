@@ -35,6 +35,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import yaml
+
 # Entry point for the CLI as a subprocess (module has a ``__main__`` guard).
 CLI_MODULE = "pykmhelpers.cli.kmhelpers"
 
@@ -279,6 +281,146 @@ class TestStepByStepDesignAndBuild(PipelineE2EBase):
         self.assert_query_hit("results", q0_header, "sample_0")
 
 
+class TestPartitionCountStaysFixed(PipelineE2EBase):
+    """An index keeps its partition count and minimizer size across sessions."""
+
+    def test_update_reuses_the_stored_build_invariants(self):
+        self.run_cli(
+            "design",
+            self.samples_txt,
+            "-o",
+            "db",
+            "-n",
+            "idx",
+            "-S",
+            "initial",
+            "-k",
+            KMER_SIZE,
+            "-b",
+            "1.1",
+            "-g",
+            "1",
+        )
+        self.run_cli(
+            "build",
+            self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml",
+            "-o",
+            "build",
+            "--limits",
+            '{"ram": 500000000, "files": 4096, "threads": 2}',
+        )
+
+        layout = yaml.safe_load(
+            (self.tmp / "db" / "compose" / "idx_layout.yaml").read_text()
+        )["data"]
+        registry = json.loads((self.tmp / "build" / "index.json").read_text())["index"]
+        # what was built is what the layout records
+        self.assertEqual(layout["minim_size"], 10)
+        for span in layout["map"].values():
+            self.assertGreater(span["partition_count"], 0)
+            for shard in span["shards"]:
+                self.assertEqual(
+                    registry[shard["name"]]["nb_partitions"], span["partition_count"]
+                )
+
+        # a second session on a very different machine profile, asking for
+        # other values: the stored ones win, so the merge succeeds
+        random.seed(SEED + 2)
+        new_seq = "".join(random.choice("ACGT") for _ in range(SAMPLE_LEN - 400))
+        self.sequences.append(new_seq)
+        (self.tmp / "data" / "sample_new.fasta").write_text(f">sample_new\n{new_seq}\n")
+        new_list = self.tmp / "new_samples.txt"
+        new_list.write_text(
+            str((self.tmp / "data" / "sample_new.fasta").resolve()) + "\n"
+        )
+
+        self.mkdirs("db", "list")
+        self.run_cli("list", new_list, "-o", "db/list/upd.jsonl", "-k", KMER_SIZE)
+        self.run_cli(
+            "compose", "db/list/upd.jsonl", "-o", "db/compose", "-n", "idx", "-S", "upd"
+        )
+        self.run_cli(
+            "build",
+            self.tmp / "db" / "compose" / "idx" / "upd" / "idx.yaml",
+            "-o",
+            "build",
+            "--limits",
+            '{"ram": 512000000000, "files": 65536, "threads": 32}',
+            "-p",
+            "16",
+            "--minim-size",
+            "12",
+        )
+
+        updated = json.loads((self.tmp / "build" / "index.json").read_text())["index"]
+        for name, props in registry.items():
+            self.assertEqual(updated[name]["nb_partitions"], props["nb_partitions"])
+            self.assertEqual(updated[name]["minim_size"], props["minim_size"])
+        self.assertIn(
+            "sample_new",
+            [s for props in updated.values() for s in props["samples"]],
+        )
+
+
+class TestShardedBuild(PipelineE2EBase):
+    """--shard-size splits a span into independent shards, never merged together."""
+
+    def test_design_build_query_with_shards(self):
+        # -b 4 buckets every sample into one span; a shard size small enough
+        # for the per-span limit to be the 8-sample floor then forces a second
+        # shard (N_SAMPLES is 5, plus 4 added below).
+        for extra in range(4):
+            path = self.tmp / "data" / f"extra_{extra}.fasta"
+            seq = "".join(random.choice("ACGT") for _ in range(SAMPLE_LEN))
+            self.sequences.append(seq)
+            path.write_text(f">extra_{extra}\n{seq}\n")
+
+        self.run_cli(
+            "design",
+            self.tmp / "data",
+            "-o",
+            "db",
+            "-n",
+            "idx",
+            "-S",
+            "initial",
+            "-k",
+            KMER_SIZE,
+            "-b",
+            "4",
+            "-g",
+            "1",
+            "-si",
+            "1KB",
+        )
+        layout = yaml.safe_load(
+            (self.tmp / "db" / "compose" / "idx_layout.yaml").read_text()
+        )["data"]
+        self.assertGreater(layout["shard_size"], 0)
+        shards = [
+            sh["name"] for entry in layout["map"].values() for sh in entry["shards"]
+        ]
+        self.assertGreater(len(shards), 1, f"expected several shards, got {shards}")
+
+        span_reg = self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml"
+        self.run_cli("build", span_reg, "-o", "build")
+
+        registry = json.loads((self.tmp / "build" / "index.json").read_text())["index"]
+        # every shard is registered on its own; nothing merges them together
+        self.assertEqual(sorted(registry), sorted(shards))
+
+        # one build script per shard
+        scripts = sorted(
+            p.stem for p in (self.tmp / "build" / "assets" / "initial").glob("*.sh")
+        )
+        self.assertEqual(scripts, sorted(shards + ["kmhelpers_apply"]))
+
+        # samples stay queryable through their shard
+        q0, q0_header = self.write_query("s0", sample_idx=0)
+        self.run_cli("query", q0, "-r", "build", "-o", "results", "-f", "json")
+        self.assert_query_hit("results", q0_header, "sample_0")
+
+
 class TestChunkedBuild(PipelineE2EBase):
     """A too-low --limits open-files ceiling splits a build into chunks."""
 
@@ -312,7 +454,7 @@ class TestChunkedBuild(PipelineE2EBase):
         self.assertTrue(index_json.is_file(), "apply did not produce index.json")
         registry = json.loads(index_json.read_text())["index"]
 
-        chunk_names = [name for name in registry if "__chunk" in name]
+        chunk_names = [name for name in registry if "_chunk" in name]
         self.assertFalse(
             chunk_names, f"transient chunk sub-indexes left registered: {chunk_names}"
         )

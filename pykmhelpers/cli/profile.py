@@ -77,9 +77,9 @@ def profile(list_output, output_dir, n_groups, base, false_positive_rate):
 
     \b
     Output files (written to OUTPUT_DIR):
-      baseline.csv  — natural distribution: span id, Bloom filter size, sample count
-      profile.yaml  — natural distribution (baseline) and storage-balanced grouped profile(s)
-      groups.png    — distribution plot
+      baseline.csv  - natural distribution: span id, Bloom filter size, sample count
+      profile.yaml  - natural distribution (baseline) and storage-balanced grouped profile(s)
+      groups.png    - distribution plot
 
     \b
     Expected LIST_OUTPUT format (JSONL):
