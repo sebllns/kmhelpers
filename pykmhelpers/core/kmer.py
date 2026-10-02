@@ -134,7 +134,11 @@ class KmerCounter(Wrapper):
         with tempfile.NamedTemporaryFile(mode="w", delete=False) as tmp:
             tmp_file = tmp.name
 
-        inputs, temp_inputs = self._prepare_inputs(files)
+        try:
+            inputs, temp_inputs = self._prepare_inputs(files)
+        except Exception:
+            os.remove(tmp_file)
+            raise
 
         try:
             cmd = [
