@@ -33,10 +33,10 @@ git clone https://github.com/sebllns/kmhelpers
 cd kmhelpers
 ```
 
-To clone a specific version tag directly:
+To clone a [released version](https://github.com/sebllns/kmhelpers/releases) directly:
 
 ```bash
-git clone --branch v0.7.0 https://github.com/sebllns/kmhelpers
+git clone --branch vX.Y.Z https://github.com/sebllns/kmhelpers
 cd kmhelpers
 ```
 
@@ -101,21 +101,11 @@ To pull the latest changes from the default branch (`main`):
 git pull origin main
 ```
 
-To pull from a specific branch (e.g., a development or release branch):
-
-```bash
-git pull origin <branch-name>
-
-# Examples
-git pull origin release/v0.7.0
-git pull origin feature/my-feature
-```
-
-To check out a specific tag instead:
+To check out a [released version](https://github.com/sebllns/kmhelpers/releases) instead:
 
 ```bash
 git fetch --tags
-git checkout v0.7.0
+git checkout vX.Y.Z
 ```
 
 If your local branch is already tracking a remote branch, you can simply run:

@@ -4,12 +4,33 @@ on:
   push:
     branches:
       - docs
+      - main
+    tags:
+      - "v*"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Docs version to deploy (default: package version of the ref, 'main' on main)"
+        required: false
+        default: ""
+      latest:
+        description: "Set the 'latest' alias on this version (ignored for 'main')"
+        type: boolean
+        default: true
+      delete_version:
+        description: "Docs version to delete after deploy (optional, e.g. 0.6.3)"
+        required: false
+        default: ""
+
+# Deploys all write to gh-pages: run them one at a time
+concurrency:
+  group: docs-deploy
+  cancel-in-progress: false
 
 jobs:
-  # Push to docs branch: build and publish to gh-pages/preview
+  # Push to docs branch: build and publish to gh-pages/preview (hidden)
   preview:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/docs'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -36,9 +57,11 @@ jobs:
           target-folder: preview
           commit-message: Deploy docs preview
 
-  # Manual trigger: publish the validated docs as the permanent version
-  production:
-    if: github.event_name == 'workflow_dispatch'
+  # Push to main: "main" version (overwritten on each push)
+  # Tag vX.Y.Z: X.Y.Z version, aliased "latest"
+  # Manual trigger: any ref, version and alias chosen by inputs
+  versioned:
+    if: github.event_name != 'push' || github.ref != 'refs/heads/docs'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -63,10 +86,48 @@ jobs:
 
       - name: Resolve docs version
         id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          # Empty on push events, treated as true
+          INPUT_LATEST: ${{ inputs.latest }}
         run: |
-          # Strip pre/dev suffix so 0.6.3.dev0 -> 0.6.3
-          version=$(python -c "from importlib.metadata import version; from packaging.version import Version; v=Version(version('pykmhelpers')); print(v.base_version)")
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ "$INPUT_VERSION" = "main" ] || { [ -z "$INPUT_VERSION" ] && [ "$GITHUB_REF" = "refs/heads/main" ]; }; then
+            echo "version=main" >> "$GITHUB_OUTPUT"
+            echo "title=main (${GITHUB_SHA::7})" >> "$GITHUB_OUTPUT"
+            echo "alias=" >> "$GITHUB_OUTPUT"
+            echo "release=" >> "$GITHUB_OUTPUT"
+          else
+            version="$INPUT_VERSION"
+            if [ -z "$version" ]; then
+              # Strip pre/dev suffix so 0.6.3.dev0 -> 0.6.3
+              version=$(python -c "from importlib.metadata import version; from packaging.version import Version; v=Version(version('kmhelpers')); print(v.base_version)")
+            fi
+            alias=latest
+            if [ "$INPUT_LATEST" = "false" ]; then alias=; fi
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+            echo "title=$version" >> "$GITHUB_OUTPUT"
+            echo "alias=$alias" >> "$GITHUB_OUTPUT"
+            echo "release=$version" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Deploy with mike
-        run: mike deploy --push --update-aliases "${{ steps.version.outputs.version }}" latest
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TITLE: ${{ steps.version.outputs.title }}
+          ALIAS: ${{ steps.version.outputs.alias }}
+          # Selects release-only/dev-only blocks (scripts/mkdocs_hooks.py)
+          DOCS_RELEASE: ${{ steps.version.outputs.release }}
+        run: mike deploy --push --update-aliases --title "$TITLE" "$VERSION" $ALIAS
+
+      - name: Delete old docs version
+        if: inputs.delete_version != ''
+        env:
+          OLD: ${{ inputs.delete_version }}
+          NEW: ${{ steps.version.outputs.version }}
+        run: |
+          # Never delete the version that was just deployed (it holds latest)
+          if [ "$OLD" = "$NEW" ]; then
+            echo "Refusing to delete the deployed version $NEW" >&2
+            exit 1
+          fi
+          mike delete --push "$OLD"

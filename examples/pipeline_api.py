@@ -90,15 +90,18 @@ def query(sample_file, workdir, output_dir):
 def load_query_results(results_dir):
     """Merge every <results_dir>/<query>/kmindex_output/*.jsonl into {query: {sample: frac}}."""
     merged = {}
+    found = False
     for jf in sorted(Path(results_dir).rglob("*.jsonl")):
         if jf.parent.name != "kmindex_output":
             continue
+        found = True
         for line in jf.read_text().splitlines():
             line = line.strip()
             if not line:
                 continue
             rec = json.loads(line)
             merged.setdefault(rec["query"], {}).update(rec["samples"])
+    assert found, f"FAIL: no kmindex_output/*.jsonl under {results_dir}"
     return merged
 
 
