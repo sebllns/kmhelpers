@@ -102,11 +102,25 @@ DOCS_RELEASE=X.Y.Z mkdocs serve
 To try docs changes before merging, push them to `docs`
 (`git push --force origin HEAD:docs`) and open the preview.
 
-To remove an old version, or redeploy a release:
+Manual deploy from any branch or tag (the branch must be pushed):
 
 ```bash
+# Redeploy a release from its tag
+gh workflow run docs.yml --ref vX.Y.Z
+
+# Deploy a branch as a given version, without moving "latest"
+gh workflow run docs.yml --ref fix/docs-typo -f version=X.Y.Z -f latest=false
+
+# Deploy and remove an old version
 gh workflow run docs.yml --ref vX.Y.Z -f delete_version=<old>
+
+# Follow the run
+gh run watch $(gh run list --workflow docs.yml --limit 1 --json databaseId --jq '.[0].databaseId')
 ```
+
+Without `-f version`, the version is the package version of the ref (`main`
+on `main`). `latest` defaults to `true`. A release version gets the
+release-only blocks, like a tag build.
 
 ## Releasing
 

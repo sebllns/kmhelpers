@@ -9,6 +9,14 @@ on:
       - "v*"
   workflow_dispatch:
     inputs:
+      version:
+        description: "Docs version to deploy (default: package version of the ref, 'main' on main)"
+        required: false
+        default: ""
+      latest:
+        description: "Set the 'latest' alias on this version (ignored for 'main')"
+        type: boolean
+        default: true
       delete_version:
         description: "Docs version to delete after deploy (optional, e.g. 0.6.3)"
         required: false
@@ -50,7 +58,8 @@ jobs:
           commit-message: Deploy docs preview
 
   # Push to main: "main" version (overwritten on each push)
-  # Tag vX.Y.Z or manual trigger: X.Y.Z version, aliased "latest"
+  # Tag vX.Y.Z: X.Y.Z version, aliased "latest"
+  # Manual trigger: any ref, version and alias chosen by inputs
   versioned:
     if: github.event_name != 'push' || github.ref != 'refs/heads/docs'
     runs-on: ubuntu-latest
@@ -77,18 +86,27 @@ jobs:
 
       - name: Resolve docs version
         id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          # Empty on push events, treated as true
+          INPUT_LATEST: ${{ inputs.latest }}
         run: |
-          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+          if [ "$INPUT_VERSION" = "main" ] || { [ -z "$INPUT_VERSION" ] && [ "$GITHUB_REF" = "refs/heads/main" ]; }; then
             echo "version=main" >> "$GITHUB_OUTPUT"
             echo "title=main (${GITHUB_SHA::7})" >> "$GITHUB_OUTPUT"
             echo "alias=" >> "$GITHUB_OUTPUT"
             echo "release=" >> "$GITHUB_OUTPUT"
           else
-            # Strip pre/dev suffix so 0.6.3.dev0 -> 0.6.3
-            version=$(python -c "from importlib.metadata import version; from packaging.version import Version; v=Version(version('kmhelpers')); print(v.base_version)")
+            version="$INPUT_VERSION"
+            if [ -z "$version" ]; then
+              # Strip pre/dev suffix so 0.6.3.dev0 -> 0.6.3
+              version=$(python -c "from importlib.metadata import version; from packaging.version import Version; v=Version(version('kmhelpers')); print(v.base_version)")
+            fi
+            alias=latest
+            if [ "$INPUT_LATEST" = "false" ]; then alias=; fi
             echo "version=$version" >> "$GITHUB_OUTPUT"
             echo "title=$version" >> "$GITHUB_OUTPUT"
-            echo "alias=latest" >> "$GITHUB_OUTPUT"
+            echo "alias=$alias" >> "$GITHUB_OUTPUT"
             echo "release=$version" >> "$GITHUB_OUTPUT"
           fi
 
