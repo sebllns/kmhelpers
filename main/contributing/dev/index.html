@@ -2746,41 +2746,48 @@ tags, PyPI or bioconda, not from <code>main</code>.</p>
 </tr>
 </tbody>
 </table>
+<p>Content specific to a release or to the development version goes between
+<code>release-only</code> or <code>dev-only</code> HTML comment markers; <code>@VERSION@</code> inside a
+release block is replaced by the version (see <code>scripts/mkdocs_hooks.py</code>, used
+in <code>docs/getting-started/installation.md</code>). Release builds get
+<code>DOCS_RELEASE=X.Y.Z</code> from the workflow; to preview one locally:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nv">DOCS_RELEASE</span><span class="o">=</span>X.Y.Z<span class="w"> </span>mkdocs<span class="w"> </span>serve
+</code></pre></div>
 <p>To try docs changes before merging, push them to <code>docs</code>
 (<code>git push --force origin HEAD:docs</code>) and open the preview.</p>
 <p>To remove an old version, or redeploy a release:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>gh<span class="w"> </span>workflow<span class="w"> </span>run<span class="w"> </span>docs.yml<span class="w"> </span>--ref<span class="w"> </span>vX.Y.Z<span class="w"> </span>-f<span class="w"> </span><span class="nv">delete_version</span><span class="o">=</span>&lt;old&gt;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>gh<span class="w"> </span>workflow<span class="w"> </span>run<span class="w"> </span>docs.yml<span class="w"> </span>--ref<span class="w"> </span>vX.Y.Z<span class="w"> </span>-f<span class="w"> </span><span class="nv">delete_version</span><span class="o">=</span>&lt;old&gt;
 </code></pre></div>
 <h2 id="releasing">Releasing</h2>
 <p><code>pykmhelpers/_version.py</code> is the single source of the version. Commands below
 use <code>VERSION=X.Y.Z</code>.</p>
 <h3 id="1-prepare">1. Prepare</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>main
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>git<span class="w"> </span>pull
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>release/v<span class="nv">$VERSION</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>main
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>git<span class="w"> </span>pull
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>release/v<span class="nv">$VERSION</span>
 </code></pre></div>
 <ul>
 <li>Set <code>__version__ = "X.Y.Z"</code> in <code>pykmhelpers/_version.py</code>.</li>
 <li>Add the <code>## [X.Y.Z] - YYYY-MM-DD</code> section to <code>CHANGELOG.md</code>. It becomes the
   GitHub release notes, so it must be written before tagging.</li>
 </ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>pytest
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>rm<span class="w"> </span>-rf<span class="w"> </span>dist<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>twine<span class="w"> </span>check<span class="w"> </span>dist/*
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>git<span class="w"> </span>commit<span class="w"> </span>-am<span class="w"> </span><span class="s2">"release: v</span><span class="nv">$VERSION</span><span class="s2">"</span>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>git<span class="w"> </span>push<span class="w"> </span>-u<span class="w"> </span>origin<span class="w"> </span>release/v<span class="nv">$VERSION</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>pytest
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>rm<span class="w"> </span>-rf<span class="w"> </span>dist<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>twine<span class="w"> </span>check<span class="w"> </span>dist/*
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>git<span class="w"> </span>commit<span class="w"> </span>-am<span class="w"> </span><span class="s2">"release: v</span><span class="nv">$VERSION</span><span class="s2">"</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>git<span class="w"> </span>push<span class="w"> </span>-u<span class="w"> </span>origin<span class="w"> </span>release/v<span class="nv">$VERSION</span>
 </code></pre></div>
 <h3 id="2-merge-into-main">2. Merge into <code>main</code></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>gh<span class="w"> </span>pr<span class="w"> </span>create<span class="w"> </span>--base<span class="w"> </span>main<span class="w"> </span>--title<span class="w"> </span><span class="s2">"Release v</span><span class="nv">$VERSION</span><span class="s2">"</span><span class="w"> </span>--body<span class="w"> </span><span class="s2">"See CHANGELOG.md"</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>gh<span class="w"> </span>pr<span class="w"> </span>checks<span class="w"> </span>--watch
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>gh<span class="w"> </span>pr<span class="w"> </span>merge<span class="w"> </span>--merge<span class="w"> </span>--delete-branch
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>gh<span class="w"> </span>pr<span class="w"> </span>create<span class="w"> </span>--base<span class="w"> </span>main<span class="w"> </span>--title<span class="w"> </span><span class="s2">"Release v</span><span class="nv">$VERSION</span><span class="s2">"</span><span class="w"> </span>--body<span class="w"> </span><span class="s2">"See CHANGELOG.md"</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>gh<span class="w"> </span>pr<span class="w"> </span>checks<span class="w"> </span>--watch
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>gh<span class="w"> </span>pr<span class="w"> </span>merge<span class="w"> </span>--merge<span class="w"> </span>--delete-branch
 </code></pre></div>
 <h3 id="3-tag">3. Tag</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>main
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>git<span class="w"> </span>pull
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>git<span class="w"> </span>tag<span class="w"> </span>-a<span class="w"> </span>v<span class="nv">$VERSION</span><span class="w"> </span>-m<span class="w"> </span><span class="s2">"kmhelpers v</span><span class="nv">$VERSION</span><span class="s2">"</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span>-m<span class="w"> </span><span class="s2">"Documentation: https://sebllns.github.io/kmhelpers/</span><span class="nv">$VERSION</span><span class="s2">/</span>
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="s2">Changelog: https://sebllns.github.io/kmhelpers/</span><span class="nv">$VERSION</span><span class="s2">/changelog/"</span>
-<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>v<span class="nv">$VERSION</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>main
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>git<span class="w"> </span>pull
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>git<span class="w"> </span>tag<span class="w"> </span>-a<span class="w"> </span>v<span class="nv">$VERSION</span><span class="w"> </span>-m<span class="w"> </span><span class="s2">"kmhelpers v</span><span class="nv">$VERSION</span><span class="s2">"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span>-m<span class="w"> </span><span class="s2">"Documentation: https://sebllns.github.io/kmhelpers/</span><span class="nv">$VERSION</span><span class="s2">/</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="s2">Changelog: https://sebllns.github.io/kmhelpers/</span><span class="nv">$VERSION</span><span class="s2">/changelog/"</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>v<span class="nv">$VERSION</span>
 </code></pre></div>
 <p>Never move or re-create a pushed tag.</p>
 <h3 id="4-automatic-steps">4. Automatic steps</h3>
@@ -2792,8 +2799,8 @@ use <code>VERSION=X.Y.Z</code>.</p>
   uploads the files to PyPI (<code>publish</code> job, once enabled).</li>
 <li><code>docs.yml</code>: deploys the docs as version <code>X.Y.Z</code> with alias <code>latest</code>.</li>
 </ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>gh<span class="w"> </span>run<span class="w"> </span>list<span class="w"> </span>--limit<span class="w"> </span><span class="m">4</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>gh<span class="w"> </span>release<span class="w"> </span>view<span class="w"> </span>v<span class="nv">$VERSION</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>gh<span class="w"> </span>run<span class="w"> </span>list<span class="w"> </span>--limit<span class="w"> </span><span class="m">4</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>gh<span class="w"> </span>release<span class="w"> </span>view<span class="w"> </span>v<span class="nv">$VERSION</span>
 </code></pre></div>
 <p>A PyPI version cannot be uploaded twice: a broken release is fixed by a new version.</p>
 <h3 id="5-bioconda">5. Bioconda</h3>
@@ -2803,11 +2810,11 @@ version and sha256. Check that runtime dependencies still match
 <code>pyproject.toml</code>, then approve it.</p>
 <h3 id="patch-of-an-older-version">Patch of an older version</h3>
 <p>Only when a fix must be released for a version older than <code>main</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>maint/vX.Y<span class="w"> </span>v<span class="nv">$OLD_VERSION</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="c1"># commit the fix, bump the version, add the CHANGELOG section</span>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>git<span class="w"> </span>push<span class="w"> </span>-u<span class="w"> </span>origin<span class="w"> </span>maint/vX.Y
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>git<span class="w"> </span>tag<span class="w"> </span>-a<span class="w"> </span>v<span class="nv">$PATCH_VERSION</span><span class="w"> </span>-m<span class="w"> </span><span class="s2">"kmhelpers v</span><span class="nv">$PATCH_VERSION</span><span class="s2">"</span>
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>v<span class="nv">$PATCH_VERSION</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>maint/vX.Y<span class="w"> </span>v<span class="nv">$OLD_VERSION</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="c1"># commit the fix, bump the version, add the CHANGELOG section</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>git<span class="w"> </span>push<span class="w"> </span>-u<span class="w"> </span>origin<span class="w"> </span>maint/vX.Y
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>git<span class="w"> </span>tag<span class="w"> </span>-a<span class="w"> </span>v<span class="nv">$PATCH_VERSION</span><span class="w"> </span>-m<span class="w"> </span><span class="s2">"kmhelpers v</span><span class="nv">$PATCH_VERSION</span><span class="s2">"</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>v<span class="nv">$PATCH_VERSION</span>
 </code></pre></div>
 <p>Then bring the fix and the CHANGELOG section into <code>main</code> through a PR. This
 tag gets the <code>latest</code> docs alias; redeploy the newest release afterwards with
