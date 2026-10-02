@@ -8,17 +8,21 @@
 
 ### 1. Clone the repository
 
+<!-- release-only -->
+```bash
+git clone --branch v@VERSION@ https://github.com/sebllns/kmhelpers
+cd kmhelpers
+```
+<!-- /release-only -->
+<!-- dev-only -->
 ```bash
 git clone https://github.com/sebllns/kmhelpers
 cd kmhelpers
 ```
 
-To clone a specific version tag directly:
-
-```bash
-git clone --branch v0.6.4 https://github.com/sebllns/kmhelpers
-cd kmhelpers
-```
+This is the development version. To install a release, use the documentation
+of that version (version selector at the top of the page).
+<!-- /dev-only -->
 
 ### 2. Create the Conda environment
 
@@ -62,27 +66,24 @@ ntcard --version
 
 ## Updating
 
-```bash
-git pull origin main
-```
+From the repository root:
 
-To pull from a specific branch:
-
-```bash
-git pull origin release/v0.6.4
-```
-
-To check out a specific tag instead:
-
+<!-- release-only -->
 ```bash
 git fetch --tags
-git checkout v0.6.4
+git checkout v@VERSION@
+conda env update -f conda/environment.yml -p ./.env --prune
 ```
+<!-- /release-only -->
+<!-- dev-only -->
+```bash
+git pull origin main
+conda env update -f conda/environment.yml -p ./.env --prune
+```
+<!-- /dev-only -->
 
 Then verify the installed version:
 
 ```bash
 kmhelpers --version
 ```
-
-

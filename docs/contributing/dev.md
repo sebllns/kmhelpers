@@ -89,6 +89,16 @@ Docs are versioned with `mike` on the `gh-pages` branch, deployed by
 | Push to `main` | Version `main`, titled `main (<short hash>)`, overwritten each time | `/kmhelpers/main/` |
 | Tag `vX.Y.Z` | Version `X.Y.Z`, alias `latest` (default) | `/kmhelpers/X.Y.Z/` |
 
+Content specific to a release or to the development version goes between
+`release-only` or `dev-only` HTML comment markers; `@VERSION@` inside a
+release block is replaced by the version (see `scripts/mkdocs_hooks.py`, used
+in `docs/getting-started/installation.md`). Release builds get
+`DOCS_RELEASE=X.Y.Z` from the workflow; to preview one locally:
+
+```bash
+DOCS_RELEASE=X.Y.Z mkdocs serve
+```
+
 To try docs changes before merging, push them to `docs`
 (`git push --force origin HEAD:docs`) and open the preview.
 

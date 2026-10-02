@@ -82,12 +82,14 @@ jobs:
             echo "version=main" >> "$GITHUB_OUTPUT"
             echo "title=main (${GITHUB_SHA::7})" >> "$GITHUB_OUTPUT"
             echo "alias=" >> "$GITHUB_OUTPUT"
+            echo "release=" >> "$GITHUB_OUTPUT"
           else
             # Strip pre/dev suffix so 0.6.3.dev0 -> 0.6.3
             version=$(python -c "from importlib.metadata import version; from packaging.version import Version; v=Version(version('kmhelpers')); print(v.base_version)")
             echo "version=$version" >> "$GITHUB_OUTPUT"
             echo "title=$version" >> "$GITHUB_OUTPUT"
             echo "alias=latest" >> "$GITHUB_OUTPUT"
+            echo "release=$version" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Deploy with mike
@@ -95,6 +97,8 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           TITLE: ${{ steps.version.outputs.title }}
           ALIAS: ${{ steps.version.outputs.alias }}
+          # Selects release-only/dev-only blocks (scripts/mkdocs_hooks.py)
+          DOCS_RELEASE: ${{ steps.version.outputs.release }}
         run: mike deploy --push --update-aliases --title "$TITLE" "$VERSION" $ALIAS
 
       - name: Delete old docs version

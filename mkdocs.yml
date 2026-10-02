@@ -43,6 +43,9 @@ theme:
             - search.share
             - content.tabs.link
 
+hooks:
+      - scripts/mkdocs_hooks.py
+
 plugins:
       - search
       - termynal
