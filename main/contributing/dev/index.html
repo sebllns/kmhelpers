@@ -2755,9 +2755,22 @@ in <code>docs/getting-started/installation.md</code>). Release builds get
 </code></pre></div>
 <p>To try docs changes before merging, push them to <code>docs</code>
 (<code>git push --force origin HEAD:docs</code>) and open the preview.</p>
-<p>To remove an old version, or redeploy a release:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>gh<span class="w"> </span>workflow<span class="w"> </span>run<span class="w"> </span>docs.yml<span class="w"> </span>--ref<span class="w"> </span>vX.Y.Z<span class="w"> </span>-f<span class="w"> </span><span class="nv">delete_version</span><span class="o">=</span>&lt;old&gt;
+<p>Manual deploy from any branch or tag (the branch must be pushed):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Redeploy a release from its tag</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>gh<span class="w"> </span>workflow<span class="w"> </span>run<span class="w"> </span>docs.yml<span class="w"> </span>--ref<span class="w"> </span>vX.Y.Z
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Deploy a branch as a given version, without moving "latest"</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>gh<span class="w"> </span>workflow<span class="w"> </span>run<span class="w"> </span>docs.yml<span class="w"> </span>--ref<span class="w"> </span>fix/docs-typo<span class="w"> </span>-f<span class="w"> </span><span class="nv">version</span><span class="o">=</span>X.Y.Z<span class="w"> </span>-f<span class="w"> </span><span class="nv">latest</span><span class="o">=</span><span class="nb">false</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Deploy and remove an old version</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>gh<span class="w"> </span>workflow<span class="w"> </span>run<span class="w"> </span>docs.yml<span class="w"> </span>--ref<span class="w"> </span>vX.Y.Z<span class="w"> </span>-f<span class="w"> </span><span class="nv">delete_version</span><span class="o">=</span>&lt;old&gt;
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="c1"># Follow the run</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>gh<span class="w"> </span>run<span class="w"> </span>watch<span class="w"> </span><span class="k">$(</span>gh<span class="w"> </span>run<span class="w"> </span>list<span class="w"> </span>--workflow<span class="w"> </span>docs.yml<span class="w"> </span>--limit<span class="w"> </span><span class="m">1</span><span class="w"> </span>--json<span class="w"> </span>databaseId<span class="w"> </span>--jq<span class="w"> </span><span class="s1">'.[0].databaseId'</span><span class="k">)</span>
 </code></pre></div>
+<p>Without <code>-f version</code>, the version is the package version of the ref (<code>main</code>
+on <code>main</code>). <code>latest</code> defaults to <code>true</code>. A release version gets the
+release-only blocks, like a tag build.</p>
 <h2 id="releasing">Releasing</h2>
 <p><code>pykmhelpers/_version.py</code> is the single source of the version. Commands below
 use <code>VERSION=X.Y.Z</code>.</p>
