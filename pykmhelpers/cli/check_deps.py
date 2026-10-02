@@ -14,8 +14,9 @@ TOOLS = ["kmindex", "kmtricks", "ntcard"]
 
 def get_version(path: str) -> str:
     """Return the first line printed by `path --version`."""
-    # Return code is ignored: kmtricks --version exits with 1
-    result = subprocess.run(
+    # Return code is ignored: kmtricks --version exits with 1.
+    # Argument list without shell, path is the resolved tool binary.
+    result = subprocess.run(  # nosemgrep
         [path, "--version"], capture_output=True, text=True, timeout=10
     )
     output = (result.stdout + result.stderr).strip()
