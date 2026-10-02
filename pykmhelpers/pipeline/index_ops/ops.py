@@ -250,9 +250,7 @@ class IndexOps:
     ) -> None:
         """Build index ``i`` and record its outcome in ``report``."""
         # Partitions must be known before estimating the size
-        params: Optional[BuildParams] = None
-        if not i.partition_count:
-            params = self._resolve_params(i, i.sample_count, layout)
+        params = self._resolve_params(i, i.sample_count, layout)
         size = i.get_stored_size()
         report.add_span_stats(i.span, i.sample_count, size.byte_count)
         logger.info(f"  └── Sample count: {i.sample_count}")
