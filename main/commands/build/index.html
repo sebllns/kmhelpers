@@ -1437,6 +1437,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1530,6 +1534,62 @@
     
   
     pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../check-deps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    check-deps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install-deps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    install-deps
   
 
     
@@ -1790,14 +1850,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/core/system/" class="md-nav__link">
+      <a href="../../api/core/resources/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    system
+    resources
   
 
     
@@ -2544,7 +2604,19 @@
 </tr>
 <tr>
 <td><code>-p, --partition-count INT</code></td>
-<td>Override number of partitions</td>
+<td>Partitions per index; ignored when the layout already stores one</td>
+</tr>
+<tr>
+<td><code>--limits JSON</code></td>
+<td>Resource limits used to auto-size threads/partitions when <code>--threads</code> is not set</td>
+</tr>
+<tr>
+<td><code>--safety-margin FLOAT</code></td>
+<td>Fraction of a detected system limit to use for any key missing from <code>--limits</code> (default: 0.9)</td>
+</tr>
+<tr>
+<td><code>--max-chunks INT</code></td>
+<td>Max number of chunks a single index is split into; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 200)</td>
 </tr>
 <tr>
 <td><code>-NC, --skip-compression</code></td>
@@ -2579,16 +2651,18 @@
 <a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>├── index.json                    registry of all built indices
 <a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>├── kmindex_data/
 <a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>│   ├── initial/                  Bloom filters, one folder per SESSION
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>│   │   └── coli_g0/              previous version, kept after the update
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>│   │   └── coli_g0/              previous version, kept after the update (need manual delete)
 <a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>│   └── update/
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>│       └── coli_g0/              merged version (initial + update samples)
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>├── assets/                       generated kmindex scripts
-<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>└── logs/
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>├── assets/
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>│   ├── kmhelpers_apply.sh        runs the last built SESSION
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>│   ├── initial/                  scripts and fof files, one folder per SESSION
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>│   └── update/
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>└── logs/
 </code></pre></div>
 <p>Reuse the same <code>BUILD_DIR</code> for every session of an index: each build adds its sub-indices to <code>BUILD_DIR/index.json</code>. The Bloom filter folder is named after the <code>SESSION</code> directory of <code>INPUT_FILE</code>, so a session can only be built once into a given <code>BUILD_DIR</code>.</p>
 <h2 id="description">Description</h2>
 <p><code>build</code> chains <a href="../plan/"><code>plan</code></a> and <a href="../apply/"><code>apply</code></a> into a single invocation. It is equivalent to running the two commands in sequence.</p>
-<p><strong>Step 1 - plan:</strong> validates all sample paths upfront and writes the equivalent <code>kmindex</code> shell script to <code>BUILD_DIR/assets/</code> and a validation report to <code>BUILD_DIR/logs/</code>. Fix any path errors before the build starts rather than discovering them mid-run.</p>
+<p><strong>Step 1 - plan:</strong> validates all sample paths upfront and writes the equivalent <code>kmindex</code> shell scripts to <code>BUILD_DIR/assets/SESSION/</code> (one per sub-index, plus <code>kmhelpers_apply.sh</code> running them in order) and a validation report to <code>BUILD_DIR/logs/</code>. Fix any path errors before the build starts rather than discovering them mid-run.</p>
 <p><strong>Step 2 - apply:</strong> executes the build and registers all completed indices in <code>BUILD_DIR/index.json</code>.</p>
 <p><strong>Filtering</strong> - <code>build</code> always processes every index declared in <code>INPUT_FILE</code>. Use <a href="../plan/"><code>plan</code></a> and <a href="../apply/"><code>apply</code></a> with <code>--name</code> or <code>--span</code> to build a subset.</p>
 <p><strong>Notifications</strong> - use <code>--notify</code> to receive an email when the build exits (requires <code>sendmail</code>). The notification is sent on both success and failure, including on <code>SIGTERM</code>.</p>

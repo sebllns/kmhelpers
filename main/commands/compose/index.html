@@ -1409,6 +1409,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1502,6 +1506,62 @@
     
   
     pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../check-deps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    check-deps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install-deps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    install-deps
   
 
     
@@ -1762,14 +1822,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/core/system/" class="md-nav__link">
+      <a href="../../api/core/resources/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    system
+    resources
   
 
     
@@ -2492,11 +2552,11 @@
 </tr>
 <tr>
 <td><code>-p, --partition-count INT</code></td>
-<td>Desired number of partitions per index, 0 for automatic (default: 0)</td>
+<td>Partitions per index, fixed for its whole life; 0 lets the first build size it (default: 0)</td>
 </tr>
 <tr>
-<td><code>-b, --split-size SIZE</code></td>
-<td>Max run size (e.g. <code>10GB</code>, <code>5000MB</code>) before splitting samples across indices</td>
+<td><code>-si, --shard-size SIZE</code></td>
+<td>Max size of one shard (e.g. <code>256GB</code>, <code>500000MB</code>); omit for a single unlimited index per span</td>
 </tr>
 <tr>
 <td><code>-m, --partition-min-size SIZE</code></td>
@@ -2519,13 +2579,27 @@ A layout file is written to <code>COMPOSE_DIR/NAME_layout.yaml</code> for future
 <p><strong>Updating an existing index</strong> - omit <code>--profiles-file</code>. The layout file at
 <code>COMPOSE_DIR/NAME_layout.yaml</code> is detected and loaded automatically.</p>
 <p>If <code>--profile</code> is not specified, the <code>default_profile</code> field in the profiles file is used.</p>
-<p><strong>Partitioning</strong> - each Bloom filter is split into N partition files. The partition count is
-determined automatically by default, or set explicitly with <code>--partition-count</code>. Use
-<code>--partition-min-size</code> to enforce a minimum file size per partition, or
-<code>--partition-count-limit</code> to cap the auto-computed count.</p>
-<p><strong>Splitting</strong> - when the accumulated size of samples assigned to a span exceeds <code>--split-size</code>,
-they are distributed across multiple sub-indices rather than one. This is useful to keep
-individual index files manageable for large datasets.</p>
+<p><strong>Partitioning</strong> - each Bloom filter is split into N partition files. Two indexes can only be
+merged when they share that count, and an update merges new samples into an existing shard, so
+the count is fixed once for the life of the index and stored in the layout file.</p>
+<p>Set it with <code>--partition-count</code>, or leave it at 0: the first <code>plan</code>, <code>apply</code> or <code>build</code> then
+sizes it from the resource limits (<code>--limits</code>), for a full shard when sharding is on, and writes
+it to the layout. Later runs reuse the stored value and warn when <code>-p</code> asks for another one.
+The minimizer size (<code>--minim-size</code>) is stored the same way.</p>
+<p>The layout also records, per span, the samples composed so far (<code>total_samples</code>) and the number
+of sessions that added samples to it (<code>updates</code>).</p>
+<p><strong>Sharding</strong> - with <code>--shard-size</code>, a span is split into independent shards of at most that
+size, instead of one index growing without bound. Shards are never merged together: each one
+is built and registered on its own, and a query hits them all.</p>
+<p>The per-span sample limit is derived from the Bloom filter size of the span, since a shard
+costs about <code>bf_size x samples / 8</code> bytes, and is rounded down to a multiple of 8 samples
+(minimum 8). It is written to the layout file, together with the shards and their sample
+counts, so a later session knows where to continue.</p>
+<p>An update fills the last shard of the span until that limit is reached, then opens a new one.
+Filling a shard means merging the session's new samples into it; only chunks (a build-time
+split, see <a href="../plan/">plan</a>) are merged as well.</p>
+<p>Without <code>--shard-size</code>, a span keeps a single index named <code>NAME_g&lt;i&gt;</code>. With it, shards are
+named <code>NAME_g&lt;i&gt;_p&lt;k&gt;</code>.</p>
 <h2 id="examples">Examples</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Build a new index (writes layout to ./db/my_index_layout.yaml)</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>-pf<span class="w"> </span>profiles.yaml

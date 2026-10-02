@@ -1409,6 +1409,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1502,6 +1506,62 @@
     
   
     pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../check-deps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    check-deps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install-deps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    install-deps
   
 
     
@@ -1762,14 +1822,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/core/system/" class="md-nav__link">
+      <a href="../../api/core/resources/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    system
+    resources
   
 
     
@@ -2463,7 +2523,7 @@
 <div class="admonition abstract">
 <p class="admonition-title">I/O</p>
 <p><strong>Input:</strong> <code>COMPOSE_DIR/NAME/SESSION/NAME.yaml</code> written by <code>compose</code>, or <code>DESIGN_DIR/compose/NAME/SESSION/NAME.yaml</code> when produced by <code>design</code> (see <a href="../design/#next-step">design - Next Step</a>)<br />
-<strong>Output:</strong> shell script in <code>BUILD_DIR/assets/</code>, validation report in <code>BUILD_DIR/logs/</code></p>
+<strong>Output:</strong> shell scripts in <code>BUILD_DIR/assets/</code>, validation report in <code>BUILD_DIR/logs/</code></p>
 </div>
 <p>See <a href="../build/#paths">build - Paths</a> for the directory layout.</p>
 <h2 id="advanced-options">Advanced Options</h2>
@@ -2497,7 +2557,7 @@
 </tr>
 <tr>
 <td><code>-p, --partition-count INT</code></td>
-<td>Override number of partitions</td>
+<td>Partitions per index; ignored when the layout already stores one (see <a href="../compose/">compose</a>)</td>
 </tr>
 <tr>
 <td><code>-NC, --skip-compression</code></td>
@@ -2512,6 +2572,10 @@
 <td>Fraction of a detected system limit to use (default: 0.9)</td>
 </tr>
 <tr>
+<td><code>--max-chunks INT</code></td>
+<td>Max number of chunks a single index is split into; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 200)</td>
+</tr>
+<tr>
 <td><code>-X, --fail-fast</code></td>
 <td>Abort on first failure instead of continuing</td>
 </tr>
@@ -2524,10 +2588,6 @@
 <td>Bloom filters directory (default: <code>BUILD_DIR/kmindex_data</code>)</td>
 </tr>
 <tr>
-<td><code>--from TEXT</code></td>
-<td>Reuse build parameters from a parent index</td>
-</tr>
-<tr>
 <td><code>--on-conflict TEXT</code></td>
 <td>Action for pre-existing index folders: <code>fail</code>, <code>register</code>, <code>rename</code>, <code>replace</code>, <code>register_or_replace</code>, <code>register_or_rename</code> (default: <code>fail</code>)</td>
 </tr>
@@ -2538,7 +2598,7 @@
 </tbody>
 </table>
 <h2 id="description">Description</h2>
-<p><code>plan</code> validates all sample paths of <code>INPUT_FILE</code> upfront and previews the <code>kmindex</code> commands that would be executed by <a href="../apply/"><code>apply</code></a>, without running them. It writes the equivalent shell script to <code>BUILD_DIR/assets/</code> and a validation report to <code>BUILD_DIR/logs/</code>.</p>
+<p><code>plan</code> validates all sample paths of <code>INPUT_FILE</code> upfront and previews the <code>kmindex</code> commands that would be executed by <a href="../apply/"><code>apply</code></a>, without running them. It writes the equivalent shell scripts to <code>BUILD_DIR/assets/</code> (one per sub-index, <code>&lt;name&gt;_g&lt;span&gt;_&lt;session&gt;.sh</code>, plus <code>kmhelpers_apply.sh</code> running them in order) and a validation report to <code>BUILD_DIR/logs/</code>.</p>
 <p><strong>Offline mode</strong> - use <code>--offline</code> to skip local path validation when generating scripts destined for another machine.</p>
 <p><strong>Filtering</strong> - use <code>--name</code> or <code>--span</code> to preview only a subset of the declared indices.</p>
 <h2 id="examples">Examples</h2>

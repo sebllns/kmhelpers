@@ -1293,6 +1293,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1383,6 +1387,62 @@
     
   
     pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/check-deps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    check-deps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../commands/install-deps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    install-deps
   
 
     
@@ -1643,14 +1703,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/core/system/" class="md-nav__link">
+      <a href="../../api/core/resources/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    system
+    resources
   
 
     
@@ -2506,12 +2566,12 @@
 <li>Run <code>mkdocs serve</code> to preview.</li>
 </ol>
 <h2 id="deploying-to-github-pages">Deploying to GitHub Pages</h2>
-<p>Docs are versioned with <a href="https://github.com/jimporter/mike">mike</a>. Do <strong>not</strong> use <code>mkdocs gh-deploy</code> — it overwrites the entire <code>gh-pages</code> branch and destroys version history.</p>
+<p>Docs are versioned with <a href="https://github.com/jimporter/mike">mike</a>. Do <strong>not</strong> use <code>mkdocs gh-deploy</code> - it overwrites the entire <code>gh-pages</code> branch and destroys version history.</p>
 <h3 id="deploy-a-new-version">Deploy a new version</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mike<span class="w"> </span>deploy<span class="w"> </span>--push<span class="w"> </span>--update-aliases<span class="w"> </span>&lt;version&gt;<span class="w"> </span>latest
 </code></pre></div>
 <p>Example for a release:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mike<span class="w"> </span>deploy<span class="w"> </span>--push<span class="w"> </span>--update-aliases<span class="w"> </span><span class="m">0</span>.6.4<span class="w"> </span>latest
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mike<span class="w"> </span>deploy<span class="w"> </span>--push<span class="w"> </span>--update-aliases<span class="w"> </span><span class="m">0</span>.7.0<span class="w"> </span>latest
 </code></pre></div>
 <p>This builds the docs, pushes them to <code>gh-pages</code> under <code>/&lt;version&gt;/</code>, and updates the <code>latest</code> alias to point to it.</p>
 <h3 id="list-deployed-versions">List deployed versions</h3>
