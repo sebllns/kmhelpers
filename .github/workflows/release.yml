@@ -15,8 +15,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      # Full history and tags, to find the previous release tag
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -36,13 +39,24 @@ jobs:
           path: dist/
 
       # Without a body, GitHub shows the tag message as plain text
+      # GitHub guesses the previous tag from the tag history, which misses it
+      # when the tag is not on main, so it is passed explicitly: the highest
+      # version below this one.
       - name: Build release notes from CHANGELOG
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           v="${GITHUB_REF_NAME#v}"
+          prev=$(git tag -l 'v*' --sort=-v:refname | awk -v t="$GITHUB_REF_NAME" 'f {print; exit} $0 == t {f = 1}')
           {
             sed "s/@VERSION@/$v/g" .github/release-notes.md
             printf '\n## Changes\n'
             awk -v v="$v" '/^## \[/{p=index($0,"["v"]")>0; next} p' CHANGELOG.md
+            printf '\n'
+            # Merged PRs and a compare link to the previous tag
+            gh api -X POST "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
+              -f tag_name="$GITHUB_REF_NAME" ${prev:+-f previous_tag_name="$prev"} \
+              --jq .body
           } > notes.md
 
       - name: Publish release with dists
@@ -50,8 +64,6 @@ jobs:
         with:
           name: kmhelpers ${{ github.ref_name }}
           body_path: notes.md
-          # Appends merged PRs and a compare link to the previous tag
-          generate_release_notes: true
           files: dist/*
 
   publish:
