@@ -128,7 +128,10 @@ class IndexExecutor:
                 for part in parts
             )
             self._script.add(
-                f'for d in {paths}; do rm -rf "$(realpath -m "$d")" "$d"; done',
+                # cd -P resolves a symlinked part portably (no GNU realpath -m)
+                f"for d in {paths}; do "
+                'if p=$(cd -P "$d" 2>/dev/null && pwd); then rm -rf "$p"; fi; '
+                'rm -rf "$d"; done',
                 f"cleanup {summarize_names(parts)}",
             )
             return

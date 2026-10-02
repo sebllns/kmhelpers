@@ -228,7 +228,7 @@ def auto_params(
             Any key that is missing or null falls back to the current
             system limit, scaled down by ``safety_margin``.
         safety_margin: Fraction of a detected system limit to use when the
-            corresponding key is absent from ``limits`` (default: 0.9).
+            corresponding key is absent from ``limits`` (default: 1.0).
         max_chunks: Cap on the number of chunks the dataset is split into.
             None (or < 1) leaves the chunk size to the open-files limit alone.
 

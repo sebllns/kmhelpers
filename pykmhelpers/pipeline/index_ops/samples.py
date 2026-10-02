@@ -55,8 +55,6 @@ class SampleResolver:
             raise ValueError("Empty file list")
         if s.name == "_":
             return
-        # Relative paths are joined to the root again here, even when they
-        # came from a sample file already joined to its own root.
         files = (
             [
                 f if os.path.isabs(f) else os.path.join(self._rootpath, f)
@@ -102,7 +100,8 @@ class SampleResolver:
         sample_files: dict[str, list[str]] = {}
         with open(path) as f:
             header = json.loads(f.readline())
-            root_path = self._rootpath or header.get("root_path", "")
+            # The base path, when set, wins and is joined later in _add_sample
+            root_path = "" if self._rootpath else header.get("root_path", "")
             for line in f:
                 data = json.loads(line)
                 name = data.get("name")

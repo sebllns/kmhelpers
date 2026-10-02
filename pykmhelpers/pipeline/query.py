@@ -6,6 +6,7 @@ import sys
 import tempfile
 import time
 from dataclasses import dataclass, field
+from html import escape
 from itertools import groupby
 from typing import Callable, Iterable, Optional
 
@@ -452,7 +453,7 @@ class KmindexQueryResult:
             for query in query_names
         )
         meta_html = "".join(
-            f"        <tr><th>{label}</th><td class='run-value'>{value}</td></tr>\n"
+            f"        <tr><th>{escape(label)}</th><td class='run-value'>{escape(value)}</td></tr>\n"
             for label, value in self._metadata_rows()
         )
         if meta_html:

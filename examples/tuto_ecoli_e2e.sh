@@ -6,11 +6,6 @@ workdir="${1:-$(mktemp -d)}"
 mkdir -p "$workdir" && cd "$workdir"
 echo "Working directory: $PWD"
 
-# Working directory: first argument, or a fresh temporary directory
-workdir="${1:-$(mktemp -d)}"
-mkdir -p "$workdir" && cd "$workdir"
-echo "Working directory: $PWD"
-
 echo "== Step 1: download the dataset =="
 mkdir -p coli_dataset && cd coli_dataset
 wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/780/515/GCA_000780515.1_ASM78051v1/GCA_000780515.1_ASM78051v1_genomic.fna.gz"
@@ -25,6 +20,7 @@ wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/001/373/195/GCA_001373195.1_5
 wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/938/575/GCA_000938575.1_D1C4_assembly/GCA_000938575.1_D1C4_assembly_genomic.fna.gz"
 cd ..
 
+echo "== Step 2: design the index =="
 kmhelpers design coli_dataset \
     -o coli_db/ \
     -n coli \
@@ -33,26 +29,10 @@ kmhelpers design coli_dataset \
     -b 1.1 \
     -g 2
 
+echo "== Step 3: build the index =="
 kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build/ --show-progress
 
-zcat coli_dataset/GCA_000780515.1_ASM78051v1_genomic.fna.gz \
-    | awk '/^>/{n++} n<2' > query.fa
-
-kmhelpers query -r coli_build/ -o results/ query.fa
-
-echo "== Step 3: design the index =="
-kmhelpers design coli_10.txt \
-    -o coli_db/ \
-    -n coli \
-    -S initial \
-    -k 25 \
-    -b 1.1 \
-    -g 2
-
-echo "== Step 4: build the index =="
-kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build/ --show-progress
-
-echo "== Step 5: query the index =="
+echo "== Step 4: query the index =="
 zcat coli_dataset/GCA_000780515.1_ASM78051v1_genomic.fna.gz \
     | awk '/^>/{n++} n<2' > query.fa
 

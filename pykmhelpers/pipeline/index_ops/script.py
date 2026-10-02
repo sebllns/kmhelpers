@@ -63,7 +63,7 @@ class ScriptRecorder:
             logger.debug(f"Backed up existing script to {path}.bak")
         # Stop at the first failure, so cleanup only runs after a successful merge
         header = [
-            "#!/usr/bin/bash",
+            "#!/usr/bin/env bash",
             "set -euo pipefail",
             f"WORKDIR='{self._workdir}'",
             "cd ${WORKDIR}",

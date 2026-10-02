@@ -310,7 +310,7 @@ class TestScriptRecorder(unittest.TestCase):
         rec.write(str(self.assets))
 
         header = [
-            "#!/usr/bin/bash",
+            "#!/usr/bin/env bash",
             "set -euo pipefail",
             f"WORKDIR='{self.tmp}'",
             "cd ${WORKDIR}",

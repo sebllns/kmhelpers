@@ -334,7 +334,8 @@ def max_samples_for(bf_size: int, shard_size: int) -> int:
 
     A shard stores one Bloom filter row per k-mer slot and one bit column per
     sample, so it costs about ``bf_size * samples / 8`` bytes. Rows are byte
-    aligned, hence the rounding down to a multiple of 8 samples.
+    aligned, hence the rounding down to a multiple of 8 samples. A shard holds
+    at least 8 samples, so it may exceed ``shard_size`` when 8 do not fit.
     """
     if not shard_size or not bf_size:
         return 0

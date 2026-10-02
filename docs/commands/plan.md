@@ -37,7 +37,6 @@ See [build - Paths](build.md#paths) for the directory layout.
 | `-X, --fail-fast` | Abort on first failure instead of continuing |
 | `-r, --registry DIR` | Registry directory (default: `BUILD_DIR`, holds `index.json`) |
 | `-bl, --bloom-dir DIR` | Bloom filters directory (default: `BUILD_DIR/kmindex_data`) |
-| `--from TEXT` | Reuse build parameters from a parent index |
 | `--on-conflict TEXT` | Action for pre-existing index folders: `fail`, `register`, `rename`, `replace`, `register_or_replace`, `register_or_rename` (default: `fail`) |
 | `-O, --offline` | Skip local path validation (useful when exporting scripts for another machine) |
 
