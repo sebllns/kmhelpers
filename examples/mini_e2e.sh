@@ -44,3 +44,46 @@ cat results_upd/update_0/results.json
 
 kmhelpers query -r build/ -o results_after/ -f json data/data_0.fasta
 cat results_after/data_0/results.json
+
+# 6. Compressed queries: gz read by kmindex, bz2/xz/zst decompressed first,
+#    all should give the same result as the plain file
+#    (formats whose tool is not installed are skipped)
+compress() {
+    local tool=$1 ext=$2
+    shift 2
+    if command -v "$tool" > /dev/null; then
+        "$@"
+    else
+        echo "Skipping .$ext: $tool not found" >&2
+    fi
+}
+
+mkdir -p compressed
+src=data/data_0.fasta
+dst=compressed/data_0.fasta
+compress gzip gz sh -c "gzip -c $src > $dst.gz"
+compress bzip2 bz2 sh -c "bzip2 -c $src > $dst.bz2"
+compress xz xz sh -c "xz -c $src > $dst.xz"
+compress zstd zst zstd -q -o "$dst.zst" "$src"
+compress zip zip zip -qj "$dst.zip" "$src"
+
+for ext in gz bz2 xz zst; do
+    [ -f "$dst.$ext" ] || continue
+    kmhelpers query -r build/ -o "results_$ext/" -f json "$dst.$ext"
+    cat "results_$ext/data_0/results.json"
+done
+
+# Compressed input from stdin
+if [ -f "$dst.gz" ]; then
+    kmhelpers query -r build/ -o results_stdin/ -f json - < "$dst.gz"
+    cat results_stdin/*/results.json
+fi
+
+# zip is rejected
+if [ -f "$dst.zip" ]; then
+    if kmhelpers query -r build/ -o results_zip/ -f json "$dst.zip"; then
+        echo "Error: zip query should have failed" >&2
+        exit 1
+    fi
+    echo "zip rejected as expected"
+fi

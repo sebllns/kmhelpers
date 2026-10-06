@@ -1,9 +1,46 @@
+import bz2
+import gzip
 import logging
+import lzma
 import os
 import re
 import shutil
+from typing import BinaryIO
+
+import zstandard
 
 logger = logging.getLogger(__name__)
+
+# Magic bytes of supported compression formats, mapped to their extension
+_MAGIC = (
+    (b"\x1f\x8b", ".gz"),
+    (b"BZh", ".bz2"),
+    (b"\xfd7zXZ\x00", ".xz"),
+    (b"\x28\xb5\x2f\xfd", ".zst"),
+)
+
+
+def detect_compression(head: bytes) -> str:
+    """Return the compression extension matching the leading bytes, or ""."""
+    for magic, ext in _MAGIC:
+        if head.startswith(magic):
+            return ext
+    return ""
+
+
+def open_decompressed(path: str) -> BinaryIO:
+    """Open a file for binary reading, decompressing based on its extension."""
+    if path.endswith(".gz"):
+        return gzip.open(path, "rb")
+    if path.endswith(".bz2"):
+        return bz2.open(path, "rb")
+    if path.endswith(".xz"):
+        return lzma.open(path, "rb")
+    if path.endswith(".zst"):
+        return zstandard.ZstdDecompressor().stream_reader(open(path, "rb"), closefd=True)
+    if path.endswith(".zip"):
+        raise ValueError(f"Unsupported compression (zip): {path}")
+    return open(path, "rb")
 
 
 class Main:

@@ -12,14 +12,19 @@ from typing import Callable, Iterable, Optional
 
 import yaml
 
-from pykmhelpers.core.constants import DATA_EXT
+from pykmhelpers.core.constants import DATA_EXT_ALL, strip_data_ext
 from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
 from pykmhelpers.core.sequence import Sequence
-from pykmhelpers.core.utils import Toolbox
+from pykmhelpers.core.utils import Toolbox, detect_compression, open_decompressed
 
 logger = logging.getLogger(__name__)
 
 KMINDEX_QUERY_OUTPUT = "kmindex_output"
+
+# Compressions kmindex cannot read (only gz is, despite its help mentioning
+# bzip2): bz2, xz and zst are decompressed before querying, zip is rejected
+# by open_decompressed (multi-file archive)
+_KMINDEX_UNREADABLE = (".bz2", ".xz", ".zst", ".zip")
 
 
 class _InlineList(list):
@@ -615,6 +620,7 @@ class KmindexQuery:
         is_compressed: bool = False,
         method: str = "seq",
         vec: bool = False,
+        keep_query: bool = False,
     ):
         """Run a query against the kmindex registry.
 
@@ -631,17 +637,18 @@ class KmindexQuery:
             is_compressed (bool): Whether the index is stored in compressed form.
             method (str): Query method passed to kmindex (e.g. ``"seq"``).
             vec (bool): Use ``jsonl_vec`` output format instead of ``jsonl``.
+            keep_query (bool): Copy the query file into ``output_dir``.
         """
         index_ids = index_ids if index_ids is not None else []
         result_dir = os.path.join(output_dir, KMINDEX_QUERY_OUTPUT)
         os.makedirs(output_dir, exist_ok=True)
 
-        query_path = os.path.join(output_dir, os.path.basename(self._path))
-        shutil.copy(self._path, query_path)
+        if keep_query:
+            shutil.copy(self._path, output_dir)
 
         output = KmindexWrapper().query(
             input_registry=registry_path,
-            query_file=query_path,
+            query_file=self._path,
             output_dir=result_dir,
             names=index_ids,
             single_query=single_query,
@@ -655,11 +662,12 @@ class KmindexQuery:
             format="jsonl_vec" if vec else "jsonl",
         )
         self.info = output or {}
+        self.info["query_file"] = os.path.abspath(self._path)
 
         # Save result to info.yaml
         info_file = os.path.join(output_dir, "info.yaml")
         with open(info_file, "w") as f:
-            yaml.safe_dump(output, f)
+            yaml.safe_dump(self.info, f)
 
         result = []
 
@@ -698,6 +706,7 @@ class QueryRunnerConfig:
         force: Skip confirmation prompts (e.g. when ``on_existing="delete"``).
         print_output: Write converted results to stdout instead of saving to
             file.  Only meaningful when ``format`` is not ``json``.
+        keep_query: Copy each query file into its output directory.
         on_result: Optional callback invoked with each per-query result list as
             it completes.  Useful for streaming results to the caller without
             waiting for the full run to finish.
@@ -720,6 +729,7 @@ class QueryRunnerConfig:
     force: bool = False
     vec: bool = False
     print_output: bool = False
+    keep_query: bool = False
     on_result: Optional[Callable[[list["KmindexQueryResult"]], None]] = None
 
 
@@ -771,10 +781,12 @@ class QueryRunner:
                 temp_files.append(batch_path)
                 with open(batch_path, "wb") as fout:
                     for qfile in resolved:
-                        with open(qfile, "rb") as fin:
-                            data = fin.read()
-                        fout.write(data)
-                        if not data.endswith(b"\n"):
+                        last = b"\n"
+                        with open_decompressed(qfile) as fin:
+                            while chunk := fin.read(1 << 20):
+                                fout.write(chunk)
+                                last = chunk[-1:]
+                        if last != b"\n":
                             fout.write(b"\n")
                 logger.info(f"Batching {len(resolved)} file(s) into a single query...")
                 result = self._run_single_safe(batch_path, total=1, idx=1)
@@ -791,11 +803,7 @@ class QueryRunner:
                     else:
                         errors.append(f"{os.path.basename(qfile)}")
         finally:
-            for tmp in temp_files:
-                try:
-                    os.unlink(tmp)
-                except OSError:
-                    pass
+            self._remove_temp(temp_files)
 
         if errors:
             raise RuntimeError(
@@ -808,25 +816,54 @@ class QueryRunner:
     # PRIVATE METHODS
 
     def _resolve_files(self, query_files: Iterable[str]) -> tuple[list[str], list[str]]:
-        resolved: list[str] = []
+        found: list[str] = []
         temp_files: list[str] = []
         for qfile in query_files:
             if qfile == "-":
-                tmp = tempfile.NamedTemporaryFile(mode="wb", suffix=".fa", delete=False)
-                tmp.write(sys.stdin.buffer.read())
+                data = sys.stdin.buffer.read()
+                suffix = ".fa" + detect_compression(data[:6])
+                tmp = tempfile.NamedTemporaryFile(
+                    mode="wb", suffix=suffix, delete=False
+                )
+                tmp.write(data)
                 tmp.close()
-                resolved.append(tmp.name)
+                found.append(tmp.name)
                 temp_files.append(tmp.name)
             elif os.path.isdir(qfile):
                 for root, _, files in os.walk(qfile):
                     for fname in sorted(files):
-                        if any(fname.endswith(ext) for ext in DATA_EXT):
-                            resolved.append(os.path.join(root, fname))
+                        if fname.endswith(DATA_EXT_ALL):
+                            found.append(os.path.join(root, fname))
             else:
                 if not os.path.isfile(qfile):
                     raise FileNotFoundError(f"Query file not found: {qfile}")
+                found.append(qfile)
+
+        resolved: list[str] = []
+        try:
+            for qfile in found:
+                if qfile.endswith(_KMINDEX_UNREADABLE):
+                    # Own temp dir keeps the base name, hence the output dir name
+                    tmp_dir = tempfile.mkdtemp()
+                    temp_files.append(tmp_dir)
+                    name = os.path.basename(qfile)
+                    tmp = os.path.join(tmp_dir, name[: name.rfind(".")])
+                    with open_decompressed(qfile) as fin, open(tmp, "wb") as fout:
+                        shutil.copyfileobj(fin, fout)
+                    qfile = tmp
                 resolved.append(qfile)
+        except Exception:
+            self._remove_temp(temp_files)
+            raise
         return resolved, temp_files
+
+    @staticmethod
+    def _remove_temp(paths: list[str]) -> None:
+        for path in paths:
+            if os.path.isdir(path):
+                shutil.rmtree(path, ignore_errors=True)
+            elif os.path.exists(path):
+                os.unlink(path)
 
     def _run_single_safe(self, qfile: str, total: int, idx: int):
         try:
@@ -842,7 +879,7 @@ class QueryRunner:
         start = time.time()
         cfg = self._config
 
-        stem = os.path.splitext(os.path.basename(qfile))[0]
+        stem = strip_data_ext(os.path.basename(qfile))
         query_output = os.path.join(cfg.output_dir, stem)
 
         if cfg.timestamp:
@@ -868,6 +905,7 @@ class QueryRunner:
             threshold=cfg.threshold,
             method=cfg.parallel,
             vec=cfg.vec,
+            keep_query=cfg.keep_query,
         )
 
         elapsed = time.time() - start

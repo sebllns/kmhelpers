@@ -308,7 +308,7 @@ class KmindexWrapper(Wrapper):
 
         Args:
             input_registry: Path to the registry directory (index.json parent directory).
-            query_file: Path to query FASTA/FASTQ file (supports gz/bzip2 compression).
+            query_file: Path to query FASTA/FASTQ file (plain or gz).
             output_dir: Path to output directory (must not exist).
             names: Sub-indexes to query. If None, query all sub-indexes.
             format: Output format (e.g., "json").

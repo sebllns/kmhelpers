@@ -112,6 +112,14 @@ logger = logging.getLogger(__name__)
     help="🚩  Print result to console (stdout).",
 )
 @click.option(
+    "--keep-query",
+    "-K",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="🚩  Copy the query file into its output directory.",
+)
+@click.option(
     "--timestamp",
     "-T",
     is_flag=True,
@@ -155,6 +163,7 @@ def query(
     format,
     vec,
     print_output,
+    keep_query,
     timestamp,
     existing,
     parallel,
@@ -166,8 +175,9 @@ def query(
     Input:  FASTA/FASTQ file(s), kmindex registry (-r)
     Output: result files in output directory (-o)
 
-    QUERY_FILES: Query file(s) or directory/ies in FASTA/FASTQ format. Directories are
-    scanned recursively. Use '-' to read from stdin.
+    QUERY_FILES: Query file(s) or directory/ies in FASTA/FASTQ format, plain or
+    compressed (gz, bz2, xz, zst). Directories are scanned recursively. Use '-'
+    to read from stdin.
 
     Examples:
       # Single query file against single index
@@ -184,6 +194,9 @@ def query(
 
       # Treat all sequences as one query
       kmhelpers query -r ./registry -n idx1 --single-query batch1 -o out multi.fa
+
+      # Compressed input from stdin
+      cat query.fa.gz | kmhelpers query -r ./registry -n idx1 -o results -
 
       # Scan a directory recursively
       kmhelpers query -r ./registry -n idx1 -o results ./queries_dir/
@@ -219,6 +232,7 @@ def query(
             output_format=format,
             vec=vec,
             print_output=print_output,
+            keep_query=keep_query,
             timestamp=timestamp,
             on_existing=existing,
             parallel=parallel,
@@ -229,7 +243,7 @@ def query(
     start = time.time()
     try:
         runner.run(query_files)
-    except (FileNotFoundError, FileExistsError, RuntimeError) as e:
+    except (FileNotFoundError, FileExistsError, RuntimeError, ValueError) as e:
         raise click.ClickException(str(e))
 
     logger.info("=" * 50)
