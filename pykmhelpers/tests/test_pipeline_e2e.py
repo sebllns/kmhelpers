@@ -19,6 +19,7 @@ Scenarios:
     then plan -> apply, mirroring docs/tutorials/ecoli_steps.md.
   * ``test_apply_chunks_and_merges_when_files_limit_too_low`` -- a low
     --limits open-files ceiling forces a chunked build+merge.
+  * ``test_query_fasta_fastq_plain_and_gz`` -- query in every FASTA/FASTQ form.
   * ``test_failures_exit_nonzero``           -- the failure paths exit non-zero.
 
 Data is small random FASTA generated with a fixed seed. Queries are exact
@@ -26,6 +27,7 @@ substrings of an indexed sample, so a matching sample scores ~1.0 regardless of
 the random content.
 """
 
+import gzip
 import json
 import random
 import shutil
@@ -468,6 +470,66 @@ class TestChunkedBuild(PipelineE2EBase):
                 "query", q, "-r", "build", "-o", f"results_{idx}", "-f", "json"
             )
             self.assert_query_hit(f"results_{idx}", header, f"sample_{idx}")
+
+
+class TestQueryFormats(PipelineE2EBase):
+    """The same query as FASTA/FASTQ, plain or gzipped, matches its sample."""
+
+    def test_query_fasta_fastq_plain_and_gz(self):
+        self.run_cli(
+            "design",
+            self.samples_txt,
+            "-o",
+            "db",
+            "-n",
+            "idx",
+            "-S",
+            "initial",
+            "-k",
+            KMER_SIZE,
+            "-b",
+            "1.1",
+            "-g",
+            "1",
+        )
+        span_reg = self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml"
+        self.run_cli("build", span_reg, "-o", "build")
+
+        header = "q_fmt"
+        seq = self.sequences[0][QUERY_START : QUERY_START + QUERY_LEN]
+        fasta = f">{header}\n{seq}\n".encode()
+        fastq = f"@{header}\n{seq}\n+\n{'I' * len(seq)}\n".encode()
+
+        for ext in ("fasta", "fa", "fa.gz", "fastq", "fq", "fq.gz"):
+            with self.subTest(ext=ext):
+                data = fastq if ext.startswith(("fastq", "fq")) else fasta
+                if ext.endswith(".gz"):
+                    data = gzip.compress(data)
+                name = ext.replace(".", "_")
+                path = self.tmp / f"query_{name}.{ext}"
+                path.write_bytes(data)
+                out = f"results_{name}"
+                self.run_cli("query", path, "-r", "build", "-o", out, "-f", "json")
+                self.assert_query_hit(out, header, "sample_0")
+
+        # Reads all shorter than s+z: kmindex writes no output
+        short = seq[: KMER_SIZE - 1]
+        path = self.tmp / "query_short.fq.gz"
+        path.write_bytes(
+            gzip.compress(f"@q_short\n{short}\n+\n{'I' * len(short)}\n".encode())
+        )
+        proc = self.run_cli(
+            "query",
+            path,
+            "-r",
+            "build",
+            "-o",
+            "results_short",
+            "-f",
+            "json",
+            expect_success=False,
+        )
+        self.assertIn("no valid sequences", proc.stdout + proc.stderr)
 
 
 class TestDirectoryScanBuildQueryUpdateQuery(PipelineE2EBase):

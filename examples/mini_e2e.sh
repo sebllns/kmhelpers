@@ -87,3 +87,28 @@ if [ -f "$dst.zip" ]; then
     fi
     echo "zip rejected as expected"
 fi
+
+# 7. Query formats: the same sequence as FASTA/FASTQ, plain or gz
+mkdir -p formats
+awk '/^>/ { if (seq) exit; next } { seq = seq $0 }
+     END { print "@q"; print seq; print "+"; gsub(/./, "I", seq); print seq }' \
+    "$src" > formats/q_fastq.fastq
+awk '/^>/ { if (n++) exit } { print }' "$src" > formats/q_fasta.fasta
+cp formats/q_fasta.fasta formats/q_fa.fa
+cp formats/q_fastq.fastq formats/q_fq.fq
+gzip -c formats/q_fa.fa > formats/q_fa_gz.fa.gz
+gzip -c formats/q_fq.fq > formats/q_fq_gz.fq.gz
+
+for f in formats/*; do
+    stem=$(basename "${f%%.*}")
+    kmhelpers query -r build/ -o "results_$stem/" -f json "$f"
+    cat "results_$stem/$stem/results.json"
+done
+
+# Reads shorter than s+z (here 21+6=27) are rejected
+printf '@short\nACGTACGTACGTACGTACGT\n+\nIIIIIIIIIIIIIIIIIIII\n' | gzip > short.fq.gz
+if kmhelpers query -r build/ -o results_short/ -f json short.fq.gz; then
+    echo "Error: query with reads shorter than s+z should have failed" >&2
+    exit 1
+fi
+echo "short reads rejected as expected"
