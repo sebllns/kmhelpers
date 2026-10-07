@@ -646,28 +646,36 @@ class KmindexQuery:
         if keep_query:
             shutil.copy(self._path, output_dir)
 
-        output = KmindexWrapper().query(
-            input_registry=registry_path,
-            query_file=self._path,
-            output_dir=result_dir,
-            names=index_ids,
-            single_query=single_query,
-            aggregate=aggregate,
-            threads=threads,
-            zvalue=z,
-            is_compressed=is_compressed,
-            fast=fast and not is_compressed,
-            threshold=threshold,
-            method=method,
-            format="jsonl_vec" if vec else "jsonl",
-        )
-        self.info = output or {}
-        self.info["query_file"] = os.path.abspath(self._path)
-
-        # Save result to info.yaml
-        info_file = os.path.join(output_dir, "info.yaml")
-        with open(info_file, "w") as f:
-            yaml.safe_dump(self.info, f)
+        # info.yaml is written even on failure, with the error and kmindex output
+        info: dict = {}
+        try:
+            info = (
+                KmindexWrapper().query(
+                    input_registry=registry_path,
+                    query_file=self._path,
+                    output_dir=result_dir,
+                    names=index_ids,
+                    single_query=single_query,
+                    aggregate=aggregate,
+                    threads=threads,
+                    zvalue=z,
+                    is_compressed=is_compressed,
+                    fast=fast and not is_compressed,
+                    threshold=threshold,
+                    method=method,
+                    format="jsonl_vec" if vec else "jsonl",
+                )
+                or {}
+            )
+        except Exception as e:
+            info = dict(getattr(e, "result", None) or {})
+            info["error"] = str(e)
+            raise
+        finally:
+            info["query_file"] = os.path.abspath(self._path)
+            self.info = info
+            with open(os.path.join(output_dir, "info.yaml"), "w") as f:
+                yaml.safe_dump(info, f)
 
         result = []
 

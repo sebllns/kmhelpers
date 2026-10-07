@@ -17,6 +17,7 @@ import yaml
 import zstandard
 
 from pykmhelpers.core.constants import strip_data_ext
+from pykmhelpers.core.kmindex_wrapper import QueryError
 from pykmhelpers.core.utils import detect_compression, open_decompressed
 from pykmhelpers.pipeline.query import KmindexQuery, QueryRunner, QueryRunnerConfig
 
@@ -121,6 +122,7 @@ class TestKeepQuery(QueryInputsBase):
     def execute(self, keep_query):
         query = self.write("q.fa.gz")
         out = os.path.join(self.tmp, f"out_{keep_query}")
+
         def fake_query(**kwargs):
             os.makedirs(kwargs["output_dir"])
             return {}
@@ -141,6 +143,24 @@ class TestKeepQuery(QueryInputsBase):
 
     def test_copy_on_request(self):
         self.assertIn("q.fa.gz", self.execute(keep_query=True))
+
+
+class TestInfoOnFailure(QueryInputsBase):
+    def test_info_written_on_failure(self):
+        query = self.write("q.fa")
+        out = os.path.join(self.tmp, "out")
+        error = QueryError("no valid sequences", {"stderr": "skipped", "command": "x"})
+
+        with mock.patch(
+            "pykmhelpers.pipeline.query.KmindexWrapper.query", side_effect=error
+        ):
+            with self.assertRaises(QueryError):
+                KmindexQuery(path=query).execute(registry_path=self.tmp, output_dir=out)
+
+        info = yaml.safe_load(Path(out, "info.yaml").read_text())
+        self.assertEqual(info["error"], "no valid sequences")
+        self.assertEqual(info["stderr"], "skipped")
+        self.assertEqual(info["query_file"], os.path.abspath(query))
 
 
 if __name__ == "__main__":

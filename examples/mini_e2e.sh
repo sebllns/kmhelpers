@@ -112,3 +112,5 @@ if kmhelpers query -r build/ -o results_short/ -f json short.fq.gz; then
     exit 1
 fi
 echo "short reads rejected as expected"
+# info.yaml is kept on failure, with the error and the kmindex output
+cat results_short/short/info.yaml

@@ -17,6 +17,14 @@ from pykmhelpers.core.wrapper import Wrapper
 logger = logging.getLogger(__name__)
 
 
+class QueryError(RuntimeError):
+    """kmindex query failure, carrying the command result (cmd, stderr, ...)."""
+
+    def __init__(self, message: str, result: Optional[dict] = None):
+        super().__init__(message)
+        self.result = result or {}
+
+
 class KmindexWrapper(Wrapper):
     """
     High-level wrapper class for kmindex operations.
@@ -406,7 +414,7 @@ class KmindexWrapper(Wrapper):
         rc, msg = self._check_result(result)
 
         if rc != 0:
-            raise RuntimeError(f"Query failed: <{msg}> ({rc})")
+            raise QueryError(f"Query failed: <{msg}> ({rc})", result)
 
         if not os.path.isdir(output_dir):
             # kmindex exits 0 without writing an output directory only when it
@@ -422,9 +430,10 @@ class KmindexWrapper(Wrapper):
                 )
             )
             detail = f" ({'; '.join(skipped[:3])})" if skipped else ""
-            raise RuntimeError(
+            raise QueryError(
                 f"Query produced no results: no valid sequences in {query_file}. "
-                f"Check the file format (FASTA/FASTQ) and sequence length.{detail}"
+                f"Check the file format and sequence length.{detail}",
+                result,
             )
 
         return result or {}

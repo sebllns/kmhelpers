@@ -530,6 +530,11 @@ class TestQueryFormats(PipelineE2EBase):
             expect_success=False,
         )
         self.assertIn("no valid sequences", proc.stdout + proc.stderr)
+        info = yaml.safe_load(
+            (self.tmp / "results_short" / "query_short" / "info.yaml").read_text()
+        )
+        self.assertIn("no valid sequences", info["error"])
+        self.assertIn("skipped", info["stderr"])
 
 
 class TestDirectoryScanBuildQueryUpdateQuery(PipelineE2EBase):
