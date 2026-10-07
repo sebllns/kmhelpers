@@ -165,7 +165,33 @@ Changelog: https://sebllns.github.io/kmhelpers/$VERSION/changelog/"
 git push origin v$VERSION
 ```
 
-Never move or re-create a pushed tag.
+Or with `git create-release` (`scripts/git-create-release`, requires
+[`gh`](https://cli.github.com)), which runs the commands above after checks,
+then lists the release workflow runs:
+
+```bash
+git create-release [--view] [--overwrite] [VERSION]
+```
+
+`VERSION` defaults to `pykmhelpers/_version.py`; a different one asks for
+confirmation. Before tagging, it checks that `CHANGELOG.md` has the
+`## [VERSION]` section, that the tag does not exist, that the working tree is
+clean and that `HEAD` is `origin/main`.
+
+| Option | Effect |
+|--------|--------|
+| `--view` | Show the release and the workflow runs, no tagging |
+| `--overwrite` | Delete the GitHub release and the tag, then tag again |
+| `-h` | Help (`--help` is caught by git for aliases) |
+
+The alias is defined in the versioned `.gitconfig`, enable it once per clone:
+
+```bash
+git config include.path ../.gitconfig
+```
+
+Never move or re-create a pushed tag, except with `--overwrite` when the
+release failed before the PyPI upload.
 
 ### 4. Automatic steps
 
@@ -174,17 +200,32 @@ Pushing the tag runs:
 - `release.yml`: builds the sdist and wheel, creates the GitHub release with
   the files attached and notes made of `.github/release-notes.md` (docs links,
   install and update commands), the CHANGELOG section and the merged PRs, then
-  uploads the files to PyPI (`publish` job, once enabled).
+  uploads the files to PyPI (`publish` job).
 - `docs.yml`: deploys the docs as version `X.Y.Z` with alias `latest`.
 
 ```bash
 gh run list --limit 4
-gh release view v$VERSION
+gh release view v$VERSION    # or: git create-release --view
 ```
+
+### 5. Approve the PyPI upload (browser)
+
+The `publish` job runs in the `pypi` environment, which waits for a manual
+approval:
+
+1. Open the "Release build" run of the tag in the
+   [Actions tab](https://github.com/sebllns/kmhelpers/actions/workflows/release.yml).
+2. Once `tests` and `build` are green, check the
+   [release](https://github.com/sebllns/kmhelpers/releases): notes,
+   sdist and wheel attached.
+3. Click "Review deployments", select `pypi`, then "Approve and deploy".
+4. When `publish` is green, check the version on
+   [PyPI](https://pypi.org/project/kmhelpers/) and the docs at
+   `https://sebllns.github.io/kmhelpers/X.Y.Z/`.
 
 A PyPI version cannot be uploaded twice: a broken release is fixed by a new version.
 
-### 5. Bioconda
+### 6. Bioconda
 
 After the PyPI upload, the bioconda bot opens a PR in
 [bioconda-recipes](https://github.com/bioconda/bioconda-recipes) updating the
@@ -193,7 +234,8 @@ version and sha256. Check that runtime dependencies still match
 
 ### Patch of an older version
 
-Only when a fix must be released for a version older than `main`:
+Only when a fix must be released for a version older than `main`. The tag is
+created manually, as `git create-release` only tags `origin/main`:
 
 ```bash
 git checkout -b maint/vX.Y v$OLD_VERSION

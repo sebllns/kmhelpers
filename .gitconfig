@@ -1,0 +1,4 @@
+# Shared git config, enable once per clone with:
+#   git config include.path ../.gitconfig
+[alias]
+	create-release = !scripts/git-create-release

@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# Tag and push a kmhelpers release; the v* tag triggers .github/workflows/release.yml.
+#
+# The alias is defined in .gitconfig, enable it once per clone with:
+#   git config include.path ../.gitconfig
+
+set -euo pipefail
+
+usage() {
+  cat <<EOF
+Usage: git create-release [--view] [--overwrite] [VERSION]
+
+Create and push the annotated tag vVERSION, then list the release workflow runs.
+VERSION defaults to __version__ in pykmhelpers/_version.py.
+
+Options:
+  --view       Show the existing release and workflow runs, do not tag
+  --overwrite  Delete the existing release and tag before re-creating them
+  -h, --help   Show this help
+EOF
+}
+
+die() {
+  echo "Error: $*" >&2
+  exit 1
+}
+
+VIEW=0
+OVERWRITE=0
+VERSION=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --view) VIEW=1 ;;
+    --overwrite) OVERWRITE=1 ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    -*) die "unknown option: $1" ;;
+    *)
+      [[ -z "$VERSION" ]] || die "only one VERSION allowed"
+      VERSION="$1"
+      ;;
+  esac
+  shift
+done
+
+cd "$(git rev-parse --show-toplevel)"
+
+PKG_VERSION="$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' pykmhelpers/_version.py)"
+[[ -n "$PKG_VERSION" ]] || die "cannot read __version__ from pykmhelpers/_version.py"
+VERSION="${VERSION:-$PKG_VERSION}"
+VERSION="${VERSION#v}"
+TAG="v$VERSION"
+
+show_runs() {
+  gh run list --workflow release.yml --limit 3
+}
+
+if [[ $VIEW -eq 1 ]]; then
+  echo "==> Release $TAG"
+  gh release view "$TAG" 2>/dev/null || echo "release $TAG not found"
+  echo
+  show_runs
+  exit 0
+fi
+
+if [[ "$VERSION" != "$PKG_VERSION" ]]; then
+  echo "Warning: $VERSION differs from pykmhelpers/_version.py ($PKG_VERSION)" >&2
+  read -r -p "Continue? [y/N] " answer
+  [[ "$answer" == [yY] ]] || exit 1
+fi
+
+# Release notes are built from this section
+grep -qF "## [$VERSION]" CHANGELOG.md || die "no '## [$VERSION]' section in CHANGELOG.md"
+
+git fetch --quiet --tags origin main
+
+if [[ $OVERWRITE -eq 0 ]]; then
+  git rev-parse -q --verify "refs/tags/$TAG" >/dev/null &&
+    die "tag $TAG already exists locally (use --overwrite)"
+  [[ -z "$(git ls-remote --tags origin "refs/tags/$TAG")" ]] ||
+    die "tag $TAG already exists on origin (use --overwrite)"
+fi
+
+[[ -z "$(git status --porcelain)" ]] || die "working tree is not clean"
+[[ "$(git rev-parse HEAD)" == "$(git rev-parse origin/main)" ]] ||
+  die "HEAD is not origin/main"
+
+if [[ $OVERWRITE -eq 1 ]]; then
+  echo "Warning: PyPI rejects re-uploading an existing version" >&2
+  echo "==> Deleting release and tag $TAG"
+  gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+  git push --delete origin "$TAG" 2>/dev/null || true
+  git tag -d "$TAG" 2>/dev/null || true
+fi
+
+echo "==> Tagging $TAG"
+git tag -a "$TAG" -m "kmhelpers $TAG" \
+  -m "Documentation: https://sebllns.github.io/kmhelpers/$VERSION/
+Changelog: https://sebllns.github.io/kmhelpers/$VERSION/changelog/"
+git push origin "$TAG"
+
+# Give GitHub time to register the workflow run
+sleep 5
+show_runs
+
+cat <<EOF
+
+Next steps (browser):
+  1. Open the "Release build" run: https://github.com/sebllns/kmhelpers/actions/workflows/release.yml
+  2. Check the release: https://github.com/sebllns/kmhelpers/releases/tag/$TAG
+  3. "Review deployments" > pypi > "Approve and deploy"
+  4. Check https://pypi.org/project/kmhelpers/$VERSION/ and https://sebllns.github.io/kmhelpers/$VERSION/
+EOF
