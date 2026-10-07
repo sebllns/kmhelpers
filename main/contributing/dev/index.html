@@ -2926,7 +2926,8 @@ release failed before the PyPI upload.</p>
 <li><code>release.yml</code>: builds the sdist and wheel, creates the GitHub release with
   the files attached and notes made of <code>.github/release-notes.md</code> (docs links,
   install and update commands), the CHANGELOG section and the merged PRs, then
-  uploads the files to PyPI (<code>publish</code> job).</li>
+  uploads the files to PyPI (<code>publish</code> job) and installs the published
+  version in a fresh environment to check <code>kmhelpers --version</code> (<code>verify</code> job).</li>
 <li><code>docs.yml</code>: deploys the docs as version <code>X.Y.Z</code> with alias <code>latest</code>.</li>
 </ul>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>gh<span class="w"> </span>run<span class="w"> </span>list<span class="w"> </span>--limit<span class="w"> </span><span class="m">4</span>
@@ -2942,7 +2943,7 @@ approval:</p>
    <a href="https://github.com/sebllns/kmhelpers/releases">release</a>: notes,
    sdist and wheel attached.</li>
 <li>Click "Review deployments", select <code>pypi</code>, then "Approve and deploy".</li>
-<li>When <code>publish</code> is green, check the version on
+<li>When <code>publish</code> and <code>verify</code> are green, check the version on
    <a href="https://pypi.org/project/kmhelpers/">PyPI</a> and the docs at
    <code>https://sebllns.github.io/kmhelpers/X.Y.Z/</code>.</li>
 </ol>
