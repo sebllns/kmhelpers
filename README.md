@@ -26,7 +26,24 @@ A Python toolkit for managing, compressing, and querying [kmindex](https://githu
 
 ## Getting started
 
-### Clone the repository and navigate to it
+### Install with pip
+
+```bash
+pip install kmhelpers
+kmhelpers install-deps
+```
+
+`install-deps` downloads the `kmtricks`, `kmindex` and `ntcard` binaries next to the `kmhelpers` executable, so a virtual environment (`python -m venv`) is recommended.
+
+To update:
+
+```bash
+pip install --upgrade kmhelpers
+```
+
+### Install from source with Conda
+
+#### Clone the repository and navigate to it
 
 ```bash
 git clone https://github.com/sebllns/kmhelpers
@@ -40,7 +57,7 @@ git clone --branch vX.Y.Z https://github.com/sebllns/kmhelpers
 cd kmhelpers
 ```
 
-### Quick Install with Conda 
+#### Create the Conda environment
 
 This will automatically:
 - Install `kmhelpers` Python package
@@ -69,7 +86,7 @@ conda activate ./.env
 
 ### Verify Installation
 
-Once the environment has been activated:
+For a Conda install, once the environment has been activated:
 
 ```bash
 # Check the installed version
@@ -93,7 +110,7 @@ kmtricks --version
 kmindex --version
 ```
 
-### Update
+### Update a source install
 
 To pull the latest changes from the default branch (`main`):
 
