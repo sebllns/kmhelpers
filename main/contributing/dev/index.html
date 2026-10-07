@@ -2350,10 +2350,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#5-bioconda" class="md-nav__link">
+  <a href="#5-approve-the-pypi-upload-browser" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Bioconda
+        5. Approve the PyPI upload (browser)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-bioconda" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Bioconda
       
     </span>
   </a>
@@ -2580,10 +2591,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#5-bioconda" class="md-nav__link">
+  <a href="#5-approve-the-pypi-upload-browser" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Bioconda
+        5. Approve the PyPI upload (browser)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-bioconda" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Bioconda
       
     </span>
   </a>
@@ -2862,32 +2884,82 @@ use <code>VERSION=X.Y.Z</code>.</p>
 <a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="s2">Changelog: https://sebllns.github.io/kmhelpers/</span><span class="nv">$VERSION</span><span class="s2">/changelog/"</span>
 <a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>v<span class="nv">$VERSION</span>
 </code></pre></div>
-<p>Never move or re-create a pushed tag.</p>
+<p>Or with <code>git create-release</code> (<code>scripts/git-create-release</code>, requires
+<a href="https://cli.github.com"><code>gh</code></a>), which runs the commands above after checks,
+then lists the release workflow runs:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>git<span class="w"> </span>create-release<span class="w"> </span><span class="o">[</span>--view<span class="o">]</span><span class="w"> </span><span class="o">[</span>--overwrite<span class="o">]</span><span class="w"> </span><span class="o">[</span>VERSION<span class="o">]</span>
+</code></pre></div>
+<p><code>VERSION</code> defaults to <code>pykmhelpers/_version.py</code>; a different one asks for
+confirmation. Before tagging, it checks that <code>CHANGELOG.md</code> has the
+<code>## [VERSION]</code> section, that the tag does not exist, that the working tree is
+clean and that <code>HEAD</code> is <code>origin/main</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--view</code></td>
+<td>Show the release and the workflow runs, no tagging</td>
+</tr>
+<tr>
+<td><code>--overwrite</code></td>
+<td>Delete the GitHub release and the tag, then tag again</td>
+</tr>
+<tr>
+<td><code>-h</code></td>
+<td>Help (<code>--help</code> is caught by git for aliases)</td>
+</tr>
+</tbody>
+</table>
+<p>The alias is defined in the versioned <code>.gitconfig</code>, enable it once per clone:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>git<span class="w"> </span>config<span class="w"> </span>include.path<span class="w"> </span>../.gitconfig
+</code></pre></div>
+<p>Never move or re-create a pushed tag, except with <code>--overwrite</code> when the
+release failed before the PyPI upload.</p>
 <h3 id="4-automatic-steps">4. Automatic steps</h3>
 <p>Pushing the tag runs:</p>
 <ul>
 <li><code>release.yml</code>: builds the sdist and wheel, creates the GitHub release with
   the files attached and notes made of <code>.github/release-notes.md</code> (docs links,
   install and update commands), the CHANGELOG section and the merged PRs, then
-  uploads the files to PyPI (<code>publish</code> job, once enabled).</li>
+  uploads the files to PyPI (<code>publish</code> job).</li>
 <li><code>docs.yml</code>: deploys the docs as version <code>X.Y.Z</code> with alias <code>latest</code>.</li>
 </ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>gh<span class="w"> </span>run<span class="w"> </span>list<span class="w"> </span>--limit<span class="w"> </span><span class="m">4</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>gh<span class="w"> </span>release<span class="w"> </span>view<span class="w"> </span>v<span class="nv">$VERSION</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>gh<span class="w"> </span>run<span class="w"> </span>list<span class="w"> </span>--limit<span class="w"> </span><span class="m">4</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>gh<span class="w"> </span>release<span class="w"> </span>view<span class="w"> </span>v<span class="nv">$VERSION</span><span class="w">    </span><span class="c1"># or: git create-release --view</span>
 </code></pre></div>
+<h3 id="5-approve-the-pypi-upload-browser">5. Approve the PyPI upload (browser)</h3>
+<p>The <code>publish</code> job runs in the <code>pypi</code> environment, which waits for a manual
+approval:</p>
+<ol>
+<li>Open the "Release build" run of the tag in the
+   <a href="https://github.com/sebllns/kmhelpers/actions/workflows/release.yml">Actions tab</a>.</li>
+<li>Once <code>tests</code> and <code>build</code> are green, check the
+   <a href="https://github.com/sebllns/kmhelpers/releases">release</a>: notes,
+   sdist and wheel attached.</li>
+<li>Click "Review deployments", select <code>pypi</code>, then "Approve and deploy".</li>
+<li>When <code>publish</code> is green, check the version on
+   <a href="https://pypi.org/project/kmhelpers/">PyPI</a> and the docs at
+   <code>https://sebllns.github.io/kmhelpers/X.Y.Z/</code>.</li>
+</ol>
 <p>A PyPI version cannot be uploaded twice: a broken release is fixed by a new version.</p>
-<h3 id="5-bioconda">5. Bioconda</h3>
+<h3 id="6-bioconda">6. Bioconda</h3>
 <p>After the PyPI upload, the bioconda bot opens a PR in
 <a href="https://github.com/bioconda/bioconda-recipes">bioconda-recipes</a> updating the
 version and sha256. Check that runtime dependencies still match
 <code>pyproject.toml</code>, then approve it.</p>
 <h3 id="patch-of-an-older-version">Patch of an older version</h3>
-<p>Only when a fix must be released for a version older than <code>main</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>maint/vX.Y<span class="w"> </span>v<span class="nv">$OLD_VERSION</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="c1"># commit the fix, bump the version, add the CHANGELOG section</span>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>git<span class="w"> </span>push<span class="w"> </span>-u<span class="w"> </span>origin<span class="w"> </span>maint/vX.Y
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>git<span class="w"> </span>tag<span class="w"> </span>-a<span class="w"> </span>v<span class="nv">$PATCH_VERSION</span><span class="w"> </span>-m<span class="w"> </span><span class="s2">"kmhelpers v</span><span class="nv">$PATCH_VERSION</span><span class="s2">"</span>
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>v<span class="nv">$PATCH_VERSION</span>
+<p>Only when a fix must be released for a version older than <code>main</code>. The tag is
+created manually, as <code>git create-release</code> only tags <code>origin/main</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>maint/vX.Y<span class="w"> </span>v<span class="nv">$OLD_VERSION</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="c1"># commit the fix, bump the version, add the CHANGELOG section</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>git<span class="w"> </span>push<span class="w"> </span>-u<span class="w"> </span>origin<span class="w"> </span>maint/vX.Y
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>git<span class="w"> </span>tag<span class="w"> </span>-a<span class="w"> </span>v<span class="nv">$PATCH_VERSION</span><span class="w"> </span>-m<span class="w"> </span><span class="s2">"kmhelpers v</span><span class="nv">$PATCH_VERSION</span><span class="s2">"</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>v<span class="nv">$PATCH_VERSION</span>
 </code></pre></div>
 <p>Then bring the fix and the CHANGELOG section into <code>main</code> through a PR. This
 tag gets the <code>latest</code> docs alias; redeploy the newest release afterwards with
