@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.1] - 2026-10-07
+
+### Added
+
+- **Compressed query inputs**: `query` accepts gz, bz2, xz and zst FASTA/FASTQ files, including from stdin
+- **`query --keep-query` (`-K`)**: Copies the query file into its output directory
+- **`about`**: Shows the commit subject, the documentation URL and third-party tool links
+
+### Changed
+
+- **`query`**: Query files are no longer copied into the output directory by default (use `--keep-query`)
+
+### Fixed
+
+- **Packaging**: The `pykmhelpers.pipeline.index_ops` subpackage was missing from the wheel and sdist, so `kmhelpers` failed at import after `pip install`
+- **`query`**: `info.yaml` is written when a query fails, with the error and the kmindex output
+
 ## [0.7.0] - 2026-09-30
 
 ### Added

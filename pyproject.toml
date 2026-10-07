@@ -57,6 +57,7 @@ packages = [
     "pykmhelpers.core",
     "pykmhelpers.operations",
     "pykmhelpers.pipeline",
+    "pykmhelpers.pipeline.index_ops",
     "pykmhelpers.vendor",
     "pykmhelpers.cli",
     "pykmhelpers.tests",

@@ -32,6 +32,13 @@ jobs:
       - name: Build sdist and wheel
         run: python -m build
 
+      # Catches packages missing from pyproject.toml, which source-tree tests miss
+      - name: Smoke test the built wheel
+        run: |
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/pip install dist/*.whl
+          cd /tmp && /tmp/smoke/bin/kmhelpers --help
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
