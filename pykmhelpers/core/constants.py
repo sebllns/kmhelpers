@@ -7,6 +7,19 @@ from pykmhelpers import __version__
 KMHELPERS_VERSION = __version__
 
 
+def _git(*args: str) -> str:
+    """Run git in the package directory, return its stripped output or ""."""
+    try:
+        return subprocess.check_output(
+            ["git", *args],
+            cwd=Path(__file__).resolve().parent,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except Exception:
+        return ""
+
+
 def get_commit() -> str:
     """Return the short git commit of this source tree, or "UNKNOWN".
 
@@ -14,18 +27,12 @@ def get_commit() -> str:
     installed from, not whatever repo the user happens to run inside. Non-git
     installs (e.g. pip) fall back to "UNKNOWN".
     """
-    try:
-        return (
-            subprocess.check_output(
-                ["git", "rev-parse", "--short", "HEAD"],
-                cwd=Path(__file__).resolve().parent,
-                text=True,
-                stderr=subprocess.DEVNULL,
-            ).strip()
-            or "UNKNOWN"
-        )
-    except Exception:
-        return "UNKNOWN"
+    return _git("rev-parse", "--short", "HEAD") or "UNKNOWN"
+
+
+def get_commit_subject() -> str:
+    """Return the subject line of the current commit, or "" if not found."""
+    return _git("log", "-1", "--format=%s")
 
 
 KMHELPERS_COMMIT = get_commit()

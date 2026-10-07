@@ -3,7 +3,7 @@
 import click
 
 from pykmhelpers import __version__
-from pykmhelpers.core.constants import KMHELPERS_COMMIT
+from pykmhelpers.core.constants import KMHELPERS_COMMIT, get_commit_subject
 
 
 def get_banner():
@@ -42,10 +42,15 @@ def get_banner():
 def about():
     """Display information about kmhelpers and its components."""
     banner = get_banner()
+    commit = ""
+    if KMHELPERS_COMMIT != "UNKNOWN":
+        subject = get_commit_subject()
+        commit = f"\n🔖 Commit:  {KMHELPERS_COMMIT}"
+        if subject:
+            commit += f" -- {subject}"
     info = f"""{banner}
 
-📦 Version: {__version__}
-🔖 Commit:  {KMHELPERS_COMMIT}
+📦 Version: {__version__}{commit}
 
 📝 Features:
   • Build and manage k-mer indices using kmindex
@@ -54,20 +59,19 @@ def about():
   • Query indices efficiently for sequence analysis
   • Manage index metadata and definitions
 
-🛠️  Main Commands:
-  • build          - Build k-mer indices
-  • compose        - Compose indices from sub-indices
-  • query          - Query indices with sequences
-  • compress       - Compress existing indices
-  • list           - List samples and indices
-
 📚 Documentation:
   • Use 'kmhelpers --help' for complete command reference
   • Use 'kmhelpers <command> --help' for command-specific help
-  • Visit the project repository for detailed documentation
+  • https://sebllns.github.io/kmhelpers for detailed documentation
 
 🔗 Project:
   kmhelpers is designed to simplify k-mer index operations
   and provide a high-level Python interface to kmindex.
+
+🧩 Third-party tools:
+  • kmindex   https://github.com/tlemane/kmindex
+  • kmtricks  https://github.com/tlemane/kmtricks
+  • ntCard    https://github.com/bcgsc/ntCard
+  • click     https://click.palletsprojects.com
 """
     click.echo(info)
