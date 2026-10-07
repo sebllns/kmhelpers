@@ -200,7 +200,8 @@ Pushing the tag runs:
 - `release.yml`: builds the sdist and wheel, creates the GitHub release with
   the files attached and notes made of `.github/release-notes.md` (docs links,
   install and update commands), the CHANGELOG section and the merged PRs, then
-  uploads the files to PyPI (`publish` job).
+  uploads the files to PyPI (`publish` job) and installs the published
+  version in a fresh environment to check `kmhelpers --version` (`verify` job).
 - `docs.yml`: deploys the docs as version `X.Y.Z` with alias `latest`.
 
 ```bash
@@ -219,7 +220,7 @@ approval:
    [release](https://github.com/sebllns/kmhelpers/releases): notes,
    sdist and wheel attached.
 3. Click "Review deployments", select `pypi`, then "Approve and deploy".
-4. When `publish` is green, check the version on
+4. When `publish` and `verify` are green, check the version on
    [PyPI](https://pypi.org/project/kmhelpers/) and the docs at
    `https://sebllns.github.io/kmhelpers/X.Y.Z/`.
 

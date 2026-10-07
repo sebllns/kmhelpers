@@ -91,3 +91,28 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+  # Installs the published version in a fresh environment, outside the source
+  # tree, to catch files or dependencies missing from the PyPI upload.
+  verify:
+    needs: publish
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.8", "3.11"]
+    steps:
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # The new version can take a few minutes to reach the PyPI index
+      - name: Install from PyPI and run
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          for i in 1 2 3 4 5 6; do
+            pip install --no-cache-dir "kmhelpers==$v" && break
+            sleep 30
+          done
+          kmhelpers --version | grep -F "$v"
+          kmhelpers --help > /dev/null
