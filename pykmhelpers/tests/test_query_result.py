@@ -205,5 +205,59 @@ class TestConverters(QueryResultBase):
             KmindexQueryResult(self.plain_file()).convert("xml")
 
 
+class TestMatchStats(unittest.TestCase):
+    # q0 hits s0 (perfect) and s1 in g0, s2 in g1; q1 hits s1 in g0 only
+    ITEMS = {
+        "g0": {"q0": {"s0": 1.0, "s1": 0.4}, "q1": {"s1": 0.6, "s3": 0.01}},
+        "g1": {"q0": {"s2": 0.2}},
+    }
+
+    def stats(self, sizes=None, threshold=0.05):
+        r = KmindexQueryResult(items=self.ITEMS, index_sizes=sizes)
+        return {(row["query"], row["index"]): row for row in r.match_stats(threshold)}
+
+    def test_per_query(self):
+        rows = self.stats({"g0": 4, "g1": 2})
+        q0 = rows[("q0", "g0")]
+        self.assertEqual((q0["matched"], q0["perfect"]), (2, 1))
+        self.assertAlmostEqual(q0["matched_pct"], 50.0)
+        self.assertAlmostEqual(q0["mean"], 0.7)
+        q0_all = rows[("q0", "all")]
+        self.assertEqual((q0_all["samples"], q0_all["matched"]), (6, 3))
+        self.assertAlmostEqual(q0_all["median"], 0.4)
+        # s3 is below threshold, q1 has no row for g1
+        self.assertEqual(rows[("q1", "g0")]["matched"], 1)
+        self.assertNotIn(("q1", "g1"), rows)
+
+    def test_overall_best_score_per_sample(self):
+        rows = self.stats({"g0": 4, "g1": 2})
+        g0 = rows[("*", "g0")]
+        # s1 counted once with its best score 0.6
+        self.assertEqual((g0["matched"], g0["perfect"]), (2, 1))
+        self.assertAlmostEqual(g0["mean"], 0.8)
+        overall = rows[("*", "all")]
+        self.assertEqual((overall["samples"], overall["matched"]), (6, 3))
+        self.assertAlmostEqual(overall["matched_pct"], 50.0)
+
+    def test_subindex_without_match_listed(self):
+        rows = self.stats({"g0": 4, "g1": 2, "g2": 10})
+        self.assertEqual(rows[("*", "g2")]["matched"], 0)
+        self.assertIsNone(rows[("*", "g2")]["mean"])
+        self.assertEqual(rows[("*", "all")]["samples"], 16)
+
+    def test_unknown_sizes(self):
+        rows = self.stats({"g0": 4})
+        self.assertIsNone(rows[("*", "g1")]["matched_pct"])
+        self.assertIsNone(rows[("*", "all")]["samples"])
+
+    def test_tsv_and_reports(self):
+        r = KmindexQueryResult(items=self.ITEMS, index_sizes={"g0": 4, "g1": 2})
+        lines = r.generate_stats_tsv(0.05).split("\n")
+        self.assertEqual(lines[0], "\t".join(KmindexQueryResult._STATS_HEADERS))
+        self.assertEqual(lines[-1], "*\tall\t6\t3\t50.0\t1\t0.600\t0.600")
+        self.assertIn("## Statistics", r.generate_markdown(0.05))
+        self.assertIn("<h2>Statistics</h2>", r.generate_html(0.05))
+
+
 if __name__ == "__main__":
     unittest.main()

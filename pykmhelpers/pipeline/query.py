@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import shutil
+import statistics
 import sys
 import tempfile
 import time
@@ -13,6 +14,7 @@ from typing import Callable, Iterable, Optional
 import yaml
 
 from pykmhelpers.core.constants import DATA_EXT_ALL, strip_data_ext
+from pykmhelpers.core.kmindex_paths import get_json_path
 from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
 from pykmhelpers.core.sequence import Sequence
 from pykmhelpers.core.utils import Toolbox, detect_compression, open_decompressed
@@ -95,6 +97,19 @@ class KmindexQueryResult:
         ("max_memory_mb", "Max memory (MB)"),
     )
 
+    # Match statistics columns, a score this close to 1 counts as perfect
+    _STATS_HEADERS = (
+        "query",
+        "index",
+        "samples",
+        "matched",
+        "matched_pct",
+        "perfect",
+        "mean",
+        "median",
+    )
+    _PERFECT = 1.0 - 1e-9
+
     _CONVERTERS: dict[str, str] = {
         "md": "generate_markdown",
         "html": "generate_html",
@@ -109,12 +124,15 @@ class KmindexQueryResult:
         items: Optional[dict] = None,
         vectors: Optional[dict] = None,
         metadata: Optional[dict] = None,
+        index_sizes: Optional[dict] = None,
     ) -> None:
         self._items = items or {}
         # {index: {query: {sample: [0/1 per k-mer]}}}, only filled by jsonl_vec input
         self._vectors: dict[str, dict[str, dict[str, list[int]]]] = vectors or {}
         # Run info reported by the kmindex wrapper (command, timing, resources)
         self._metadata: dict = metadata or {}
+        # {index: number of samples}, from the registry, needed for matched_pct
+        self._index_sizes: dict[str, int] = index_sizes or {}
         if file:
             self.load_jsonl(file)
 
@@ -129,6 +147,14 @@ class KmindexQueryResult:
     @metadata.setter
     def metadata(self, value: Optional[dict]) -> None:
         self._metadata = value or {}
+
+    @property
+    def index_sizes(self) -> dict:
+        return self._index_sizes
+
+    @index_sizes.setter
+    def index_sizes(self, value: Optional[dict]) -> None:
+        self._index_sizes = value or {}
 
     @property
     def vectors(self):
@@ -331,6 +357,99 @@ class KmindexQueryResult:
             cells.append(row)
         return cells
 
+    @classmethod
+    def _stats_row(
+        cls, query: str, index: str, size: Optional[int], scores: list[float]
+    ) -> dict:
+        n = len(scores)
+        return {
+            "query": query,
+            "index": index,
+            "samples": size,
+            "matched": n,
+            "matched_pct": 100 * n / size if size else None,
+            "perfect": sum(s >= cls._PERFECT for s in scores),
+            "mean": statistics.fmean(scores) if scores else None,
+            "median": statistics.median(scores) if scores else None,
+        }
+
+    def match_stats(self, threshold: float = 0.0) -> list[dict]:
+        """Match statistics, one dict per row:
+        - (query, subindex) and (query, "all") for each query with a match,
+        - ("*", subindex) and ("*", "all") over all queries, where each sample
+          counts once with its best score.
+        The "all" size is unknown (None) if any subindex size is missing.
+        """
+        sizes = self._index_sizes
+        indexes = sorted(set(sizes) | set(self._items))
+        total = (
+            sum(sizes[i] for i in indexes)
+            if indexes and all(i in sizes for i in indexes)
+            else None
+        )
+        per_query: dict[str, dict[str, list[float]]] = {}
+        best: dict[str, dict[str, float]] = {}
+        for index, queries in self._items.items():
+            index_best = best.setdefault(index, {})
+            for query, samples in queries.items():
+                kept = {s: v for s, v in samples.items() if v >= threshold}
+                if not kept:
+                    continue
+                per_query.setdefault(query, {})[index] = list(kept.values())
+                for sample, score in kept.items():
+                    index_best[sample] = max(index_best.get(sample, 0.0), score)
+
+        rows = []
+        for query in sorted(per_query):
+            by_index = per_query[query]
+            for index in sorted(by_index):
+                rows.append(
+                    self._stats_row(query, index, sizes.get(index), by_index[index])
+                )
+            merged = [s for scores in by_index.values() for s in scores]
+            rows.append(self._stats_row(query, "all", total, merged))
+        for index in indexes:
+            scores = list(best.get(index, {}).values())
+            rows.append(self._stats_row("*", index, sizes.get(index), scores))
+        merged = [s for b in best.values() for s in b.values()]
+        rows.append(self._stats_row("*", "all", total, merged))
+        return rows
+
+    @classmethod
+    def _stats_cells(cls, row: dict, headers: tuple[str, ...]) -> list[str]:
+        cells = []
+        for key in headers:
+            value = row[key]
+            if value is None:
+                cells.append("")
+            elif key == "matched_pct":
+                cells.append(f"{value:.1f}")
+            elif isinstance(value, float):
+                cells.append(f"{value:.3f}")
+            else:
+                cells.append(str(value))
+        return cells
+
+    def generate_stats_tsv(self, threshold: float = 0.0) -> str:
+        lines = ["\t".join(self._STATS_HEADERS)]
+        for row in self.match_stats(threshold):
+            lines.append("\t".join(self._stats_cells(row, self._STATS_HEADERS)))
+        return "\n".join(lines)
+
+    def _overall_stats(self, threshold: float) -> list[list[str]]:
+        # Report section: the "*" rows only, per-query rows go to stats.tsv
+        headers = self._STATS_HEADERS[1:]
+        return [
+            self._stats_cells(row, headers)
+            for row in self.match_stats(threshold)
+            if row["query"] == "*"
+        ]
+
+    _STATS_NOTE = (
+        "Each sample counts once, with its best score over all queries. "
+        "Per-query rows are in stats.tsv."
+    )
+
     def generate_coverage_tsv(self, threshold: float = 0.0) -> str:
         lines = ["\t".join(self._COVERAGE_HEADERS + ("runs",))]
         cells = self._coverage_cells(self._vector_rows(threshold), with_runs=True)
@@ -374,6 +493,24 @@ class KmindexQueryResult:
             for label, value in meta:
                 lines.append(f"- {label}: `{value}`")
             lines.append("")
+
+        stats = self._overall_stats(threshold)
+        headers = self._STATS_HEADERS[1:]
+        widths = [
+            max([len(h)] + [len(row[i]) for row in stats])
+            for i, h in enumerate(headers)
+        ]
+        lines.append("## Statistics\n")
+        lines.append(f"Threshold: {threshold}. {self._STATS_NOTE}\n")
+        lines.append(
+            "| " + " | ".join(f"{h:<{w}}" for h, w in zip(headers, widths)) + " |"
+        )
+        lines.append("| " + " | ".join("-" * w for w in widths) + " |")
+        for row in stats:
+            lines.append(
+                "| " + " | ".join(f"{c:<{w}}" for c, w in zip(row, widths)) + " |"
+            )
+        lines.append("")
 
         query_names, sample_names, scores = self._matrix(threshold)
         corner = "Sequence \\ Sample"
@@ -491,6 +628,19 @@ class KmindexQueryResult:
                 f"    <h2>Run</h2>\n"
                 f"    <table class='run'>\n{meta_html}    </table>\n"
             )
+        stats_header = "".join(f"<th>{h}</th>" for h in self._STATS_HEADERS[1:])
+        stats_body = "\n".join(
+            "        <tr>" + "".join(f"<td>{c}</td>" for c in row) + "</tr>"
+            for row in self._overall_stats(threshold)
+        )
+        stats_html = (
+            f"    <h2>Statistics</h2>\n"
+            f"    <p>Threshold: {threshold}. {self._STATS_NOTE}</p>\n"
+            f"    <table>\n"
+            f"        <tr>{stats_header}</tr>\n"
+            f"{stats_body}\n"
+            f"    </table>\n"
+        )
         body = (
             # f"    <h2>kmindex results - Filter scores ≥ {threshold}</h2>\n"
             # f"    <table>\n"
@@ -498,6 +648,7 @@ class KmindexQueryResult:
             # f"{row_html}\n"
             # f"    </table>\n"
             f"{meta_html}"
+            f"{stats_html}"
             f"    <h2>Score matrix</h2>\n"
             f"    <table>\n"
             f"        <tr><th>Sequence \\ Sample</th>{matrix_header}</tr>\n"
@@ -968,6 +1119,17 @@ class QueryRunner:
 
         return results
 
+    def _index_sizes(self) -> dict[str, int]:
+        """Number of samples per queried subindex, empty if the registry is unreadable."""
+        try:
+            with open(get_json_path(self._config.registry_path)) as f:
+                registry = json.load(f)["index"]
+        except (OSError, ValueError, KeyError) as e:
+            logger.warning(f"Cannot read subindex sizes from the registry: {e}")
+            return {}
+        names = self._config.index_ids or list(registry)
+        return {n: registry[n]["nb_samples"] for n in names if n in registry}
+
     def _resolve_existing(self, output_path: str, label: str) -> Optional[str]:
         """Return the (possibly adjusted) output path, or ``None`` to skip."""
         if not os.path.exists(output_path):
@@ -1001,13 +1163,21 @@ class QueryRunner:
         out_file = os.path.join(os.path.dirname(result_dir), f"results.{fmt}")
         logger.debug(f"Merge results to {out_file}...")
         threshold = self._config.threshold
-        merged = KmindexQueryResult(metadata=info)
+        merged = KmindexQueryResult(metadata=info, index_sizes=self._index_sizes())
         files = list_result_files(result_dir)
         for json_path in files:
             try:
                 merged.load_jsonl(json_path)
             except Exception as e:
                 logger.warning(f"Failed to read {json_path}: {e}")
+
+        # Written even without match, the zero counts are informative
+        if files and not self._config.print_output:
+            stats_file = os.path.join(os.path.dirname(result_dir), "stats.tsv")
+            with open(stats_file, "w") as f:
+                f.write(merged.generate_stats_tsv(threshold))
+            logger.info(f"Statistics: {stats_file}")
+
         if not merged.items:
             if files:
                 logger.info(

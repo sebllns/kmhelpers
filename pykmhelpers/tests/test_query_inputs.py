@@ -288,6 +288,8 @@ class TestConvertLogs(QueryInputsBase):
         out = self.convert({"idx.jsonl": empty})
         self.assertIn("No match above threshold", out)
         self.assertIn("1 result file(s) read", out)
+        stats = Path(self.tmp, "stats.tsv").read_text().split("\n")
+        self.assertEqual(stats[-1], "*\tall\t\t0\t\t0\t\t")
 
 
 if __name__ == "__main__":
