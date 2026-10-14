@@ -27,6 +27,31 @@ KMINDEX_QUERY_OUTPUT = "kmindex_output"
 _KMINDEX_UNREADABLE = (".bz2", ".xz", ".zst", ".zip")
 
 
+def list_result_files(result_dir: str) -> list[str]:
+    """Return the kmindex result files (JSON lines) found in result_dir.
+
+    A single batch is written as <index>.jsonl at the top level. Several
+    batches go to batch_N/<index>.json[l], kmindex only merges them with
+    --aggregate, in which case the top-level files are used.
+    """
+
+    def scan(path: str) -> list[str]:
+        return sorted(
+            e.path
+            for e in os.scandir(path)
+            if e.is_file() and e.name.endswith((".jsonl", ".json"))
+        )
+
+    top = scan(result_dir)
+    if top:
+        return top
+    files: list[str] = []
+    for e in sorted(os.scandir(result_dir), key=lambda e: e.name):
+        if e.is_dir() and e.name.startswith("batch_"):
+            files.extend(scan(e.path))
+    return files
+
+
 class _InlineList(list):
     """List kept on a single line by the yaml dumper."""
 
@@ -679,13 +704,11 @@ class KmindexQuery:
 
         result = []
 
-        for f in os.listdir(result_dir):
-            fpath = os.path.join(result_dir, f)
-            if os.path.isfile(fpath) and f.endswith(".jsonl"):
-                try:
-                    result.append(KmindexQueryResult(fpath, metadata=self.info))
-                except Exception as e:
-                    logger.warning(f"Could not read result from {fpath}: {e}")
+        for fpath in list_result_files(result_dir):
+            try:
+                result.append(KmindexQueryResult(fpath, metadata=self.info))
+            except Exception as e:
+                logger.warning(f"Could not read result from {fpath}: {e}")
 
         return result
 
@@ -798,7 +821,7 @@ class QueryRunner:
                             fout.write(b"\n")
                 logger.info(f"Batching {len(resolved)} file(s) into a single query...")
                 result = self._run_single_safe(batch_path, total=1, idx=1)
-                if result:
+                if result is not None:
                     all_results.append(result)
                 else:
                     errors.append(f"{os.path.basename(batch_path)}")
@@ -806,7 +829,7 @@ class QueryRunner:
                 total = len(resolved)
                 for idx, qfile in enumerate(resolved, 1):
                     result = self._run_single_safe(qfile, total=total, idx=idx)
-                    if result:
+                    if result is not None:
                         all_results.append(result)
                     else:
                         errors.append(f"{os.path.basename(qfile)}")
@@ -963,14 +986,11 @@ class QueryRunner:
         logger.debug(f"Merge results to {out_file}...")
         threshold = self._config.threshold
         merged = KmindexQueryResult(metadata=info)
-        for fname in sorted(os.listdir(result_dir)):
-            if not fname.endswith(".jsonl"):
-                continue
-            json_path = os.path.join(result_dir, fname)
+        for json_path in list_result_files(result_dir):
             try:
                 merged.load_jsonl(json_path)
             except Exception as e:
-                logger.warning(f"Failed to read {fname}: {e}")
+                logger.warning(f"Failed to read {json_path}: {e}")
         if not merged.items:
             logger.info(f"No match")
             return

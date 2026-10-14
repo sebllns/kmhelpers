@@ -163,5 +163,64 @@ class TestInfoOnFailure(QueryInputsBase):
         self.assertEqual(info["query_file"], os.path.abspath(query))
 
 
+class TestResultLayout(QueryInputsBase):
+    """kmindex writes <index>.jsonl for a single batch, batch_N/<index>.json[l]
+    for several batches, and both when --aggregate is set."""
+
+    @staticmethod
+    def record(query, score=0.5):
+        return f'{{"index":"idx","query":"{query}","samples":{{"s0":{score}}}}}\n'
+
+    def execute(self, files, **kwargs):
+        query = self.write("q.fa")
+        out = os.path.join(self.tmp, "out")
+
+        def fake_query(**kw):
+            for name, content in files.items():
+                path = Path(kw["output_dir"], name)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content)
+            return {}
+
+        with mock.patch(
+            "pykmhelpers.pipeline.query.KmindexWrapper.query", side_effect=fake_query
+        ):
+            return KmindexQuery(path=query).execute(
+                registry_path=self.tmp, output_dir=out, **kwargs
+            )
+
+    def queries(self, results):
+        return sorted(q for r in results for q in r.items["idx"])
+
+    def test_single_batch(self):
+        results = self.execute({"idx.jsonl": self.record("q0")})
+        self.assertEqual(self.queries(results), ["q0"])
+
+    def test_several_batches(self):
+        results = self.execute(
+            {
+                "batch_0/idx.json": self.record("q0"),
+                "batch_1/idx.json": self.record("q1"),
+                "batch_2/idx.jsonl": self.record("q2"),
+            }
+        )
+        self.assertEqual(self.queries(results), ["q0", "q1", "q2"])
+
+    def test_aggregate_not_counted_twice(self):
+        results = self.execute(
+            {
+                "idx.jsonl": self.record("q0") + self.record("q1"),
+                "batch_0/idx.json": self.record("q0"),
+                "batch_1/idx.json": self.record("q1"),
+            }
+        )
+        self.assertEqual(self.queries(results), ["q0", "q1"])
+
+    def test_no_match_is_not_a_failure(self):
+        runner = self.runner()
+        with mock.patch.object(runner, "_run_single", return_value=[]):
+            self.assertEqual(runner.run([self.write("q.fa")]), [[]])
+
+
 if __name__ == "__main__":
     unittest.main()
