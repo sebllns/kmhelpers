@@ -704,7 +704,10 @@ class KmindexQuery:
 
         result = []
 
-        for fpath in list_result_files(result_dir):
+        files = list_result_files(result_dir)
+        if not files:
+            logger.warning(f"No kmindex result file in {result_dir}")
+        for fpath in files:
             try:
                 result.append(KmindexQueryResult(fpath, metadata=self.info))
             except Exception as e:
@@ -778,6 +781,8 @@ class QueryRunner:
 
     def __init__(self, config: QueryRunnerConfig) -> None:
         self._config = config
+        # info.yaml of the query in progress, reported on failure
+        self._info_path: Optional[str] = None
         if self._config.compressed and self._config.parallel != "sub":
             logger.warning(
                 "--compressed requires sub parallelization strategy; forcing parallel=sub"
@@ -804,7 +809,7 @@ class QueryRunner:
         all_results: list[list[KmindexQueryResult]] = []
 
         resolved, temp_files = self._resolve_files(query_files)
-        errors: list[str] = []
+        errors: list[tuple[str, str]] = []
         try:
 
             if self._config.batch:
@@ -820,25 +825,28 @@ class QueryRunner:
                         if last != b"\n":
                             fout.write(b"\n")
                 logger.info(f"Batching {len(resolved)} file(s) into a single query...")
-                result = self._run_single_safe(batch_path, total=1, idx=1)
-                if result is not None:
+                label = f"batch of {len(resolved)} file(s)"
+                result, reason = self._run_single_safe(batch_path, 1, 1, label)
+                if reason is None:
                     all_results.append(result)
                 else:
-                    errors.append(f"{os.path.basename(batch_path)}")
+                    errors.append((label, reason))
             else:
                 total = len(resolved)
                 for idx, qfile in enumerate(resolved, 1):
-                    result = self._run_single_safe(qfile, total=total, idx=idx)
-                    if result is not None:
+                    label = os.path.basename(qfile)
+                    result, reason = self._run_single_safe(qfile, total, idx, label)
+                    if reason is None:
                         all_results.append(result)
                     else:
-                        errors.append(f"{os.path.basename(qfile)}")
+                        errors.append((label, reason))
         finally:
             self._remove_temp(temp_files)
 
         if errors:
+            lines = [f"  {label}: {reason}" for label, reason in errors]
             raise RuntimeError(
-                f"{len(errors)} query file(s) failed: " + "; ".join(errors)
+                f"{len(errors)} query file(s) failed:\n" + "\n".join(lines)
             )
 
         return all_results
@@ -896,13 +904,20 @@ class QueryRunner:
             elif os.path.exists(path):
                 os.unlink(path)
 
-    def _run_single_safe(self, qfile: str, total: int, idx: int):
+    def _run_single_safe(
+        self, qfile: str, total: int, idx: int, label: str
+    ) -> tuple[list["KmindexQueryResult"], Optional[str]]:
+        """Run one query, return (results, None) or ([], failure reason)."""
+        self._info_path = None
         try:
-            result = self._run_single(qfile, total=total, idx=idx)
-            return result
+            return self._run_single(qfile, total=total, idx=idx), None
         except Exception as e:
-            logger.error(f"[{os.path.basename(qfile)}] {e}")
-            return None
+            logger.error(f"[{label}] {e}")
+            logger.debug(f"[{label}] traceback:", exc_info=True)
+            reason = f"{type(e).__name__}: {e}"
+            if self._info_path and os.path.isfile(self._info_path):
+                reason += f" - see {self._info_path}"
+            return [], reason
 
     def _run_single(
         self, qfile: str, total: int, idx: int
@@ -922,6 +937,7 @@ class QueryRunner:
 
         logger.info(f"[{idx}/{total}] Querying: {stem}...")
 
+        self._info_path = os.path.join(query_output, "info.yaml")
         kq = KmindexQuery(path=qfile)
         results = kq.execute(
             registry_path=cfg.registry_path,
@@ -986,13 +1002,18 @@ class QueryRunner:
         logger.debug(f"Merge results to {out_file}...")
         threshold = self._config.threshold
         merged = KmindexQueryResult(metadata=info)
-        for json_path in list_result_files(result_dir):
+        files = list_result_files(result_dir)
+        for json_path in files:
             try:
                 merged.load_jsonl(json_path)
             except Exception as e:
                 logger.warning(f"Failed to read {json_path}: {e}")
         if not merged.items:
-            logger.info(f"No match")
+            if files:
+                logger.info(
+                    f"No match above threshold {threshold} "
+                    f"({len(files)} result file(s) read)"
+                )
             return
         converted = merged.convert(format=fmt, threshold=threshold)
         if self._config.print_output:

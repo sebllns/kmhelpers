@@ -130,7 +130,7 @@ class Wrapper:
 
         # Print to console if print_trace is enabled
         if print_trace:
-            logger.info(output_content)
+            logger.debug(output_content)
 
         # Write to log file if specified
         if log_file:
@@ -244,7 +244,7 @@ class Wrapper:
             # Build output content
             output_lines = [
                 f"Command: {output['command']}",
-                f"Execution time: {output['execution_time_s']}ms",
+                f"Execution time: {output['execution_time_s']:.2f}s",
                 f"Max CPU: {output['max_cpu_percent']}%",
                 f"Max Memory: {output['max_memory_mb']} MB",
                 f"Return code: {output['return_code']}",
@@ -260,7 +260,7 @@ class Wrapper:
 
             # Print to console if print_trace is enabled
             if print_trace:
-                logger.info(output_content)
+                logger.debug(output_content)
 
             # Write to log file if specified
             if log_file:

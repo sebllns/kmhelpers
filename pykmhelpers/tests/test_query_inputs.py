@@ -108,9 +108,9 @@ class TestBatch(QueryInputsBase):
         ]
         captured = {}
 
-        def fake_run(qfile, total, idx):
+        def fake_run(qfile, *_):
             captured["data"] = Path(qfile).read_bytes()
-            return ["ok"]
+            return ["ok"], None
 
         runner = self.runner(batch=True)
         with mock.patch.object(runner, "_run_single_safe", side_effect=fake_run):
@@ -220,6 +220,74 @@ class TestResultLayout(QueryInputsBase):
         runner = self.runner()
         with mock.patch.object(runner, "_run_single", return_value=[]):
             self.assertEqual(runner.run([self.write("q.fa")]), [[]])
+
+
+class TestErrorReport(QueryInputsBase):
+    def run_failing(self, files, **kwargs):
+        runner = self.runner(**kwargs)
+        error = QueryError("boom", {})
+        with mock.patch.object(runner, "_run_single", side_effect=error):
+            with self.assertLogs("pykmhelpers.pipeline.query", "ERROR"):
+                with self.assertRaises(RuntimeError) as ctx:
+                    runner.run(files)
+        return str(ctx.exception)
+
+    def test_reason_per_file(self):
+        msg = self.run_failing([self.write("a.fa"), self.write("b.fa")])
+        self.assertIn("2 query file(s) failed", msg)
+        self.assertIn("a.fa: QueryError: boom", msg)
+        self.assertIn("b.fa: QueryError: boom", msg)
+
+    def test_batch_label(self):
+        files = [self.write(f"{n}.fa") for n in "abc"]
+        msg = self.run_failing(files, batch=True)
+        self.assertIn("batch of 3 file(s): QueryError: boom", msg)
+        self.assertNotIn("kmhelpers_batch", msg)
+
+    def test_info_yaml_hint(self):
+        query = self.write("q.fa")
+        error = QueryError("boom", {})
+        runner = self.runner(output_dir=os.path.join(self.tmp, "out"))
+        with mock.patch(
+            "pykmhelpers.pipeline.query.KmindexWrapper.query", side_effect=error
+        ):
+            with self.assertLogs("pykmhelpers.pipeline.query", "ERROR"):
+                with self.assertRaises(RuntimeError) as ctx:
+                    runner.run([query])
+        self.assertIn(os.path.join(self.tmp, "out", "q", "info.yaml"), str(ctx.exception))
+
+    def runner(self, **kwargs):
+        kwargs.setdefault("output_dir", self.tmp)
+        return QueryRunner(QueryRunnerConfig(registry_path=self.tmp, **kwargs))
+
+
+class TestConvertLogs(QueryInputsBase):
+    def convert(self, files):
+        result_dir = Path(self.tmp, "kmindex_output")
+        result_dir.mkdir()
+        for name, content in files.items():
+            Path(result_dir, name).write_text(content)
+        runner = self.runner(output_format="tsv")
+        with self.assertLogs("pykmhelpers.pipeline.query", "INFO") as logs:
+            runner._convert_results(str(result_dir))
+        return "\n".join(logs.output)
+
+    def test_no_result_file(self):
+        with self.assertLogs("pykmhelpers.pipeline.query", "WARNING") as logs:
+            with mock.patch(
+                "pykmhelpers.pipeline.query.KmindexWrapper.query",
+                side_effect=lambda **kw: os.makedirs(kw["output_dir"]),
+            ):
+                KmindexQuery(path=self.write("q.fa")).execute(
+                    registry_path=self.tmp, output_dir=os.path.join(self.tmp, "out")
+                )
+        self.assertIn("No kmindex result file", "\n".join(logs.output))
+
+    def test_no_match(self):
+        empty = '{"index":"idx","query":"q0","samples":{}}\n'
+        out = self.convert({"idx.jsonl": empty})
+        self.assertIn("No match above threshold", out)
+        self.assertIn("1 result file(s) read", out)
 
 
 if __name__ == "__main__":
