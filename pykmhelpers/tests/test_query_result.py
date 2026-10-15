@@ -216,27 +216,27 @@ class TestMatchStats(unittest.TestCase):
     def test_per_query(self):
         rows = self.stats({"g0": 4, "g1": 2})
         q0 = rows["q0"]
-        self.assertEqual((q0["samples"], q0["matched"], q0["perfect"]), (6, 3, 1))
-        self.assertAlmostEqual(q0["matched_pct"], 50.0)
+        self.assertEqual((q0["samples"], q0["perfect"]), (3, 1))
+        self.assertAlmostEqual(q0["perfect_pct"], 100 / 3)
         self.assertAlmostEqual(q0["mean"], 1.6 / 3)
         self.assertAlmostEqual(q0["median"], 0.4)
         # s3 is below threshold
-        self.assertEqual(rows["q1"]["matched"], 1)
+        self.assertEqual(rows["q1"]["samples"], 1)
 
     def test_overall_best_score_per_sample(self):
         overall = self.stats({"g0": 4, "g1": 2})["*"]
         # s1 counted once with its best score 0.6
-        self.assertEqual((overall["samples"], overall["matched"]), (6, 3))
-        self.assertAlmostEqual(overall["matched_pct"], 50.0)
+        self.assertEqual((overall["samples"], overall["perfect"]), (3, 1))
         self.assertAlmostEqual(overall["mean"], 0.6)
 
-    def test_subindex_without_match_counted_in_samples(self):
-        self.assertEqual(self.stats({"g0": 4, "g1": 2, "g2": 10})["*"]["samples"], 16)
+    def test_total_samples(self):
+        sizes = {"g0": 4, "g1": 2, "g2": 10}
+        r = KmindexQueryResult(items=self.ITEMS, index_sizes=sizes)
+        self.assertEqual(r.total_samples(), 16)
 
     def test_unknown_sizes(self):
-        overall = self.stats({"g0": 4})["*"]
-        self.assertIsNone(overall["samples"])
-        self.assertIsNone(overall["matched_pct"])
+        r = KmindexQueryResult(items=self.ITEMS, index_sizes={"g0": 4})
+        self.assertIsNone(r.total_samples())
 
     def test_query_without_match(self):
         path = write_jsonl(
@@ -248,7 +248,8 @@ class TestMatchStats(unittest.TestCase):
             ],
         )
         rows = {r["query"]: r for r in KmindexQueryResult(path).match_stats(0.05)}
-        self.assertEqual(rows["nohit"]["matched"], 0)
+        self.assertEqual(rows["nohit"]["samples"], 0)
+        self.assertIsNone(rows["nohit"]["perfect_pct"])
         self.assertIsNone(rows["nohit"]["mean"])
 
     def test_tsv(self):
@@ -256,7 +257,7 @@ class TestMatchStats(unittest.TestCase):
         lines = r.generate_sequence_stats_tsv(0.05).split("\n")
         headers = KmindexQueryResult._SEQUENCE_STATS_HEADERS
         self.assertEqual(lines[0], "\t".join(headers))
-        self.assertEqual(lines[-1], "*\t6\t3\t50.0\t1\t0.600\t0.600")
+        self.assertEqual(lines[-1], "*\t3\t1\t33.3\t0.600\t0.600")
 
     def test_natural_order(self):
         items = {"g0": {f"read_{i}": {"s0": 0.5} for i in (10, 2, 1)}}
@@ -274,24 +275,18 @@ class TestSampleStats(unittest.TestCase):
         # s3 is below threshold, no row
         self.assertEqual(list(rows), ["s0", "s1", "s2", "*"])
         s0, s1, s2 = rows["s0"], rows["s1"], rows["s2"]
-        self.assertEqual((s0["queries"], s0["matched"], s0["perfect"]), (2, 1, 1))
-        self.assertAlmostEqual(s0["matched_pct"], 50.0)
-        self.assertEqual((s1["matched"], s1["perfect"]), (2, 0))
-        self.assertAlmostEqual(s1["matched_pct"], 100.0)
+        self.assertEqual((s0["queries"], s0["perfect"]), (1, 1))
+        self.assertAlmostEqual(s0["perfect_pct"], 100.0)
+        self.assertEqual((s1["queries"], s1["perfect"]), (2, 0))
+        self.assertAlmostEqual(s1["perfect_pct"], 0.0)
         self.assertAlmostEqual(s1["mean"], 0.5)
         self.assertAlmostEqual(s2["median"], 0.2)
 
     def test_overall_best_score_per_query(self):
         overall = self.stats()["*"]
         # q0 counted once with its best score 1.0, q1 with 0.6
-        self.assertEqual((overall["matched"], overall["perfect"]), (2, 1))
+        self.assertEqual((overall["queries"], overall["perfect"]), (2, 1))
         self.assertAlmostEqual(overall["mean"], 0.8)
-
-    def test_query_without_match_counted(self):
-        r = KmindexQueryResult(items={"g0": {"q0": {"s0": 0.5}}})
-        r._queries.add("nohit")
-        s0 = {row["sample"]: row for row in r.sample_stats(0.05)}["s0"]
-        self.assertEqual((s0["queries"], s0["matched"]), (2, 1))
 
     def test_natural_order(self):
         items = {"g0": {"q0": {f"s{i}": 0.5 for i in (10, 2, 1)}}}
@@ -302,8 +297,8 @@ class TestSampleStats(unittest.TestCase):
         lines = r.generate_sample_stats_tsv(0.05).split("\n")
         headers = KmindexQueryResult._SAMPLE_STATS_HEADERS
         self.assertEqual(lines[0], "\t".join(headers))
-        self.assertEqual(lines[1], "s0\t2\t1\t50.0\t1\t1.000\t1.000")
-        self.assertEqual(lines[-1], "*\t2\t2\t100.0\t1\t0.800\t0.800")
+        self.assertEqual(lines[1], "s0\t1\t1\t100.0\t1.000\t1.000")
+        self.assertEqual(lines[-1], "*\t2\t1\t50.0\t0.800\t0.800")
 
 
 class TestReport(unittest.TestCase):
@@ -359,7 +354,7 @@ class TestReport(unittest.TestCase):
         self.assertIn("3 of 8 matching samples shown", section)
         self.assertEqual(section.count("| s"), 3)
         self.assertIn("| s0 | 1.000 |", section)
-        self.assertEqual(r.match_stats(0.05)[0]["matched"], 8)
+        self.assertEqual(r.match_stats(0.05)[0]["samples"], 8)
 
     def test_query_without_match_has_no_section(self):
         r = self.result(n_queries=1)

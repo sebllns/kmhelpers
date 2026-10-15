@@ -37,7 +37,7 @@ def _natural_key(name: str) -> list:
 
 class KmindexQueryResult:
     # Match statistics columns, a score this close to 1 counts as perfect
-    _SUMMARY_HEADERS = ("matched", "matched_pct", "perfect", "mean", "median")
+    _SUMMARY_HEADERS = ("perfect", "perfect_pct", "mean", "median")
     _SEQUENCE_STATS_HEADERS = ("query", "samples") + _SUMMARY_HEADERS
     _SAMPLE_STATS_HEADERS = ("sample", "queries") + _SUMMARY_HEADERS
     _PERFECT = 1.0 - 1e-9
@@ -63,7 +63,7 @@ class KmindexQueryResult:
         self._vectors: dict[str, dict[str, dict[str, list[int]]]] = vectors or {}
         # Run info reported by the kmindex wrapper (command, timing, resources)
         self._metadata: dict = metadata or {}
-        # {index: number of samples}, from the registry, needed for matched_pct
+        # {index: number of samples}, from the registry, shown in reports
         self._index_sizes: dict[str, int] = index_sizes or {}
         # Every query read, matched or not, so reports list them all
         self._queries: set[str] = set()
@@ -263,12 +263,12 @@ class KmindexQueryResult:
         return cells
 
     @classmethod
-    def _score_summary(cls, size: Optional[int], scores: list[float]) -> dict:
-        # scores: matches of one query (or sample), size: what they are counted against
+    def _score_summary(cls, scores: list[float]) -> dict:
+        # scores: matches of one query (or sample)
+        perfect = sum(s >= cls._PERFECT for s in scores)
         return {
-            "matched": len(scores),
-            "matched_pct": 100 * len(scores) / size if size else None,
-            "perfect": sum(s >= cls._PERFECT for s in scores),
+            "perfect": perfect,
+            "perfect_pct": 100 * perfect / len(scores) if scores else None,
             "mean": statistics.fmean(scores) if scores else None,
             "median": statistics.median(scores) if scores else None,
         }
@@ -305,25 +305,23 @@ class KmindexQueryResult:
     def match_stats(self, threshold: float = 0.0) -> list[dict]:
         """One row per query over the whole index, then a "*" row over all
         queries, where each sample counts once with its best score."""
-        total = self.total_samples()
         hits = self._query_hits(threshold)
         rows = []
         best: dict[str, float] = {}
         for query in self.query_names():
             scores = {s: v[0] for s, v in hits.get(query, {}).items()}
-            summary = self._score_summary(total, list(scores.values()))
-            rows.append({"query": query, "samples": total, **summary})
+            summary = self._score_summary(list(scores.values()))
+            rows.append({"query": query, "samples": len(scores), **summary})
             for sample, score in scores.items():
                 best[sample] = max(best.get(sample, 0.0), score)
-        summary = self._score_summary(total, list(best.values()))
-        rows.append({"query": "*", "samples": total, **summary})
+        summary = self._score_summary(list(best.values()))
+        rows.append({"query": "*", "samples": len(best), **summary})
         return rows
 
     def sample_stats(self, threshold: float = 0.0) -> list[dict]:
         """One row per matched sample over all queries, then a "*" row where
         each query counts once with its best score over samples. Unmatched
         samples are left out, an index can hold millions of them."""
-        n_queries = len(self.query_names())
         by_sample: dict[str, list[float]] = {}
         best: dict[str, float] = {}
         for query, samples in self._query_hits(threshold).items():
@@ -333,13 +331,13 @@ class KmindexQueryResult:
         rows = [
             {
                 "sample": sample,
-                "queries": n_queries,
-                **self._score_summary(n_queries, by_sample[sample]),
+                "queries": len(by_sample[sample]),
+                **self._score_summary(by_sample[sample]),
             }
             for sample in sorted(by_sample, key=_natural_key)
         ]
-        summary = self._score_summary(n_queries, list(best.values()))
-        rows.append({"sample": "*", "queries": n_queries, **summary})
+        summary = self._score_summary(list(best.values()))
+        rows.append({"sample": "*", "queries": len(best), **summary})
         return rows
 
     @staticmethod
@@ -349,7 +347,7 @@ class KmindexQueryResult:
             value = row[key]
             if value is None:
                 cells.append("")
-            elif key == "matched_pct":
+            elif key == "perfect_pct":
                 cells.append(f"{value:.1f}")
             elif isinstance(value, float):
                 cells.append(f"{value:.3f}")

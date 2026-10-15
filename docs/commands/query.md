@@ -56,10 +56,9 @@ with its best score:
 
 | Column | Meaning |
 |--------|---------|
-| `samples` | samples in the queried subindexes (from the registry) |
-| `matched` | samples with a score >= `--threshold` |
-| `matched_pct` | `matched / samples`, in % |
+| `samples` | samples with a score >= `--threshold` |
 | `perfect` | samples with a score of 1 |
+| `perfect_pct` | `perfect / samples`, in % |
 | `mean`, `median` | over the matching scores |
 
 `sample_stats.tsv` is the reverse view: one row per matched sample (unmatched samples are
@@ -68,10 +67,9 @@ with its best score over samples:
 
 | Column | Meaning |
 |--------|---------|
-| `queries` | query sequences |
-| `matched` | sequences with a score >= `--threshold` in this sample |
-| `matched_pct` | `matched / queries`, in % |
+| `queries` | sequences with a score >= `--threshold` in this sample |
 | `perfect` | sequences with a score of 1 |
+| `perfect_pct` | `perfect / queries`, in % |
 | `mean`, `median` | over the matching scores |
 
 **Data and reports** - `-f` sets the data format: complete, unpaged, meant for scripts.

@@ -227,9 +227,9 @@ class QueryReport:
 
     # Index and overall columns: stats key, label
     _REPORT_COLUMNS: tuple[tuple[str, str], ...] = (
-        ("matched", "Matched"),
-        ("matched_pct", "Matched %"),
+        ("samples", "Samples"),
         ("perfect", "Perfect"),
+        ("perfect_pct", "Perfect %"),
         ("mean", "Mean"),
         ("median", "Median"),
     )
@@ -241,8 +241,8 @@ class QueryReport:
             "Score: share of the query k-mers found in the sample, from 0 to 1.",
             f"A sample matches a sequence when its score is >= {threshold}. "
             "A perfect match has a score of 1.",
-            "Matched % is relative to all samples of the queried subindexes. "
-            "Mean and median are computed over the matching samples only.",
+            "Samples: number of matching samples. Perfect % is relative to them, "
+            "mean and median are computed over them.",
             "Overall: each sample counts once, with its best score over all sequences.",
             "Sequences: one line per query sequence, the name links to its details. "
             "Sequences without any match have no details.",
