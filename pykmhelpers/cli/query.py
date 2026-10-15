@@ -231,7 +231,7 @@ def query(
 
     if existing == "delete" and not force:
         if not click.confirm(
-            f"Proceed with 'delete' on existing output directories?", default=True
+            "Proceed with 'delete' on existing output directories?", default=True
         ):
             raise click.Abort()
         force = True

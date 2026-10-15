@@ -152,7 +152,8 @@ class KmindexQueryResult:
                     score, vector = self._parse_sample(value)
                     if score is None:
                         logger.warning(
-                            f"Unsupported sample entry for {index}/{query}/{sample}, skipped"
+                            f"Unsupported sample entry for {index}/{query}/{sample}, "
+                            "skipped"
                         )
                         continue
                     scores[sample] = score
@@ -268,7 +269,7 @@ class KmindexQueryResult:
     def _stats_row(cls, query: str, size: Optional[int], hits: dict) -> dict:
         # hits: {sample: score}, matches of one query (or best over all queries)
         scores = list(hits.values())
-        best = max(hits, key=hits.get) if hits else None
+        best = max(hits, key=lambda s: hits[s]) if hits else None
         return {
             "query": query,
             "samples": size,
@@ -428,14 +429,16 @@ class KmindexQueryResult:
             }
             for index_name, samples in self._by_sample(threshold, with_rle=True).items()
         }
-        return yaml.dump(
+        out = yaml.dump(
             filtered, Dumper=_QueryDumper, default_flow_style=False, sort_keys=False
         )
+        return str(out)
 
     def convert(self, format: str, threshold: float = 0.01) -> str:
         key = format.lower()
         if key not in self._CONVERTERS:
             raise ValueError(
-                f"Unsupported output format: {format!r}. Use: {', '.join(self._CONVERTERS)}"
+                f"Unsupported output format: {format!r}. "
+                f"Use: {', '.join(self._CONVERTERS)}"
             )
-        return getattr(self, self._CONVERTERS[key])(threshold)
+        return str(getattr(self, self._CONVERTERS[key])(threshold))

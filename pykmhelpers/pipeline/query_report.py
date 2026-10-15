@@ -68,17 +68,21 @@ class _HtmlWriter(_ReportWriter):
     ext = "html"
     index_name = "index.html"
 
-    _STYLE = (
-        "body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }\n"
-        "h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 8px; margin-top: 30px; }\n"
-        "table { border-collapse: collapse; margin: 20px 0; }\n"
-        "th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #ddd; }\n"
-        "th { background-color: #3498db; color: white; position: sticky; top: 0; }\n"
-        "code { font-family: monospace; word-break: break-all; }\n"
-        ".score { display: inline-block; min-width: 3.5em; padding: 2px 6px; border-radius: 2px; }\n"
-        ".track { display: flex; width: 400px; height: 14px; border-radius: 2px; overflow: hidden; }\n"
-        ".track span { flex: 1 1 0; }\n"
-    )
+    _STYLE = """\
+body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto;
+  padding: 20px; }
+h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 8px;
+  margin-top: 30px; }
+table { border-collapse: collapse; margin: 20px 0; }
+th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #ddd; }
+th { background-color: #3498db; color: white; position: sticky; top: 0; }
+code { font-family: monospace; word-break: break-all; }
+.score { display: inline-block; min-width: 3.5em; padding: 2px 6px;
+  border-radius: 2px; }
+.track { display: flex; width: 400px; height: 14px; border-radius: 2px;
+  overflow: hidden; }
+.track span { flex: 1 1 0; }
+"""
 
     def text(self, value) -> str:
         return escape(str(value))
@@ -254,7 +258,8 @@ class QueryReport:
 
     def _score_cell(self, w: _ReportWriter, score: float) -> str:
         if w.ext == "html":
-            return f"<span class='score' style='{self._score_style(score)}'>{score:.3f}</span>"
+            style = self._score_style(score)
+            return f"<span class='score' style='{style}'>{score:.3f}</span>"
         return f"{score:.3f}"
 
     def _track_cell(self, w: _ReportWriter, vector: Optional[list[int]]) -> str:

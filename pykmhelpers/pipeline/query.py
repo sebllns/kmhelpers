@@ -87,7 +87,7 @@ class KmindexQuery:
         method: str = "seq",
         vec: bool = False,
         keep_query: bool = False,
-    ):
+    ) -> list[KmindexQueryResult]:
         """Run a query against the kmindex registry.
 
         Args:
@@ -96,10 +96,12 @@ class KmindexQuery:
             index_ids (list[str]): Index IDs to query against; empty list queries all.
             z (int): Z-value (error rate parameter) for kmindex.
             threshold (float): Minimum score threshold for reported hits.
-            single_query (str, optional): Query identifier; treats all sequences as one query.
+            single_query (str, optional): Query identifier; treats all sequences
+                as one query.
             aggregate (bool): Whether to aggregate batch results into a single file.
             threads (int): Number of threads to use.
-            fast (bool): Enable fast mode (disabled automatically when `is_compressed` is True).
+            fast (bool): Enable fast mode (disabled automatically when
+                `is_compressed` is True).
             is_compressed (bool): Whether the index is stored in compressed form.
             method (str): Query method passed to kmindex (e.g. ``"seq"``).
             vec (bool): Use ``jsonl_vec`` output format instead of ``jsonl``.
@@ -143,7 +145,7 @@ class KmindexQuery:
             with open(os.path.join(output_dir, "info.yaml"), "w") as f:
                 yaml.safe_dump(info, f)
 
-        result = []
+        result: list[KmindexQueryResult] = []
 
         files = list_result_files(result_dir)
         if not files:
@@ -176,7 +178,8 @@ class QueryRunnerConfig:
             ``tsv``), ``None`` keeps only the raw kmindex results.
         export: Human report written beside the data (``md``, ``html``),
             ``None`` for none. Requires ``output_format``.
-        timestamp: Append a ``YYYYmmdd_HHMMSS`` suffix to each per-query output directory.
+        timestamp: Append a ``YYYYmmdd_HHMMSS`` suffix to each per-query output
+            directory.
         on_existing: Behaviour when the output directory already exists
             (``skip``, ``fail``, ``delete``, ``new-name``).
         parallel: Parallelisation strategy passed to kmindex (``seq`` or ``sub``).
@@ -235,7 +238,8 @@ class QueryRunner:
         self._info_path: Optional[str] = None
         if self._config.compressed and self._config.parallel != "sub":
             logger.warning(
-                "--compressed requires sub parallelization strategy; forcing parallel=sub"
+                "--compressed requires sub parallelization strategy; "
+                "forcing parallel=sub"
             )
             self._config.parallel = "sub"
         if self._config.output_format in ("md", "html"):
@@ -346,10 +350,10 @@ class QueryRunner:
                     tmp_dir = tempfile.mkdtemp()
                     temp_files.append(tmp_dir)
                     name = os.path.basename(qfile)
-                    tmp = os.path.join(tmp_dir, name[: name.rfind(".")])
-                    with open_decompressed(qfile) as fin, open(tmp, "wb") as fout:
+                    plain = os.path.join(tmp_dir, name[: name.rfind(".")])
+                    with open_decompressed(qfile) as fin, open(plain, "wb") as fout:
                         shutil.copyfileobj(fin, fout)
-                    qfile = tmp
+                    qfile = plain
                 resolved.append(qfile)
         except Exception:
             self._remove_temp(temp_files)
@@ -391,9 +395,10 @@ class QueryRunner:
         if cfg.timestamp:
             query_output = f"{query_output}_{time.strftime('%Y%m%d_%H%M%S')}"
 
-        query_output = self._resolve_existing(query_output, stem)
-        if query_output is None:
+        resolved = self._resolve_existing(query_output, stem)
+        if resolved is None:
             return []
+        query_output = resolved
 
         logger.info(f"[{idx}/{total}] Querying: {stem}...")
 
@@ -528,6 +533,7 @@ class QueryRunner:
 
     def _write_report(self, merged: "KmindexQueryResult", out_dir: str) -> None:
         cfg = self._config
+        assert cfg.export is not None
         files = merged.generate_report(
             cfg.export, cfg.threshold, page_size=cfg.page_size, top=cfg.top
         )
