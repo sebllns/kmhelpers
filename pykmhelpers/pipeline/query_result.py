@@ -30,17 +30,16 @@ _QueryDumper.add_representer(
 )
 
 
+def _natural_key(name: str) -> list:
+    # read_2 before read_10
+    return [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", name)]
+
+
 class KmindexQueryResult:
     # Match statistics columns, a score this close to 1 counts as perfect
-    _STATS_HEADERS = (
-        "query",
-        "samples",
-        "matched",
-        "matched_pct",
-        "perfect",
-        "mean",
-        "median",
-    )
+    _SUMMARY_HEADERS = ("matched", "matched_pct", "perfect", "mean", "median")
+    _SEQUENCE_STATS_HEADERS = ("query", "samples") + _SUMMARY_HEADERS
+    _SAMPLE_STATS_HEADERS = ("sample", "queries") + _SUMMARY_HEADERS
     _PERFECT = 1.0 - 1e-9
 
     _CONVERTERS: dict[str, str] = {
@@ -264,12 +263,9 @@ class KmindexQueryResult:
         return cells
 
     @classmethod
-    def _stats_row(cls, query: str, size: Optional[int], hits: dict) -> dict:
-        # hits: {sample: score}, matches of one query (or best over all queries)
-        scores = list(hits.values())
+    def _score_summary(cls, size: Optional[int], scores: list[float]) -> dict:
+        # scores: matches of one query (or sample), size: what they are counted against
         return {
-            "query": query,
-            "samples": size,
             "matched": len(scores),
             "matched_pct": 100 * len(scores) / size if size else None,
             "perfect": sum(s >= cls._PERFECT for s in scores),
@@ -283,10 +279,7 @@ class KmindexQueryResult:
         names = set(self._queries)
         for queries in self._items.values():
             names.update(queries)
-        return sorted(
-            names,
-            key=lambda n: [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", n)],
-        )
+        return sorted(names, key=_natural_key)
 
     def total_samples(self) -> Optional[int]:
         """Samples in the queried subindexes, None if any size is unknown."""
@@ -318,10 +311,35 @@ class KmindexQueryResult:
         best: dict[str, float] = {}
         for query in self.query_names():
             scores = {s: v[0] for s, v in hits.get(query, {}).items()}
-            rows.append(self._stats_row(query, total, scores))
+            summary = self._score_summary(total, list(scores.values()))
+            rows.append({"query": query, "samples": total, **summary})
             for sample, score in scores.items():
                 best[sample] = max(best.get(sample, 0.0), score)
-        rows.append(self._stats_row("*", total, best))
+        summary = self._score_summary(total, list(best.values()))
+        rows.append({"query": "*", "samples": total, **summary})
+        return rows
+
+    def sample_stats(self, threshold: float = 0.0) -> list[dict]:
+        """One row per matched sample over all queries, then a "*" row where
+        each query counts once with its best score over samples. Unmatched
+        samples are left out, an index can hold millions of them."""
+        n_queries = len(self.query_names())
+        by_sample: dict[str, list[float]] = {}
+        best: dict[str, float] = {}
+        for query, samples in self._query_hits(threshold).items():
+            for sample, (score, _) in samples.items():
+                by_sample.setdefault(sample, []).append(score)
+                best[query] = max(best.get(query, 0.0), score)
+        rows = [
+            {
+                "sample": sample,
+                "queries": n_queries,
+                **self._score_summary(n_queries, by_sample[sample]),
+            }
+            for sample in sorted(by_sample, key=_natural_key)
+        ]
+        summary = self._score_summary(n_queries, list(best.values()))
+        rows.append({"sample": "*", "queries": n_queries, **summary})
         return rows
 
     @staticmethod
@@ -339,11 +357,19 @@ class KmindexQueryResult:
                 cells.append(str(value))
         return cells
 
-    def generate_stats_tsv(self, threshold: float = 0.0) -> str:
-        lines = ["\t".join(self._STATS_HEADERS)]
-        for row in self.match_stats(threshold):
-            lines.append("\t".join(self._stats_cells(row, self._STATS_HEADERS)))
+    @classmethod
+    def _stats_tsv(cls, headers: tuple[str, ...], rows: list[dict]) -> str:
+        lines = ["\t".join(headers)]
+        lines.extend("\t".join(cls._stats_cells(row, headers)) for row in rows)
         return "\n".join(lines)
+
+    def generate_sequence_stats_tsv(self, threshold: float = 0.0) -> str:
+        return self._stats_tsv(
+            self._SEQUENCE_STATS_HEADERS, self.match_stats(threshold)
+        )
+
+    def generate_sample_stats_tsv(self, threshold: float = 0.0) -> str:
+        return self._stats_tsv(self._SAMPLE_STATS_HEADERS, self.sample_stats(threshold))
 
     def generate_coverage_tsv(self, threshold: float = 0.0) -> str:
         lines = ["\t".join(self._COVERAGE_HEADERS + ("runs",))]

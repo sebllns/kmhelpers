@@ -247,8 +247,8 @@ class QueryReport:
             "Sequences: one line per query sequence, the name links to its details. "
             "Sequences without any match have no details.",
             f"Details ({where}): the {top} best samples of each sequence, by score.",
-            "Full data: kmindex_output/ (raw JSON lines), stats.tsv (statistics per "
-            "sequence).",
+            "Full data: kmindex_output/ (raw JSON lines), sequence_stats.tsv and "
+            "sample_stats.tsv (statistics, unless --no-stats).",
         ]
 
     def _score_cell(self, w: _ReportWriter, score: float) -> str:

@@ -17,7 +17,7 @@ Query indices with FASTA/FASTQ sequences.
 
 !!! abstract "I/O"
     **Input:** FASTA/FASTQ file(s), kmindex registry (`-r`)  
-    **Output:** per query file in the output directory (`-o`): `results.<format>` (TSV by default), `stats.tsv`, the raw kmindex results in `kmindex_output/`, and optionally a report (`--export`)
+    **Output:** per query file in the output directory (`-o`): `results.<format>` (TSV by default), `sequence_stats.tsv` and `sample_stats.tsv`, the raw kmindex results in `kmindex_output/`, and optionally a report (`--export`)
 
 ## Advanced Options
 | Option | Description |
@@ -34,6 +34,7 @@ Query indices with FASTA/FASTQ sequences.
 | `-V, --vec` | Also collect the per-k-mer presence/absence vector, not just the coverage ratio |
 | `--page-size INT` | `--export`: sequences per detail page, a single file up to this count, `0` disables paging (default: 100) |
 | `--top INT` | `--export`: best samples listed per sequence (default: 100) |
+| `--no-stats` | Do not write `sequence_stats.tsv` and `sample_stats.tsv` |
 | `-p, --print` | Print the data format to console instead of `results.<format>`, a report is still written to files |
 | `-T, --timestamp` | Append timestamp suffix to output directory to avoid overwriting |
 | `-e, --existing TEXT` | Conflict resolution: `skip` (default), `fail`, `delete`, `new-name` |
@@ -49,8 +50,9 @@ Each value in the output is the fraction of query k-mers found in that sample. R
 
 **Parallelization** - `seq` parallelises across sequences (default); `sub` parallelises across sub-indices (forced when `--compressed` is set).
 
-**Statistics** - `stats.tsv` holds one row per sequence, then a `*` row over all sequences
-where each sample counts once with its best score:
+**Statistics** - written unless `--no-stats` (or `--print`). `sequence_stats.tsv` holds
+one row per sequence, then a `*` row over all sequences where each sample counts once
+with its best score:
 
 | Column | Meaning |
 |--------|---------|
@@ -58,6 +60,18 @@ where each sample counts once with its best score:
 | `matched` | samples with a score >= `--threshold` |
 | `matched_pct` | `matched / samples`, in % |
 | `perfect` | samples with a score of 1 |
+| `mean`, `median` | over the matching scores |
+
+`sample_stats.tsv` is the reverse view: one row per matched sample (unmatched samples are
+left out, an index can hold millions), then a `*` row where each sequence counts once
+with its best score over samples:
+
+| Column | Meaning |
+|--------|---------|
+| `queries` | query sequences |
+| `matched` | sequences with a score >= `--threshold` in this sample |
+| `matched_pct` | `matched / queries`, in % |
+| `perfect` | sequences with a score of 1 |
 | `mean`, `median` | over the matching scores |
 
 **Data and reports** - `-f` sets the data format: complete, unpaged, meant for scripts.
@@ -77,7 +91,8 @@ always use every match, `--top` only caps what is listed. All matches stay in
 ```
 results/query/
   index.html
-  stats.tsv
+  sequence_stats.tsv
+  sample_stats.tsv
   details/page_001.html
   details/page_002.html
   kmindex_output/

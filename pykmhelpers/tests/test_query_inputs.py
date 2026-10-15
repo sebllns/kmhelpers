@@ -288,8 +288,10 @@ class TestConvertLogs(QueryInputsBase):
         out = self.convert({"idx.jsonl": empty})
         self.assertIn("No match above threshold", out)
         self.assertIn("1 result file(s) read", out)
-        stats = Path(self.tmp, "stats.tsv").read_text().split("\n")
+        stats = Path(self.tmp, "sequence_stats.tsv").read_text().split("\n")
         self.assertEqual(stats[-1], "*\t\t0\t\t0\t\t")
+        stats = Path(self.tmp, "sample_stats.tsv").read_text().split("\n")
+        self.assertEqual(stats, [stats[0], "*\t1\t0\t0.0\t0\t\t"])
 
     def test_paged_report_files(self):
         result_dir = Path(self.tmp, "kmindex_output")
@@ -319,21 +321,29 @@ class TestDataAndExport(QueryInputsBase):
             self.runner(**kwargs)._convert_results(str(result_dir))
         return sorted(p.name for p in Path(self.tmp).iterdir())
 
+    STATS = ["sample_stats.tsv", "sequence_stats.tsv"]
+
     def test_data_and_export(self):
         files = self.convert(output_format="tsv", export="html")
         self.assertEqual(
-            files, ["kmindex_output", "results.html", "results.tsv", "stats.tsv"]
+            files, ["kmindex_output", "results.html", "results.tsv"] + self.STATS
         )
 
     def test_data_only(self):
         self.assertEqual(
             self.convert(output_format="json"),
-            ["kmindex_output", "results.json", "stats.tsv"],
+            ["kmindex_output", "results.json"] + self.STATS,
         )
 
     def test_no_data_format(self):
         self.assertEqual(
-            self.convert(output_format=None), ["kmindex_output", "stats.tsv"]
+            self.convert(output_format=None), ["kmindex_output"] + self.STATS
+        )
+
+    def test_no_stats(self):
+        self.assertEqual(
+            self.convert(output_format="tsv", stats=False),
+            ["kmindex_output", "results.tsv"],
         )
 
     def test_export_requires_data_format(self):
@@ -370,6 +380,12 @@ class TestQueryCli(QueryInputsBase):
         result, config = self.invoke("-f", "none")
         self.assertEqual(result.exit_code, 0, result.output)
         self.assertIsNone(config.output_format)
+
+    def test_stats_option(self):
+        self.assertTrue(self.invoke()[1].stats)
+        result, config = self.invoke("--no-stats")
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertFalse(config.stats)
 
     def test_none_with_export_rejected(self):
         result, config = self.invoke("-f", "none", "-x", "md")

@@ -125,6 +125,12 @@ logger = logging.getLogger(__name__)
     help="🚩  Print result to console (stdout).",
 )
 @click.option(
+    "--stats/--no-stats",
+    default=True,
+    show_default=True,
+    help="🚩  Write sequence_stats.tsv and sample_stats.tsv.",
+)
+@click.option(
     "--keep-query",
     "-K",
     is_flag=True,
@@ -179,6 +185,7 @@ def query(
     page_size,
     top,
     print_output,
+    stats,
     keep_query,
     timestamp,
     existing,
@@ -254,6 +261,7 @@ def query(
             page_size=page_size,
             top=top,
             print_output=print_output,
+            stats=stats,
             keep_query=keep_query,
             timestamp=timestamp,
             on_existing=existing,

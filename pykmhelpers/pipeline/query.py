@@ -188,6 +188,7 @@ class QueryRunnerConfig:
         print_output: Write the converted data to stdout instead of saving it
             to file. Reports are always written to files.
         keep_query: Copy each query file into its output directory.
+        stats: Write sequence_stats.tsv and sample_stats.tsv.
         page_size: md/html reports, sequences per detail page; up to this
             count a single file is written. 0 disables paging.
         top: md/html reports, best samples listed per sequence.
@@ -215,6 +216,7 @@ class QueryRunnerConfig:
     vec: bool = False
     print_output: bool = False
     keep_query: bool = False
+    stats: bool = True
     page_size: int = 100
     top: int = 100
     on_result: Optional[Callable[[list["KmindexQueryResult"]], None]] = None
@@ -493,11 +495,18 @@ class QueryRunner:
                 logger.warning(f"Failed to read {json_path}: {e}")
 
         # Written even without match, the zero counts are informative
-        if files and not self._config.print_output:
-            stats_file = os.path.join(os.path.dirname(result_dir), "stats.tsv")
-            with open(stats_file, "w") as f:
-                f.write(merged.generate_stats_tsv(threshold))
-            logger.info(f"Statistics: {stats_file}")
+        if files and self._config.stats and not self._config.print_output:
+            out_dir = os.path.dirname(result_dir)
+            for name, content in (
+                ("sequence_stats.tsv", merged.generate_sequence_stats_tsv(threshold)),
+                ("sample_stats.tsv", merged.generate_sample_stats_tsv(threshold)),
+            ):
+                with open(os.path.join(out_dir, name), "w") as f:
+                    f.write(content)
+            logger.info(
+                f"Statistics: {os.path.join(out_dir, 'sequence_stats.tsv')}, "
+                "sample_stats.tsv"
+            )
 
         if not merged.items and files:
             logger.info(
