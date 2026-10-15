@@ -40,8 +40,6 @@ class KmindexQueryResult:
         "perfect",
         "mean",
         "median",
-        "best_sample",
-        "best_score",
     )
     _PERFECT = 1.0 - 1e-9
 
@@ -269,7 +267,6 @@ class KmindexQueryResult:
     def _stats_row(cls, query: str, size: Optional[int], hits: dict) -> dict:
         # hits: {sample: score}, matches of one query (or best over all queries)
         scores = list(hits.values())
-        best = max(hits, key=lambda s: hits[s]) if hits else None
         return {
             "query": query,
             "samples": size,
@@ -278,8 +275,6 @@ class KmindexQueryResult:
             "perfect": sum(s >= cls._PERFECT for s in scores),
             "mean": statistics.fmean(scores) if scores else None,
             "median": statistics.median(scores) if scores else None,
-            "best_sample": best,
-            "best_score": hits[best] if best is not None else None,
         }
 
     def query_names(self) -> list[str]:

@@ -232,8 +232,6 @@ class QueryReport:
         ("perfect", "Perfect"),
         ("mean", "Mean"),
         ("median", "Median"),
-        ("best_sample", "Best sample"),
-        ("best_score", "Best score"),
     )
 
     @staticmethod
@@ -252,9 +250,6 @@ class QueryReport:
             "Full data: kmindex_output/ (raw JSON lines), stats.tsv (statistics per "
             "sequence).",
         ]
-
-    def _cell(self, w: _ReportWriter, key: str, cell: str) -> str:
-        return w.code(cell) if key == "best_sample" and cell else w.text(cell)
 
     def _score_cell(self, w: _ReportWriter, score: float) -> str:
         if w.ext == "html":
@@ -345,9 +340,7 @@ class QueryReport:
                     href = f"{page_path(pos // page_size + 1)}{href}"
                 name = w.link(name, href)
             cells = self._result._stats_cells(row, tuple(keys))
-            index_rows.append(
-                [name] + [self._cell(w, k, c) for k, c in zip(keys, cells)]
-            )
+            index_rows.append([name] + [w.text(c) for c in cells])
 
         overall_cells = self._result._stats_cells(overall, tuple(keys))
         parts = [
@@ -359,9 +352,7 @@ class QueryReport:
                 ]
             ),
             w.heading(2, "Overall"),
-            w.table(
-                labels, [[self._cell(w, k, c) for k, c in zip(keys, overall_cells)]]
-            ),
+            w.table(labels, [[w.text(c) for c in overall_cells]]),
             w.heading(2, "How to read"),
             w.items(self._how_to_read(threshold, top, paged)),
             w.heading(2, f"Sequences ({len(queries)})"),

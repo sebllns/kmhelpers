@@ -59,7 +59,6 @@ where each sample counts once with its best score:
 | `matched_pct` | `matched / samples`, in % |
 | `perfect` | samples with a score of 1 |
 | `mean`, `median` | over the matching scores |
-| `best_sample`, `best_score` | highest scoring sample |
 
 **Data and reports** - `-f` sets the data format: complete, unpaged, meant for scripts.
 `--export` adds a human report next to it, so one run gives both. `-f none` writes no

@@ -289,7 +289,7 @@ class TestConvertLogs(QueryInputsBase):
         self.assertIn("No match above threshold", out)
         self.assertIn("1 result file(s) read", out)
         stats = Path(self.tmp, "stats.tsv").read_text().split("\n")
-        self.assertEqual(stats[-1], "*\t\t0\t\t0\t\t\t\t")
+        self.assertEqual(stats[-1], "*\t\t0\t\t0\t\t")
 
     def test_paged_report_files(self):
         result_dir = Path(self.tmp, "kmindex_output")
