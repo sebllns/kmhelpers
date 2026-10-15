@@ -289,7 +289,21 @@ class TestConvertLogs(QueryInputsBase):
         self.assertIn("No match above threshold", out)
         self.assertIn("1 result file(s) read", out)
         stats = Path(self.tmp, "stats.tsv").read_text().split("\n")
-        self.assertEqual(stats[-1], "*\tall\t\t0\t\t0\t\t")
+        self.assertEqual(stats[-1], "*\t\t0\t\t0\t\t\t\t")
+
+    def test_paged_report_files(self):
+        result_dir = Path(self.tmp, "kmindex_output")
+        result_dir.mkdir()
+        Path(result_dir, "idx.jsonl").write_text(
+            '{"index":"idx","query":"q0","samples":{"s0":0.5}}\n'
+            '{"index":"idx","query":"q1","samples":{"s0":0.7}}\n'
+        )
+        runner = self.runner(output_format="html", page_size=1)
+        with self.assertLogs("pykmhelpers.pipeline.query", "INFO") as logs:
+            runner._convert_results(str(result_dir))
+        for name in ("index.html", "details/page_001.html", "details/page_002.html"):
+            self.assertTrue(Path(self.tmp, name).is_file(), name)
+        self.assertIn("2 detail page(s)", "\n".join(logs.output))
 
 
 if __name__ == "__main__":

@@ -17,7 +17,7 @@ Query indices with FASTA/FASTQ sequences.
 
 !!! abstract "I/O"
     **Input:** FASTA/FASTQ file(s), kmindex registry (`-r`)  
-    **Output:** `results.<format>` per query file in output directory (`-o`), TSV by default
+    **Output:** `results.<format>` and `stats.tsv` per query file in output directory (`-o`), TSV by default
 
 ## Advanced Options
 | Option | Description |
@@ -31,6 +31,8 @@ Query indices with FASTA/FASTQ sequences.
 | `-c, --compressed` | Index is compressed (forces `sub` parallelization) |
 | `-f, --format TEXT` | Output format: `tsv` (default), `json`, `yaml`, `md`, `html` |
 | `-V, --vec` | Also collect the per-k-mer presence/absence vector, not just the coverage ratio |
+| `--page-size INT` | md/html: sequences per detail page, a single file up to this count, `0` disables paging (default: 100) |
+| `--top INT` | md/html: best samples listed per sequence (default: 100) |
 | `-p, --print` | Print results to console |
 | `-T, --timestamp` | Append timestamp suffix to output directory to avoid overwriting |
 | `-e, --existing TEXT` | Conflict resolution: `skip` (default), `fail`, `delete`, `new-name` |
@@ -45,6 +47,37 @@ Each value in the output is the fraction of query k-mers found in that sample. R
 **Batch mode** - use `--batch-query` to treat all sequences across all query files as a single query, or `--single-query NAME` to assign them a specific identifier.
 
 **Parallelization** - `seq` parallelises across sequences (default); `sub` parallelises across sub-indices (forced when `--compressed` is set).
+
+**Statistics** - `stats.tsv` holds one row per sequence, then a `*` row over all sequences
+where each sample counts once with its best score:
+
+| Column | Meaning |
+|--------|---------|
+| `samples` | samples in the queried subindexes (from the registry) |
+| `matched` | samples with a score >= `--threshold` |
+| `matched_pct` | `matched / samples`, in % |
+| `perfect` | samples with a score of 1 |
+| `mean`, `median` | over the matching scores |
+| `best_sample`, `best_score` | highest scoring sample |
+
+**md/html reports** - built to stay readable with thousands of sequences and millions of
+samples. The main file holds the run information (date, runtime, kmindex version, registry,
+threshold, command), the overall statistics, a short guide, and one line per sequence with
+its statistics and a link to its details. Each detail section lists the `--top` best
+samples of the sequence with their score. Up to `--page-size` sequences, everything is in
+`results.md` / `results.html`. Above, the main file is `README.md` / `index.html` and the
+details go to `details/page_NNN.<format>`, `--page-size` sequences per page. Statistics
+always use every match, `--top` only caps what is listed. All matches stay in
+`kmindex_output/`.
+
+```
+results/query/
+  index.html
+  stats.tsv
+  details/page_001.html
+  details/page_002.html
+  kmindex_output/
+```
 
 **Presence vector** - by default kmindex reports one coverage ratio `R` per sample:
 
@@ -66,8 +99,8 @@ concentrated on a sub-region:
 | Format | Where the vector data goes |
 |--------|----------------------------|
 | `tsv` | `coverage.tsv` beside `results.tsv`, one row per (query, sample), `P` in a `runs` column |
-| `md` | `## Coverage` table appended to the score matrix |
-| `html` | `Coverage` section with a colored track showing where the query is covered |
+| `md` | `Coverage` column with a text track (`+` found, `~` partial, `-` missing) in each detail table |
+| `html` | `Coverage` column with a colored track showing where the query is covered |
 | `json` | stats plus `P` run-length encoded as `[[value, count], ...]` |
 | `yaml` | stats plus the same `P` encoding, kept on one line |
 
@@ -101,6 +134,9 @@ kmhelpers query -r ./registry -n idx1 -o results -R 0.1 query.fa
 
 # Output as HTML
 kmhelpers query -r ./registry -n idx1 -o results -f html query.fa
+
+# Paged HTML report for many reads: 500 reads per page, 20 best samples each
+kmhelpers query -r ./registry -o results -f html --page-size 500 --top 20 reads.fq.gz
 
 # Per-k-mer coverage track in the HTML report
 kmhelpers query -r ./registry -n idx1 -o results -f html --vec query.fa

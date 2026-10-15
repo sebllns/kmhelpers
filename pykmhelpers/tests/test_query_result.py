@@ -8,6 +8,7 @@ per-k-mer presence vector.
 """
 
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -146,10 +147,7 @@ class TestConverters(QueryResultBase):
             json.loads(plain.generate_json(0.0)), {"idx_0": {"s0": {"q0": RATIO}}}
         )
         self.assertNotIn("Coverage", plain.generate_markdown(0.0))
-        # The track CSS is static, only the coverage section must be absent
-        html = plain.generate_html(0.0)
-        self.assertNotIn("<h2>Coverage</h2>", html)
-        self.assertNotIn("class='track'", html)
+        self.assertNotIn("class='track'", plain.generate_html(0.0))
 
     def test_coverage_tsv(self):
         lines = (
@@ -172,14 +170,13 @@ class TestConverters(QueryResultBase):
         tsv = KmindexQueryResult(self.vec_file()).generate_tsv(0.0)
         self.assertEqual(tsv, f"seq\ts0\nq0\t{RATIO:.3f}")
 
-    def test_markdown_coverage_table(self):
+    def test_markdown_coverage_column(self):
         md = KmindexQueryResult(self.vec_file()).generate_markdown(0.0)
-        self.assertIn("## Coverage", md)
-        self.assertIn("longest_run", md)
+        self.assertIn("| Sample | Score | Coverage |", md)
+        self.assertIn("`++++++--+++-++++++++`", md)
 
     def test_html_coverage_track(self):
         html = KmindexQueryResult(self.vec_file()).generate_html(0.0)
-        self.assertIn("<h2>Coverage</h2>", html)
         self.assertIn("class='track'", html)
         # One bucket per k-mer while the vector is shorter than _TRACK_BUCKETS
         self.assertEqual(html.count("title='"), len(VECTOR))
@@ -214,49 +211,146 @@ class TestMatchStats(unittest.TestCase):
 
     def stats(self, sizes=None, threshold=0.05):
         r = KmindexQueryResult(items=self.ITEMS, index_sizes=sizes)
-        return {(row["query"], row["index"]): row for row in r.match_stats(threshold)}
+        return {row["query"]: row for row in r.match_stats(threshold)}
 
     def test_per_query(self):
         rows = self.stats({"g0": 4, "g1": 2})
-        q0 = rows[("q0", "g0")]
-        self.assertEqual((q0["matched"], q0["perfect"]), (2, 1))
+        q0 = rows["q0"]
+        self.assertEqual((q0["samples"], q0["matched"], q0["perfect"]), (6, 3, 1))
         self.assertAlmostEqual(q0["matched_pct"], 50.0)
-        self.assertAlmostEqual(q0["mean"], 0.7)
-        q0_all = rows[("q0", "all")]
-        self.assertEqual((q0_all["samples"], q0_all["matched"]), (6, 3))
-        self.assertAlmostEqual(q0_all["median"], 0.4)
-        # s3 is below threshold, q1 has no row for g1
-        self.assertEqual(rows[("q1", "g0")]["matched"], 1)
-        self.assertNotIn(("q1", "g1"), rows)
+        self.assertAlmostEqual(q0["mean"], 1.6 / 3)
+        self.assertAlmostEqual(q0["median"], 0.4)
+        self.assertEqual((q0["best_sample"], q0["best_score"]), ("s0", 1.0))
+        # s3 is below threshold
+        self.assertEqual(rows["q1"]["matched"], 1)
 
     def test_overall_best_score_per_sample(self):
-        rows = self.stats({"g0": 4, "g1": 2})
-        g0 = rows[("*", "g0")]
+        overall = self.stats({"g0": 4, "g1": 2})["*"]
         # s1 counted once with its best score 0.6
-        self.assertEqual((g0["matched"], g0["perfect"]), (2, 1))
-        self.assertAlmostEqual(g0["mean"], 0.8)
-        overall = rows[("*", "all")]
         self.assertEqual((overall["samples"], overall["matched"]), (6, 3))
         self.assertAlmostEqual(overall["matched_pct"], 50.0)
+        self.assertAlmostEqual(overall["mean"], 0.6)
 
-    def test_subindex_without_match_listed(self):
-        rows = self.stats({"g0": 4, "g1": 2, "g2": 10})
-        self.assertEqual(rows[("*", "g2")]["matched"], 0)
-        self.assertIsNone(rows[("*", "g2")]["mean"])
-        self.assertEqual(rows[("*", "all")]["samples"], 16)
+    def test_subindex_without_match_counted_in_samples(self):
+        self.assertEqual(self.stats({"g0": 4, "g1": 2, "g2": 10})["*"]["samples"], 16)
 
     def test_unknown_sizes(self):
-        rows = self.stats({"g0": 4})
-        self.assertIsNone(rows[("*", "g1")]["matched_pct"])
-        self.assertIsNone(rows[("*", "all")]["samples"])
+        overall = self.stats({"g0": 4})["*"]
+        self.assertIsNone(overall["samples"])
+        self.assertIsNone(overall["matched_pct"])
 
-    def test_tsv_and_reports(self):
+    def test_query_without_match(self):
+        path = write_jsonl(
+            tempfile.mkdtemp(),
+            "r.jsonl",
+            [
+                {"index": "g0", "query": "q0", "samples": {"s0": 0.5}},
+                {"index": "g0", "query": "nohit", "samples": {}},
+            ],
+        )
+        rows = {r["query"]: r for r in KmindexQueryResult(path).match_stats(0.05)}
+        self.assertEqual(rows["nohit"]["matched"], 0)
+        self.assertIsNone(rows["nohit"]["best_sample"])
+
+    def test_tsv(self):
         r = KmindexQueryResult(items=self.ITEMS, index_sizes={"g0": 4, "g1": 2})
         lines = r.generate_stats_tsv(0.05).split("\n")
         self.assertEqual(lines[0], "\t".join(KmindexQueryResult._STATS_HEADERS))
-        self.assertEqual(lines[-1], "*\tall\t6\t3\t50.0\t1\t0.600\t0.600")
-        self.assertIn("## Statistics", r.generate_markdown(0.05))
-        self.assertIn("<h2>Statistics</h2>", r.generate_html(0.05))
+        self.assertEqual(lines[-1], "*\t6\t3\t50.0\t1\t0.600\t0.600\ts0\t1.000")
+
+    def test_natural_order(self):
+        items = {"g0": {f"read_{i}": {"s0": 0.5} for i in (10, 2, 1)}}
+        names = KmindexQueryResult(items=items).query_names()
+        self.assertEqual(names, ["read_1", "read_2", "read_10"])
+
+
+class TestReport(unittest.TestCase):
+    def result(self, n_queries=5, n_samples=3, **kwargs):
+        items = {
+            "g0": {
+                f"read/{q}": {f"s{s}": 1 - s / 10 for s in range(n_samples)}
+                for q in range(n_queries)
+            }
+        }
+        return KmindexQueryResult(items=items, index_sizes={"g0": 10}, **kwargs)
+
+    def anchors(self, text):
+        return set(re.findall(r'id="([^"]+)"', text))
+
+    def test_single_file_below_page_size(self):
+        files = self.result().generate_report("md", 0.05, page_size=10)
+        self.assertEqual(list(files), ["results.md"])
+        md = files["results.md"]
+        for section in ("## Run", "## Overall", "## How to read", "## Sequences (5)"):
+            self.assertIn(section, md)
+        links = re.findall(r"\]\(#([^)]+)\)", md)
+        self.assertEqual(len(links), 5)
+        self.assertTrue(set(links) <= self.anchors(md))
+
+    def test_paged_above_page_size(self):
+        files = self.result(n_queries=5).generate_report("md", 0.05, page_size=2)
+        self.assertEqual(
+            sorted(files),
+            [
+                "README.md",
+                "details/page_001.md",
+                "details/page_002.md",
+                "details/page_003.md",
+            ],
+        )
+        links = re.findall(r"\]\((details/[^)#]+)#([^)]+)\)", files["README.md"])
+        self.assertEqual(len(links), 5)
+        for page, anchor in links:
+            self.assertIn(anchor, self.anchors(files[page]))
+        self.assertIn("(../README.md)", files["details/page_001.md"])
+
+    def test_html_paged(self):
+        files = self.result().generate_report("html", 0.05, page_size=2)
+        self.assertIn("index.html", files)
+        self.assertIn("<h2 id='read-0'>", files["details/page_001.html"])
+        self.assertIn("href='details/page_003.html#read-4'", files["index.html"])
+
+    def test_top_caps_details_not_stats(self):
+        r = self.result(n_queries=1, n_samples=8)
+        md = r.generate_report("md", 0.05, top=3)["results.md"]
+        section = md[md.index("## read/0") :]
+        self.assertIn("3 of 8 matching samples shown", section)
+        self.assertEqual(section.count("| s"), 3)
+        self.assertIn("| s0 | 1.000 |", section)
+        self.assertEqual(r.match_stats(0.05)[0]["matched"], 8)
+
+    def test_query_without_match_has_no_section(self):
+        r = self.result(n_queries=1)
+        r.load_jsonl(
+            write_jsonl(
+                tempfile.mkdtemp(),
+                "r.jsonl",
+                [{"index": "g0", "query": "nohit", "samples": {}}],
+            )
+        )
+        md = r.generate_markdown(0.05)
+        self.assertIn("| nohit | 0 |", md)
+        self.assertNotIn("## nohit", md)
+
+    def test_slug_collisions(self):
+        items = {"g0": {"a/b": {"s0": 0.5}, "a:b": {"s0": 0.5}}}
+        md = KmindexQueryResult(items=items).generate_markdown(0.05)
+        self.assertEqual(self.anchors(md), {"a-b", "a-b-2"})
+
+    def test_run_section(self):
+        meta = {"start_time": 0, "command": "kmindex query", "kmindex_version": "0.6.1"}
+        md = self.result(metadata=meta).generate_markdown(0.05)
+        self.assertIn("- kmindex version: 0.6.1", md)
+        self.assertIn("- Command: `kmindex query`", md)
+        self.assertIn("- Threshold: 0.05", md)
+        self.assertIn("- Samples: 10", md)
+        self.assertIn("- Date: ", md)
+
+    def test_markdown_escapes_pipes(self):
+        items = {"g0": {"q|1": {"s|0": 0.5}}}
+        md = KmindexQueryResult(items=items).generate_markdown(0.05)
+        self.assertIn("q\\|1", md)
+        self.assertIn("| s\\|0 | 0.500 |", md)
 
 
 if __name__ == "__main__":

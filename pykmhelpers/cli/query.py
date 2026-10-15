@@ -103,6 +103,20 @@ logger = logging.getLogger(__name__)
     help="🚩  Also output the per-k-mer presence/absence vector P along the query, not just the coverage ratio R. Adds coverage stats to the results (a coverage track in html, a coverage.tsv beside results.tsv in tsv).",
 )
 @click.option(
+    "--page-size",
+    type=click.IntRange(min=0),
+    default=100,
+    show_default=True,
+    help="⚙   md/html: sequences per detail page. Up to this count, a single file is written. 0 disables paging.",
+)
+@click.option(
+    "--top",
+    type=click.IntRange(min=1),
+    default=100,
+    show_default=True,
+    help="⚙   md/html: best samples listed per sequence. Statistics use all matches.",
+)
+@click.option(
     "--print",
     "-p",
     "print_output",
@@ -162,6 +176,8 @@ def query(
     compressed,
     format,
     vec,
+    page_size,
+    top,
     print_output,
     keep_query,
     timestamp,
@@ -231,6 +247,8 @@ def query(
             compressed=compressed,
             output_format=format,
             vec=vec,
+            page_size=page_size,
+            top=top,
             print_output=print_output,
             keep_query=keep_query,
             timestamp=timestamp,

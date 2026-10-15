@@ -1,6 +1,8 @@
+import heapq
 import json
 import logging
 import os
+import re
 import shutil
 import statistics
 import sys
@@ -70,6 +72,117 @@ _QueryDumper.add_representer(
 )
 
 
+def _slug(name: str, used: set[str]) -> str:
+    """Anchor id for a sequence name, unique within used."""
+    base = re.sub(r"[^A-Za-z0-9_-]+", "-", name).strip("-") or "seq"
+    slug, i = base, 2
+    while slug in used:
+        slug, i = f"{base}-{i}", i + 1
+    used.add(slug)
+    return slug
+
+
+class _ReportWriter:
+    """Markdown primitives of a report, overridden by _HtmlWriter.
+    Methods return markup, text() escapes raw values."""
+
+    ext = "md"
+    index_name = "README.md"
+
+    @staticmethod
+    def create(fmt: str) -> "_ReportWriter":
+        if fmt == "md":
+            return _ReportWriter()
+        if fmt == "html":
+            return _HtmlWriter()
+        raise ValueError(f"No report for format {fmt!r}, use md or html")
+
+    def text(self, value) -> str:
+        return str(value).replace("|", "\\|")
+
+    def code(self, value) -> str:
+        return f"`{value}`"
+
+    def link(self, text: str, href: str) -> str:
+        return f"[{text}]({href})"
+
+    def heading(self, level: int, text: str, anchor: Optional[str] = None) -> str:
+        # Explicit anchor, renderers generate heading ids differently
+        prefix = f'<a id="{anchor}"></a>\n\n' if anchor else ""
+        return f"{prefix}{'#' * level} {text}\n"
+
+    def para(self, text: str) -> str:
+        return f"{text}\n"
+
+    def items(self, entries: list[str]) -> str:
+        return "".join(f"- {e}\n" for e in entries)
+
+    def table(self, headers: list[str], rows: list[list[str]]) -> str:
+        lines = [
+            "| " + " | ".join(headers) + " |",
+            "|" + "|".join(" --- " for _ in headers) + "|",
+        ]
+        lines.extend("| " + " | ".join(row) + " |" for row in rows)
+        return "\n".join(lines) + "\n"
+
+    def page(self, title: str, parts: list[str]) -> str:
+        return "\n".join([f"# {title}\n"] + parts)
+
+
+class _HtmlWriter(_ReportWriter):
+    ext = "html"
+    index_name = "index.html"
+
+    _STYLE = (
+        "body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }\n"
+        "h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 8px; margin-top: 30px; }\n"
+        "table { border-collapse: collapse; margin: 20px 0; }\n"
+        "th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #ddd; }\n"
+        "th { background-color: #3498db; color: white; position: sticky; top: 0; }\n"
+        "code { font-family: monospace; word-break: break-all; }\n"
+        ".score { display: inline-block; min-width: 3.5em; padding: 2px 6px; border-radius: 2px; }\n"
+        ".track { display: flex; width: 400px; height: 14px; border-radius: 2px; overflow: hidden; }\n"
+        ".track span { flex: 1 1 0; }\n"
+    )
+
+    def text(self, value) -> str:
+        return escape(str(value))
+
+    def code(self, value) -> str:
+        return f"<code>{escape(str(value))}</code>"
+
+    def link(self, text: str, href: str) -> str:
+        return f"<a href='{escape(href)}'>{text}</a>"
+
+    def heading(self, level: int, text: str, anchor: Optional[str] = None) -> str:
+        id_attr = f" id='{anchor}'" if anchor else ""
+        return f"<h{level}{id_attr}>{text}</h{level}>"
+
+    def para(self, text: str) -> str:
+        return f"<p>{text}</p>"
+
+    def items(self, entries: list[str]) -> str:
+        return "<ul>\n" + "".join(f"<li>{e}</li>\n" for e in entries) + "</ul>"
+
+    def table(self, headers: list[str], rows: list[list[str]]) -> str:
+        head = "".join(f"<th>{h}</th>" for h in headers)
+        body = "".join(
+            "<tr>" + "".join(f"<td>{c}</td>" for c in row) + "</tr>\n" for row in rows
+        )
+        return f"<table>\n<tr>{head}</tr>\n{body}</table>"
+
+    def page(self, title: str, parts: list[str]) -> str:
+        body = "\n".join(parts)
+        return (
+            "<!DOCTYPE html>\n<html lang='en'>\n<head>\n"
+            "<meta charset='UTF-8'>\n"
+            "<meta name='viewport' content='width=device-width, initial-scale=1.0'>\n"
+            f"<title>{escape(title)}</title>\n"
+            f"<style>\n{self._STYLE}</style>\n</head>\n<body>\n"
+            f"<h1>{escape(title)}</h1>\n{body}\n</body>\n</html>\n"
+        )
+
+
 class KmindexQueryResult:
     # Sequential blue ramp, light (score 0) to dark (score 1)
     _SCORE_RAMP = (
@@ -91,22 +204,31 @@ class KmindexQueryResult:
 
     # Run info fields kept in reports, in display order
     _RUN_FIELDS: tuple[tuple[str, str], ...] = (
-        ("command", "Command"),
-        ("execution_time_s", "Execution time (s)"),
+        ("date", "Date"),
+        ("execution_time_s", "Runtime (s)"),
         ("max_cpu_percent", "Max CPU (%)"),
         ("max_memory_mb", "Max memory (MB)"),
+        ("kmindex_version", "kmindex version"),
+        ("registry", "Registry"),
+        ("subindexes", "Subindexes"),
+        ("samples", "Samples"),
+        ("threshold", "Threshold"),
+        ("zvalue", "z"),
+        ("query_file", "Query file"),
+        ("command", "Command"),
     )
 
     # Match statistics columns, a score this close to 1 counts as perfect
     _STATS_HEADERS = (
         "query",
-        "index",
         "samples",
         "matched",
         "matched_pct",
         "perfect",
         "mean",
         "median",
+        "best_sample",
+        "best_score",
     )
     _PERFECT = 1.0 - 1e-9
 
@@ -133,6 +255,8 @@ class KmindexQueryResult:
         self._metadata: dict = metadata or {}
         # {index: number of samples}, from the registry, needed for matched_pct
         self._index_sizes: dict[str, int] = index_sizes or {}
+        # Every query read, matched or not, so reports list them all
+        self._queries: set[str] = set()
         if file:
             self.load_jsonl(file)
 
@@ -206,6 +330,8 @@ class KmindexQueryResult:
                 index = record["index"]
                 query = record["query"]
                 samples = record["samples"]
+                if query:
+                    self._queries.add(query)
                 if not (index and query and samples):
                     continue
                 scores = self._items.setdefault(index, {}).setdefault(query, {})
@@ -230,17 +356,6 @@ class KmindexQueryResult:
             for samples in queries.values():
                 max_score = max(max_score, samples.get(sample, 0))
         return max_score
-
-    def _rows(self, threshold: float) -> list[tuple[str, str, str, float]]:
-        # Flattened (query, sample, location, score) rows, sorted by query then score desc
-        rows = []
-        for index_name, queries in self._items.items():
-            for query_name, samples in queries.items():
-                for sample, score in samples.items():
-                    if score >= threshold:
-                        rows.append((query_name, sample, index_name, score))
-        rows.sort(key=lambda r: (r[0], -r[3]))
-        return rows
 
     def _matrix(self, threshold: float) -> tuple[list[str], list[str], dict]:
         # Sample x query score matrix, max score across indices
@@ -358,65 +473,71 @@ class KmindexQueryResult:
         return cells
 
     @classmethod
-    def _stats_row(
-        cls, query: str, index: str, size: Optional[int], scores: list[float]
-    ) -> dict:
-        n = len(scores)
+    def _stats_row(cls, query: str, size: Optional[int], hits: dict) -> dict:
+        # hits: {sample: score}, matches of one query (or best over all queries)
+        scores = list(hits.values())
+        best = max(hits, key=hits.get) if hits else None
         return {
             "query": query,
-            "index": index,
             "samples": size,
-            "matched": n,
-            "matched_pct": 100 * n / size if size else None,
+            "matched": len(scores),
+            "matched_pct": 100 * len(scores) / size if size else None,
             "perfect": sum(s >= cls._PERFECT for s in scores),
             "mean": statistics.fmean(scores) if scores else None,
             "median": statistics.median(scores) if scores else None,
+            "best_sample": best,
+            "best_score": hits[best] if best is not None else None,
         }
 
-    def match_stats(self, threshold: float = 0.0) -> list[dict]:
-        """Match statistics, one dict per row:
-        - (query, subindex) and (query, "all") for each query with a match,
-        - ("*", subindex) and ("*", "all") over all queries, where each sample
-          counts once with its best score.
-        The "all" size is unknown (None) if any subindex size is missing.
-        """
-        sizes = self._index_sizes
-        indexes = sorted(set(sizes) | set(self._items))
-        total = (
-            sum(sizes[i] for i in indexes)
-            if indexes and all(i in sizes for i in indexes)
-            else None
+    def query_names(self) -> list[str]:
+        """All queries seen, including those without any match, in natural
+        order (read_2 before read_10)."""
+        names = set(self._queries)
+        for queries in self._items.values():
+            names.update(queries)
+        return sorted(
+            names,
+            key=lambda n: [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", n)],
         )
-        per_query: dict[str, dict[str, list[float]]] = {}
-        best: dict[str, dict[str, float]] = {}
-        for index, queries in self._items.items():
-            index_best = best.setdefault(index, {})
-            for query, samples in queries.items():
-                kept = {s: v for s, v in samples.items() if v >= threshold}
-                if not kept:
-                    continue
-                per_query.setdefault(query, {})[index] = list(kept.values())
-                for sample, score in kept.items():
-                    index_best[sample] = max(index_best.get(sample, 0.0), score)
 
+    def total_samples(self) -> Optional[int]:
+        """Samples in the queried subindexes, None if any size is unknown."""
+        sizes = self._index_sizes
+        indexes = set(sizes) | set(self._items)
+        if indexes and all(i in sizes for i in indexes):
+            return sum(sizes[i] for i in indexes)
+        return None
+
+    def _query_hits(self, threshold: float) -> dict[str, dict[str, tuple]]:
+        # {query: {sample: (score, vector or None)}}, best score over subindexes
+        hits: dict[str, dict[str, tuple]] = {}
+        for index, queries in self._items.items():
+            index_vectors = self._vectors.get(index, {})
+            for query, samples in queries.items():
+                query_hits = hits.setdefault(query, {})
+                for sample, score in samples.items():
+                    if score >= threshold and score > query_hits.get(sample, (-1,))[0]:
+                        vector = index_vectors.get(query, {}).get(sample)
+                        query_hits[sample] = (score, vector)
+        return hits
+
+    def match_stats(self, threshold: float = 0.0) -> list[dict]:
+        """One row per query over the whole index, then a "*" row over all
+        queries, where each sample counts once with its best score."""
+        total = self.total_samples()
+        hits = self._query_hits(threshold)
         rows = []
-        for query in sorted(per_query):
-            by_index = per_query[query]
-            for index in sorted(by_index):
-                rows.append(
-                    self._stats_row(query, index, sizes.get(index), by_index[index])
-                )
-            merged = [s for scores in by_index.values() for s in scores]
-            rows.append(self._stats_row(query, "all", total, merged))
-        for index in indexes:
-            scores = list(best.get(index, {}).values())
-            rows.append(self._stats_row("*", index, sizes.get(index), scores))
-        merged = [s for b in best.values() for s in b.values()]
-        rows.append(self._stats_row("*", "all", total, merged))
+        best: dict[str, float] = {}
+        for query in self.query_names():
+            scores = {s: v[0] for s, v in hits.get(query, {}).items()}
+            rows.append(self._stats_row(query, total, scores))
+            for sample, score in scores.items():
+                best[sample] = max(best.get(sample, 0.0), score)
+        rows.append(self._stats_row("*", total, best))
         return rows
 
-    @classmethod
-    def _stats_cells(cls, row: dict, headers: tuple[str, ...]) -> list[str]:
+    @staticmethod
+    def _stats_cells(row: dict, headers: tuple[str, ...]) -> list[str]:
         cells = []
         for key in headers:
             value = row[key]
@@ -436,127 +557,28 @@ class KmindexQueryResult:
             lines.append("\t".join(self._stats_cells(row, self._STATS_HEADERS)))
         return "\n".join(lines)
 
-    def _overall_stats(self, threshold: float) -> list[list[str]]:
-        # Report section: the "*" rows only, per-query rows go to stats.tsv
-        headers = self._STATS_HEADERS[1:]
-        return [
-            self._stats_cells(row, headers)
-            for row in self.match_stats(threshold)
-            if row["query"] == "*"
-        ]
-
-    _STATS_NOTE = (
-        "Each sample counts once, with its best score over all queries. "
-        "Per-query rows are in stats.tsv."
-    )
-
     def generate_coverage_tsv(self, threshold: float = 0.0) -> str:
         lines = ["\t".join(self._COVERAGE_HEADERS + ("runs",))]
         cells = self._coverage_cells(self._vector_rows(threshold), with_runs=True)
         lines.extend("\t".join(row) for row in cells)
         return "\n".join(lines)
 
-    def _metadata_rows(self) -> list[tuple[str, str]]:
+    def _metadata_rows(self, threshold: float) -> list[tuple[str, str]]:
         # Only the fields actually reported, dry runs carry the command alone
+        meta = dict(self._metadata)
+        if meta.get("start_time") is not None:
+            meta["date"] = time.strftime(
+                "%Y-%m-%d %H:%M:%S", time.localtime(meta["start_time"])
+            )
+        meta["threshold"] = threshold
+        meta["samples"] = self.total_samples()
+        if not meta.get("subindexes"):
+            meta["subindexes"] = ", ".join(sorted(self._index_sizes or self._items))
         return [
-            (label, str(self._metadata[key]))
+            (label, str(meta[key]))
             for key, label in self._RUN_FIELDS
-            if self._metadata.get(key) is not None
+            if meta.get(key) not in (None, "")
         ]
-
-    def generate_markdown(self, threshold: float = 0.0) -> str:
-        rows = self._rows(threshold)
-        headers = ("Query", "Sample", "Location")
-        widths = [
-            max([len(h)] + [len(str(row[i])) for row in rows])
-            for i, h in enumerate(headers)
-        ]
-        lines = []
-
-        # lines.append(f"## kmindex results - Filter scores ≥ {threshold}\n")
-        # lines.append(
-        #     "| "
-        #     + " | ".join(f"{h:<{w}}" for h, w in zip(headers, widths))
-        #     + " | Score |"
-        # )
-        # lines.append("| " + " | ".join("-" * w for w in widths) + " | ----- |")
-        # for query_name, sample, index_name, score in rows:
-        #     lines.append(
-        #         f"| {query_name:<{widths[0]}} | {sample:<{widths[1]}} "
-        #         f"| {index_name:<{widths[2]}} | {score:.3f} |"
-        #     )
-        # lines.append("")
-
-        meta = self._metadata_rows()
-        if meta:
-            lines.append("## Run\n")
-            for label, value in meta:
-                lines.append(f"- {label}: `{value}`")
-            lines.append("")
-
-        stats = self._overall_stats(threshold)
-        headers = self._STATS_HEADERS[1:]
-        widths = [
-            max([len(h)] + [len(row[i]) for row in stats])
-            for i, h in enumerate(headers)
-        ]
-        lines.append("## Statistics\n")
-        lines.append(f"Threshold: {threshold}. {self._STATS_NOTE}\n")
-        lines.append(
-            "| " + " | ".join(f"{h:<{w}}" for h, w in zip(headers, widths)) + " |"
-        )
-        lines.append("| " + " | ".join("-" * w for w in widths) + " |")
-        for row in stats:
-            lines.append(
-                "| " + " | ".join(f"{c:<{w}}" for c, w in zip(row, widths)) + " |"
-            )
-        lines.append("")
-
-        query_names, sample_names, scores = self._matrix(threshold)
-        corner = "Sequence \\ Sample"
-        q_w = max([len(corner)] + [len(q) for q in query_names])
-        s_ws = [max(len(s), len("0.000")) for s in sample_names]
-        # lines.append("## Score matrix\n")
-        lines.append(
-            f"| {corner:<{q_w}} | "
-            + " | ".join(f"{s:<{w}}" for s, w in zip(sample_names, s_ws))
-            + " |"
-        )
-        lines.append(f"| {'-' * q_w} | " + " | ".join("-" * w for w in s_ws) + " |")
-        for query in query_names:
-            cells = [
-                f"{scores[s][query]:.3f}".ljust(w) if query in scores[s] else " " * w
-                for s, w in zip(sample_names, s_ws)
-            ]
-            lines.append(f"| {query:<{q_w}} | " + " | ".join(cells) + " |")
-        lines.append("")
-
-        rows = self._vector_rows(threshold)
-        coverage = [
-            cells + [f"`{self._track_text(row[4])}`"]
-            for cells, row in zip(self._coverage_cells(rows), rows)
-        ]
-        if coverage:
-            headers = self._COVERAGE_HEADERS + ("k-mer presence",)
-            widths = [
-                max([len(h)] + [len(row[i]) for row in coverage])
-                for i, h in enumerate(headers)
-            ]
-            lines.append("## Coverage\n")
-            lines.append(
-                f"Track: {self._TRACK_TEXT_WIDTH} buckets along the query, "
-                "`+` all k-mers found, `~` partial, `-` none.\n"
-            )
-            lines.append(
-                "| " + " | ".join(f"{h:<{w}}" for h, w in zip(headers, widths)) + " |"
-            )
-            lines.append("| " + " | ".join("-" * w for w in widths) + " |")
-            for row in coverage:
-                lines.append(
-                    "| " + " | ".join(f"{c:<{w}}" for c, w in zip(row, widths)) + " |"
-                )
-            lines.append("")
-        return "\n".join(lines)
 
     @classmethod
     def _score_style(cls, score: float) -> str:
@@ -579,118 +601,170 @@ class KmindexQueryResult:
             cells.append(f"<span style='{style}' title='{lo}-{hi}: {mean:.2f}'></span>")
         return f"<div class='track'>{''.join(cells)}</div>"
 
-    def _coverage_html(self, threshold: float) -> str:
-        rows = self._vector_rows(threshold)
-        if not rows:
+    # ---
+    # MD / HTML REPORT
+
+    _REPORT_TITLE = "kmindex query results"
+
+    # Index and overall columns: stats key, label
+    _REPORT_COLUMNS: tuple[tuple[str, str], ...] = (
+        ("matched", "Matched"),
+        ("matched_pct", "Matched %"),
+        ("perfect", "Perfect"),
+        ("mean", "Mean"),
+        ("median", "Median"),
+        ("best_sample", "Best sample"),
+        ("best_score", "Best score"),
+    )
+
+    @staticmethod
+    def _how_to_read(threshold: float, top: int, paged: bool) -> list[str]:
+        where = "in the pages of `details/`" if paged else "below the sequence table"
+        return [
+            "Score: share of the query k-mers found in the sample, from 0 to 1.",
+            f"A sample matches a sequence when its score is >= {threshold}. "
+            "A perfect match has a score of 1.",
+            "Matched % is relative to all samples of the queried subindexes. "
+            "Mean and median are computed over the matching samples only.",
+            "Overall: each sample counts once, with its best score over all sequences.",
+            "Sequences: one line per query sequence, the name links to its details. "
+            "Sequences without any match have no details.",
+            f"Details ({where}): the {top} best samples of each sequence, by score.",
+            "Full data: kmindex_output/ (raw JSON lines), stats.tsv (statistics per "
+            "sequence).",
+        ]
+
+    def _cell(self, w: "_ReportWriter", key: str, cell: str) -> str:
+        return w.code(cell) if key == "best_sample" and cell else w.text(cell)
+
+    def _score_cell(self, w: "_ReportWriter", score: float) -> str:
+        if w.ext == "html":
+            return f"<span class='score' style='{self._score_style(score)}'>{score:.3f}</span>"
+        return f"{score:.3f}"
+
+    def _track_cell(self, w: "_ReportWriter", vector: Optional[list[int]]) -> str:
+        if not vector:
             return ""
-        header = "".join(f"<th>{h}</th>" for h in self._COVERAGE_HEADERS)
-        body = "\n".join(
-            "        <tr>"
-            + "".join(f"<td>{c}</td>" for c in cells)
-            + f"<td class='track-cell'>{self._track_html(row[4])}</td></tr>"
-            for cells, row in zip(self._coverage_cells(rows), rows)
-        )
         return (
-            f"    <h2>Coverage</h2>\n"
-            f"    <table>\n"
-            f"        <tr>{header}<th>k-mer presence</th></tr>\n"
-            f"{body}\n"
-            f"    </table>"
+            self._track_html(vector)
+            if w.ext == "html"
+            else w.code(self._track_text(vector))
         )
 
-    def generate_html(self, threshold: float = 0.0) -> str:
-        row_html = "\n".join(
-            f"        <tr><td>{q}</td><td>{s}</td><td>{loc}</td><td>{sc:.3f}</td></tr>"
-            for q, s, loc, sc in self._rows(threshold)
-        )
-        query_names, sample_names, scores = self._matrix(threshold)
-        matrix_header = "".join(f"<th>{s}</th>" for s in sample_names)
-        matrix_html = "\n".join(
-            f"        <tr><td>{query}</td>"
-            + "".join(
-                (
-                    f"<td style='{self._score_style(scores[s][query])}'>"
-                    f"{scores[s][query]:.3f}</td>"
-                    if query in scores[s]
-                    else "<td class='empty'>-</td>"
+    def _detail_section(
+        self, w: "_ReportWriter", query: str, anchor: str, hits: dict, top: int
+    ) -> str:
+        shown = heapq.nlargest(top, hits.items(), key=lambda item: item[1][0])
+        with_track = any(vector for _, (_, vector) in shown)
+        headers = ["Sample", "Score"] + (["Coverage"] if with_track else [])
+        rows = []
+        for sample, (score, vector) in shown:
+            row = [w.text(sample), self._score_cell(w, score)]
+            if with_track:
+                row.append(self._track_cell(w, vector))
+            rows.append(row)
+        parts = [w.heading(2, w.text(query), anchor)]
+        if len(hits) > len(shown):
+            parts.append(
+                w.para(
+                    f"{len(shown)} of {len(hits)} matching samples shown, "
+                    f"all matches are in kmindex_output/."
                 )
-                for s in sample_names
             )
-            + "</tr>"
-            for query in query_names
-        )
-        meta_html = "".join(
-            f"        <tr><th>{escape(label)}</th><td class='run-value'>{escape(value)}</td></tr>\n"
-            for label, value in self._metadata_rows()
-        )
-        if meta_html:
-            meta_html = (
-                f"    <h2>Run</h2>\n"
-                f"    <table class='run'>\n{meta_html}    </table>\n"
+        parts.append(w.table(headers, rows))
+        return "\n".join(parts)
+
+    def generate_report(
+        self,
+        fmt: str,
+        threshold: float = 0.0,
+        page_size: int = 0,
+        top: int = 100,
+    ) -> dict[str, str]:
+        """Build a md or html report as {relative path: content}.
+
+        Up to page_size sequences (or page_size 0): a single results.<fmt>.
+        More: README.md or index.html, plus details/page_NNN.<fmt> holding
+        page_size sequences each. Only the top best samples are listed per
+        sequence, statistics use all matches.
+        """
+        w = _ReportWriter.create(fmt)
+        hits = self._query_hits(threshold)
+        stats = self.match_stats(threshold)
+        overall = stats.pop()
+        queries = [row["query"] for row in stats]
+        paged = 0 < page_size < len(queries)
+        n_pages = -(-len(queries) // page_size) if paged else 1
+        digits = max(3, len(str(n_pages)))
+
+        def page_path(page: int) -> str:
+            return f"details/page_{page:0{digits}d}.{w.ext}"
+
+        # Anchors and detail pages, only for sequences with a match
+        used: set[str] = set()
+        anchors: dict[str, str] = {}
+        pages: dict[int, list[str]] = {}
+        for pos, query in enumerate(queries):
+            if not hits.get(query):
+                continue
+            anchors[query] = _slug(query, used)
+            page = pos // page_size + 1 if paged else 0
+            pages.setdefault(page, []).append(
+                self._detail_section(w, query, anchors[query], hits[query], top)
             )
-        stats_header = "".join(f"<th>{h}</th>" for h in self._STATS_HEADERS[1:])
-        stats_body = "\n".join(
-            "        <tr>" + "".join(f"<td>{c}</td>" for c in row) + "</tr>"
-            for row in self._overall_stats(threshold)
-        )
-        stats_html = (
-            f"    <h2>Statistics</h2>\n"
-            f"    <p>Threshold: {threshold}. {self._STATS_NOTE}</p>\n"
-            f"    <table>\n"
-            f"        <tr>{stats_header}</tr>\n"
-            f"{stats_body}\n"
-            f"    </table>\n"
-        )
-        body = (
-            # f"    <h2>kmindex results - Filter scores ≥ {threshold}</h2>\n"
-            # f"    <table>\n"
-            # f"        <tr><th>Query</th><th>Sample</th><th>Location</th><th>Score</th></tr>\n"
-            # f"{row_html}\n"
-            # f"    </table>\n"
-            f"{meta_html}"
-            f"{stats_html}"
-            f"    <h2>Score matrix</h2>\n"
-            f"    <table>\n"
-            f"        <tr><th>Sequence \\ Sample</th>{matrix_header}</tr>\n"
-            f"{matrix_html}\n"
-            f"    </table>\n"
-            f"    <div class='legend'>\n"
-            f"        <span>0.000</span><span class='scale'></span><span>1.000</span>\n"
-            f"    </div>"
-        )
-        coverage_html = self._coverage_html(threshold)
-        if coverage_html:
-            body = f"{body}\n{coverage_html}"
-        return (
-            f"<!DOCTYPE html>\n<html lang='en'>\n<head>\n"
-            f"    <meta charset='UTF-8'>\n"
-            f"    <meta name='viewport' content='width=device-width, initial-scale=1.0'>\n"
-            f"    <title>kmindex Results - {', '.join(self._items)}</title>\n"
-            f"    <style>\n"
-            f"        body {{ font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }}\n"
-            f"        h2 {{ color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 8px; margin-top: 30px; }}\n"
-            f"        table {{ border-collapse: collapse; width: 100%; margin: 20px 0; }}\n"
-            f"        th, td {{ padding: 10px; text-align: center; border-bottom: 1px solid #ddd; }}\n"
-            f"        th:first-child, td:first-child {{ text-align: left; }}\n"
-            f"        th {{ background-color: #3498db; color: white; font-weight: bold; position: sticky; top: 0; }}\n"
-            f"        tr:nth-child(even) td.empty {{ background-color: #f9f9f9; }}\n"
-            f"        td.empty {{ color: #52514e; }}\n"
-            f"        .legend {{ display: flex; align-items: center; gap: 8px; "
-            f"font-size: 0.85em; color: #52514e; }}\n"
-            f"        .legend .scale {{ width: 200px; height: 12px; border-radius: 2px; "
-            f"background: linear-gradient(to right, {', '.join(self._SCORE_RAMP)}); }}\n"
-            f"        table.run {{ width: auto; }}\n"
-            f"        table.run th {{ background-color: #ecf0f1; color: #2c3e50; "
-            f"text-align: left; position: static; }}\n"
-            f"        td.run-value {{ text-align: left; font-family: monospace; "
-            f"word-break: break-all; }}\n"
-            f"        td.track-cell {{ width: 40%; padding: 6px 10px; }}\n"
-            f"        .track {{ display: flex; height: 14px; border-radius: 2px; overflow: hidden; }}\n"
-            f"        .track span {{ flex: 1 1 0; }}\n"
-            f"    </style>\n</head>\n<body>\n"
-            f"{body}\n"
-            f"</body>\n</html>"
-        )
+
+        keys = [key for key, _ in self._REPORT_COLUMNS]
+        labels = [label for _, label in self._REPORT_COLUMNS]
+        index_rows = []
+        for pos, row in enumerate(stats):
+            query = row["query"]
+            name = w.text(query)
+            if query in anchors:
+                href = f"#{anchors[query]}"
+                if paged:
+                    href = f"{page_path(pos // page_size + 1)}{href}"
+                name = w.link(name, href)
+            cells = self._stats_cells(row, tuple(keys))
+            index_rows.append(
+                [name] + [self._cell(w, k, c) for k, c in zip(keys, cells)]
+            )
+
+        overall_cells = self._stats_cells(overall, tuple(keys))
+        parts = [
+            w.heading(2, "Run"),
+            w.items(
+                [
+                    f"{label}: {w.code(value) if label == 'Command' else w.text(value)}"
+                    for label, value in self._metadata_rows(threshold)
+                ]
+            ),
+            w.heading(2, "Overall"),
+            w.table(
+                labels, [[self._cell(w, k, c) for k, c in zip(keys, overall_cells)]]
+            ),
+            w.heading(2, "How to read"),
+            w.items(self._how_to_read(threshold, top, paged)),
+            w.heading(2, f"Sequences ({len(queries)})"),
+            w.table(["Sequence"] + labels, index_rows),
+        ]
+        if not paged:
+            parts.extend(pages.get(0, []))
+            return {f"results.{w.ext}": w.page(self._REPORT_TITLE, parts)}
+
+        files = {w.index_name: w.page(self._REPORT_TITLE, parts)}
+        for page, sections in pages.items():
+            first = (page - 1) * page_size + 1
+            last = min(page * page_size, len(queries))
+            title = f"{self._REPORT_TITLE}, sequences {first} to {last}"
+            back = w.para(w.link("Back to the index", f"../{w.index_name}"))
+            files[page_path(page)] = w.page(title, [back] + sections)
+        return files
+
+    def generate_markdown(self, threshold: float = 0.0) -> str:
+        return self.generate_report("md", threshold)["results.md"]
+
+    def generate_html(self, threshold: float = 0.0) -> str:
+        return self.generate_report("html", threshold)["results.html"]
 
     def generate_tsv(self, threshold: float = 0.0) -> str:
         query_names, sample_names, scores = self._matrix(threshold)
@@ -892,6 +966,9 @@ class QueryRunnerConfig:
         print_output: Write converted results to stdout instead of saving to
             file.  Only meaningful when ``format`` is not ``json``.
         keep_query: Copy each query file into its output directory.
+        page_size: md/html reports, sequences per detail page; up to this
+            count a single file is written. 0 disables paging.
+        top: md/html reports, best samples listed per sequence.
         on_result: Optional callback invoked with each per-query result list as
             it completes.  Useful for streaming results to the caller without
             waiting for the full run to finish.
@@ -915,6 +992,8 @@ class QueryRunnerConfig:
     vec: bool = False
     print_output: bool = False
     keep_query: bool = False
+    page_size: int = 100
+    top: int = 100
     on_result: Optional[Callable[[list["KmindexQueryResult"]], None]] = None
 
 
@@ -1119,16 +1198,23 @@ class QueryRunner:
 
         return results
 
-    def _index_sizes(self) -> dict[str, int]:
-        """Number of samples per queried subindex, empty if the registry is unreadable."""
+    def _registry_info(self) -> tuple[dict[str, int], dict]:
+        """Samples per queried subindex and run info from the registry,
+        both empty if the registry is unreadable."""
         try:
             with open(get_json_path(self._config.registry_path)) as f:
                 registry = json.load(f)["index"]
         except (OSError, ValueError, KeyError) as e:
             logger.warning(f"Cannot read subindex sizes from the registry: {e}")
-            return {}
-        names = self._config.index_ids or list(registry)
-        return {n: registry[n]["nb_samples"] for n in names if n in registry}
+            return {}, {}
+        names = [n for n in self._config.index_ids or list(registry) if n in registry]
+        versions = sorted({str(registry[n].get("kmindex_version", "")) for n in names})
+        info = {
+            "registry": os.path.abspath(self._config.registry_path),
+            "subindexes": ", ".join(names),
+            "kmindex_version": ", ".join(v for v in versions if v),
+        }
+        return {n: registry[n]["nb_samples"] for n in names}, info
 
     def _resolve_existing(self, output_path: str, label: str) -> Optional[str]:
         """Return the (possibly adjusted) output path, or ``None`` to skip."""
@@ -1163,7 +1249,9 @@ class QueryRunner:
         out_file = os.path.join(os.path.dirname(result_dir), f"results.{fmt}")
         logger.debug(f"Merge results to {out_file}...")
         threshold = self._config.threshold
-        merged = KmindexQueryResult(metadata=info, index_sizes=self._index_sizes())
+        sizes, registry_info = self._registry_info()
+        metadata = {**(info or {}), **registry_info, "zvalue": self._config.zvalue}
+        merged = KmindexQueryResult(metadata=metadata, index_sizes=sizes)
         files = list_result_files(result_dir)
         for json_path in files:
             try:
@@ -1178,12 +1266,17 @@ class QueryRunner:
                 f.write(merged.generate_stats_tsv(threshold))
             logger.info(f"Statistics: {stats_file}")
 
+        if not merged.items and files:
+            logger.info(
+                f"No match above threshold {threshold} "
+                f"({len(files)} result file(s) read)"
+            )
+
+        # Reports also list sequences without match, other formats need one
+        if fmt in ("md", "html") and files:
+            self._write_report(merged, os.path.dirname(result_dir))
+            return
         if not merged.items:
-            if files:
-                logger.info(
-                    f"No match above threshold {threshold} "
-                    f"({len(files)} result file(s) read)"
-                )
             return
         converted = merged.convert(format=fmt, threshold=threshold)
         if self._config.print_output:
@@ -1205,3 +1298,23 @@ class QueryRunner:
                 with open(coverage_file, "w") as f:
                     f.write(coverage)
                 logger.info(f"Coverage: {coverage_file}")
+
+    def _write_report(self, merged: "KmindexQueryResult", out_dir: str) -> None:
+        cfg = self._config
+        # stdout holds a single file, no paging
+        page_size = 0 if cfg.print_output else cfg.page_size
+        files = merged.generate_report(
+            cfg.output_format, cfg.threshold, page_size=page_size, top=cfg.top
+        )
+        if cfg.print_output:
+            for content in files.values():
+                sys.stdout.write(f"{content}\n")
+            return
+        for rel_path, content in files.items():
+            path = os.path.join(out_dir, rel_path)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w") as f:
+                f.write(content)
+        main = next(iter(files))
+        detail = f" (+ {len(files) - 1} detail page(s))" if len(files) > 1 else ""
+        logger.info(f"Report: {os.path.join(out_dir, main)}{detail}")
