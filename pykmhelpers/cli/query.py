@@ -81,7 +81,7 @@ logger = logging.getLogger(__name__)
 @click.option(
     "--format",
     "-f",
-    type=click.Choice(["tsv", "json", "yaml", "none", "md", "html"]),
+    type=click.Choice(["tsv", "json", "yaml", "none"]),
     default="tsv",
     show_default=True,
     help="⚙   Data format of the results. none keeps only the raw kmindex results. md and html are deprecated, use --export.",
@@ -91,7 +91,7 @@ logger = logging.getLogger(__name__)
     "-x",
     type=click.Choice(["md", "html"]),
     default=None,
-    help="⚙   Also write a human report (md or html), paged with --page-size, --top samples per sequence. Not available with -f none.",
+    help="⚙   [⚠️ IN DEVELOPMENT] Also write a human report (md or html), paged with --page-size, --top samples per sequence. Not available with -f none.",
 )
 @click.option(
     "--vec",
