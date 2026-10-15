@@ -298,12 +298,84 @@ class TestConvertLogs(QueryInputsBase):
             '{"index":"idx","query":"q0","samples":{"s0":0.5}}\n'
             '{"index":"idx","query":"q1","samples":{"s0":0.7}}\n'
         )
-        runner = self.runner(output_format="html", page_size=1)
+        runner = self.runner(output_format="tsv", export="html", page_size=1)
         with self.assertLogs("pykmhelpers.pipeline.query", "INFO") as logs:
             runner._convert_results(str(result_dir))
         for name in ("index.html", "details/page_001.html", "details/page_002.html"):
             self.assertTrue(Path(self.tmp, name).is_file(), name)
         self.assertIn("2 detail page(s)", "\n".join(logs.output))
+
+
+class TestDataAndExport(QueryInputsBase):
+    """Data formats (tsv, json, yaml) and human reports (md, html) are independent."""
+
+    def convert(self, **kwargs):
+        result_dir = Path(self.tmp, "kmindex_output")
+        result_dir.mkdir()
+        Path(result_dir, "idx.jsonl").write_text(
+            '{"index":"idx","query":"q0","samples":{"s0":0.5}}\n'
+        )
+        with self.assertLogs("pykmhelpers.pipeline.query", "INFO"):
+            self.runner(**kwargs)._convert_results(str(result_dir))
+        return sorted(p.name for p in Path(self.tmp).iterdir())
+
+    def test_data_and_export(self):
+        files = self.convert(output_format="tsv", export="html")
+        self.assertEqual(
+            files, ["kmindex_output", "results.html", "results.tsv", "stats.tsv"]
+        )
+
+    def test_data_only(self):
+        self.assertEqual(
+            self.convert(output_format="json"),
+            ["kmindex_output", "results.json", "stats.tsv"],
+        )
+
+    def test_no_data_format(self):
+        self.assertEqual(
+            self.convert(output_format=None), ["kmindex_output", "stats.tsv"]
+        )
+
+    def test_export_requires_data_format(self):
+        with self.assertRaises(ValueError):
+            self.runner(output_format=None, export="md")
+
+    def test_deprecated_report_format(self):
+        with self.assertLogs("pykmhelpers.pipeline.query", "WARNING"):
+            cfg = self.runner(output_format="html").config
+        self.assertEqual((cfg.output_format, cfg.export), ("tsv", "html"))
+
+
+class TestQueryCli(QueryInputsBase):
+    def invoke(self, *args):
+        from click.testing import CliRunner
+
+        from pykmhelpers.cli.query import query
+
+        with mock.patch("pykmhelpers.cli.query.KmindexRegistry"), mock.patch(
+            "pykmhelpers.cli.query.QueryRunner"
+        ) as runner_cls:
+            result = CliRunner().invoke(
+                query, ["-o", self.tmp, *args, self.write("q.fa")], obj={}
+            )
+        config = runner_cls.call_args.args[0] if runner_cls.call_args else None
+        return result, config
+
+    def test_format_and_export(self):
+        result, config = self.invoke("-f", "json", "-x", "html")
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertEqual((config.output_format, config.export), ("json", "html"))
+
+    def test_format_none(self):
+        result, config = self.invoke("-f", "none")
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIsNone(config.output_format)
+
+    def test_none_with_export_rejected(self):
+        result, config = self.invoke("-f", "none", "-x", "md")
+        self.assertEqual(result.exit_code, 2)
+        self.assertIn("--export requires a data format", result.output)
+        self.assertIsNone(config)
 
 
 if __name__ == "__main__":

@@ -84,7 +84,7 @@ check_hit results_upd update_0
 kmhelpers query data/data_0.fasta -r build -o results_after -f json
 check_hit results_after data_0
 
-kmhelpers query data/data_0.fasta -r build -o results_md -f md
+kmhelpers query data/data_0.fasta -r build -o results_md -x md
 
 
 echo "All queries matched. Pipeline complete."

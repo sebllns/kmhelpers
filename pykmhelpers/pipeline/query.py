@@ -956,15 +956,19 @@ class QueryRunnerConfig:
         batch: Concatenate all input files into one query before running.
         aggregate: Aggregate batch results into a single output file.
         compressed: Whether the index is stored in compressed form.
-        output_format: Output format for result conversion (``json``, ``yaml``, ``md``, ``html``, ``tsv``).
+        output_format: Data format of the converted results (``json``, ``yaml``,
+            ``tsv``), ``None`` keeps only the raw kmindex results. ``md`` and
+            ``html`` are deprecated, mapped to ``tsv`` plus ``export``.
+        export: Human report written beside the data (``md``, ``html``),
+            ``None`` for none. Requires ``output_format``.
         timestamp: Append a ``YYYYmmdd_HHMMSS`` suffix to each per-query output directory.
         on_existing: Behaviour when the output directory already exists
             (``skip``, ``fail``, ``delete``, ``new-name``).
         parallel: Parallelisation strategy passed to kmindex (``seq`` or ``sub``).
             Forced to ``sub`` when ``compressed`` is ``True``.
         force: Skip confirmation prompts (e.g. when ``on_existing="delete"``).
-        print_output: Write converted results to stdout instead of saving to
-            file.  Only meaningful when ``format`` is not ``json``.
+        print_output: Write the converted data to stdout instead of saving it
+            to file. Reports are always written to files.
         keep_query: Copy each query file into its output directory.
         page_size: md/html reports, sequences per detail page; up to this
             count a single file is written. 0 disables paging.
@@ -984,7 +988,8 @@ class QueryRunnerConfig:
     batch: bool = False
     aggregate: bool = False
     compressed: bool = False
-    output_format: str = "json"
+    output_format: Optional[str] = "json"
+    export: Optional[str] = None
     timestamp: bool = False
     on_existing: str = "skip"
     parallel: str = "seq"
@@ -1018,6 +1023,16 @@ class QueryRunner:
                 "--compressed requires sub parallelization strategy; forcing parallel=sub"
             )
             self._config.parallel = "sub"
+        if self._config.output_format in ("md", "html"):
+            fmt = self._config.output_format
+            logger.warning(
+                f"Format {fmt} is deprecated as a data format, "
+                f"use '-f tsv --export {fmt}'; writing both"
+            )
+            self._config.output_format = "tsv"
+            self._config.export = fmt
+        if self._config.export and not self._config.output_format:
+            raise ValueError("An export requires a data format (output_format)")
 
     @property
     def config(self) -> QueryRunnerConfig:
@@ -1190,8 +1205,7 @@ class QueryRunner:
         logger.debug(f"kmindex output dir: {result_dir}")
         logger.info(f"Time: {elapsed:.2f}s")
 
-        if cfg.output_format:
-            self._convert_results(result_dir, kq.info)
+        self._convert_results(result_dir, kq.info)
 
         if cfg.on_result is not None:
             cfg.on_result(results)
@@ -1247,7 +1261,6 @@ class QueryRunner:
     def _convert_results(self, result_dir: str, info: Optional[dict] = None) -> None:
         fmt = self._config.output_format
         out_file = os.path.join(os.path.dirname(result_dir), f"results.{fmt}")
-        logger.debug(f"Merge results to {out_file}...")
         threshold = self._config.threshold
         sizes, registry_info = self._registry_info()
         metadata = {**(info or {}), **registry_info, "zvalue": self._config.zvalue}
@@ -1272,11 +1285,10 @@ class QueryRunner:
                 f"({len(files)} result file(s) read)"
             )
 
-        # Reports also list sequences without match, other formats need one
-        if fmt in ("md", "html") and files:
+        # Reports also list sequences without match, data formats need one
+        if self._config.export and files:
             self._write_report(merged, os.path.dirname(result_dir))
-            return
-        if not merged.items:
+        if not fmt or not merged.items:
             return
         converted = merged.convert(format=fmt, threshold=threshold)
         if self._config.print_output:
@@ -1301,15 +1313,9 @@ class QueryRunner:
 
     def _write_report(self, merged: "KmindexQueryResult", out_dir: str) -> None:
         cfg = self._config
-        # stdout holds a single file, no paging
-        page_size = 0 if cfg.print_output else cfg.page_size
         files = merged.generate_report(
-            cfg.output_format, cfg.threshold, page_size=page_size, top=cfg.top
+            cfg.export, cfg.threshold, page_size=cfg.page_size, top=cfg.top
         )
-        if cfg.print_output:
-            for content in files.values():
-                sys.stdout.write(f"{content}\n")
-            return
         for rel_path, content in files.items():
             path = os.path.join(out_dir, rel_path)
             os.makedirs(os.path.dirname(path), exist_ok=True)

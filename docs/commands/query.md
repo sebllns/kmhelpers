@@ -17,7 +17,7 @@ Query indices with FASTA/FASTQ sequences.
 
 !!! abstract "I/O"
     **Input:** FASTA/FASTQ file(s), kmindex registry (`-r`)  
-    **Output:** `results.<format>` and `stats.tsv` per query file in output directory (`-o`), TSV by default
+    **Output:** per query file in the output directory (`-o`): `results.<format>` (TSV by default), `stats.tsv`, the raw kmindex results in `kmindex_output/`, and optionally a report (`--export`)
 
 ## Advanced Options
 | Option | Description |
@@ -29,11 +29,12 @@ Query indices with FASTA/FASTQ sequences.
 | `-b, --batch-query` | Treat all sequences across all query files as a single batched query |
 | `-s, --single-query NAME` | Name for the single batched query |
 | `-c, --compressed` | Index is compressed (forces `sub` parallelization) |
-| `-f, --format TEXT` | Output format: `tsv` (default), `json`, `yaml`, `md`, `html` |
+| `-f, --format TEXT` | Data format: `tsv` (default), `json`, `yaml`, or `none` to keep only the raw kmindex results. `md` and `html` are deprecated, they map to `-f tsv --export <fmt>` |
+| `-x, --export TEXT` | Also write a human report: `md` or `html`. Not available with `-f none` |
 | `-V, --vec` | Also collect the per-k-mer presence/absence vector, not just the coverage ratio |
-| `--page-size INT` | md/html: sequences per detail page, a single file up to this count, `0` disables paging (default: 100) |
-| `--top INT` | md/html: best samples listed per sequence (default: 100) |
-| `-p, --print` | Print results to console |
+| `--page-size INT` | `--export`: sequences per detail page, a single file up to this count, `0` disables paging (default: 100) |
+| `--top INT` | `--export`: best samples listed per sequence (default: 100) |
+| `-p, --print` | Print the data format to console instead of `results.<format>`, a report is still written to files |
 | `-T, --timestamp` | Append timestamp suffix to output directory to avoid overwriting |
 | `-e, --existing TEXT` | Conflict resolution: `skip` (default), `fail`, `delete`, `new-name` |
 | `-P, --parallel TEXT` | Parallelization strategy: `seq` (by sequence, default) or `sub` (by sub-index) |
@@ -60,7 +61,11 @@ where each sample counts once with its best score:
 | `mean`, `median` | over the matching scores |
 | `best_sample`, `best_score` | highest scoring sample |
 
-**md/html reports** - built to stay readable with thousands of sequences and millions of
+**Data and reports** - `-f` sets the data format: complete, unpaged, meant for scripts.
+`--export` adds a human report next to it, so one run gives both. `-f none` writes no
+converted file, the raw results stay in `kmindex_output/` (JSON lines).
+
+**md/html reports** (`--export`) - built to stay readable with thousands of sequences and millions of
 samples. The main file holds the run information (date, runtime, kmindex version, registry,
 threshold, command), the overall statistics, a short guide, and one line per sequence with
 its statistics and a link to its details. Each detail section lists the `--top` best
@@ -132,12 +137,15 @@ kmhelpers query -r ./registry -n idx1 --single-query batch1 -o results multi.fa
 # Score threshold filtering
 kmhelpers query -r ./registry -n idx1 -o results -R 0.1 query.fa
 
-# Output as HTML
-kmhelpers query -r ./registry -n idx1 -o results -f html query.fa
+# TSV data plus an HTML report
+kmhelpers query -r ./registry -n idx1 -o results -f tsv --export html query.fa
+
+# Raw kmindex results only
+kmhelpers query -r ./registry -n idx1 -o results -f none query.fa
 
 # Paged HTML report for many reads: 500 reads per page, 20 best samples each
-kmhelpers query -r ./registry -o results -f html --page-size 500 --top 20 reads.fq.gz
+kmhelpers query -r ./registry -o results -x html --page-size 500 --top 20 reads.fq.gz
 
 # Per-k-mer coverage track in the HTML report
-kmhelpers query -r ./registry -n idx1 -o results -f html --vec query.fa
+kmhelpers query -r ./registry -n idx1 -o results -x html --vec query.fa
 ```
