@@ -11,6 +11,7 @@ import logging
 import os
 import shutil
 import subprocess
+import sys
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List
@@ -41,6 +42,22 @@ from pykmhelpers.core.kmindex_paths import (
 from pykmhelpers.core.utils import Bin, Toolbox
 
 logger = logging.getLogger(__name__)
+
+
+def _rmtree(path: str) -> None:
+    """``shutil.rmtree`` logging each path it fails to remove.
+
+    The error hook is ``onexc`` from Python 3.12 and ``onerror`` before
+    (``onexc`` is a ``TypeError`` on 3.11 and older).
+    """
+
+    def log_error(_func, failed_path, _exc):
+        logger.error(f"Error: {failed_path}")
+
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=log_error)
+    else:
+        shutil.rmtree(path, onerror=log_error)
 
 
 # ---------------------------------------------------------------------------
@@ -516,12 +533,8 @@ class KmtricksIndex:
     def destroy_entire_index(self) -> bool:
         # Destroy the entire index with its content
         try:
-            import shutil
-
             logger.info(f"Destroying index: {self._index_id}")
-            shutil.rmtree(
-                self.dir_path, onexc=lambda _f, p, _e: logger.error(f"Error: {p}")
-            )
+            _rmtree(self.dir_path)
             self._parent_dir = ""
             return True
         except Exception as e:

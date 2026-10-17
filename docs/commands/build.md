@@ -26,7 +26,7 @@ Validate paths then build k-mer indices from an index definition file in a singl
 | `--minim-size INT` | Minimizer size (default: 10) |
 | `-t, --threads INT` | Number of threads |
 | `-p, --partition-count INT` | Partitions per index; ignored when the layout already stores one |
-| `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set |
+| `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Chunked builds and merges](build.md#chunked-builds-and-merges) |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use for any key missing from `--limits` (default: 0.9) |
 | `--max-chunks INT` | Max number of chunks a single index is split into; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 200) |
 | `-NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
@@ -52,13 +52,14 @@ coli_db/                          DESIGN_DIR (design -o)
 
 coli_build/                       BUILD_DIR (build -o, query -r)
 ├── index.json                    registry of all built indices
+├── merge_registries/             throwaway merge registries, only while merging chunks
 ├── kmindex_data/
 │   ├── initial/                  Bloom filters, one folder per SESSION
 │   │   └── coli_g0/              previous version, kept after the update (need manual delete)
 │   └── update/
 ├── assets/
 │   ├── kmhelpers_apply.sh        runs the last built SESSION
-│   ├── initial/                  scripts and fof files, one folder per SESSION
+│   ├── initial/                  scripts (<shard>.sh, <shard>_merge.sh) and fof files, one folder per SESSION
 │   └── update/
 └── logs/
 ```
@@ -76,6 +77,18 @@ Reuse the same `BUILD_DIR` for every session of an index: each build adds its su
 **Filtering** - `build` always processes every index declared in `INPUT_FILE`. Use [`plan`](plan.md) and [`apply`](apply.md) with `--name` or `--span` to build a subset.
 
 **Notifications** - use `--notify` to receive an email when the build exits (requires `sendmail`). The notification is sent on both success and failure, including on `SIGTERM`.
+
+### Chunked builds and merges
+
+When one `kmtricks` build cannot hold all the samples of a sub-index (open files, see `--limits` and `--max-chunks`), the sub-index is built in chunks, then merged:
+
+1. **Build** - each chunk is built with `kmtricks pipeline` into `BUILD_DIR/kmindex_data/SESSION/<name>_chunk<N>/`. Chunks are **not** registered in `BUILD_DIR/index.json`. These commands are in `assets/SESSION/<shard>.sh`, and can be run anywhere, e.g. as a SLURM array.
+2. **Check** - `assets/SESSION/<shard>_merge.sh` starts by checking every chunk: `run_infos.txt` (written by kmtricks only when it finishes), `kmtricks.fof`, `options.txt`, and all partition matrices present, non-empty and of equal size. If one chunk is incomplete, the script stops before registering or merging anything; rebuild that chunk and run the merge script again.
+3. **Merge** - each `kmindex merge` runs in a throwaway registry, `BUILD_DIR/merge_registries/<name>/<step>/`, holding only its inputs. `kmindex merge` loads the repartition table of every registered sub-index (2 MiB each at minimizer size 10), so a registry limited to the inputs keeps its memory proportional to what is merged. Merges get at most one thread per partition.
+4. **Sub-shards** - one merge can take at most `k` inputs: `ram / (2 * 4^m)` (anonymous memory), `(maps - 1000) / threads` (`vm.max_map_count`) and `files / threads - 1` (open files), with the values of `--limits`. A shard with more chunks is merged in balanced groups of at most `k` chunks (`<name>__sub1_<i>`), then these are merged, and so on. Each level reads and writes the data once more.
+5. **Register** - the merged sub-index is registered in `BUILD_DIR/index.json`; the chunks, intermediate merges and throwaway registries are deleted.
+
+`kmhelpers_apply.sh` runs `<shard>.sh` then `<shard>_merge.sh`. The plan logs, for each merge, its number of inputs, the limit that sets `k`, and its expected memory: the anonymous part must fit in RAM, while the mapped inputs are page cache that the kernel reclaims when they exceed it.
 
 ### Updating an index
 

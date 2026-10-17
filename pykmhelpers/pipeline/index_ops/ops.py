@@ -9,6 +9,7 @@ from pykmhelpers.operations.builder import IndexBuilder
 from pykmhelpers.pipeline.index_db import IndexDefinition, IndexDefinitionTools
 from pykmhelpers.pipeline.index_ops.executor import IndexExecutor, validate_definition
 from pykmhelpers.pipeline.index_ops.layout import LayoutStore
+from pykmhelpers.pipeline.index_ops.merging import merge_threads
 from pykmhelpers.pipeline.index_ops.report import RunReport, indent_prefix
 from pykmhelpers.pipeline.index_ops.samples import SampleResolver
 from pykmhelpers.pipeline.index_ops.script import ScriptRecorder
@@ -201,9 +202,10 @@ class IndexOps:
                     layout.save()
                     return report.result
 
+        partitions = {i.name: i.partition_count for i in plan.definitions if i.name}
         for target, parts in plan.merges.items():
             try:
-                self._merge(report, executor, target, parts)
+                self._merge(report, executor, target, parts, partitions)
             except Exception as e:
                 msg = f"Failed to merge index '{target}'"
                 if report.fail(e, msg, target, fail_on_error):
@@ -287,9 +289,19 @@ class IndexOps:
             report.record(i.name, ApplyStatus.FAILED, error=error, issues=issues)
 
     def _merge(
-        self, report: RunReport, executor: IndexExecutor, target: str, parts: list[str]
+        self,
+        report: RunReport,
+        executor: IndexExecutor,
+        target: str,
+        parts: list[str],
+        partitions: dict[str, int] | None = None,
     ) -> None:
-        """Merge ``parts`` into ``target``, record the outcome and delete the parts."""
+        """Merge ``parts`` into ``target``, record the outcome and delete the parts.
+
+        The parts are registered in the main registry: the merge runs there,
+        with at most one thread per partition, after checking that the
+        repartition tables of the registered sub-indexes fit in RAM.
+        """
         missing = executor.missing_parts(parts)
         if missing:
             logger.warning(
@@ -302,7 +314,16 @@ class IndexOps:
             return
 
         threads = self.config.kmindex_threads or os.cpu_count() or 1
-        self._script.select(target)
+        n_partitions = next(
+            (n for p in parts if (n := (partitions or {}).get(p))), 0
+        ) or executor.registered_partitions(parts)
+        threads = merge_threads(threads, n_partitions)
+        executor.check_merge_budget(
+            target,
+            executor.registered_count(parts),
+            self.config.minimizer_length,
+        )
+        self._script.select(ScriptRecorder.merge_group(target))
         result = executor.merge(target, parts, threads)
         if not result or "command" not in result:
             raise Exception("Malformed result")

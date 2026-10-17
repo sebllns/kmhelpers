@@ -364,7 +364,7 @@ def registry_remove(obj, index_ids, delete_files, yes):
                     if not click.confirm(msg):
                         click.echo("Operation cancelled")
                         continue
-                registry.remove_index(index_id, delete_files=True)
+                registry.remove_index(index_id, delete_files=delete_files)
                 click.echo(f"✓ Removed '{index_id}' from registry")
 
             except Exception as e:

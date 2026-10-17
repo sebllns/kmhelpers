@@ -411,11 +411,14 @@ class TestShardedBuild(PipelineE2EBase):
         # every shard is registered on its own; nothing merges them together
         self.assertEqual(sorted(registry), sorted(shards))
 
-        # one build script per shard
+        # one build script and one merge script per shard
         scripts = sorted(
             p.stem for p in (self.tmp / "build" / "assets" / "initial").glob("*.sh")
         )
-        self.assertEqual(scripts, sorted(shards + ["kmhelpers_apply"]))
+        self.assertEqual(
+            scripts,
+            sorted(shards + [f"{s}_merge" for s in shards] + ["kmhelpers_apply"]),
+        )
 
         # samples stay queryable through their shard
         q0, q0_header = self.write_query("s0", sample_idx=0)
@@ -424,9 +427,15 @@ class TestShardedBuild(PipelineE2EBase):
 
 
 class TestChunkedBuild(PipelineE2EBase):
-    """A too-low --limits open-files ceiling splits a build into chunks."""
+    """A too-low --limits open-files ceiling splits a build into chunks.
 
-    def test_apply_chunks_and_merges_when_files_limit_too_low(self):
+    Chunks are built unregistered (kmtricks), checked, merged in throwaway
+    registries sized from --limits (in several levels when needed), and only the
+    merged index ends up in the main registry.
+    """
+
+    def chunked_apply(self, limits: str) -> str:
+        """Design one group of N_SAMPLES samples and apply it under ``limits``; return the log."""
         # A wide span base (-b 4) buckets all N_SAMPLES samples into one
         # group, so the group's build is what gets constrained by --limits.
         self.run_cli(
@@ -447,21 +456,45 @@ class TestChunkedBuild(PipelineE2EBase):
         )
         span_reg = self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml"
         self.assertTrue(span_reg.is_file(), f"missing span registry: {span_reg}")
+        # the same plan, written as scripts (apply runs it without writing them)
+        self.run_cli("plan", span_reg, "-o", "planned", "--limits", limits)
+        result = self.run_cli("apply", span_reg, "-o", "build", "--limits", limits)
+        return result.stdout + result.stderr
 
-        # files=5 can't fit N_SAMPLES=5 samples in one kmtricks build (merge
-        # stage needs samples+1 open files), forcing a chunked build+merge.
-        self.run_cli("apply", span_reg, "-o", "build", "--limits", '{"files": 5}')
-
-        index_json = self.tmp / "build" / "index.json"
+    def assert_merged_and_clean(self):
+        build = self.tmp / "build"
+        index_json = build / "index.json"
         self.assertTrue(index_json.is_file(), "apply did not produce index.json")
         registry = json.loads(index_json.read_text())["index"]
 
-        chunk_names = [name for name in registry if "_chunk" in name]
-        self.assertFalse(
-            chunk_names, f"transient chunk sub-indexes left registered: {chunk_names}"
-        )
+        # only the merged index is registered: no chunk, no intermediate merge
+        self.assertEqual(len(registry), 1, f"unexpected entries: {sorted(registry)}")
         merged = next(iter(registry.values()))
         self.assertEqual(merged["nb_samples"], N_SAMPLES)
+
+        # throwaway registries, chunk runs and intermediate merges are deleted
+        self.assertFalse((build / "merge_registries").exists(), "merge registries left")
+        leftovers = [
+            p.name
+            for p in (build / "kmindex_data").rglob("*")
+            if p.is_dir() and ("_chunk" in p.name or "__sub" in p.name)
+        ]
+        self.assertFalse(leftovers, f"chunk or intermediate data left: {leftovers}")
+
+        # builds and merges are recorded in separate scripts
+        assets = self.tmp / "planned" / "assets"
+        merge_scripts = list(assets.rglob("*_merge.sh"))
+        self.assertTrue(merge_scripts, "no merge script written")
+        text = merge_scripts[0].read_text()
+        self.assertIn("incomplete chunk", text)
+        self.assertIn("kmindex register --global-index", text)
+        self.assertIn("--from-file", text)
+        self.assertIn("kmindex merge", text)
+        build_script = merge_scripts[0].with_name(
+            merge_scripts[0].name.replace("_merge.sh", ".sh")
+        )
+        self.assertIn("kmtricks pipeline", build_script.read_text())
+        self.assertNotIn("--register-as", build_script.read_text())
 
         # every original sample must still be queryable after the chunked merge
         for idx in range(N_SAMPLES):
@@ -470,6 +503,20 @@ class TestChunkedBuild(PipelineE2EBase):
                 "query", q, "-r", "build", "-o", f"results_{idx}", "-f", "json"
             )
             self.assert_query_hit(f"results_{idx}", header, f"sample_{idx}")
+
+    def test_apply_chunks_and_merges_when_files_limit_too_low(self):
+        # files=5 can't fit N_SAMPLES=5 samples in one kmtricks build (merge
+        # stage needs samples+1 open files), forcing a chunked build+merge;
+        # the same limit caps a merge at 4 inputs: two levels.
+        self.chunked_apply('{"files": 5}')
+        self.assert_merged_and_clean()
+
+    def test_merge_split_into_sub_shards_by_max_map_count(self):
+        # 2 mmaps above the reserved 1000: 2 inputs per merge, so the chunks
+        # are merged in a tree of several levels.
+        log = self.chunked_apply('{"files": 5, "maps": 1002}')
+        self.assertIn("vm.max_map_count limit", log)
+        self.assert_merged_and_clean()
 
 
 class TestQueryFormats(PipelineE2EBase):

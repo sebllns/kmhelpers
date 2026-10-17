@@ -258,8 +258,13 @@ class IndexBuilder:
         dry_run: bool = False,
         on_existing: str = "fail",
         progress: typing.Optional[Progress] = None,
+        register: bool = True,
     ) -> dict:
         """Build a new sub-index from a set of samples via KmindexWrapper.build.
+
+        With ``register=False`` the samples are built with ``kmtricks pipeline``
+        (the command ``kmindex build`` runs) into ``data_folder/name`` and left
+        unregistered: a chunk is registered later, in its merge registry.
 
         Args:
             name (str): Name of the sub-index to create. Must not already
@@ -300,11 +305,17 @@ class IndexBuilder:
             progress (typing.Optional[Progress]): Optional progress tracker;
                 if given (and not a dry run), polled in a background thread
                 that estimates completion from partial matrix file sizes.
+            register (bool): Register the result in this builder's registry
+                (`kmindex build`). `False` builds with `kmtricks pipeline` only;
+                the `register*` values of `on_existing` then reuse an existing
+                directory when it holds a complete run.
 
         Returns:
-            dict: Result returned by `KmindexWrapper.build`, or
-                `{"return_code": 0, "register": True}` if an existing
-                directory was registered instead of built.
+            dict: Result returned by `KmindexWrapper.build` (or
+                `KmtricksWrapper.pipeline`), `{"return_code": 0, "register": True}`
+                if an existing directory was registered instead of built, or
+                `{"return_code": 0, "register": False, "reused": True}` if an
+                existing complete unregistered run was kept.
         """
         assert (
             samples and samples.get_sample_count()
@@ -364,6 +375,34 @@ class IndexBuilder:
                 shutil.rmtree(
                     output_indexdir,
                 )
+            elif (
+                on_existing
+                in (
+                    "register",
+                    "register_or_replace",
+                    "register_or_rename",
+                )
+                and not register
+            ):
+                problems = pykmhelpers.core.kmindex_paths.chunk_problems(
+                    output_indexdir, n_partitions
+                )
+                if not problems:
+                    logger.info(f"Reusing complete run {output_indexdir}")
+                    return {"return_code": 0, "register": False, "reused": True}
+                logger.info(
+                    f"Existing run {output_indexdir} is incomplete: {', '.join(problems)}"
+                )
+                if on_existing == "register_or_replace":
+                    logger.info(f"Delete {output_indexdir}")
+                    shutil.rmtree(output_indexdir)
+                elif on_existing == "register_or_rename":
+                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                    shutil.move(output_indexdir, f"{output_indexdir}_{timestamp}")
+                else:
+                    raise FileExistsError(
+                        f"Incomplete run already at {output_indexdir}: {', '.join(problems)}"
+                    )
             elif on_existing in (
                 "register",
                 "register_or_replace",
@@ -415,6 +454,40 @@ class IndexBuilder:
 
             progress_handler = threading.Thread(target=_progress_worker, daemon=True)
             progress_handler.start()
+
+        if not register:
+            log_file = None
+            if not dry_run:
+                log_dir = os.path.join(self.log_folder, name)
+                os.makedirs(log_dir, exist_ok=True)
+                log_file = os.path.join(log_dir, "kmtricks.log")
+            try:
+                result = pykmhelpers.core.KmtricksWrapper(dry_run=dry_run).pipeline(
+                    fof=fof_path,
+                    run_dir=output_indexdir,
+                    k=kmer_size,
+                    minim_size=minim_size,
+                    hard_min=abundance_min,
+                    bloom_size=bloom_size,
+                    nb_partitions=n_partitions,
+                    threads=n_threads,
+                    compress_intermediate=compress_intermediate,
+                    log_file=log_file,
+                )
+            finally:
+                if stop_event:
+                    stop_event.set()
+                if progress_handler:
+                    progress_handler.join()
+            if not dry_run and auto_check:
+                problems = pykmhelpers.core.kmindex_paths.chunk_problems(
+                    output_indexdir, n_partitions
+                )
+                if problems:
+                    raise RuntimeError(
+                        f"kmtricks run '{name}' is incomplete: {', '.join(problems)}"
+                    )
+            return result
 
         result = wrapper.build(
             input_fof_file=fof_path,

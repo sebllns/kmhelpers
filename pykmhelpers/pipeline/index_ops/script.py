@@ -11,16 +11,32 @@ def _echo(msg: str) -> str:
 class ScriptRecorder:
     """Collects build/merge commands into replayable shell scripts.
 
-    Commands are grouped per script (one per shard, see ``WorkPlan.scripts``);
-    ``write`` emits one script per group and a runner calling them in order.
+    Commands are grouped per script (one per shard, see ``WorkPlan.scripts``),
+    builds and merges apart (``<shard>.sh``, ``<shard>_merge.sh``); ``write``
+    emits one script per group and a runner calling them in order.
     """
 
     RUNNER_NAME = "kmhelpers_apply.sh"
+    MERGE_SUFFIX = "_merge"
 
     def __init__(self, workdir: str) -> None:
         self._workdir = workdir
         self._groups: dict[str, list[str]] = {}
         self._current: str | None = None
+
+    @property
+    def current(self) -> str | None:
+        """Script receiving the next commands."""
+        return self._current
+
+    @classmethod
+    def merge_group(cls, name: str) -> str:
+        """Script holding the merges of group ``name``.
+
+        Merges go to their own script, run after the group's builds, so that
+        they can wait for builds done elsewhere (e.g. a SLURM array).
+        """
+        return name if name.endswith(cls.MERGE_SUFFIX) else name + cls.MERGE_SUFFIX
 
     def select(self, name: str) -> None:
         """Make ``name`` the script receiving the next commands."""

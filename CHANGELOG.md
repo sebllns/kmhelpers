@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- **Chunked builds**: chunks are built with `kmtricks pipeline` and stay unregistered until they are merged
+  - The merges go to their own script, `<shard>_merge.sh`, run after the builds (e.g. after a SLURM build array)
+  - The merge script first checks every chunk (`run_infos.txt`, all partition matrices present and of equal size) and stops before registering anything if one is incomplete
+  - Each merge runs in a throwaway registry holding only its inputs, so its memory no longer grows with the number of sub-indices registered in the main registry
+  - When a shard has more chunks than one merge can take (anonymous RAM, `vm.max_map_count`, open files), they are merged in balanced groups (sub-shards), then the sub-shards are merged
+  - The merged shard is then registered in the main registry; chunks, intermediate merges and throwaway registries are deleted
+- **Merge threads**: `kmindex merge` gets at most one thread per partition (it runs one task per partition)
+- **`--limits`**: new optional `maps` key (default: `vm.max_map_count` of the machine)
+
+### Fixed
+
+- **Python 3.11**: deleting an index used `shutil.rmtree(onexc=...)`, which exists only from Python 3.12
+- **`manage remove`**: always deleted the index files, ignoring `-d/--delete-files`
+
 ## [0.7.1] - 2026-10-07
 
 ### Added

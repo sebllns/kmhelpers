@@ -72,3 +72,45 @@ def b_json_exists(root: str) -> bool:
 def b_index_exists(root: str, index: str) -> bool:
     """Check if an index directory exists."""
     return os.path.isdir(get_index_path(root, index))
+
+
+def get_run_infos_path(root: str) -> str:
+    """Get the path to run_infos.txt, written by kmtricks when a pipeline ends."""
+    return get_path_inside_index(root, "run_infos.txt")
+
+
+def chunk_problems(run_dir: str, partitions: int) -> list[str]:
+    """Why the kmtricks run in ``run_dir`` is not a complete index (empty if it is).
+
+    A run is complete when kmtricks wrote ``run_infos.txt`` (only after its last
+    stage), ``kmtricks.fof`` and ``options.txt`` exist, and the ``partitions``
+    matrix files exist, are non-empty and all have the same size.
+    """
+    if not os.path.isdir(run_dir):
+        return ["missing directory"]
+    problems = [
+        f"missing {os.path.basename(path)}"
+        for path in (
+            get_run_infos_path(run_dir),
+            get_fof_path(run_dir),
+            get_options_path(run_dir),
+        )
+        if not os.path.isfile(path)
+    ]
+    sizes = set()
+    for p in range(partitions):
+        path = get_matrix_path(run_dir, p)
+        if not os.path.isfile(path):
+            problems.append(f"missing {os.path.basename(path)}")
+        elif os.path.getsize(path) == 0:
+            problems.append(f"empty {os.path.basename(path)}")
+        else:
+            sizes.add(os.path.getsize(path))
+    if len(sizes) > 1:
+        problems.append(f"matrix files of different sizes ({len(sizes)} sizes)")
+    return problems
+
+
+def chunk_complete(run_dir: str, partitions: int) -> bool:
+    """True when ``run_dir`` holds a complete kmtricks index (see ``chunk_problems``)."""
+    return not chunk_problems(run_dir, partitions)

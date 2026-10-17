@@ -679,6 +679,45 @@ class KmindexWrapper(Wrapper):
 
         return result or {}
 
+    def register(
+        self,
+        registry: str,
+        name: Optional[str] = None,
+        index_path: Optional[str] = None,
+        from_file: Optional[str] = None,
+    ) -> dict:
+        """Register kmtricks runs in a global index (``kmindex register``, symlink mode).
+
+        Either one run (``name`` and ``index_path``) or every ``name<TAB>path``
+        line of ``from_file``. kmindex creates the registry directory; it must
+        not exist without an ``index.json`` (kmindex then fails to read it).
+        """
+        if (from_file is None) == (name is None or index_path is None):
+            raise ValueError("give either name and index_path, or from_file")
+
+        registry = Toolbox.get_canonical_path(registry)
+        if not self.dry_run:
+            os.makedirs(os.path.dirname(registry), exist_ok=True)
+
+        cmd = [self.main_cmd, "register", "--global-index", registry]
+        if from_file is not None:
+            cmd += ["--from-file", Toolbox.get_canonical_path(from_file)]
+        else:
+            assert name is not None and index_path is not None
+            cmd += [
+                "--name",
+                name,
+                "--index-path",
+                Toolbox.get_canonical_path(index_path),
+            ]
+        cmd += ["--verbose", self._get_verbose_level()]
+
+        result = self._monitor_cmd(cmd, log_errors_only=True)
+        rc, msg = self._check_result(result)
+        if rc != 0:
+            raise RuntimeError(f"Register failed: <{msg}> ({rc})")
+        return result or {}
+
     def kmindex_version(self) -> Optional[str]:
         try:
             v = self._run_cmd(
