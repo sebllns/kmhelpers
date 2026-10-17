@@ -44,6 +44,7 @@ def build(
     threads,
     partition_count,
     skip_compression,
+    keep_previous,
     show_progress,
     notify,
     limits,
@@ -56,7 +57,7 @@ def build(
 
     \b
     Input:  COMPOSE_DIR/NAME/SESSION/NAME.yaml written by `compose` or `design`
-    Output: Bloom filters in BUILD_DIR/kmindex_data/SESSION/, registered in BUILD_DIR/index.json
+    Output: indices in BUILD_DIR/<name>/, registered in BUILD_DIR/index.json
 
     BUILD_DIR (-o) is the index directory, reused across builds and passed to
     `query -r`. A given SESSION can only be built once into a BUILD_DIR.
@@ -125,15 +126,6 @@ def build(
 
     work_dir = os.path.realpath(work_dir)
 
-    registry = work_dir
-    input_file_dir = os.path.basename(os.path.dirname(os.path.realpath(input_file)))
-    bloom_dir = os.path.join(work_dir, "kmindex_data", input_file_dir)
-
-    if os.path.isdir(bloom_dir):
-        raise click.ClickException(
-            f"Bloom filter directory already exists at {bloom_dir}"
-        )
-
     # Only an explicit --base-path overrides the sample root; otherwise each
     # definition resolves paths against its JSONL header's root_path.
     if base_path:
@@ -150,8 +142,6 @@ def build(
     iops = ops.IndexOps(
         config=ops.IndexOpsConfig(
             workdir=work_dir,
-            index_data_folder=bloom_dir,
-            registry_dir=os.path.join(work_dir, registry),
             minimizer_length=int(minim_size) if minim_size else 10,
             sample_rootpath=base_path,
             kmindex_threads=threads,
@@ -159,12 +149,11 @@ def build(
             kmindex_build_from=None,
             filter_names=None,
             filter_spans=None,
-            on_existing="fail",
+            keep_previous=keep_previous,
             partition_count=partition_count,
             limits=limits,
             safety_margin=safety_margin,
             max_chunks=max_chunks,
-            session_assets=True,
         )
     )
 

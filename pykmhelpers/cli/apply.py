@@ -49,29 +49,12 @@ def _parse_spans(spans):
 @shared.index_limits_options
 @shared.index_apply_options
 @shared.fail_fast_option
-@click.option(
-    "--registry",
-    "-r",
-    required=False,
-    type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Custom base path to kmindex registry (created if doesn't exist).",
-)
-@click.option(
-    "--bloom-dir",
-    "-bl",
-    required=False,
-    type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Custom base path to kmindex Bloom filters directory (created if doesn't exist).",
-)
-@shared.on_conflict_option
 @click.pass_context
 def apply(
     ctx,
     input_file,
     work_dir,
     base_path,
-    registry,
-    bloom_dir,
     span,
     index_ids,
     minim_size,
@@ -80,8 +63,8 @@ def apply(
     limits,
     safety_margin,
     max_chunks,
-    existing,
     skip_compression,
+    keep_previous,
     show_progress,
     fail_on_error,
     notify,
@@ -90,7 +73,7 @@ def apply(
 
     \b
     Input:  COMPOSE_DIR/NAME/SESSION/NAME.yaml written by `compose` or `design`
-    Output: Bloom filters in BUILD_DIR/kmindex_data/, registered in BUILD_DIR/index.json
+    Output: indices in BUILD_DIR/<name>/, registered in BUILD_DIR/index.json
 
     BUILD_DIR (-o) is the index directory, reused across builds and passed to
     `query -r`. Parent indices are built automatically when required. Only
@@ -116,8 +99,6 @@ def apply(
     # Set threads and show progress
     kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build -t 8 --show-progress
     """
-
-    force = (ctx.obj or {}).get("yes", False)
 
     abort_msg = "Command 'apply' aborted."
     attachements = []
@@ -182,16 +163,6 @@ def apply(
 
     work_dir = os.path.realpath(work_dir or "build")
 
-    if not registry:
-        registry = work_dir
-    else:
-        registry = os.path.realpath(registry)
-
-    if not bloom_dir:
-        base_bloom_dir = os.path.join(work_dir, "kmindex_data")
-    else:
-        base_bloom_dir = os.path.realpath(bloom_dir)
-
     # Only an explicit --base-path overrides the sample root; otherwise each
     # definition resolves paths against its JSONL header's root_path.
     if base_path:
@@ -203,14 +174,6 @@ def apply(
                 )
             else:
                 logger.warning(f"Data root directory not found at {base_path}")
-
-    if (
-        existing in ("replace", "register_or_replace")
-        and not force
-        and not click.confirm(f"Proceed build with '{existing}' option?", default=True)
-    ):
-        logger.warning("Build cancelled")
-        return
 
     logger.info(f"Working directory: {work_dir}")
 
@@ -229,21 +192,10 @@ def apply(
 
     input_files = [input_file]
     for input_file in input_files:
-        input_file_dir = os.path.basename(os.path.dirname(os.path.realpath(input_file)))
-        index_data_folder = os.path.join(base_bloom_dir, input_file_dir)
-
-        if os.path.isdir(index_data_folder) and not force:
-            click.confirm(
-                f"Bloom filter directory already exists at {index_data_folder}. Continue?",
-                abort=True,
-            )
-
         try:
             iops = ops.IndexOps(
                 config=ops.IndexOpsConfig(
                     workdir=work_dir,
-                    index_data_folder=index_data_folder,
-                    registry_dir=os.path.join(work_dir, registry),
                     minimizer_length=int(minim_size),
                     sample_rootpath=base_path,
                     kmindex_threads=threads,
@@ -251,7 +203,7 @@ def apply(
                     kmindex_build_from=None,
                     filter_names=selected_ids,
                     filter_spans=selected_spans,
-                    on_existing=existing,
+                    keep_previous=keep_previous,
                     partition_count=partition_count,
                     limits=limits,
                     safety_margin=safety_margin,

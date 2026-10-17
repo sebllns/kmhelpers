@@ -269,14 +269,25 @@ def registry_info(obj, index_id, output_json):
     is_flag=True,
     help="Show detailed validation output",
 )
+@click.option(
+    "--index-ids",
+    "-n",
+    multiple=True,
+    help="Check only these index IDs (default: all); fails if one is not registered",
+)
 @click.pass_obj
-def registry_check(obj, verbose):
+def registry_check(obj, verbose, index_ids):
     """Validate registry consistency and check all index structures."""
     registry_path = obj["registry_path"]
 
     try:
         registry = KmindexRegistry(registry_path, auto_create=False)
         indices = registry.list_indices()
+        if index_ids:
+            missing = [i for i in index_ids if i not in indices]
+            if missing:
+                raise click.ClickException(f"Not registered: {', '.join(missing)}")
+            indices = list(index_ids)
 
         if not indices:
             click.echo("No indices found in registry")
@@ -313,9 +324,9 @@ def registry_check(obj, verbose):
         else:
             click.echo(f"Validation complete: All {len(indices)} indices OK")
 
+    except click.ClickException:
+        raise
     except Exception as e:
-        if "Validation complete" in str(e):
-            raise
         raise click.ClickException(f"Registry check failed: {e}")
 
 

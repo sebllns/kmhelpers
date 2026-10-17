@@ -1,5 +1,6 @@
 import logging
 import os
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
@@ -9,12 +10,17 @@ from pykmhelpers.operations.builder import IndexBuilder
 from pykmhelpers.pipeline.index_db import IndexDefinition, IndexDefinitionTools
 from pykmhelpers.pipeline.index_ops.executor import IndexExecutor, validate_definition
 from pykmhelpers.pipeline.index_ops.layout import LayoutStore
-from pykmhelpers.pipeline.index_ops.merging import merge_threads
+from pykmhelpers.pipeline.index_ops.paths import BuildPaths, check_index_name
 from pykmhelpers.pipeline.index_ops.report import RunReport, indent_prefix
 from pykmhelpers.pipeline.index_ops.samples import SampleResolver
 from pykmhelpers.pipeline.index_ops.script import ScriptRecorder
 from pykmhelpers.pipeline.index_ops.sizing import BuildParams, resolve_build_params
-from pykmhelpers.pipeline.index_ops.sources import SOURCES, DbCache, detect_input
+from pykmhelpers.pipeline.index_ops.sources import (
+    SOURCES,
+    DbCache,
+    WorkPlan,
+    detect_input,
+)
 from pykmhelpers.pipeline.index_ops.types import (
     ApplyInputType,
     ApplyMode,
@@ -26,54 +32,53 @@ from pykmhelpers.pipeline.index_ops.types import (
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class _Built:
+    """Runs built for one definition, with what publishing them needs."""
+
+    definition: IndexDefinition
+    params: BuildParams
+    runs: dict[str, int]
+
+
 class IndexOps:
-    """Orchestrates k-mer index build and merge operations against a kmindex registry.
+    """Orchestrates k-mer index builds against the kmindex registry ``BUILD_DIR``.
 
     Loads an index definition or a span registry (see ``sources``), builds
-    the missing sub-indexes, merges partial indexes into their target and
-    deletes the merged parts. In plan/dry-run modes, commands are only
-    generated and can be exported as a shell script via ``write_script()``.
+    every selected definition as unregistered kmtricks runs, then publishes
+    each target: the runs of its parts, merged with its current version when
+    it is already registered, become ``BUILD_DIR/<target>``. A definition
+    that is not a part of a selected merge is its own target. In plan/dry-run
+    modes, commands are only generated and can be exported as shell scripts
+    via ``write_script()``.
 
     Args:
         config: Runtime configuration governing paths, build parameters,
             filtering, and execution behaviour.  See ``IndexOpsConfig``.
 
     Attributes:
-        config (IndexOpsConfig): The resolved configuration (paths are
-            converted to absolute paths on construction).
-        work_dir (str): Absolute path to the working directory.
-        asset_dir (str): ``<work_dir>/assets`` - output location for generated
-            shell scripts.
+        config (IndexOpsConfig): The resolved configuration (``workdir`` is
+            made absolute on construction).
+        work_dir (str): ``BUILD_DIR``, the kmindex registry.
+        asset_dir (str): ``<work_dir>/assets`` - one folder of scripts per session.
         log_dir (str): ``<work_dir>/logs`` - log file destination.
-        kmindex_registry_dir (str): Path to the kmindex registry directory.
-        kmindex_data_dir (str): Path to the folder that holds index data.
         timestamp (str): ``YYYYmmdd_HHMMSS`` string captured at construction.
     """
 
     def __init__(self, config: IndexOpsConfig) -> None:
         self._config = config
         self._config.workdir = os.path.realpath(config.workdir)
-        self._config.index_data_folder = os.path.realpath(config.index_data_folder)
-        self._config.registry_dir = os.path.realpath(config.registry_dir)
         self._timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # Kept across runs: sample files are resolved relative to their definition file
         self._dbs = DbCache()
         self._script = ScriptRecorder(self.work_dir)
-        self._session: Optional[str] = None
+        self._paths: Optional[BuildPaths] = None
 
         logger.debug(f"Init {type(self).__name__}")
         logger.debug("workdir: " + self.work_dir)
-        logger.debug("registry_dir: " + self.kmindex_registry_dir)
-        logger.debug("asset_dir: " + self.asset_dir)
-        logger.debug("data_dir: " + self.kmindex_data_dir)
 
-        for d in (
-            self.log_dir,
-            self.asset_dir,
-            self.kmindex_registry_dir,
-            self.kmindex_data_dir,
-        ):
+        for d in (self.work_dir, self.log_dir, self.asset_dir):
             os.makedirs(d, exist_ok=True)
 
     # ---
@@ -96,42 +101,36 @@ class IndexOps:
         return os.path.join(self.work_dir, "logs")
 
     @property
-    def kmindex_registry_dir(self) -> str:
-        return self.config.registry_dir
-
-    @property
-    def kmindex_data_dir(self) -> str:
-        return self.config.index_data_folder
-
-    @property
     def timestamp(self) -> str:
         return self._timestamp
+
+    @property
+    def paths(self) -> Optional[BuildPaths]:
+        """Layout of the session of the last ``run()``."""
+        return self._paths
 
     # ---
     # PUBLIC METHODS
 
     def write_script(self) -> None:
-        """Write the commands collected by the last ``run()`` to ``asset_dir``.
+        """Write the commands collected by the last ``run()`` to ``assets/<session>/``.
 
-        One script per group of parts (``<db>_g<span>_<session>.sh``: builds,
-        merge, then cleanup), plus ``kmhelpers_apply.sh`` running them in
-        order. With ``config.session_assets``, they go to
-        ``asset_dir/<session>/`` and ``asset_dir/kmhelpers_apply.sh`` runs
-        that session. Existing files are backed up with a ``.bak`` suffix.
+        One script per group of parts (``<shard>.sh``: builds, then
+        ``<shard>_merge.sh``: publication and cleanup), plus
+        ``kmhelpers_apply.sh`` running them in order. Existing files are
+        backed up with a ``.bak`` suffix.
         """
-        run_dir = self._run_asset_dir
-        self._script.write(run_dir)
-        if run_dir != self.asset_dir:
-            runner = os.path.join(run_dir, ScriptRecorder.RUNNER_NAME)
-            self._script.write_entry(self.asset_dir, runner)
+        if self._paths is None:
+            logger.warning("Nothing planned: no script written")
+            return
+        self._script.write(self._paths.assets)
 
     def run(
         self, path: str, mode: ApplyMode, fail_on_error: bool = False
     ) -> ApplyResult:
         """Apply an index definition or span registry file to the kmindex registry.
 
-        Builds every selected sub-index missing from the registry, then
-        performs the merges declared by a span registry.
+        Builds every selected definition, then publishes every target.
 
         Args:
             path: Path to a YAML or JSON file containing either an
@@ -148,11 +147,7 @@ class IndexOps:
         """
         path = os.path.realpath(path)
         self._script = ScriptRecorder(self.work_dir)
-        self._session = (
-            os.path.basename(os.path.dirname(path))
-            if self.config.session_assets
-            else None
-        )
+        self._paths = paths = BuildPaths.for_input(self.work_dir, path)
         report = RunReport(path, mode)
         idt = IndexDefinitionTools()
 
@@ -163,51 +158,57 @@ class IndexOps:
             report.result.status = ApplyStatus.FAILED
             return report.result
 
-        os.makedirs(self._run_asset_dir, exist_ok=True)
+        os.makedirs(paths.assets, exist_ok=True)
         builder = IndexBuilder(
             workdir=self.work_dir,
-            registry_name=self.kmindex_registry_dir,
-            data_folder=self.kmindex_data_dir,
+            registry_name=paths.registry,
+            data_folder=paths.runs,
             log_folder=self.log_dir,
-            assets_folder=os.path.relpath(self._run_asset_dir, self.work_dir),
+            assets_folder=os.path.relpath(paths.assets, self.work_dir),
         )
         try:
             plan = SOURCES[input_type](self.config, self._dbs).load(path, idt, data)
+            targets = self._targets(plan)
+            for name in targets:
+                check_index_name(name)
         except Exception as e:
             Log.handle_exception(logger, e, f"Failed to load definition file '{path}'")
             report.result.status = ApplyStatus.FAILED
             return report.result
 
         layout = LayoutStore.next_to(path)
-        executor = IndexExecutor(builder, mode, self.config, self._script)
+        executor = IndexExecutor(builder, mode, self.config, self._script, paths)
         samples = SampleResolver(
             self.config.sample_rootpath, mode.checks_files, self._dbs
         )
 
+        own_targets = {t for t, parts in targets.items() if parts == [t]}
+        built: dict[str, _Built] = {}
         for i in plan.definitions:
             assert i.name  # WorkPlan only holds named definitions
             logger.info(f"► Processing index definition '{i.name}'...")
-            if executor.has_index(i.name):
+            if i.name in own_targets and executor.has_index(i.name):
                 logger.info(f"  └── {i.name} found in registry: skip")
                 report.record(i.name, ApplyStatus.NONE)
                 continue
             try:
                 self._script.select(plan.script_of(i.name))
-                self._build(
+                b = self._build(
                     report, executor, samples, i, layout, plan.script_of(i.name)
                 )
+                if b:
+                    built[i.name] = b
             except Exception as e:
                 msg = f"   Failed to build index '{i.name}'"
                 if report.fail(e, msg, i.name, fail_on_error):
                     layout.save()
                     return report.result
 
-        partitions = {i.name: i.partition_count for i in plan.definitions if i.name}
-        for target, parts in plan.merges.items():
+        for target, parts in targets.items():
             try:
-                self._merge(report, executor, target, parts, partitions)
+                self._publish(report, executor, plan, target, parts, built)
             except Exception as e:
-                msg = f"Failed to merge index '{target}'"
+                msg = f"Failed to publish index '{target}'"
                 if report.fail(e, msg, target, fail_on_error):
                     layout.save()
                     return report.result
@@ -218,12 +219,20 @@ class IndexOps:
     # ---
     # PRIVATE METHODS
 
-    @property
-    def _run_asset_dir(self) -> str:
-        """Asset directory of the current run: per session, or flat."""
-        if self._session:
-            return os.path.join(self.asset_dir, self._session)
-        return self.asset_dir
+    @staticmethod
+    def _targets(plan: WorkPlan) -> dict[str, list[str]]:
+        """Every index to publish, with the definitions it is made of.
+
+        The merges of a span registry, plus every definition that is not a
+        part of one of them (an index definition, or a part selected without
+        its target), which is its own target.
+        """
+        targets = dict(plan.merges)
+        in_merge = {p for parts in targets.values() for p in parts}
+        for i in plan.definitions:
+            if i.name and i.name not in in_merge:
+                targets.setdefault(i.name, [i.name])
+        return targets
 
     def _store_params(
         self, layout: LayoutStore, i: IndexDefinition, params: BuildParams
@@ -249,8 +258,8 @@ class IndexOps:
         i: IndexDefinition,
         layout: LayoutStore,
         target: str,
-    ) -> None:
-        """Build index ``i`` and record its outcome in ``report``."""
+    ) -> Optional[_Built]:
+        """Build the runs of index ``i`` and record its outcome in ``report``."""
         # Partitions must be known before estimating the size
         params = self._resolve_params(i, i.sample_count, layout)
         size = i.get_stored_size()
@@ -262,70 +271,81 @@ class IndexOps:
         assert i.name is not None
         if not executor.claim(i.name):
             report.record(i.name, ApplyStatus.NONE)
-            return
+            return None
 
         fof, issues = samples.build_fof(i)
         sample_count = fof.get_sample_count()
-        result = None
         if sample_count == 0:
             logger.warning(
                 f"{indent_prefix(logger)}Skipping index '{i.name}' as no sample was added to it"
             )
-        else:
-            # Samples may have been skipped since the estimate: resolve for the actual count
-            if params is None or sample_count != i.sample_count:
-                params = self._resolve_params(i, sample_count, layout)
-            params = executor.align_with(target, params)
-            self._store_params(layout, i, params)
-            result = executor.build(i, fof, params)
-
-        if not result:
             status = ApplyStatus.FAILED if issues else ApplyStatus.NONE
             report.record(i.name, status, issues=issues)
-        elif not executor.executes or result.get("return_code", -1) == 0:
-            report.record(i.name, ApplyStatus.SUCCESS, issues=issues)
-        else:
-            error = f"error_code={result['return_code']}"
-            report.record(i.name, ApplyStatus.FAILED, error=error, issues=issues)
+            return None
 
-    def _merge(
+        # A part already merged into its target (rerun of a finished session)
+        published = executor.registered_samples(target) if target != i.name else set()
+        overlap = published.intersection(fof.samples)
+        if overlap and len(overlap) == sample_count:
+            logger.info(
+                f"  └── All samples of '{i.name}' are already in '{target}': skip"
+            )
+            report.record(i.name, ApplyStatus.NONE, issues=issues)
+            return None
+        if overlap:
+            raise ValueError(
+                f"{len(overlap)} of the {sample_count} samples of '{i.name}' are "
+                f"already in '{target}' ({summarize_names(sorted(overlap))}): "
+                f"a sample can only be added once"
+            )
+
+        # Samples may have been skipped since the estimate: resolve for the actual count
+        if sample_count != i.sample_count:
+            params = self._resolve_params(i, sample_count, layout)
+        params = executor.align_with(target, params)
+        self._store_params(layout, i, params)
+        runs = executor.build(i, fof, params)
+        report.record(i.name, ApplyStatus.SUCCESS, issues=issues)
+        return _Built(i, params, runs)
+
+    def _publish(
         self,
         report: RunReport,
         executor: IndexExecutor,
+        plan: WorkPlan,
         target: str,
         parts: list[str],
-        partitions: dict[str, int] | None = None,
+        built: dict[str, _Built],
     ) -> None:
-        """Merge ``parts`` into ``target``, record the outcome and delete the parts.
+        """Publish the runs of ``parts`` as ``target`` and record the outcome.
 
-        The parts are registered in the main registry: the merge runs there,
-        with at most one thread per partition, after checking that the
-        repartition tables of the registered sub-indexes fit in RAM.
+        Parts that are registered indexes (left by an older kmhelpers, which
+        registered parts before merging them) are merged in as they are.
         """
-        missing = executor.missing_parts(parts)
-        if missing:
+        new = [built[p] for p in parts if p in built]
+        absorbed = [p for p in parts if p != target and executor.has_index(p)]
+        failed = [
+            p
+            for p in parts
+            if p not in built
+            and p not in absorbed
+            and report.result_of(p) == ApplyStatus.FAILED.value
+        ]
+        if failed:
             logger.warning(
-                f"Cannot merge '{target}' due to some sub-indexes missing: "
-                f"{summarize_names(missing)}"
+                f"Cannot publish '{target}': {summarize_names(failed)} failed to build"
             )
-            report.record(
-                target, ApplyStatus.FAILED, error=f"Missing sub-indexes: {missing}"
-            )
+            if parts != [target]:
+                report.fold_merge(target, parts)
+            return
+        if not new:
+            if parts != [target]:
+                report.fold_merge(target, parts)
             return
 
-        threads = self.config.kmindex_threads or os.cpu_count() or 1
-        n_partitions = next(
-            (n for p in parts if (n := (partitions or {}).get(p))), 0
-        ) or executor.registered_partitions(parts)
-        threads = merge_threads(threads, n_partitions)
-        executor.check_merge_budget(
-            target,
-            executor.registered_count(parts),
-            self.config.minimizer_length,
-        )
-        self._script.select(ScriptRecorder.merge_group(target))
-        result = executor.merge(target, parts, threads)
-        if not result or "command" not in result:
-            raise Exception("Malformed result")
-        report.fold_merge(target, parts)
-        executor.finalize_merge(target, parts)
+        logger.info(f"► Publishing '{target}'...")
+        runs = {name: n for b in new for name, n in b.runs.items()}
+        self._script.select(plan.script_of(parts[0]))
+        executor.publish(new[0].definition, target, runs, new[0].params, absorbed)
+        if parts != [target]:
+            report.fold_merge(target, parts)

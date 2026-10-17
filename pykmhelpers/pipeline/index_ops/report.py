@@ -113,6 +113,11 @@ class RunReport:
         stats["bytes"] += byte_count
         stats["size_str"] = str(ByteCounter.auto(stats["bytes"]))
 
+    def result_of(self, name: str) -> str | None:
+        """Recorded result of ``name``, if any."""
+        result: str | None = self._runs.get(name, {}).get("result")
+        return result
+
     def fold_merge(self, target: str, parts: list[str]) -> None:
         """Move the entries of ``parts`` under ``target`` and derive its status."""
         entry: dict = {"result": SUCCESS}

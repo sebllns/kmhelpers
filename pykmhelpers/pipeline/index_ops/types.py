@@ -69,9 +69,8 @@ class IndexOpsConfig:
     """Configuration for an ``IndexOps`` instance.
 
     Attributes:
-        workdir: Root working directory.  Created automatically if absent.
-        index_data_folder: Directory that holds the raw index data files.
-        registry_dir: Path to the kmindex registry used to track sub-indexes.
+        workdir: ``BUILD_DIR``, the kmindex registry: published indexes are
+            its subdirectories (see ``BuildPaths``). Created if absent.
         minimizer_length: K-mer minimizer size passed to the builder.
             Defaults to ``10``.
         sample_rootpath: Optional prefix prepended to every sample file path
@@ -89,9 +88,6 @@ class IndexOpsConfig:
             in this list.
         filter_names: If set, only process index definitions whose name is in
             this list.
-        on_existing: Behaviour when a sub-index folder already exists on disk but is not registered.
-            Passed directly to the builder (e.g. ``"fail"``, ``"register"``).
-            Defaults to ``"fail"``.
         limits: JSON line of resource limits (``ram``, ``files``, ``threads``,
             ``focus``) forwarded to ``auto_params`` when
             ``kmindex_threads`` is unset. Any key omitted is auto-detected
@@ -102,15 +98,12 @@ class IndexOpsConfig:
             A bigger chunk needs more open files in the merge stage, so the
             cap is paid for with threads. ``0`` disables it, leaving the chunk
             size to the open-files limit alone. Defaults to ``200``.
-        session_assets: When ``True``, generated assets and scripts go to
-            ``assets/<session>/``, where the session is the folder name of the
-            input file, and ``assets/kmhelpers_apply.sh`` runs the last
-            session. Defaults to ``False`` (flat ``assets/``).
+        keep_previous: Keep the replaced version of an updated index in
+            ``work/<session>/previous/`` instead of deleting it. Defaults to
+            ``False``.
     """
 
     workdir: str
-    index_data_folder: str
-    registry_dir: str
     minimizer_length: int = 10
     sample_rootpath: Optional[str] = None
     kmindex_threads: Optional[int] = None
@@ -118,9 +111,8 @@ class IndexOpsConfig:
     kmindex_build_from: Optional[str] = None
     filter_spans: Optional[list[int]] = None
     filter_names: Optional[list[str]] = None
-    on_existing: str = "fail"
     partition_count: Optional[int] = None
     limits: Optional[str] = None
     safety_margin: float = 0.9
     max_chunks: int = 200
-    session_assets: bool = False
+    keep_previous: bool = False

@@ -1,7 +1,6 @@
 import datetime
 import logging
 import os
-import re
 import shutil
 import threading
 import typing
@@ -13,31 +12,18 @@ import pykmhelpers.core.fasta
 import pykmhelpers.core.kmindex_paths
 import pykmhelpers.pipeline.fof
 import pykmhelpers.pipeline.query
-from pykmhelpers.core.utils import summarize_names
 
 logger = logging.getLogger(__name__)
 
-# Marker between a merge target and the timestamp of its pre-update backup.
-# It keeps a backup name distinct from a session part, which is the target
-# suffixed by a session id - a timestamp of the same shape by default.
+# Marker between a merge target and a timestamp: the current version of an
+# index is registered under this name in the throwaway registry of its update
+# merge, so the merge result can take the index's name.
 BACKUP_MARKER = "prev"
-_BACKUP_TIMESTAMP = r"\d{8}_\d{6}"
 
 
 def backup_name(index_name: str, timestamp: str) -> str:
-    """Name an existing merge target is renamed to before an update merge."""
+    """Name of the current version of ``index_name`` in its update merge."""
     return f"{index_name}_{BACKUP_MARKER}_{timestamp}"
-
-
-def _backup_pattern(index_name: str) -> re.Pattern:
-    """Backups of ``index_name``.
-
-    The marker is required: without it the pattern would also match a part of
-    ``index_name`` built in a default session, whose id is a timestamp of the
-    same shape. A backup left by a version that did not write the marker has
-    to be merged back by name.
-    """
-    return re.compile(rf"^{re.escape(index_name)}_{BACKUP_MARKER}_{_BACKUP_TIMESTAMP}$")
 
 
 class IndexBuilder:
@@ -532,132 +518,6 @@ class IndexBuilder:
                         )
 
                     self.check_index_structure(name)
-
-        return result
-
-    def merge(
-        self,
-        new_name: str,
-        to_merge: list[str],
-        rename: typing.Optional[str] = None,
-        is_update: bool = True,
-        delete_old: bool = True,
-        threads: int = 14,
-        dry_run: bool = False,
-    ):
-        """Merge sub-indexes into a single index via KmindexWrapper.merge.
-
-        Args:
-            new_name (str): Name of the resulting merged index.
-            to_merge (list[str]): Names of sub-indexes (already present in the
-                registry) to merge together.
-            rename (typing.Optional[str]): How to rename sample identifiers to
-                avoid collisions between merged sub-indexes. A sub-index cannot
-                contain samples with duplicate identifiers, so sub-indexes
-                sharing identifiers must be renamed before merging. Passed
-                through to `kmindex merge -r/--rename`, which accepts:
-                - identifier files, one per sub-index, comma separated
-                  (e.g. `"f:id1.txt,id2.txt,id3.txt"`);
-                - a format string with `{}` substituted by an integer in
-                  `[0, nb_samples)` (e.g. `"s:id_{}"`).
-                `None` leaves identifiers unchanged.
-            is_update (bool): If `new_name` already exists in the registry,
-                rename it to `{new_name}_old` and include it in the merge so
-                the existing index is updated in place rather than replaced.
-                Raises `ValueError` if `False` and `new_name` already exists.
-            delete_old (bool): Delete the original sub-index files (including
-                the renamed `{new_name}_old` index, if any) after a successful
-                merge.
-            threads (int): Number of threads to use for the merge.
-            dry_run (bool): If `True`, skip registry validation and actually
-                invoking kmindex; only log what would be done.
-
-        Returns:
-            dict: Result returned by `KmindexWrapper.merge`.
-        """
-        self.index.load_json()
-
-        if not dry_run:
-            missing = [name for name in to_merge if not self.index.has_index(name)]
-            if missing:
-                raise ValueError(f"Sub-indexes not found in registry: {missing}")
-
-        old_name = None
-        leftover_names = []
-
-        if self.index.has_index(new_name):
-            if not is_update:
-                raise ValueError(
-                    f"Index '{new_name}' already exists in registry; "
-                    f"pass is_update=True to merge into it"
-                )
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            old_name = backup_name(new_name, timestamp)
-            logger.info(
-                f"Renaming existing index '{new_name}' to '{old_name}' (required for update)"
-            )
-            if not self.index.rename_index(new_name, old_name):
-                raise RuntimeError(
-                    f"Failed to rename existing index '{new_name}' to '{old_name}'"
-                )
-        elif is_update:
-            # 'new_name' is already gone -- this can happen when this merge was
-            # already renamed out of the way by an earlier pass over the same
-            # input (e.g. the "plan" phase of `kmhelpers build`, which performs
-            # this rename for real so the exported script has fixed names).
-            # Pick up any leftover renamed copy instead of silently dropping it.
-            # Names already being merged are parts, not backups: a part is its
-            # target plus a session id, which the legacy form cannot tell apart.
-            pattern = _backup_pattern(new_name)
-            leftover_names = [
-                idx
-                for idx in self.index.list_indices()
-                if idx not in to_merge and pattern.match(idx)
-            ]
-            if leftover_names:
-                logger.info(
-                    f"Found backup version of '{new_name}': "
-                    f"{summarize_names(leftover_names)}"
-                )
-
-        if is_update and old_name:
-            to_merge.append(old_name)
-        elif is_update and leftover_names:
-            to_merge.extend(leftover_names)
-
-        logger.info(f"Merging {summarize_names(to_merge)} into '{new_name}'")
-
-        wrapper = pykmhelpers.core.KmindexWrapper(dry_run=dry_run)
-        try:
-            result = wrapper.merge(
-                input_registry=self.index.root_path,
-                new_name=new_name,
-                new_path=os.path.join(self.data_folder, new_name),
-                to_merge=to_merge,
-                rename=rename,
-                delete_old=delete_old,
-                threads=threads,
-            )
-        except Exception:
-            if old_name and not dry_run:
-                self.index.load_json()
-                if self.index.has_index(old_name) and not self.index.has_index(
-                    new_name
-                ):
-                    logger.info(
-                        f"Merge failed, rolling back: renaming '{old_name}' to '{new_name}'"
-                    )
-                    if not self.index.rename_index(old_name, new_name):
-                        logger.error(
-                            f"Rollback failed: could not rename '{old_name}' back to '{new_name}'"
-                        )
-            raise
-
-        if not dry_run:
-            self.index.load_json()
-            assert self.index.has_index(
-                new_name
-            ), f"Merged index '{new_name}' not found after merge"
 
         return result
 

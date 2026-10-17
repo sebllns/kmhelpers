@@ -29,6 +29,7 @@ the random content.
 
 import gzip
 import json
+import os
 import random
 import shutil
 import subprocess
@@ -148,6 +149,19 @@ class PipelineE2EBase(unittest.TestCase):
                 merged.setdefault(record["query"], {}).update(record["samples"])
         return merged
 
+    def assert_in_place(self, build_dir):
+        """Every registered index is a directory of BUILD_DIR; no session leftovers."""
+        build = self.tmp / build_dir
+        registry = json.loads((build / "index.json").read_text())["index"]
+        self.assertTrue(registry, "nothing registered")
+        for name in registry:
+            entry = build / name
+            self.assertTrue(
+                entry.is_dir() and not entry.is_symlink(), f"{name} is not in place"
+            )
+        self.assertFalse((build / "kmindex_data").exists(), "kmindex_data created")
+        self.assertFalse((build / "work").exists(), "work dir left")
+
     def assert_query_hit(self, results_dir, query_header, sample, min_score=MIN_SCORE):
         merged = self.load_query_results(results_dir)
         self.assertIn(query_header, merged, f"query {query_header} absent from results")
@@ -189,10 +203,7 @@ class TestDesignBuildQueryUpdateQuery(PipelineE2EBase):
         self.run_cli("build", span_reg, "-o", "build")
         index_json = self.tmp / "build" / "index.json"
         self.assertTrue(index_json.is_file(), "build did not produce index.json")
-        self.assertTrue(
-            any((self.tmp / "build" / "kmindex_data").iterdir()),
-            "kmindex_data is empty",
-        )
+        self.assert_in_place("build")
 
         # 3. query a substring of sample_0 -> perfect match
         q0, q0_header = self.write_query("s0", sample_idx=0)
@@ -227,10 +238,103 @@ class TestDesignBuildQueryUpdateQuery(PipelineE2EBase):
 
         self.run_cli("query", q0, "-r", "build", "-o", "results_after", "-f", "json")
         self.assert_query_hit("results_after", q0_header, "sample_0")
+        self.assert_in_place("build")
+
+
+class TestRerunAndOldLayout(PipelineE2EBase):
+    """Rerunning a session is a no-op; an old symlinked build dir can be updated."""
+
+    def design_initial(self):
+        self.run_cli(
+            "design",
+            self.samples_txt,
+            "-o",
+            "db",
+            "-n",
+            "idx",
+            "-S",
+            "initial",
+            "-k",
+            KMER_SIZE,
+            "-b",
+            "1.1",
+            "-g",
+            "1",
+        )
+        return self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml"
+
+    def compose_update(self):
+        """Compose session 'upd' adding one sample; return its span registry."""
+        random.seed(SEED + 1)
+        new_seq = "".join(random.choice("ACGT") for _ in range(SAMPLE_LEN - 400))
+        self.sequences.append(new_seq)  # index N_SAMPLES == "sample_new"
+        new_path = self.tmp / "data" / "sample_new.fasta"
+        new_path.write_text(f">sample_new\n{new_seq}\n")
+        new_list = self.tmp / "new_samples.txt"
+        new_list.write_text(str(new_path.resolve()) + "\n")
+        self.mkdirs("db", "list")
+        self.run_cli("list", new_list, "-o", "db/list/upd.jsonl", "-k", KMER_SIZE)
+        self.run_cli(
+            "compose", "db/list/upd.jsonl", "-o", "db/compose", "-n", "idx", "-S", "upd"
+        )
+        return self.tmp / "db" / "compose" / "idx" / "upd" / "idx.yaml"
+
+    def test_rerun_then_update_old_layout(self):
+        span_reg = self.design_initial()
+        self.run_cli("build", span_reg, "-o", "build")
+        build = self.tmp / "build"
+        before = json.loads((build / "index.json").read_text())["index"]
+
+        # 1. rerunning the finished session changes nothing
+        log = self.run_cli("build", span_reg, "-o", "build")
+        self.assertIn("already in", log.stdout + log.stderr)
+        after = json.loads((build / "index.json").read_text())["index"]
+        self.assertEqual(
+            {n: e["nb_samples"] for n, e in after.items()},
+            {n: e["nb_samples"] for n, e in before.items()},
+        )
+        self.assert_in_place("build")
+
+        # 2. turn the build dir into the old layout: symlinks to kmindex_data/initial/
+        old_data = build / "kmindex_data" / "initial"
+        old_data.mkdir(parents=True)
+        for name in after:
+            shutil.move(str(build / name), str(old_data / name))
+            (build / name).symlink_to(old_data / name, target_is_directory=True)
+
+        # 3. update it, with junk left in the run folders by an interrupted attempt
+        upd_reg = self.compose_update()
+        spans = yaml.safe_load(upd_reg.read_text())["data"]
+        updated = {
+            t: parts for s in spans.values() for t, parts in s["indices"].items()
+        }
+        self.assertTrue(set(updated) & set(after), "the update creates a new shard")
+        for parts in updated.values():
+            for part in parts:
+                junk = self.mkdirs("build", "work", "upd", "runs", part, "matrices")
+                (junk / "matrix_0.cmbf").write_text("partial")
+        self.run_cli("build", upd_reg, "-o", "build")
+
+        for name in after:
+            if name in updated:
+                # moved in place; its previous version is deleted
+                self.assertTrue(
+                    (build / name).is_dir() and not (build / name).is_symlink()
+                )
+                self.assertFalse((old_data / name).exists(), f"old {name} left")
+            else:
+                self.assertTrue((build / name).is_symlink(), f"{name} was touched")
+        self.assertFalse((build / "work").exists(), "work dir left")
+
+        # every sample, old and new, is queryable
+        for idx, sample in [(0, "sample_0"), (N_SAMPLES, "sample_new")]:
+            q, header = self.write_query(f"s{idx}", sample_idx=idx)
+            self.run_cli("query", q, "-r", "build", "-o", f"res_{idx}", "-f", "json")
+            self.assert_query_hit(f"res_{idx}", header, sample)
 
 
 class TestStepByStepDesignAndBuild(PipelineE2EBase):
-    """Decomposed flow: list -> profile -> compose, then plan -> apply."""
+    """Decomposed flow: list -> profile -> compose, then plan -> scripts -> apply."""
 
     def test_step_by_step_design_and_build(self):
         # design, decomposed (list does not create its output parent dir)
@@ -268,13 +372,45 @@ class TestStepByStepDesignAndBuild(PipelineE2EBase):
         # build, decomposed
         self.run_cli("plan", span_reg, "-o", "build2")
         self.assertTrue(
-            (self.tmp / "build2" / "assets" / "kmhelpers_apply.sh").is_file(),
+            (
+                self.tmp / "build2" / "assets" / "initial" / "kmhelpers_apply.sh"
+            ).is_file(),
             "plan did not write the build script",
         )
+        # parts are kmtricks runs in work/SESSION/, published under the lock
+        # and checked before anything is deleted; plan touches no registry
+        scripts = self.tmp / "build2" / "assets" / "initial"
+        builds = "".join(
+            p.read_text() for p in scripts.glob("*.sh") if not p.stem.endswith("_merge")
+        )
+        merges = "".join(p.read_text() for p in scripts.glob("*_merge.sh"))
+        self.assertIn("kmtricks pipeline", builds)
+        self.assertIn("${WORKDIR}/work/initial/runs/", builds)
+        self.assertNotIn("kmindex build", builds)
+        self.assertIn("flock", merges)
+        self.assertIn("--mode move", merges)
+        self.assertLess(merges.index("check -n"), merges.index("cleanup"))
+        registry = json.loads((self.tmp / "build2" / "index.json").read_text())
+        self.assertEqual(registry["index"], {}, "plan registered something")
+        # the written scripts build the index on their own
+        env = dict(os.environ)
+        env["PATH"] = os.path.dirname(sys.executable) + os.pathsep + env["PATH"]
+        proc = subprocess.run(
+            ["bash", str(scripts / "kmhelpers_apply.sh")],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assert_in_place("build2")
+        built = json.loads((self.tmp / "build2" / "index.json").read_text())["index"]
+
+        # apply on the same session finds everything published: nothing changes
         self.run_cli("apply", span_reg, "-o", "build2")
-        self.assertTrue(
-            (self.tmp / "build2" / "index.json").is_file(),
-            "apply did not produce index.json",
+        after = json.loads((self.tmp / "build2" / "index.json").read_text())["index"]
+        self.assertEqual(
+            {n: e["nb_samples"] for n, e in after.items()},
+            {n: e["nb_samples"] for n, e in built.items()},
         )
 
         # query
@@ -429,9 +565,9 @@ class TestShardedBuild(PipelineE2EBase):
 class TestChunkedBuild(PipelineE2EBase):
     """A too-low --limits open-files ceiling splits a build into chunks.
 
-    Chunks are built unregistered (kmtricks), checked, merged in throwaway
-    registries sized from --limits (in several levels when needed), and only the
-    merged index ends up in the main registry.
+    Chunks are built unregistered (kmtricks) in BUILD_DIR/work/, checked,
+    merged in throwaway registries sized from --limits (in several levels when
+    needed), and only the merged index ends up in the registry, in place.
     """
 
     def chunked_apply(self, limits: str) -> str:
@@ -469,24 +605,22 @@ class TestChunkedBuild(PipelineE2EBase):
 
         # only the merged index is registered: no chunk, no intermediate merge
         self.assertEqual(len(registry), 1, f"unexpected entries: {sorted(registry)}")
-        merged = next(iter(registry.values()))
+        name, merged = next(iter(registry.items()))
         self.assertEqual(merged["nb_samples"], N_SAMPLES)
 
-        # throwaway registries, chunk runs and intermediate merges are deleted
-        self.assertFalse((build / "merge_registries").exists(), "merge registries left")
-        leftovers = [
-            p.name
-            for p in (build / "kmindex_data").rglob("*")
-            if p.is_dir() and ("_chunk" in p.name or "__sub" in p.name)
-        ]
-        self.assertFalse(leftovers, f"chunk or intermediate data left: {leftovers}")
+        # the index is a directory of BUILD_DIR, not a symlink
+        self.assertTrue((build / name).is_dir() and not (build / name).is_symlink())
+        self.assertFalse((build / "kmindex_data").exists(), "kmindex_data created")
+
+        # chunk runs, throwaway registries and intermediate merges are deleted
+        self.assertFalse((build / "work").exists(), "work dir left")
 
         # builds and merges are recorded in separate scripts
         assets = self.tmp / "planned" / "assets"
         merge_scripts = list(assets.rglob("*_merge.sh"))
         self.assertTrue(merge_scripts, "no merge script written")
         text = merge_scripts[0].read_text()
-        self.assertIn("incomplete chunk", text)
+        self.assertIn("incomplete run", text)
         self.assertIn("kmindex register --global-index", text)
         self.assertIn("--from-file", text)
         self.assertIn("kmindex merge", text)

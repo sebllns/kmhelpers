@@ -99,7 +99,7 @@ kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build/ --show-pro
 
 ??? abstract "I/O"
     **Input:** `coli_db/compose/coli/initial/coli.yaml`  
-    **Output:** `coli_build/index.json` + sub-index data files in `coli_build/kmindex_data/` - ready-to-query index
+    **Output:** `coli_build/index.json` + one folder per sub-index, `coli_build/coli_g0/` and `coli_build/coli_g1/` - ready-to-query index
 
 ??? info "INFO"
     `build` runs [`plan`](../commands/plan.md) → [`apply`](../commands/apply.md) in a single command, validating all paths before

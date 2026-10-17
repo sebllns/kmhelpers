@@ -31,18 +31,16 @@ See [build - Paths](build.md#paths) for the directory layout.
 | `-t, --threads INT` | Number of threads |
 | `-p, --partition-count INT` | Partitions per index; ignored when the layout already stores one (see [compose](compose.md)) |
 | `-NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
-| `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Chunked builds and merges](build.md#chunked-builds-and-merges) |
+| `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Builds and merges](build.md#builds-and-merges) |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use (default: 0.9) |
 | `--max-chunks INT` | Max number of chunks a single index is split into; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 200) |
 | `-X, --fail-fast` | Abort on first failure instead of continuing |
-| `-r, --registry DIR` | Registry directory (default: `BUILD_DIR`, holds `index.json`) |
-| `-bl, --bloom-dir DIR` | Bloom filters directory (default: `BUILD_DIR/kmindex_data`) |
-| `--on-conflict TEXT` | Action for pre-existing index folders: `fail`, `register`, `rename`, `replace`, `register_or_replace`, `register_or_rename` (default: `fail`) |
+| `--keep-previous` | Keep the replaced version of an updated index in `BUILD_DIR/work/SESSION/previous/` instead of deleting it |
 | `-O, --offline` | Skip local path validation (useful when exporting scripts for another machine) |
 
 ## Description
 
-`plan` validates all sample paths of `INPUT_FILE` upfront and previews the `kmindex` commands that would be executed by [`apply`](apply.md), without running them. It writes the equivalent shell scripts to `BUILD_DIR/assets/` (one per sub-index, `<name>_g<span>_<session>.sh`, with its merges in `<name>_g<span>_<session>_merge.sh`, plus `kmhelpers_apply.sh` running them in order; see [build - Chunked builds and merges](build.md#chunked-builds-and-merges)) and a validation report to `BUILD_DIR/logs/`.
+`plan` validates all sample paths of `INPUT_FILE` upfront and previews the commands that would be executed by [`apply`](apply.md), without running them or touching the registry. It writes the equivalent shell scripts to `BUILD_DIR/assets/SESSION/` (one per sub-index, `<shard>.sh` with its builds and `<shard>_merge.sh` with its publication, plus `kmhelpers_apply.sh` running them in order; see [build - Builds and merges](build.md#builds-and-merges)) and a validation report to `BUILD_DIR/logs/`.
 
 **Offline mode** - use `--offline` to skip local path validation when generating scripts destined for another machine.
 

@@ -71,29 +71,28 @@ kmhelpers build coli_db/compose/coli/update/coli.yaml -o coli_build/ --show-prog
 
 ??? abstract "I/O"
     **Input:** `coli_db/compose/coli/update/coli.yaml`  
-    **Output:** updated `coli_g0` in `coli_build/kmindex_data/update/coli_g0/`,
-    previous version left in `coli_build/kmindex_data/initial/coli_g0/`,
-    updated `coli_build/index.json`
+    **Output:** updated `coli_g0` in `coli_build/coli_g0/`, updated
+    `coli_build/index.json`
 
 ??? info "INFO"
-    Each session gets its own Bloom filter folder named after its `SESSION`
-    directory, and is registered in `coli_build/index.json`. A given session can
-    therefore be built only once into a given `BUILD_DIR`.
+    Each index keeps its folder, `coli_build/<name>/`. While the session is
+    built, its runs and merges live in `coli_build/work/update/`, deleted at the
+    end. Building the same session again resumes it, or does nothing if it
+    finished.
 
     Building a session into a `BUILD_DIR` that already holds the index triggers a
     merge. `kmindex` cannot add samples to an existing index in place, so the
-    update merges the old and the new samples into a new index: `coli_g0` now
-    holds its initial samples plus the new one and lives in
-    `coli_build/kmindex_data/update/coli_g0/`. The files of the previous version
-    are left in `coli_build/kmindex_data/initial/coli_g0/`, no longer registered.
+    update merges the old and the new samples into a new index, which replaces
+    the previous one in `coli_build/coli_g0/`: it now holds its initial samples
+    plus the new one. The previous version is deleted once the new one is
+    checked (`--keep-previous` keeps it in `coli_build/work/update/previous/`).
 
     `GCA_000005845` falls in the span bucket of `coli_g0`, so only that
-    sub-index is merged. `coli_g1` is untouched and stays in
-    `coli_build/kmindex_data/initial/coli_g1/`.
+    sub-index is merged. `coli_g1` is untouched.
 
 ??? warning "Disk space"
-    The previous version and the updated one coexist on disk, during and after
-    the merge. Plan for at least twice the size of the sub-indices being updated.
+    The previous version and the updated one coexist on disk during the merge.
+    Plan for at least twice the size of the sub-indices being updated.
 
 ---
 
@@ -108,26 +107,18 @@ kmhelpers query -r coli_build/ -o results_update/ query.fa
     `query.fa` comes from `GCA_000780515`, indexed in `coli_g1`, which still
     scores **1.0**.
 
-    The previous version is no longer registered, so the query reads only the
-    updated index.
+    The previous version was deleted once the updated one was registered and
+    checked. To compare both versions, build with `--keep-previous`: the
+    previous `coli_g0` is then left in `coli_build/work/update/previous/coli_g0/`,
+    to delete once done.
 
 ---
 
-## Step 6 - Check the result and delete the previous version
-
-The files of the previous version are kept, so the updated index can be
-validated first. Once satisfied, delete them to reclaim the disk space:
+## Step 6 - Check the result
 
 ```bash
 # Registered indices and the samples they hold
 kmhelpers manage -r coli_build/ list
 kmhelpers manage -r coli_build/ info -n coli_g0
-
-# Leftover files of the previous version of coli_g0
-rm -rf coli_build/kmindex_data/initial/coli_g0
+kmhelpers manage -r coli_build/ check
 ```
-
-??? warning "WARNING"
-    Delete the sub-index directory, not the whole `initial/` folder:
-    `coli_build/kmindex_data/initial/coli_g1/` was not merged and is still in
-    use by the registry.

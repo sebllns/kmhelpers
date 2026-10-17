@@ -25,21 +25,6 @@ logger = logging.getLogger(__name__)
 @shared.index_limits_options
 @shared.fail_fast_option
 @click.option(
-    "--registry",
-    "-r",
-    required=False,
-    type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Custom base path to kmindex registry (created if doesn't exist).",
-)
-@click.option(
-    "--bloom-dir",
-    "-bl",
-    required=False,
-    type=click.Path(file_okay=False, dir_okay=True),
-    help="📁  Custom base path to kmindex Bloom filters directory (created if doesn't exist).",
-)
-@shared.on_conflict_option
-@click.option(
     "--offline",
     "-O",
     is_flag=True,
@@ -60,17 +45,15 @@ def plan(
     safety_margin,
     max_chunks,
     skip_compression,
+    keep_previous,
     fail_on_error,
-    registry,
-    bloom_dir,
-    existing,
     offline,
 ):
     """Validate paths and preview the build plan from an index definition file.
 
     \b
     Input:  COMPOSE_DIR/NAME/SESSION/NAME.yaml written by `compose` or `design`
-    Output: shell script in BUILD_DIR/assets/, validation report in BUILD_DIR/logs/
+    Output: shell scripts in BUILD_DIR/assets/SESSION/, validation report in BUILD_DIR/logs/
 
     BUILD_DIR (-o) is the index directory later passed to `apply` or `build`.
     Only indices matching --name or --span are processed; if neither is
@@ -95,8 +78,6 @@ def plan(
     kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build --offline
     """
     try:
-        force = (ctx.obj or {}).get("yes", False)
-
         abort_msg = "FAILED ('plan')"
 
         try:
@@ -115,15 +96,7 @@ def plan(
 
         work_dir = os.path.realpath(work_dir)
 
-        if not registry:
-            registry = work_dir
-
-        if not bloom_dir:
-            bloom_dir = os.path.join(work_dir, "kmindex_data")
-
         if not offline:
-            registry = os.path.realpath(registry)
-            bloom_dir = os.path.realpath(bloom_dir)
             # Only an explicit --base-path overrides the sample root; otherwise
             # each definition resolves paths against its JSONL header root_path.
             if base_path:
@@ -136,30 +109,18 @@ def plan(
                     else:
                         logger.warning(f"Data root directory not found at {base_path}")
 
-        if (
-            existing in ("replace", "register_or_replace")
-            and not force
-            and not click.confirm(
-                f"Proceed build with '{existing}' option?", default=True
-            )
-        ):
-            logger.warning("Build cancelled")
-            return
-
         logger.info(f"Working directory: {work_dir}")
 
         iops = ops.IndexOps(
             config=ops.IndexOpsConfig(
                 workdir=work_dir,
-                index_data_folder=bloom_dir,
-                registry_dir=os.path.join(work_dir, registry),
                 sample_rootpath=base_path,
                 kmindex_threads=threads,
                 kmindex_skip_compression=skip_compression,
                 kmindex_build_from=None,
                 filter_names=selected_ids,
                 filter_spans=selected_spans,
-                on_existing=existing,
+                keep_previous=keep_previous,
                 partition_count=partition_count,
                 limits=limits,
                 safety_margin=safety_margin,

@@ -10,7 +10,6 @@ from pathlib import Path
 
 import yaml
 
-from pykmhelpers.operations.builder import _backup_pattern, backup_name
 from pykmhelpers.pipeline.composer import IndexComposer, load_layout, max_samples_for
 from pykmhelpers.pipeline.index_db import IndexDefinitionTools
 
@@ -54,14 +53,6 @@ class TestShardNaming(unittest.TestCase):
         shard = self.tools.get_shard_name(self.tools.get_merge_name("idx", 0), 2)
         self.assertEqual(
             self.tools.get_part_name(shard, "initial"), "idx_g0_p2_initial"
-        )
-
-    def test_a_part_is_not_mistaken_for_an_update_backup(self):
-        """The default session id is a timestamp, like the backup suffix."""
-        part = self.tools.get_part_name("idx_g0", "20260927_120000")
-        self.assertFalse(_backup_pattern("idx_g0").match(part))
-        self.assertTrue(
-            _backup_pattern("idx_g0").match(backup_name("idx_g0", "20260927_120000"))
         )
 
 

@@ -15,6 +15,8 @@ import yaml
 
 from pykmhelpers.pipeline.index_ops import ApplyStatus, IndexOpsConfig
 from pykmhelpers.pipeline.index_ops.layout import LayoutStore
+from pykmhelpers.pipeline.index_ops.ops import IndexOps
+from pykmhelpers.pipeline.index_ops.paths import BuildPaths, check_index_name
 from pykmhelpers.pipeline.index_ops.report import merge_status, run_status
 from pykmhelpers.pipeline.index_ops.samples import SampleResolver
 from pykmhelpers.pipeline.index_ops.script import ScriptRecorder
@@ -22,15 +24,14 @@ from pykmhelpers.pipeline.index_ops.sizing import BuildParams, resolve_build_par
 from pykmhelpers.pipeline.index_ops.sources import (
     IndexDefinitionSource,
     SpanRegistrySource,
+    WorkPlan,
 )
 
 S, F, P, N = "SUCCESS", "FAILED", "PARTIAL", "NONE"
 
 
 def make_config(**kwargs):
-    return IndexOpsConfig(
-        workdir="w", index_data_folder="d", registry_dir="r", **kwargs
-    )
+    return IndexOpsConfig(workdir="w", **kwargs)
 
 
 def make_definition(name="idx", span=1, partition_count=0, samples=None):
@@ -253,6 +254,44 @@ class TestSpanRegistrySource(unittest.TestCase):
             self.load({"data": {1: {"indices": {"t": ["nope"]}}}})
 
 
+class TestBuildPaths(unittest.TestCase):
+    def test_session_layout(self):
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp)
+        definition = tmp / "compose" / "idx" / "upd" / "idx.yaml"
+        p = BuildPaths.for_input(str(tmp / "build"), str(definition))
+        b = str((tmp / "build").resolve())
+        self.assertEqual(p.session, "upd")
+        self.assertEqual(p.registry, b)
+        self.assertEqual(p.shard("idx_g0"), f"{b}/idx_g0")
+        self.assertEqual(p.run("idx_g0_upd"), f"{b}/work/upd/runs/idx_g0_upd")
+        self.assertEqual(
+            p.merge_step("idx_g0", "idx_g0__sub1_0"),
+            f"{b}/work/upd/merges/idx_g0/idx_g0__sub1_0",
+        )
+        self.assertEqual(p.previous("idx_g0"), f"{b}/work/upd/previous/idx_g0")
+        self.assertEqual(p.assets, f"{b}/assets/upd")
+        self.assertEqual(p.lock, f"{b}/.registry.lock")
+
+    def test_reserved_names(self):
+        for name in ("work", "assets", "logs", ".hidden", "a/b"):
+            with self.assertRaises(ValueError, msg=name):
+                check_index_name(name)
+        check_index_name("idx_g0")
+
+
+class TestTargets(unittest.TestCase):
+    def test_merges_and_own_targets(self):
+        plan = WorkPlan(
+            definitions=[make_definition(n) for n in ("a_s1", "b_s1", "c")],
+            merges={"a": ["a_s1"], "b": ["b_s1", "b_s0"]},
+        )
+        self.assertEqual(
+            IndexOps._targets(plan),
+            {"a": ["a_s1"], "b": ["b_s1", "b_s0"], "c": ["c"]},
+        )
+
+
 class TestSampleResolver(unittest.TestCase):
     def build(self, samples, rootpath=None, check_files=False):
         i = make_definition(
@@ -312,7 +351,7 @@ class TestScriptRecorder(unittest.TestCase):
         header = [
             "#!/usr/bin/env bash",
             "set -euo pipefail",
-            f"WORKDIR='{self.tmp}'",
+            f"export WORKDIR='{self.tmp}'",
             "cd ${WORKDIR}",
         ]
         ts = "$(date '+%F %T')"
@@ -347,22 +386,17 @@ class TestScriptRecorder(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             ScriptRecorder(str(self.tmp)).add("cmd", "step")
 
-    def test_write_creates_directory_and_entry_runner(self):
+    def test_write_creates_the_session_directory(self):
         rec = ScriptRecorder(str(self.tmp))
         rec.select("a")
         rec.add("build a_p0", "step")
         session_dir = self.assets / "initial"
         rec.write(str(session_dir))
-        rec.write_entry(str(self.assets), str(session_dir / "kmhelpers_apply.sh"))
 
         self.assertTrue((session_dir / "a.sh").is_file())
         self.assertEqual(
             self.lines("initial/kmhelpers_apply.sh")[-1],
             'bash "${WORKDIR}/assets/initial/a.sh"',
-        )
-        self.assertEqual(
-            self.lines("kmhelpers_apply.sh")[-1],
-            'bash "${WORKDIR}/assets/initial/kmhelpers_apply.sh"',
         )
 
     def test_rewrite_backs_up(self):

@@ -63,10 +63,6 @@ class ScriptRecorder:
             runner += self._run_lines(os.path.join(directory, f"{name}.sh"))
         self._write_file(directory, self.RUNNER_NAME, runner)
 
-    def write_entry(self, directory: str, script_path: str) -> None:
-        """Write ``<directory>/kmhelpers_apply.sh`` running ``script_path``."""
-        self._write_file(directory, self.RUNNER_NAME, self._run_lines(script_path))
-
     def _run_lines(self, script_path: str) -> list[str]:
         path = script_path.replace(self._workdir, "${WORKDIR}")
         shown = os.path.relpath(script_path, self._workdir)
@@ -81,7 +77,8 @@ class ScriptRecorder:
         header = [
             "#!/usr/bin/env bash",
             "set -euo pipefail",
-            f"WORKDIR='{self._workdir}'",
+            # exported: commands run by a child shell (flock -c) use it too
+            f"export WORKDIR='{self._workdir}'",
             "cd ${WORKDIR}",
         ]
         with open(path, "w") as f:

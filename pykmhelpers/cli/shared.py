@@ -182,24 +182,12 @@ _notify_option = click.option(
     metavar="EMAIL",
     help="📧  Send an email notification on exit (success, failure, or timeout).",
 )
-on_conflict_option = click.option(
-    "--on-conflict",
-    "existing",
-    required=False,
-    type=click.Choice(
-        [
-            "fail",
-            "register",
-            "rename",
-            "replace",
-            "register_or_replace",
-            "register_or_rename",
-        ],
-        case_sensitive=False,
-    ),
-    default="fail",
-    show_default=True,
-    help="⚙   Action when an existing unregistered index folder is found.",
+_keep_previous_option = click.option(
+    "--keep-previous",
+    is_flag=True,
+    default=False,
+    help="🚩  Keep the replaced version of an updated index in "
+    "BUILD_DIR/work/SESSION/previous/ instead of deleting it.",
 )
 
 _INDEX_BUILD_OPTIONS = [
@@ -209,6 +197,7 @@ _INDEX_BUILD_OPTIONS = [
     _threads_option,
     _partition_count_option,
     _skip_compression_option,
+    _keep_previous_option,
 ]
 
 # Only meaningful for commands that operate on an already-composed

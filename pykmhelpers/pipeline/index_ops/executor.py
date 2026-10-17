@@ -1,15 +1,16 @@
+import datetime
 import logging
 import os
 import shlex
 import shutil
+import subprocess
+import sys
 from dataclasses import replace
 
 from pykmhelpers.core.byte import ByteCounter, SizeFormat
 from pykmhelpers.core.kmindex_paths import chunk_problems
-from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
-from pykmhelpers.core.log import Log
-from pykmhelpers.core.utils import Toolbox, summarize_names
-from pykmhelpers.operations.builder import IndexBuilder
+from pykmhelpers.core.utils import summarize_names
+from pykmhelpers.operations.builder import IndexBuilder, backup_name
 from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.pipeline.index_db import IndexDefinition
 from pykmhelpers.pipeline.index_ops.merging import (
@@ -18,8 +19,8 @@ from pykmhelpers.pipeline.index_ops.merging import (
     max_inputs,
     merge_threads,
     merge_tree,
-    repartition_bytes,
 )
+from pykmhelpers.pipeline.index_ops.paths import BuildPaths
 from pykmhelpers.pipeline.index_ops.progress import progress_for
 from pykmhelpers.pipeline.index_ops.script import ScriptRecorder
 from pykmhelpers.pipeline.index_ops.sizing import BuildParams
@@ -27,11 +28,13 @@ from pykmhelpers.pipeline.index_ops.types import ApplyMode, IndexOpsConfig
 
 logger = logging.getLogger(__name__)
 
-MERGE_REGISTRIES = "merge_registries"
-
 
 def _size(n_bytes: float) -> str:
     return str(ByteCounter.auto(int(n_bytes), SizeFormat.BYTE))
+
+
+def _q(path: str) -> str:
+    return shlex.quote(path)
 
 
 def validate_definition(i: IndexDefinition) -> None:
@@ -44,10 +47,14 @@ def validate_definition(i: IndexDefinition) -> None:
 
 
 class IndexExecutor:
-    """Runs kmindex build, merge and cleanup commands against one registry.
+    """Builds kmtricks runs and publishes them as indexes of one registry.
 
-    In non-executing modes (dry-run, plan), commands are only generated and
-    recorded into the script; registry checks and file deletions are skipped.
+    Every index is built as unregistered kmtricks runs in ``work/<session>/``
+    (one, or several chunks), then published by ``publish``: merged with the
+    current version of the index if there is one, and moved in place into
+    ``BUILD_DIR``. The steps are recorded into the script; when executing,
+    the recorded shell commands of ``publish`` are also run, so the script
+    and the run do the same thing.
     """
 
     def __init__(
@@ -56,24 +63,33 @@ class IndexExecutor:
         mode: ApplyMode,
         config: IndexOpsConfig,
         script: ScriptRecorder,
+        paths: BuildPaths,
     ) -> None:
         self._builder = builder
         self._mode = mode
         self._config = config
         self._script = script
+        self._paths = paths
         self._claimed = set[str]()
+        self._prepared: set[str] = set()
 
     @property
     def executes(self) -> bool:
         return self._mode.executes
 
     def has_index(self, name: str) -> bool:
+        self._builder.index.load_json()
         return self._builder.index.has_index(name)
 
+    def registered_samples(self, name: str) -> set[str]:
+        """Samples of the registered index ``name`` (empty if not registered)."""
+        if not self.has_index(name):
+            return set()
+        return set(self._builder.index.get_index(name).samples)
+
     def claim(self, name: str) -> bool:
-        """Reserve ``name`` for a build in this run. False if already claimed or built."""
-        self._builder.index.load_json()
-        if name in self._claimed or self._builder.has_subindex(name):
+        """Reserve ``name`` for a build in this run. False if already claimed."""
+        if name in self._claimed:
             return False
         self._claimed.add(name)
         return True
@@ -84,7 +100,7 @@ class IndexExecutor:
         kmindex refuses to merge indexes whose partition count or minimizer
         size differ, so a part joining an existing shard must reuse them.
         """
-        if not self._builder.index.has_index(target):
+        if not self.has_index(target):
             return params
 
         registered = self._builder.index.get_index(target)
@@ -106,98 +122,57 @@ class IndexExecutor:
 
     def build(
         self, i: IndexDefinition, fof: FofManager, params: BuildParams
-    ) -> dict | None:
-        """Build index ``i`` from ``fof``, split into chunks if ``params`` requires it."""
+    ) -> dict[str, int]:
+        """Build ``i`` as unregistered runs; return their sample count by run name.
+
+        One run named after ``i``, or ``{name}_chunk{n}`` runs when ``params``
+        requires chunks.
+        """
         assert i.name
         if params.chunk_size is None:
-            return self._build_one(i.name, fof, i, params)
-        return self._build_chunked(i, fof, params)
+            self._build_run(i.name, fof, i, params)
+            return {i.name: fof.get_sample_count()}
 
-    def missing_parts(self, parts: list[str]) -> list[str]:
-        """Parts not present in the registry (always empty when not executing)."""
-        self._builder.index.load_json()
-        if not self.executes:
-            return []
-        return [name for name in parts if not self._builder.index.has_index(name)]
-
-    def merge(self, target: str, parts: list[str], threads: int) -> dict | None:
-        """Merge ``parts`` into ``target``. Call ``finalize_merge`` afterwards."""
-        result: dict | None = self._builder.merge(
-            target, parts, delete_old=False, dry_run=not self.executes, threads=threads
+        size = params.chunk_size
+        items = list(fof.samples.items())
+        chunks = [items[n : n + size] for n in range(0, len(items), size)]
+        logger.info(
+            f"  └── Splitting '{i.name}' into {len(chunks)} chunks of up to "
+            f"{size} samples (open-files limit)"
         )
-        if result and "command" in result:
-            label = f"merge {summarize_names(parts)} -> {target}"
-            self._script.add(result["command"], label)
-        return result
+        runs: dict[str, int] = {}
+        for n, chunk_items in enumerate(chunks):
+            name = f"{i.name}_chunk{n}"
+            self._build_run(name, FofManager(samples=dict(chunk_items)), i, params)
+            runs[name] = len(chunk_items)
+        return runs
 
-    def finalize_merge(self, target: str, parts: list[str]) -> None:
-        """Check that ``target`` exists and, if its structure is valid, delete ``parts``.
+    def _build_run(
+        self, name: str, fof: FofManager, i: IndexDefinition, params: BuildParams
+    ) -> None:
+        """Build the kmtricks run ``work/<session>/runs/<name>``.
 
-        When not executing, the deletion is scripted instead; the script stops
-        before it if the merge fails.
+        A complete run left by an earlier attempt is kept; an incomplete one
+        is deleted and rebuilt.
         """
-        if not self.executes:
-            # kmindex merge already unregisters the parts: only their data is
-            # left. One loop rather than a line per part: a chunked build has
-            # as many of them as it has chunks.
-            paths = " ".join(
-                shlex.quote(os.path.join(self._config.index_data_folder, part))
-                for part in parts
+        run_dir = self._paths.run(name)
+        if self.executes and os.path.exists(run_dir):
+            problems = chunk_problems(run_dir, params.partitions)
+            if not problems:
+                logger.info(f"  └── Reusing complete run '{name}'")
+                return
+            logger.info(
+                f"  └── Rebuilding incomplete run '{name}': {', '.join(problems)}"
             )
-            self._script.add(
-                # cd -P resolves a symlinked part portably (no GNU realpath -m)
-                f"for d in {paths}; do "
-                'if p=$(cd -P "$d" 2>/dev/null && pwd); then rm -rf "$p"; fi; '
-                'rm -rf "$d"; done',
-                f"cleanup {summarize_names(parts)}",
-            )
-            return
-        self._verify(target)
-        if self._builder.index.get_index(target).check_structure():
-            logger.info(f"Deleting merged {summarize_names(parts)}...")
-            for part in parts:
-                self.delete_segment(part)
-
-    def delete_segment(self, segment: str) -> None:
-        """Unregister ``segment`` and delete its data directory."""
-        logger.debug(f"Delete {segment}...")
-        try:
-            self._builder.index.remove_index(
-                segment, delete_files=False, skip_unregistered=True
-            )
-        except Exception as e:
-            Log.handle_exception(
-                logger, e, f"Failed to remove {segment} from registry", logging.WARNING
-            )
-
-        index_path = os.path.join(self._config.index_data_folder, segment)
-        shutil.rmtree(os.path.realpath(index_path), ignore_errors=True)
-        try:
-            if os.path.islink(index_path):
-                os.unlink(index_path)
-        except Exception as e:
-            Log.handle_exception(
-                logger, e, f"Error deleting link {index_path}", logging.WARNING
-            )
-        if os.path.exists(index_path):
-            logger.warning(
-                f"Could not remove dir {index_path}, please remove it manually."
-            )
-
-    def _build_one(
-        self,
-        name: str,
-        fof: FofManager,
-        i: IndexDefinition,
-        params: BuildParams,
-        register: bool = True,
-    ) -> dict | None:
-        """Build one physical sub-index ``name`` from ``fof`` with the parameters of ``i``.
-
-        ``register=False`` builds an unregistered kmtricks run (a chunk).
-        """
+            shutil.rmtree(run_dir)
         if self._mode is ApplyMode.APPLY:
             logger.info(f"  └── Building '{name}'...")
+
+        group = self._script.current or name
+        if group not in self._prepared:
+            # kmtricks needs the parent of its run directory
+            self._script.add(f"mkdir -p {_q(self._paths.runs)}", "prepare")
+            self._prepared.add(group)
 
         with progress_for(self._mode, name) as progress:
             result = self._builder.create_subindex(
@@ -212,104 +187,180 @@ class IndexExecutor:
                 minim_size=params.minim_size,
                 dry_run=not self.executes,
                 kmer_size=i.kmer_size,
-                on_existing=self._config.on_existing,
                 progress=progress.handler,
-                register=register,
+                register=False,
             )
             if result and "command" in result:
                 self._script.add(result["command"], f"build {name}")
 
-        if self.executes and register:
-            self._verify(name)
-        return result
+    def publish(
+        self,
+        i: IndexDefinition,
+        target: str,
+        runs: dict[str, int],
+        params: BuildParams,
+        absorbed: list[str] | None = None,
+    ) -> None:
+        """Publish the runs built for ``target`` as the index ``BUILD_DIR/<target>``.
 
-    def _build_chunked(
-        self, i: IndexDefinition, fof: FofManager, params: BuildParams
-    ) -> dict | None:
-        """Build ``i`` as unregistered ``{name}_chunk{n}`` runs, then merge them into ``i.name``."""
-        assert i.name and params.chunk_size
-        size = params.chunk_size
-        items = list(fof.samples.items())
-        chunks = [items[n : n + size] for n in range(0, len(items), size)]
-        chunk_names = [f"{i.name}_chunk{n}" for n in range(len(chunks))]
-
-        logger.info(
-            f"  └── Splitting '{i.name}' into {len(chunks)} chunks of up to "
-            f"{size} samples (open-files limit)"
-        )
-        for chunk_name, chunk_items in zip(chunk_names, chunks):
-            self._build_one(
-                chunk_name,
-                FofManager(samples=dict(chunk_items)),
-                i,
-                params,
-                register=False,
-            )
-
-        samples = {name: len(items) for name, items in zip(chunk_names, chunks)}
-        return self.merge_chunks(i, samples, params)
-
-    def merge_chunks(
-        self, i: IndexDefinition, chunk_samples: dict[str, int], params: BuildParams
-    ) -> dict | None:
-        """Merge the unregistered chunk runs of ``i`` and register the result.
+        ``absorbed`` are other registered indexes to merge in, then unregister
+        and delete (parts registered by an older kmhelpers).
 
         Recorded in the merge script of the current group, run after its builds:
 
-        1. check that every chunk run is complete (else stop before registering);
-        2. split the chunks into merges of at most ``k`` inputs, ``k`` set by the
-           resource limits (``max_inputs``), in a balanced tree;
-        3. run each merge in a throwaway registry holding only its inputs;
-        4. register ``i.name`` in the main registry;
-        5. delete the chunk runs, the intermediate merges and the registries.
+        1. check that every run is complete (else stop before touching anything);
+        2. a single new run: move it in place and register it;
+        3. otherwise merge the runs, plus the current version of ``target`` if
+           it is registered, in a balanced tree of merges of at most ``k``
+           inputs (``max_inputs``), each in a throwaway registry holding only
+           its inputs; then, under the registry lock, move the current version
+           aside, move the result in place and register it;
+        4. check the published index (before deleting anything);
+        5. delete the runs, the merges and the previous version.
         """
-        assert i.name
-        target = i.name
-        data = self._config.index_data_folder
-        main_registry = self._builder.index.root_path
-        registries = os.path.join(main_registry, MERGE_REGISTRIES, target)
+        paths = self._paths
         partitions = params.partitions
-        threads = merge_threads(params.threads, partitions)
-        chunks = list(chunk_samples)
-        run_dirs = {name: os.path.join(data, name) for name in chunks}
+        names = list(runs)
+        run_dirs = {name: paths.run(name) for name in names}
+        existing = self.has_index(target)
+        absorbed = absorbed or []
 
         group = self._script.current or target
         self._script.select(ScriptRecorder.merge_group(group))
 
-        # 1. every chunk must be complete before anything is registered
-        chunks_tsv = self._write_tsv(f"{target}.chunks.tsv", run_dirs)
-        if self.executes:
-            incomplete = {
-                name: problems
-                for name, path in run_dirs.items()
-                if (problems := chunk_problems(path, partitions))
-            }
-            if incomplete:
-                details = "; ".join(
-                    f"{n}: {', '.join(p)}" for n, p in incomplete.items()
-                )
-                raise RuntimeError(
-                    f"{len(incomplete)} chunk(s) of '{target}' are incomplete, "
-                    f"not merging: {details}"
-                )
-        self._script.add(
-            self._check_chunks_cmd(chunks_tsv, partitions),
-            f"check {summarize_names(chunks)}",
+        # 1. every run must be complete before anything is registered
+        runs_tsv = self._write_tsv(f"{target}.runs.tsv", run_dirs)
+        self._sh(
+            self._check_runs_cmd(runs_tsv, partitions),
+            f"check {summarize_names(names)}",
         )
 
-        # 2. merge tree within the resource limits
+        shard = paths.shard(target)
+        if len(names) == 1 and not existing and not absorbed:
+            # 2. nothing to merge
+            self._locked(
+                self._kmindex(
+                    "register",
+                    "--global-index",
+                    paths.registry,
+                    "--name",
+                    target,
+                    "--index-path",
+                    run_dirs[names[0]],
+                    "--mode",
+                    "move",
+                ),
+                f"publish {target}",
+            )
+        else:
+            # 3. merge, then swap
+            inputs = dict(run_dirs)
+            samples = dict(runs)
+            if existing:
+                stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                current = backup_name(target, stamp)
+                inputs[current] = shard
+                samples[current] = self._builder.index.get_index(target).nb_samples
+            for name in absorbed:
+                inputs[name] = paths.shard(name)
+                samples[name] = self._builder.index.get_index(name).nb_samples
+            out = self._merge(i, target, inputs, samples, params)
+
+            swap = []
+            if existing:
+                previous = paths.previous(target)
+                swap += [
+                    f"mkdir -p {_q(os.path.dirname(previous))}",
+                    f"rm -rf {_q(previous)}",
+                    f"mv {_q(shard)} {_q(previous)}",
+                ]
+            swap.append(f"mv {_q(out)} {_q(shard)}")
+            unregister = ([target] if existing else []) + absorbed
+            if unregister:
+                swap.append(
+                    shlex.join(
+                        ["kmhelpers", "manage", "-r", paths.registry, "remove"]
+                        + [a for n in unregister for a in ("-n", n)]
+                        + ["-y"]
+                    )
+                )
+            swap.append(
+                self._kmindex(
+                    "register",
+                    "--global-index",
+                    paths.registry,
+                    "--name",
+                    target,
+                    "--index-path",
+                    shard,
+                )
+            )
+            self._locked(" && ".join(swap), f"publish {target}")
+
+        # 4. a broken index must not cost its inputs
+        self._sh(
+            shlex.join(
+                ["kmhelpers", "manage", "-r", paths.registry, "check", "-n", target]
+            ),
+            f"check {target}",
+        )
+
+        # 5. runs, merges and the previous version are no longer needed
+        cleanup = (
+            list(run_dirs.values())
+            + [paths.shard(n) for n in absorbed]
+            + [paths.merges(target)]
+        )
+        if not self._config.keep_previous:
+            cleanup.append(paths.previous(target))
+        self._remove(cleanup, f"cleanup {target}")
+        work_dirs = [
+            paths.runs,
+            os.path.dirname(paths.merges(target)),
+            os.path.dirname(paths.previous(target)),
+            paths.work,
+            os.path.dirname(paths.work),
+        ]
+        self._sh(
+            "rmdir --ignore-fail-on-non-empty "
+            + " ".join(_q(d) for d in work_dirs)
+            + " 2>/dev/null || true",
+            "cleanup work",
+        )
+        self._builder.index.load_json()
+        self._script.select(group)
+
+    def _merge(
+        self,
+        i: IndexDefinition,
+        target: str,
+        inputs: dict[str, str],
+        samples: dict[str, int],
+        params: BuildParams,
+    ) -> str:
+        """Merge ``inputs`` (name -> index path) into ``target``; return the result path.
+
+        Steps of at most ``k`` inputs, ``k`` set by the resource limits. Each
+        step runs in ``merges/<target>/<step>/``: ``registry/`` holds its
+        inputs, ``out/`` its result.
+        """
+        paths = self._paths
+        partitions = params.partitions
+        threads = merge_threads(params.threads, partitions)
         limits = MergeLimits.resolve(self._config.limits, self._config.safety_margin)
         k, binding = max_inputs(limits, partitions, params.minim_size, threads)
-        steps = merge_tree(target, chunks, k)
+        steps = merge_tree(target, list(inputs), k)
         logger.info(
-            f"  └── Merging {len(chunks)} chunks into '{target}': "
+            f"  └── Merging {len(inputs)} inputs into '{target}': "
             f"{len(steps)} merge(s), at most {k} inputs each ({binding} limit), "
             f"{threads} thread(s)"
         )
 
-        samples = dict(chunk_samples)
-        wrapper = KmindexWrapper(dry_run=not self.executes)
-        result: dict | None = None
+        def out_of(name: str) -> str:
+            return inputs.get(name) or os.path.join(
+                paths.merge_step(target, name), "out"
+            )
+
         for step in steps:
             samples[step.name] = sum(samples[n] for n in step.inputs)
             fp = footprint(
@@ -330,124 +381,89 @@ class IndexExecutor:
                 f"anonymous {_size(fp['anon'])}, mapped inputs {_size(fp['mapped'])}{note}"
             )
 
-            # 3. a registry of its own, holding only this merge's inputs
-            registry = os.path.join(registries, step.name)
-            inputs = {n: run_dirs.get(n) or os.path.join(data, n) for n in step.inputs}
-            tsv = self._write_tsv(f"{step.name}.register.tsv", inputs)
-            self._reset(registry)
-            r = wrapper.register(registry, from_file=tsv)
-            self._script.add(r["command"], f"register {summarize_names(step.inputs)}")
-            result = wrapper.merge(
-                input_registry=registry if self.executes else main_registry,
-                new_name=step.name,
-                new_path=os.path.join(data, step.name),
-                to_merge=step.inputs,
-                threads=threads,
+            step_dir = paths.merge_step(target, step.name)
+            registry = os.path.join(step_dir, "registry")
+            tsv = self._write_tsv(
+                f"{step.name}.register.tsv", {n: out_of(n) for n in step.inputs}
             )
-            if not self.executes:
-                # The step registry only exists once the script registered the
-                # inputs: the command was built against the main registry.
-                planned = Toolbox.get_canonical_path(main_registry)
-                command = result["command"]
-                assert f"--index {planned} " in command, command
-                result["command"] = command.replace(
-                    f"--index {planned} ",
-                    f"--index {Toolbox.get_canonical_path(registry)} ",
-                    1,
-                )
-            self._script.add(
-                result["command"],
+            # kmindex creates the registry; it must not exist without index.json
+            self._sh(
+                f"rm -rf {_q(step_dir)} && mkdir -p {_q(step_dir)}",
+                f"reset {step.name}",
+            )
+            self._sh(
+                self._kmindex(
+                    "register", "--global-index", registry, "--from-file", tsv
+                ),
+                f"register {summarize_names(step.inputs)}",
+            )
+            self._sh(
+                self._kmindex(
+                    "merge",
+                    "--index",
+                    registry,
+                    "--new-name",
+                    step.name,
+                    "--new-path",
+                    os.path.join(step_dir, "out"),
+                    "--to-merge",
+                    ",".join(step.inputs),
+                    "--threads",
+                    str(threads),
+                ),
                 f"merge {summarize_names(step.inputs)} -> {step.name}",
             )
-            intermediates = [n for n in step.inputs if n not in run_dirs]
-            self._remove(
-                [registry] + [os.path.join(data, n) for n in intermediates],
-                f"cleanup {step.name} registry",
-            )
+            consumed = [
+                paths.merge_step(target, n) for n in step.inputs if n not in inputs
+            ]
+            self._remove([registry] + consumed, f"cleanup {step.name} registry")
+        return out_of(target)
 
-        # 4. publish the merged index in the main registry
-        r = wrapper.register(
-            main_registry, name=target, index_path=os.path.join(data, target)
-        )
-        self._script.add(r["command"], f"register {target}")
-        if self.executes:
-            self._builder.index.load_json()
-            self._verify(target)
-            if not self._builder.index.get_index(target).check_structure():
-                raise RuntimeError(f"Merged index '{target}' has an invalid structure")
+    @staticmethod
+    def _kmindex(*args: str) -> str:
+        return shlex.join(["kmindex", *args, "--verbose", "info"])
 
-        # 5. chunks and throwaway registries are no longer needed
-        self._remove(list(run_dirs.values()), f"cleanup {summarize_names(chunks)}")
-        self._remove([registries], f"cleanup {MERGE_REGISTRIES}/{target}")
-        parent = os.path.dirname(registries)
-        if self.executes:
-            try:
-                os.rmdir(parent)
-            except OSError:
-                pass  # other targets still have registries there
-        else:
-            self._script.add(
-                f"rmdir --ignore-fail-on-non-empty {shlex.quote(parent)}",
-                f"cleanup {MERGE_REGISTRIES}",
-            )
-        self._script.select(group)
-        return result
+    def _locked(self, cmd: str, label: str) -> None:
+        """Run ``cmd`` holding the registry lock: merge jobs may publish at once."""
+        self._sh(f"flock {_q(self._paths.lock)} -c {_q(cmd)}", label)
 
-    def registered_partitions(self, names: list[str]) -> int:
-        """Partition count of the first of ``names`` found in the registry (0 if none)."""
-        self._builder.index.load_json()
-        for name in names:
-            if self._builder.index.has_index(name):
-                n = self._builder.index.get_index(name).nb_partitions
-                if n:
-                    return n
-        return 0
-
-    def registered_count(self, extra: list[str]) -> int:
-        """Entries of the main registry once ``extra`` are registered too."""
-        self._builder.index.load_json()
-        return len(set(self._builder.index.list_indices()) | set(extra))
-
-    def check_merge_budget(
-        self, target: str, n_registered: int, minim_size: int
-    ) -> None:
-        """Check the anonymous memory of a merge run in the main registry.
-
-        ``kmindex merge`` loads the repartition table of every registered
-        sub-index: ``n_registered * 2 * 4^m`` bytes that must fit in RAM.
-        Raises when executing, logs an error when planning.
-        """
-        limits = MergeLimits.resolve(self._config.limits, self._config.safety_margin)
-        anon = n_registered * repartition_bytes(minim_size)
-        msg = (
-            f"Merging '{target}' loads {n_registered} registered sub-indexes: "
-            f"{_size(anon)} of anonymous memory"
-        )
-        if anon <= limits.ram:
-            logger.info(f"  └── {msg}")
+    def _sh(self, cmd: str, label: str) -> None:
+        """Record ``cmd`` into the script; when executing, also run it with bash."""
+        self._script.add(cmd, label)
+        if not self.executes:
             return
-        msg += f", more than the RAM limit ({_size(limits.ram)})"
-        if self.executes:
-            raise RuntimeError(msg)
-        logger.error(msg)
+        env = dict(os.environ)
+        # kmhelpers and kmindex of this installation come first
+        env["PATH"] = os.path.dirname(sys.executable) + os.pathsep + env.get("PATH", "")
+        r = subprocess.run(
+            ["bash", "-c", f"set -euo pipefail\n{cmd}"],
+            cwd=self._paths.build_dir,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        if r.stdout:
+            logger.debug(r.stdout.rstrip())
+        if r.returncode != 0:
+            tail = "\n".join((r.stderr or r.stdout).strip().splitlines()[-20:])
+            raise RuntimeError(f"'{label}' failed (exit {r.returncode}):\n{tail}")
 
     def _write_tsv(self, file_name: str, entries: dict[str, str]) -> str:
         """Write ``name<TAB>path`` lines to the assets folder; return the file path."""
-        path = os.path.join(self._builder.assets_folder, file_name)
+        path = os.path.join(self._paths.assets, file_name)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w") as f:
             f.writelines(f"{name}\t{p}\n" for name, p in entries.items())
         return path
 
     @staticmethod
-    def _check_chunks_cmd(chunks_tsv: str, partitions: int) -> str:
-        """Shell loop stopping the script when a chunk run is incomplete.
+    def _check_runs_cmd(runs_tsv: str, partitions: int) -> str:
+        """Shell loop stopping the script when a kmtricks run is incomplete.
 
         Same test as ``chunk_problems``: kmtricks writes ``run_infos.txt`` only
         after its last stage; all ``partitions`` matrices must be non-empty and
         of one size.
         """
-        tsv = shlex.quote(chunks_tsv)
         return (
             "bad=0; while IFS=$'\\t' read -r name dir; do "
             'n=$(ls "$dir"/matrices/matrix_*.cmbf 2>/dev/null | wc -l); '
@@ -456,38 +472,21 @@ class IndexExecutor:
             '|| [ ! -f "$dir/options.txt" ] '
             f'|| [ "$n" -ne {partitions} ] || [ "$(echo "$sizes" | wc -l)" -ne 1 ] '
             '|| [ "$sizes" = 0 ]; then '
-            'echo "incomplete chunk: $name ($dir)" >&2; bad=$((bad + 1)); fi; '
-            f"done < {tsv}; "
-            'if [ "$bad" -gt 0 ]; then echo "$bad incomplete chunk(s): not merging" >&2; '
+            'echo "incomplete run: $name ($dir)" >&2; bad=$((bad + 1)); fi; '
+            f"done < {_q(runs_tsv)}; "
+            'if [ "$bad" -gt 0 ]; then echo "$bad incomplete run(s): not publishing" >&2; '
             "exit 1; fi"
         )
 
-    def _reset(self, registry: str) -> None:
-        """Start a merge registry empty (a previous attempt may have left one)."""
-        if self.executes:
-            shutil.rmtree(registry, ignore_errors=True)
-        self._script.add(f"rm -rf {shlex.quote(registry)}", "reset merge registry")
-
     def _remove(self, paths: list[str], label: str) -> None:
-        """Delete ``paths`` (resolving symlinked directories), or script it."""
+        """Delete ``paths``, and the target of those that are symlinks."""
         if not paths:
             return
-        if self.executes:
-            for p in paths:
-                shutil.rmtree(os.path.realpath(p), ignore_errors=True)
-                if os.path.islink(p):
-                    os.unlink(p)
-                shutil.rmtree(p, ignore_errors=True)
-            return
-        quoted = " ".join(shlex.quote(p) for p in paths)
-        self._script.add(
+        quoted = " ".join(_q(p) for p in paths)
+        self._sh(
+            # cd -P resolves a symlink portably (no GNU realpath -m)
             f"for d in {quoted}; do "
             'if p=$(cd -P "$d" 2>/dev/null && pwd); then rm -rf "$p"; fi; '
             'rm -rf "$d"; done',
             label,
         )
-
-    def _verify(self, name: str) -> None:
-        self._builder.index.load_json()
-        if not self._builder.has_subindex(name):
-            raise RuntimeError(f"Could not find index '{name}'")

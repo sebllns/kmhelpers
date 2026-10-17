@@ -16,7 +16,7 @@ Validate paths then build k-mer indices from an index definition file in a singl
 
 !!! abstract "I/O"
     **Input:** `COMPOSE_DIR/NAME/SESSION/NAME.yaml` written by `compose`, or `DESIGN_DIR/compose/NAME/SESSION/NAME.yaml` when produced by `design` (see [design - Next Step](design.md#next-step))  
-    **Output:** Bloom filters in `BUILD_DIR/kmindex_data/SESSION/`, registered in `BUILD_DIR/index.json`
+    **Output:** indices in `BUILD_DIR/<name>/`, registered in `BUILD_DIR/index.json`
 
 ## Advanced Options
 
@@ -26,10 +26,11 @@ Validate paths then build k-mer indices from an index definition file in a singl
 | `--minim-size INT` | Minimizer size (default: 10) |
 | `-t, --threads INT` | Number of threads |
 | `-p, --partition-count INT` | Partitions per index; ignored when the layout already stores one |
-| `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Chunked builds and merges](build.md#chunked-builds-and-merges) |
+| `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Builds and merges](build.md#builds-and-merges) |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use for any key missing from `--limits` (default: 0.9) |
 | `--max-chunks INT` | Max number of chunks a single index is split into; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 200) |
 | `-NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
+| `--keep-previous` | Keep the replaced version of an updated index in `BUILD_DIR/work/SESSION/previous/` instead of deleting it |
 | `-SP, --show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
 | `--notify EMAIL` | Send email notification on exit (requires sendmail) |
 
@@ -50,27 +51,30 @@ coli_db/                          DESIGN_DIR (design -o)
         └── update/
             └── coli.yaml
 
-coli_build/                       BUILD_DIR (build -o, query -r)
+coli_build/                       BUILD_DIR (build -o, query -r): the kmindex registry
 ├── index.json                    registry of all built indices
-├── merge_registries/             throwaway merge registries, only while merging chunks
-├── kmindex_data/
-│   ├── initial/                  Bloom filters, one folder per SESSION
-│   │   └── coli_g0/              previous version, kept after the update (need manual delete)
-│   └── update/
+├── coli_g0/                      an index, in place (a directory, not a symlink)
+├── coli_g1/
+├── work/                         only while a SESSION is being built
+│   └── update/                   SESSION
+│       ├── runs/                 kmtricks runs (parts, chunks)
+│       ├── merges/               throwaway merge registries and their outputs
+│       └── previous/             replaced version of an updated index
 ├── assets/
-│   ├── kmhelpers_apply.sh        runs the last built SESSION
-│   ├── initial/                  scripts (<shard>.sh, <shard>_merge.sh) and fof files, one folder per SESSION
+│   ├── initial/                  scripts (<shard>.sh, <shard>_merge.sh, kmhelpers_apply.sh) and fof files, one folder per SESSION
 │   └── update/
 └── logs/
 ```
 
-Reuse the same `BUILD_DIR` for every session of an index: each build adds its sub-indices to `BUILD_DIR/index.json`. The Bloom filter folder is named after the `SESSION` directory of `INPUT_FILE`, so a session can only be built once into a given `BUILD_DIR`.
+Reuse the same `BUILD_DIR` for every session of an index. Each index keeps one folder, `BUILD_DIR/<name>/`, for its whole life; a session only uses `BUILD_DIR/work/SESSION/` while it is built, and deletes it when it is done. Index names cannot be `work`, `assets`, `logs`, or start with `.`.
+
+Building a session again resumes it: complete kmtricks runs are kept, incomplete ones are rebuilt, and parts whose samples are already in their index are skipped. A finished session built again changes nothing.
 
 ## Description
 
 `build` chains [`plan`](plan.md) and [`apply`](apply.md) into a single invocation. It is equivalent to running the two commands in sequence.
 
-**Step 1 - plan:** validates all sample paths upfront and writes the equivalent `kmindex` shell scripts to `BUILD_DIR/assets/SESSION/` (one per sub-index, plus `kmhelpers_apply.sh` running them in order) and a validation report to `BUILD_DIR/logs/`. Fix any path errors before the build starts rather than discovering them mid-run.
+**Step 1 - plan:** validates all sample paths upfront and writes the equivalent shell scripts to `BUILD_DIR/assets/SESSION/` (`<shard>.sh` and `<shard>_merge.sh` per sub-index, plus `kmhelpers_apply.sh` running them in order) and a validation report to `BUILD_DIR/logs/`. Fix any path errors before the build starts rather than discovering them mid-run.
 
 **Step 2 - apply:** executes the build and registers all completed indices in `BUILD_DIR/index.json`.
 
@@ -78,41 +82,33 @@ Reuse the same `BUILD_DIR` for every session of an index: each build adds its su
 
 **Notifications** - use `--notify` to receive an email when the build exits (requires `sendmail`). The notification is sent on both success and failure, including on `SIGTERM`.
 
-### Chunked builds and merges
+### Builds and merges
 
-When one `kmtricks` build cannot hold all the samples of a sub-index (open files, see `--limits` and `--max-chunks`), the sub-index is built in chunks, then merged:
+Every sub-index is built as unregistered `kmtricks` runs, then published:
 
-1. **Build** - each chunk is built with `kmtricks pipeline` into `BUILD_DIR/kmindex_data/SESSION/<name>_chunk<N>/`. Chunks are **not** registered in `BUILD_DIR/index.json`. These commands are in `assets/SESSION/<shard>.sh`, and can be run anywhere, e.g. as a SLURM array.
-2. **Check** - `assets/SESSION/<shard>_merge.sh` starts by checking every chunk: `run_infos.txt` (written by kmtricks only when it finishes), `kmtricks.fof`, `options.txt`, and all partition matrices present, non-empty and of equal size. If one chunk is incomplete, the script stops before registering or merging anything; rebuild that chunk and run the merge script again.
-3. **Merge** - each `kmindex merge` runs in a throwaway registry, `BUILD_DIR/merge_registries/<name>/<step>/`, holding only its inputs. `kmindex merge` loads the repartition table of every registered sub-index (2 MiB each at minimizer size 10), so a registry limited to the inputs keeps its memory proportional to what is merged. Merges get at most one thread per partition.
-4. **Sub-shards** - one merge can take at most `k` inputs: `ram / (2 * 4^m)` (anonymous memory), `(maps - 1000) / threads` (`vm.max_map_count`) and `files / threads - 1` (open files), with the values of `--limits`. A shard with more chunks is merged in balanced groups of at most `k` chunks (`<name>__sub1_<i>`), then these are merged, and so on. Each level reads and writes the data once more.
-5. **Register** - the merged sub-index is registered in `BUILD_DIR/index.json`; the chunks, intermediate merges and throwaway registries are deleted.
+1. **Build** - each part of the sub-index (its samples of this session) is built with `kmtricks pipeline` into `BUILD_DIR/work/SESSION/runs/<part>/`, not registered. When one `kmtricks` build cannot hold all the samples of a part (open files, see `--limits` and `--max-chunks`), the part is built in chunks, `<part>_chunk<N>/`. These commands are in `assets/SESSION/<shard>.sh`, and can be run anywhere, e.g. as a SLURM array.
+2. **Check** - `assets/SESSION/<shard>_merge.sh` starts by checking every run: `run_infos.txt` (written by kmtricks only when it finishes), `kmtricks.fof`, `options.txt`, and all partition matrices present, non-empty and of equal size. If one run is incomplete, the script stops before registering or merging anything; rebuild that run and run the merge script again.
+3. **Publish a single run** - a new sub-index built in one run is moved in place (`kmindex register --mode move`): no copy, no merge.
+4. **Merge** - otherwise the runs, plus the current version of the sub-index when it is already registered (see [Updating an index](#updating-an-index)), are merged. Each `kmindex merge` runs in a throwaway registry, `BUILD_DIR/work/SESSION/merges/<name>/<step>/`, holding only its inputs. `kmindex merge` loads the repartition table of every registered sub-index (2 MiB each at minimizer size 10), so a registry limited to the inputs keeps its memory proportional to what is merged. Merges get at most one thread per partition.
+5. **Sub-shards** - one merge can take at most `k` inputs: `ram / (2 * 4^m)` (anonymous memory), `(maps - 1000) / threads` (`vm.max_map_count`) and `files / threads - 1` (open files), with the values of `--limits`. More inputs are merged in balanced groups of at most `k` (`<name>__sub1_<i>`), then these are merged, and so on. Each level reads and writes the data once more.
+6. **Swap** - holding the lock `BUILD_DIR/.registry.lock` (several merge jobs may publish at once), the current version is moved to `work/SESSION/previous/`, the merge result is moved to `BUILD_DIR/<name>/` and registered. Both moves are renames on one filesystem: queries see the previous version until the swap.
+7. **Check, then clean up** - `kmhelpers manage check -n <name>` checks the published sub-index; only then are the runs, merges and previous version deleted. A failed check stops the script with everything kept.
 
 `kmhelpers_apply.sh` runs `<shard>.sh` then `<shard>_merge.sh`. The plan logs, for each merge, its number of inputs, the limit that sets `k`, and its expected memory: the anonymous part must fit in RAM, while the mapped inputs are page cache that the kernel reclaims when they exceed it.
 
 ### Updating an index
 
-Building a new `SESSION` into a `BUILD_DIR` that already holds the same index triggers a `kmindex merge`. `kmindex` cannot add samples to an existing index in place, so an update merges the previous samples and the new ones into a **new** index:
+Building a new `SESSION` into a `BUILD_DIR` that already holds the same index adds the new samples to it. `kmindex` cannot add samples to an existing index in place, so an update merges the current version and the new runs into a **new** index:
 
-- The updated index `NAME_gN`, holding the previous samples plus the new ones, is written to `BUILD_DIR/kmindex_data/<new session>/NAME_gN/`. It keeps its name in `index.json`, so queries need no change.
-- The files of the previous version are left at `BUILD_DIR/kmindex_data/<previous session>/NAME_gN/`. They are no longer registered, so queries ignore them.
-- Only the sub-indices that receive new samples are merged. The others stay where they were built, still registered and untouched.
+- The updated index `NAME_gN` replaces the previous one in `BUILD_DIR/NAME_gN/`. It keeps its name and its folder, so queries need no change.
+- The previous version is deleted once the updated one is registered and checked. Use `--keep-previous` to keep it in `BUILD_DIR/work/SESSION/previous/NAME_gN/` instead, e.g. to compare both versions; delete that folder once done.
+- Only the sub-indices that receive new samples are merged. The others are untouched.
+- A sample can only be added once: a part whose samples are all already in the index is skipped, and a part where only some are fails.
 
 !!! warning "Disk space"
-    Both versions coexist on disk, during and after the merge. Plan for at least twice the size of the sub-indices being updated.
+    Both versions coexist on disk during the merge. Plan for at least twice the size of the sub-indices being updated.
 
-The previous version is not deleted on purpose, so the updated index can be validated first. Once validated, delete its directory to reclaim the space:
-
-```bash
-# Registered indices and the samples they hold
-kmhelpers manage -r coli_build/ list
-kmhelpers manage -r coli_build/ info -n coli_g0
-
-# Leftover files of the previous version, delete once validated
-rm -rf coli_build/kmindex_data/initial/coli_g0
-```
-
-Delete the sub-index directory, not the whole session directory: a session folder can still hold sub-indices that were not merged and are in use.
+Indices built by older versions of kmhelpers (registered as symlinks to `BUILD_DIR/kmindex_data/SESSION/NAME_gN/`) keep working. Updating one moves it in place, and deletes its previous version in `kmindex_data/`.
 
 ## Examples
 

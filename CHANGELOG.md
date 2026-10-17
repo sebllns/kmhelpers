@@ -4,8 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`--keep-previous`** (`plan`, `apply`, `build`): keeps the replaced version of an updated index in `BUILD_DIR/work/SESSION/previous/`
+- **`manage check -n`**: checks only the given indices, and fails if one is not registered
+
 ### Changed
 
+- **Index layout**: every index lives in place in `BUILD_DIR/<name>/` (a directory of the registry, not a symlink), and keeps that folder across updates
+  - Everything temporary to a session (kmtricks runs, merges, previous version) is in `BUILD_DIR/work/SESSION/`, deleted when the session is done; `BUILD_DIR/kmindex_data/` is no longer used
+  - `plan`, `apply` and `build` derive every path from one place (`BuildPaths`); scripts always go to `BUILD_DIR/assets/SESSION/`
+  - Indices of older build dirs (symlinks to `kmindex_data/SESSION/`) keep working; updating one moves it in place
+- **Session parts** are built like chunks: unregistered `kmtricks pipeline` runs, checked, then published by the merge script
+  - A new index built in one run is moved in place (`kmindex register --mode move`) instead of being copied by a 1-input `kmindex merge`
+  - An update merges the current version with the new runs in a throwaway registry, then swaps them under a lock (`BUILD_DIR/.registry.lock`)
+  - The published index is checked (`manage check -n`) before its inputs are deleted
+  - The previous version is deleted once the updated one is checked (it was left in `kmindex_data/` for manual deletion)
+  - `plan` no longer renames anything in `index.json` (it renamed the updated index to `<name>_prev_<timestamp>`)
+- **Resuming a session**: building a session again keeps complete runs, rebuilds incomplete ones and skips parts already merged into their index; `build` no longer refuses an existing session folder
 - **Chunked builds**: chunks are built with `kmtricks pipeline` and stay unregistered until they are merged
   - The merges go to their own script, `<shard>_merge.sh`, run after the builds (e.g. after a SLURM build array)
   - The merge script first checks every chunk (`run_infos.txt`, all partition matrices present and of equal size) and stops before registering anything if one is incomplete
@@ -14,6 +30,11 @@ All notable changes to this project will be documented in this file.
   - The merged shard is then registered in the main registry; chunks, intermediate merges and throwaway registries are deleted
 - **Merge threads**: `kmindex merge` gets at most one thread per partition (it runs one task per partition)
 - **`--limits`**: new optional `maps` key (default: `vm.max_map_count` of the machine)
+
+### Removed
+
+- **`-r/--registry` and `-bl/--bloom-dir`** (`plan`, `apply`): the registry is `BUILD_DIR`, where indices live in place
+- **`--on-conflict`** (`plan`, `apply`): builds are never registered, an existing run is kept when complete and rebuilt otherwise
 
 ### Fixed
 

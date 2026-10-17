@@ -16,7 +16,7 @@ Build k-mer indices from an index definition file.
 
 !!! abstract "I/O"
     **Input:** `COMPOSE_DIR/NAME/SESSION/NAME.yaml` written by `compose`, or `DESIGN_DIR/compose/NAME/SESSION/NAME.yaml` when produced by `design` (see [design - Next Step](design.md#next-step))  
-    **Output:** Bloom filters in `BUILD_DIR/kmindex_data/`, registered in `BUILD_DIR/index.json`
+    **Output:** indices in `BUILD_DIR/<name>/`, registered in `BUILD_DIR/index.json`
 
 See [build - Paths](build.md#paths) for the directory layout.
 
@@ -24,17 +24,15 @@ See [build - Paths](build.md#paths) for the directory layout.
 | Option | Description |
 |--------|-------------|
 | `-b, --base-path DIR` | Base path to resolve relative sample paths |
-| `-r, --registry DIR` | Registry directory (default: `BUILD_DIR`, holds `index.json`) |
-| `-bl, --bloom-dir DIR` | Bloom filters directory (default: `BUILD_DIR/kmindex_data`) |
 | `-s, --span TEXT` | Span(s) to build: single value, comma-separated, or range (e.g. `27-30`) |
 | `-n, --name TEXT` | Index ID(s) to build (repeatable or comma-separated) |
 | `--minim-size INT` | Minimizer size (default: 10) |
 | `-t, --threads INT` | Number of threads |
 | `-p, --partition-count INT` | Partitions per index; ignored when the layout already stores one (see [compose](compose.md)) |
-| `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Chunked builds and merges](build.md#chunked-builds-and-merges) |
+| `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Builds and merges](build.md#builds-and-merges) |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use (default: 0.9) |
 | `--max-chunks INT` | Max number of chunks a single index is split into; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 200) |
-| `--on-conflict TEXT` | Action for pre-existing index folders: `fail`, `register`, `rename`, `replace`, `register_or_replace`, `register_or_rename` (default: `fail`) |
+| `--keep-previous` | Keep the replaced version of an updated index in `BUILD_DIR/work/SESSION/previous/` instead of deleting it |
 | `-NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
 | `-SP, --show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
 | `-X, --fail-fast` | Abort on first failure instead of continuing |
