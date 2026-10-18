@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 
 - **`--keep-previous`** (`plan`, `apply`, `build`): keeps the replaced version of an updated index in `BUILD_DIR/work/SESSION/previous/`
 - **`manage check -n`**: checks only the given indices, and fails if one is not registered
+- **`manage move-dir`** (internal, hidden): renames a folder for the generated scripts, failing instead of copying across filesystems
+- **`manage remove --missing-ok`** and **`--keep-link`**: skip unregistered IDs; only edit `index.json`
 
 ### Changed
 
@@ -17,7 +19,8 @@ All notable changes to this project will be documented in this file.
   - Indices of older build dirs (symlinks to `kmindex_data/SESSION/`) keep working; updating one moves it in place
 - **Session parts** are built like chunks: unregistered `kmtricks pipeline` runs, checked, then published by the merge script
   - A new index built in one run is moved in place (`kmindex register --mode move`) instead of being copied by a 1-input `kmindex merge`
-  - An update merges the current version with the new runs in a throwaway registry, then swaps them under a lock (`BUILD_DIR/.registry.lock`)
+  - An update merges the current version with the new runs in a throwaway registry, then swaps them under a lock (`BUILD_DIR/.registry.lock`): unregister, current version aside, new version in place, register
+  - An interrupted merge script is finished by running it again: merge steps leave a `done` marker, moves are skipped once made, and the plan reads an index's samples from its folder (`kmtricks.fof`), so an index left unregistered mid-swap is recognized
   - The published index is checked (`manage check -n`) before its inputs are deleted
   - The previous version is deleted once the updated one is checked (it was left in `kmindex_data/` for manual deletion)
   - `plan` no longer renames anything in `index.json` (it renamed the updated index to `<name>_prev_<timestamp>`)

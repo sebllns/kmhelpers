@@ -820,7 +820,11 @@ class KmindexRegistry:
         return True
 
     def remove_index(
-        self, index_id: str, delete_files: bool = False, skip_unregistered: bool = True
+        self,
+        index_id: str,
+        delete_files: bool = False,
+        skip_unregistered: bool = True,
+        keep_link: bool = False,
     ) -> bool:
         """
         Remove an index from the registry.
@@ -829,6 +833,8 @@ class KmindexRegistry:
             index_id: The index ID to remove from the registry.
             delete_files: If True, also delete the index files from disk.
             skip_unregistered: If True, silently skip unregistered indices.
+            keep_link: If True, only edit index.json: a symlinked entry is left
+                in place (e.g. to be moved, then deleted with its target).
 
         Returns:
             True if index was removed, False if it doesn't exist.
@@ -851,7 +857,7 @@ class KmindexRegistry:
                 logger.warning(f"Failed to delete some files: {e}")
 
         try:
-            if os.path.islink(index_path):
+            if os.path.islink(index_path) and not keep_link:
                 os.unlink(index_path)
         except Exception as e:
             logger.error(f"Error deleting link {index_path}: {e}")

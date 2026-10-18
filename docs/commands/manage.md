@@ -46,6 +46,13 @@ Manage k-mer index registries.
 | `-i, --input-dir DIR` | Directory containing kmtricks indices to add (required) |
 | `-n, --index-ids TEXT` | Specific index IDs to register (default: all found) |
 
+### `check`
+
+| Option | Description |
+|--------|-------------|
+| `-n, --index-ids TEXT` | Check only these index IDs (repeatable, default: all); fails if one is not registered |
+| `-v, --verbose` | Show detailed validation output |
+
 ### `info`
 
 | Option | Description |
@@ -60,6 +67,8 @@ Manage k-mer index registries.
 | `-n, --index-ids TEXT` | Index ID(s) to remove (required, repeatable) |
 | `-d, --delete-files` | Also delete index files from disk |
 | `-y, --yes` | Skip confirmation prompt |
+| `--missing-ok` | Skip index IDs that are not registered instead of failing |
+| `--keep-link` | Only edit `index.json`: leave a symlinked entry in place |
 
 ### `rename`
 

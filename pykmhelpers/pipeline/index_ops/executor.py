@@ -81,11 +81,42 @@ class IndexExecutor:
         self._builder.index.load_json()
         return self._builder.index.has_index(name)
 
-    def registered_samples(self, name: str) -> set[str]:
-        """Samples of the registered index ``name`` (empty if not registered)."""
-        if not self.has_index(name):
-            return set()
-        return set(self._builder.index.get_index(name).samples)
+    def index_samples(self, name: str) -> set[str]:
+        """Samples held by the index ``name``, read from its folder.
+
+        The folder (its ``kmtricks.fof``) is what queries read, so it is the
+        truth even when ``index.json`` is behind (a publish interrupted
+        between its moves and its registration); ``index.json`` is the
+        fallback when the folder is missing.
+        """
+        fof = os.path.join(self._paths.shard(name), "kmtricks.fof")
+        if os.path.isfile(fof):
+            with open(fof) as f:
+                return {line.split(":", 1)[0].strip() for line in f if line.strip()}
+        if self.has_index(name):
+            return set(self._builder.index.get_index(name).samples)
+        return set()
+
+    def has_folder(self, name: str) -> bool:
+        """True if ``BUILD_DIR/<name>`` exists (an index, registered or not)."""
+        return os.path.lexists(self._paths.shard(name))
+
+    def register_folder(self, target: str, parts: list[str]) -> None:
+        """Register the complete folder ``BUILD_DIR/<target>`` left unregistered.
+
+        A publish interrupted after its moves: nothing is left to build or
+        merge, only the runs of ``parts`` (and their chunks) to delete.
+        """
+        group = self._script.current or target
+        self._script.select(ScriptRecorder.merge_group(group))
+        self._locked(self._register(target), f"register {target}")
+        runs = [self._paths.run(p) for p in parts]
+        self._check_and_clean(target, runs, [])
+        self._sh(
+            "rm -rf " + " ".join(f"{_q(r)}_chunk*" for r in runs),
+            f"cleanup {summarize_names(parts)} chunks",
+        )
+        self._script.select(group)
 
     def claim(self, name: str) -> bool:
         """Reserve ``name`` for a build in this run. False if already claimed."""
@@ -203,53 +234,67 @@ class IndexExecutor:
     ) -> None:
         """Publish the runs built for ``target`` as the index ``BUILD_DIR/<target>``.
 
-        ``absorbed`` are other registered indexes to merge in, then unregister
-        and delete (parts registered by an older kmhelpers).
+        ``absorbed`` are other indexes of ``BUILD_DIR`` to merge in, then
+        unregister and delete (parts registered by an older kmhelpers).
 
         Recorded in the merge script of the current group, run after its builds:
 
         1. check that every run is complete (else stop before touching anything);
         2. a single new run: move it in place and register it;
         3. otherwise merge the runs, plus the current version of ``target`` if
-           it is registered, in a balanced tree of merges of at most ``k``
-           inputs (``max_inputs``), each in a throwaway registry holding only
-           its inputs; then, under the registry lock, move the current version
-           aside, move the result in place and register it;
+           there is one, in a balanced tree of merges of at most ``k`` inputs
+           (``max_inputs``), each in a throwaway registry holding only its
+           inputs; then, under the registry lock: unregister ``target``, move
+           its current version to ``work/<session>/previous/``, move the result
+           in place, register it;
         4. check the published index (before deleting anything);
         5. delete the runs, the merges and the previous version.
+
+        Every step can be run again after an interruption: a merge step whose
+        ``done`` marker exists is skipped (all of them once the last one is
+        done), and each move is skipped once made. Until the new version is
+        registered, ``target`` is either registered with its current folder or
+        not registered at all. Moves are renames (``kmhelpers manage move-dir``):
+        they fail instead of copying across filesystems.
         """
         paths = self._paths
         partitions = params.partitions
         names = list(runs)
         run_dirs = {name: paths.run(name) for name in names}
-        existing = self.has_index(target)
         absorbed = absorbed or []
+        final_done = self._done(target, target)
+        # An interrupted publish may have left target unregistered, or moved away
+        existing = (
+            self.has_index(target)
+            or self.has_folder(target)
+            or os.path.exists(final_done)
+        )
 
         group = self._script.current or target
         self._script.select(ScriptRecorder.merge_group(group))
 
+        shard = paths.shard(target)
+        single = len(names) == 1 and not existing and not absorbed
+        run = run_dirs[names[0]]
+        # once merged (or moved in place), the runs may be gone: nothing to check
+        published = (
+            f"[ ! -e {_q(run)} ] && [ -e {_q(shard)} ]"
+            if single
+            else f"[ -e {_q(final_done)} ]"
+        )
+
         # 1. every run must be complete before anything is registered
         runs_tsv = self._write_tsv(f"{target}.runs.tsv", run_dirs)
         self._sh(
-            self._check_runs_cmd(runs_tsv, partitions),
+            f"if {published}; then echo 'runs already used'; else "
+            f"{self._check_runs_cmd(runs_tsv, partitions)}; fi",
             f"check {summarize_names(names)}",
         )
 
-        shard = paths.shard(target)
-        if len(names) == 1 and not existing and not absorbed:
+        if single:
             # 2. nothing to merge
             self._locked(
-                self._kmindex(
-                    "register",
-                    "--global-index",
-                    paths.registry,
-                    "--name",
-                    target,
-                    "--index-path",
-                    run_dirs[names[0]],
-                    "--mode",
-                    "move",
-                ),
+                f"{self._move(run, shard)} && {self._register(target)}",
                 f"publish {target}",
             )
         else:
@@ -260,43 +305,36 @@ class IndexExecutor:
                 stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
                 current = backup_name(target, stamp)
                 inputs[current] = shard
-                samples[current] = self._builder.index.get_index(target).nb_samples
+                samples[current] = len(self.index_samples(target))
             for name in absorbed:
                 inputs[name] = paths.shard(name)
-                samples[name] = self._builder.index.get_index(name).nb_samples
+                samples[name] = len(self.index_samples(name))
             out = self._merge(i, target, inputs, samples, params)
 
-            swap = []
-            if existing:
-                previous = paths.previous(target)
-                swap += [
-                    f"mkdir -p {_q(os.path.dirname(previous))}",
-                    f"rm -rf {_q(previous)}",
-                    f"mv {_q(shard)} {_q(previous)}",
-                ]
-            swap.append(f"mv {_q(out)} {_q(shard)}")
-            unregister = ([target] if existing else []) + absorbed
-            if unregister:
-                swap.append(
-                    shlex.join(
-                        ["kmhelpers", "manage", "-r", paths.registry, "remove"]
-                        + [a for n in unregister for a in ("-n", n)]
-                        + ["-y"]
-                    )
-                )
-            swap.append(
-                self._kmindex(
-                    "register",
-                    "--global-index",
-                    paths.registry,
-                    "--name",
-                    target,
-                    "--index-path",
-                    shard,
-                )
+            previous = paths.previous(target)
+            unregister = shlex.join(
+                ["kmhelpers", "manage", "-r", paths.registry, "remove"]
+                + [a for n in [target] + absorbed for a in ("-n", n)]
+                # the entry's folder (or old-layout symlink) is moved below
+                + ["-y", "--missing-ok", "--keep-link"]
             )
+            swap = [
+                unregister,
+                # the current version goes aside only while the result waits
+                f"{{ [ ! -e {_q(out)} ] || {self._move(shard, previous)}; }}",
+                self._move(out, shard),
+                self._register(target),
+            ]
             self._locked(" && ".join(swap), f"publish {target}")
 
+        self._check_and_clean(target, list(run_dirs.values()), absorbed)
+        self._script.select(group)
+
+    def _check_and_clean(
+        self, target: str, run_dirs: list[str], absorbed: list[str]
+    ) -> None:
+        """Check the published ``target``, then delete what built it."""
+        paths = self._paths
         # 4. a broken index must not cost its inputs
         self._sh(
             shlex.join(
@@ -306,11 +344,7 @@ class IndexExecutor:
         )
 
         # 5. runs, merges and the previous version are no longer needed
-        cleanup = (
-            list(run_dirs.values())
-            + [paths.shard(n) for n in absorbed]
-            + [paths.merges(target)]
-        )
+        cleanup = run_dirs + [paths.shard(n) for n in absorbed] + [paths.merges(target)]
         if not self._config.keep_previous:
             cleanup.append(paths.previous(target))
         self._remove(cleanup, f"cleanup {target}")
@@ -328,7 +362,28 @@ class IndexExecutor:
             "cleanup work",
         )
         self._builder.index.load_json()
-        self._script.select(group)
+
+    def _done(self, target: str, step: str) -> str:
+        """Marker written once the merge step ``step`` succeeded."""
+        return os.path.join(self._paths.merge_step(target, step), "done")
+
+    @staticmethod
+    def _move(source: str, destination: str) -> str:
+        """Rename, skipped if already made; never a copy."""
+        return shlex.join(
+            ["kmhelpers", "manage", "move-dir", "--missing-ok", source, destination]
+        )
+
+    def _register(self, target: str) -> str:
+        return self._kmindex(
+            "register",
+            "--global-index",
+            self._paths.registry,
+            "--name",
+            target,
+            "--index-path",
+            self._paths.shard(target),
+        )
 
     def _merge(
         self,
@@ -386,31 +441,34 @@ class IndexExecutor:
             tsv = self._write_tsv(
                 f"{step.name}.register.tsv", {n: out_of(n) for n in step.inputs}
             )
-            # kmindex creates the registry; it must not exist without index.json
-            self._sh(
-                f"rm -rf {_q(step_dir)} && mkdir -p {_q(step_dir)}",
-                f"reset {step.name}",
+            done = self._done(target, step.name)
+            run_step = " && ".join(
+                [
+                    # kmindex creates the registry; it must not exist without index.json
+                    f"rm -rf {_q(step_dir)}",
+                    f"mkdir -p {_q(step_dir)}",
+                    self._kmindex(
+                        "register", "--global-index", registry, "--from-file", tsv
+                    ),
+                    self._kmindex(
+                        "merge",
+                        "--index",
+                        registry,
+                        "--new-name",
+                        step.name,
+                        "--new-path",
+                        os.path.join(step_dir, "out"),
+                        "--to-merge",
+                        ",".join(step.inputs),
+                        "--threads",
+                        str(threads),
+                    ),
+                    f"touch {_q(done)}",
+                ]
             )
             self._sh(
-                self._kmindex(
-                    "register", "--global-index", registry, "--from-file", tsv
-                ),
-                f"register {summarize_names(step.inputs)}",
-            )
-            self._sh(
-                self._kmindex(
-                    "merge",
-                    "--index",
-                    registry,
-                    "--new-name",
-                    step.name,
-                    "--new-path",
-                    os.path.join(step_dir, "out"),
-                    "--to-merge",
-                    ",".join(step.inputs),
-                    "--threads",
-                    str(threads),
-                ),
+                f"if [ -e {_q(done)} ] || [ -e {_q(self._done(target, target))} ]; "
+                f"then echo 'already merged'; else {run_step}; fi",
                 f"merge {summarize_names(step.inputs)} -> {step.name}",
             )
             consumed = [

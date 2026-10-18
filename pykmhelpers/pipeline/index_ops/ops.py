@@ -283,8 +283,8 @@ class IndexOps:
             report.record(i.name, status, issues=issues)
             return None
 
-        # A part already merged into its target (rerun of a finished session)
-        published = executor.registered_samples(target) if target != i.name else set()
+        # A part already in its target (rerun of a finished or interrupted session)
+        published = executor.index_samples(target)
         overlap = published.intersection(fof.samples)
         if overlap and len(overlap) == sample_count:
             logger.info(
@@ -319,11 +319,17 @@ class IndexOps:
     ) -> None:
         """Publish the runs of ``parts`` as ``target`` and record the outcome.
 
-        Parts that are registered indexes (left by an older kmhelpers, which
-        registered parts before merging them) are merged in as they are.
+        Parts that are indexes of ``BUILD_DIR`` (left by an older kmhelpers,
+        which registered parts before merging them) are merged in as they are.
+        A folder ``BUILD_DIR/<target>`` left unregistered by an interrupted
+        publish, with nothing new to add, is registered.
         """
         new = [built[p] for p in parts if p in built]
-        absorbed = [p for p in parts if p != target and executor.has_index(p)]
+        absorbed = [
+            p
+            for p in parts
+            if p != target and (executor.has_index(p) or executor.has_folder(p))
+        ]
         failed = [
             p
             for p in parts
@@ -339,6 +345,10 @@ class IndexOps:
                 report.fold_merge(target, parts)
             return
         if not new:
+            if executor.has_folder(target) and not executor.has_index(target):
+                logger.info(f"► Registering '{target}' (publish interrupted)...")
+                self._script.select(plan.script_of(parts[0]))
+                executor.register_folder(target, parts)
             if parts != [target]:
                 report.fold_merge(target, parts)
             return

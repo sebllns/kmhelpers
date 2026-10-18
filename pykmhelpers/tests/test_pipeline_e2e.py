@@ -31,6 +31,7 @@ import gzip
 import json
 import os
 import random
+import shlex
 import shutil
 import subprocess
 import sys
@@ -241,8 +242,8 @@ class TestDesignBuildQueryUpdateQuery(PipelineE2EBase):
         self.assert_in_place("build")
 
 
-class TestRerunAndOldLayout(PipelineE2EBase):
-    """Rerunning a session is a no-op; an old symlinked build dir can be updated."""
+class UpdateSessionBase(PipelineE2EBase):
+    """Helpers for tests building a session 'initial', then a session 'upd'."""
 
     def design_initial(self):
         self.run_cli(
@@ -278,6 +279,10 @@ class TestRerunAndOldLayout(PipelineE2EBase):
             "compose", "db/list/upd.jsonl", "-o", "db/compose", "-n", "idx", "-S", "upd"
         )
         return self.tmp / "db" / "compose" / "idx" / "upd" / "idx.yaml"
+
+
+class TestRerunAndOldLayout(UpdateSessionBase):
+    """Rerunning a session is a no-op; an old symlinked build dir can be updated."""
 
     def test_rerun_then_update_old_layout(self):
         span_reg = self.design_initial()
@@ -331,6 +336,77 @@ class TestRerunAndOldLayout(PipelineE2EBase):
             q, header = self.write_query(f"s{idx}", sample_idx=idx)
             self.run_cli("query", q, "-r", "build", "-o", f"res_{idx}", "-f", "json")
             self.assert_query_hit(f"res_{idx}", header, sample)
+
+
+class TestInterruptedPublish(UpdateSessionBase):
+    """An update stopped anywhere in its swap is finished by a rerun.
+
+    The swap (under the registry lock) is: unregister, current version aside,
+    new version in place, register. It is stopped after each of its first
+    three commands, then the merge script or ``apply`` is run again.
+    """
+
+    def env(self):
+        env = dict(os.environ)
+        env["PATH"] = os.path.dirname(sys.executable) + os.pathsep + env["PATH"]
+        return env
+
+    def bash(self, script_or_cmd, workdir=None, cmd=False):
+        env = self.env()
+        if workdir:
+            env["WORKDIR"] = str(workdir)
+        args = ["bash", "-c", script_or_cmd] if cmd else ["bash", str(script_or_cmd)]
+        proc = subprocess.run(args, capture_output=True, text=True, env=env)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+
+    def test_swap_interrupted_after_each_command(self):
+        span_reg = self.design_initial()
+        upd_reg = None
+        for stop, rerun in [(1, "script"), (2, "apply"), (3, "apply")]:
+            with self.subTest(stop=stop):
+                name = f"build{stop}"
+                build = self.tmp / name
+                self.run_cli("build", span_reg, "-o", name)
+                if upd_reg is None:
+                    upd_reg = self.compose_update()
+                spans = yaml.safe_load(upd_reg.read_text())["data"]
+                target = next(t for s in spans.values() for t in s["indices"])
+                before = json.loads((build / "index.json").read_text())["index"]
+                self.assertIn(target, before)
+
+                # plan the update, build its runs, then stop the swap after `stop`
+                self.run_cli("plan", upd_reg, "-o", name)
+                scripts = build / "assets" / "upd"
+                merge_script = scripts / f"{target}_merge.sh"
+                self.bash(scripts / f"{target}.sh")
+                lines = merge_script.read_text().splitlines()
+                publish = next(ln for ln in lines if ln.startswith("flock "))
+                swap = shlex.split(publish)[3].split(" && ")
+                self.assertEqual(len(swap), 4, swap)
+                for ln in lines[: lines.index(publish)]:
+                    if not ln.startswith(("#!", "set ", "export ", "cd ", "echo ")):
+                        self.bash(ln, workdir=build, cmd=True)
+                self.bash(" && ".join(swap[:stop]), workdir=build, cmd=True)
+
+                registry = json.loads((build / "index.json").read_text())["index"]
+                self.assertNotIn(target, registry, "target still registered")
+                self.assertEqual((build / target).exists(), stop != 2)
+
+                if rerun == "script":
+                    self.bash(merge_script)
+                else:
+                    self.run_cli("apply", upd_reg, "-o", name)
+
+                registry = json.loads((build / "index.json").read_text())["index"]
+                self.assertEqual(
+                    registry[target]["nb_samples"], before[target]["nb_samples"] + 1
+                )
+                self.assert_in_place(name)
+                for idx, sample in [(0, "sample_0"), (N_SAMPLES, "sample_new")]:
+                    q, header = self.write_query(f"s{idx}", sample_idx=idx)
+                    out = f"res{stop}_{idx}"
+                    self.run_cli("query", q, "-r", name, "-o", out, "-f", "json")
+                    self.assert_query_hit(out, header, sample)
 
 
 class TestStepByStepDesignAndBuild(PipelineE2EBase):
@@ -388,7 +464,7 @@ class TestStepByStepDesignAndBuild(PipelineE2EBase):
         self.assertIn("${WORKDIR}/work/initial/runs/", builds)
         self.assertNotIn("kmindex build", builds)
         self.assertIn("flock", merges)
-        self.assertIn("--mode move", merges)
+        self.assertIn("manage move-dir", merges)
         self.assertLess(merges.index("check -n"), merges.index("cleanup"))
         registry = json.loads((self.tmp / "build2" / "index.json").read_text())
         self.assertEqual(registry["index"], {}, "plan registered something")

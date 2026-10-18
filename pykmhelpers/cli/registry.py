@@ -1,5 +1,6 @@
 """K-mer index registry management commands."""
 
+import errno
 import json
 import os
 
@@ -350,8 +351,18 @@ def registry_check(obj, verbose, index_ids):
     is_flag=True,
     help="Skip confirmation prompt",
 )
+@click.option(
+    "--missing-ok",
+    is_flag=True,
+    help="Skip index IDs that are not registered instead of failing",
+)
+@click.option(
+    "--keep-link",
+    is_flag=True,
+    help="Only edit index.json: leave a symlinked entry in place",
+)
 @click.pass_obj
-def registry_remove(obj, index_ids, delete_files, yes):
+def registry_remove(obj, index_ids, delete_files, yes, missing_ok, keep_link):
     """Remove index from registry (optionally delete files)."""
     registry_path = obj["registry_path"]
 
@@ -361,6 +372,9 @@ def registry_remove(obj, index_ids, delete_files, yes):
         for index_id in index_ids:
             try:
                 if not registry.has_index(index_id):
+                    if missing_ok:
+                        click.echo(f"⊙ Not registered: {index_id}")
+                        continue
                     raise click.ClickException(
                         f"Index '{index_id}' not found in registry"
                     )
@@ -375,7 +389,9 @@ def registry_remove(obj, index_ids, delete_files, yes):
                     if not click.confirm(msg):
                         click.echo("Operation cancelled")
                         continue
-                registry.remove_index(index_id, delete_files=delete_files)
+                registry.remove_index(
+                    index_id, delete_files=delete_files, keep_link=keep_link
+                )
                 click.echo(f"✓ Removed '{index_id}' from registry")
 
             except Exception as e:
@@ -445,3 +461,39 @@ def registry_relink(obj, input_dir, index_id):
         registry.relink(index_id, input_dir)
     except Exception as e:
         click.ClickException(f"Relink failed: {e}")
+
+
+# Internal: used by the scripts written by plan/apply/build, not listed in --help
+@registry.command(name="move-dir", hidden=True)
+@click.argument("source", type=click.Path())
+@click.argument("destination", type=click.Path())
+@click.option(
+    "--missing-ok",
+    is_flag=True,
+    help="Do nothing if SOURCE does not exist (already moved)",
+)
+def registry_move(source, destination, missing_ok):
+    """Rename SOURCE to DESTINATION, e.g. an index folder of the registry.
+
+    A rename only, so its duration does not depend on the size: it fails,
+    instead of copying, when both are not on one filesystem. DESTINATION must
+    not exist; its parent folder is created. A symlink is moved, not followed.
+    """
+    if not os.path.lexists(source):
+        if missing_ok:
+            click.echo(f"⊙ Already moved: {source}")
+            return
+        raise click.ClickException(f"Not found: {source}")
+    if os.path.lexists(destination):
+        raise click.ClickException(f"Already exists: {destination}")
+    os.makedirs(os.path.dirname(os.path.abspath(destination)), exist_ok=True)
+    try:
+        os.rename(source, destination)
+    except OSError as e:
+        if e.errno == errno.EXDEV:
+            raise click.ClickException(
+                f"{source} and {destination} are not on the same filesystem: "
+                f"not copying"
+            )
+        raise click.ClickException(f"Move failed: {e}")
+    click.echo(f"✓ Moved {source} -> {destination}")
