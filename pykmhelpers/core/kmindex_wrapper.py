@@ -67,15 +67,14 @@ class KmindexWrapper(Wrapper):
     def build(
         self,
         input_fof_file: Union[str, Path],
+        bloom_size: int,
         output_registry_path: Union[str, Path] = "index",
         output_index_dir: Union[str, Path] = ".subindexes",
         output_log_dir: Optional[Union[str, Path]] = None,
         output_param_file: Optional[Union[str, Path]] = None,
         k: int = 25,
         minim_size: int = 10,
-        bloom_size: Optional[int] = None,
-        nb_cell: Optional[int] = None,
-        bitw: int = 2,
+        bitw: Optional[int] = None,
         hard_min: int = 2,
         nb_partitions: int = 0,
         threads: int = 1,
@@ -95,9 +94,10 @@ class KmindexWrapper(Wrapper):
             output_index_dir: Optional custom directory name for the index. If None, uses register_as value.
             k: K-mer size (8-255).
             minim_size: Minimizer size (4-15).
-            bloom_size: Bloom filter size in bits for presence/absence indexing (total number of bit positions).
-            nb_cell: Number of cells in counting Bloom filter for abundance indexing (mutually exclusive with bloom_size).
+            bloom_size: Bloom filter size: number of bits for presence/absence
+                indexing, number of cells for abundance indexing.
             bitw: Bits per cell for abundance indexing (creates 2^bitw classes).
+                None or 0 builds a presence/absence index.
             hard_min: Minimum k-mer abundance threshold.
             nb_partitions: Number of partitions (0=auto).
             threads: Number of threads.
@@ -110,18 +110,11 @@ class KmindexWrapper(Wrapper):
             None. Builds the index and outputs results to specified directories.
 
         Raises:
-            ValueError: If both bloom_size and nb_cell are specified.
             FileNotFoundError: If input_fof_file doesn't exist.
             subprocess.CalledProcessError: If kmindex build command fails.
         """
 
         # Validate inputs
-        if bloom_size is not None and nb_cell is not None:
-            raise ValueError(
-                "bloom_size and nb_cell are mutually exclusive. "
-                "Use bloom_size for presence/absence indexing or nb_cell for abundance indexing."
-            )
-
         if not input_fof_file:
             raise ValueError("Input sample file (FOF) must be provided.")
 
@@ -184,15 +177,12 @@ class KmindexWrapper(Wrapper):
             self._get_verbose_level(),
         ]
 
-        # Add indexing type parameters
-        if bloom_size is not None:
-            cmd.extend(["--bloom-size", str(bloom_size)])
-        elif nb_cell is not None:
-            cmd.extend(["--nb-cell", str(nb_cell), "--bitw", str(bitw)])
+        # Add indexing type parameters: kmindex calls the cells of an
+        # abundance index --nb-cell
+        if bitw:
+            cmd.extend(["--nb-cell", str(bloom_size), "--bitw", str(bitw)])
         else:
-            raise ValueError(
-                "Either bloom_size (for presence/absence) or nb_cell (for abundance) must be specified"
-            )
+            cmd.extend(["--bloom-size", str(bloom_size)])
 
         # Flags
         if compress_intermediate:
@@ -242,14 +232,11 @@ class KmindexWrapper(Wrapper):
                 "nb_partitions": nb_partitions,
                 "minim_size": minim_size,
                 "hard_min": hard_min,
-                "bitw": bitw,
+                "bloom_size": bloom_size,
             }
 
-            if bloom_size:
-                d["bloom_size"] = bloom_size
-
-            if nb_cell:
-                d["nb_cell"] = nb_cell
+            if bitw:
+                d["bitw"] = bitw
 
             if from_index:
                 d["from"] = from_index

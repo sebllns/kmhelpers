@@ -234,7 +234,7 @@ class IndexBuilder:
         bloom_size: int,
         kmer_size: int = 25,
         abundance_min: int = 2,
-        bitw: int = 0,
+        bitw: typing.Optional[int] = None,
         n_partitions: int = 256,
         n_threads: int = 0,
         n_max_threads: int = 0,
@@ -262,8 +262,9 @@ class IndexBuilder:
                 Must be greater than 0.
             kmer_size (int): K-mer size used by kmindex.
             abundance_min (int): Minimum k-mer abundance (hard min) to keep.
-            bitw (int): Bits per cell of an abundance index, `bloom_size`
-                being its number of cells. `0` builds a presence/absence index.
+            bitw (typing.Optional[int]): Bits per cell of an abundance index,
+                `bloom_size` being its number of cells. `None` or `0` builds a
+                presence/absence index.
             n_partitions (int): Number of partitions to split the Bloom
                 filter matrix into. `0` lets kmindex choose.
             n_threads (int): Number of threads to use. `0` uses all available
@@ -330,15 +331,8 @@ class IndexBuilder:
 
         n_partitions = max(n_partitions, 0)
 
-        # kmtricks takes the cell count of an abundance index as --bloom-size
-        size_args: dict = (
-            {"nb_cell": bloom_size, "bitw": bitw}
-            if bitw > 0
-            else {"bloom_size": bloom_size}
-        )
-
         bf_specs = self.get_bf_specs(
-            n_samples=samples.get_sample_count() * max(bitw, 1),
+            n_samples=samples.get_sample_count() * max(bitw or 0, 1),
             bloom_size=bloom_size,
             n_partitions=max(256, n_partitions),
         )
@@ -464,11 +458,12 @@ class IndexBuilder:
                     k=kmer_size,
                     minim_size=minim_size,
                     hard_min=abundance_min,
+                    bloom_size=bloom_size,
+                    bitw=bitw,
                     nb_partitions=n_partitions,
                     threads=n_threads,
                     compress_intermediate=compress_intermediate,
                     log_file=log_file,
-                    **size_args,
                 )
             finally:
                 if stop_event:
@@ -494,7 +489,8 @@ class IndexBuilder:
             threads=n_threads,
             nb_partitions=n_partitions,
             register_as=name,
-            **size_args,
+            bloom_size=bloom_size,
+            bitw=bitw,
             output_log_dir=None if dry_run else os.path.join(self.log_folder, name),
             output_param_file=os.path.join(self.assets_folder, f"{name}.yaml"),
             from_index=build_from,

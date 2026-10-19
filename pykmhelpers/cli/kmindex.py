@@ -51,12 +51,14 @@ def kmindex():
 @click.option(
     "--bloom-size",
     type=int,
-    help="Bloom filter size for presence/absence (mutually exclusive with --nb-cell)",
+    required=True,
+    help="Bloom filter size: bits per sample, or cells per sample with --bitw",
 )
 @click.option(
-    "--nb-cell",
+    "--bitw",
     type=int,
-    help="Number of cells for abundance counting (mutually exclusive with --bloom-size)",
+    default=None,
+    help="Bits per cell: builds an abundance index (2^bitw classes) instead of presence/absence",
 )
 @click.option(
     "--threads",
@@ -94,7 +96,7 @@ def build(
     kmer_size,
     minim_size,
     bloom_size,
-    nb_cell,
+    bitw,
     threads,
     register_as,
     compress_intermediate,
@@ -108,19 +110,13 @@ def build(
       kmhelpers build --fof samples.fof -r ./registry --bloom-size 10000000
 
       # Build abundance index with custom k-mer size
-      kmhelpers build --fof samples.fof -r ./registry --nb-cell 65536 -k 31
+      kmhelpers build --fof samples.fof -r ./registry --bloom-size 65536 --bitw 2 -k 31
 
       # Build with multiple threads and register
       kmhelpers build --fof samples.fof -r ./registry --bloom-size 10000000 -t 8 -n my_index
     """
 
     # Validate parameters
-    if bloom_size is None and nb_cell is None:
-        raise click.BadParameter("Must specify either --bloom-size or --nb-cell")
-
-    if bloom_size is not None and nb_cell is not None:
-        raise click.BadParameter("Cannot specify both --bloom-size and --nb-cell")
-
     if minim_size >= kmer_size:
         raise click.BadParameter(
             f"minim-size ({minim_size}) must be less than kmer-size ({kmer_size})"
@@ -134,10 +130,9 @@ def build(
         click.echo(f"  K-mer size: {kmer_size}")
         click.echo(f"  Minimizer size: {minim_size}")
 
-        if bloom_size is not None:
-            click.echo(f"  Bloom size: {bloom_size}")
-        if nb_cell is not None:
-            click.echo(f"  Abundance cells: {nb_cell}")
+        click.echo(f"  Bloom size: {bloom_size}")
+        if bitw:
+            click.echo(f"  Abundance bits per cell: {bitw}")
 
         click.echo(f"  Threads: {threads}")
 
@@ -146,7 +141,7 @@ def build(
             click.echo()
             try:
                 size_est = estimate_build_size(
-                    fof, bloom_size=bloom_size, nb_cell=nb_cell
+                    fof, bloom_size=bloom_size, bitw=bitw
                 )
                 click.echo("Build Size Estimate:")
                 # click.echo(
@@ -175,7 +170,7 @@ def build(
             k=kmer_size,
             minim_size=minim_size,
             bloom_size=bloom_size,
-            nb_cell=nb_cell,
+            bitw=bitw,
             threads=threads,
             compress_intermediate=compress_intermediate,
             register_as=register_as,

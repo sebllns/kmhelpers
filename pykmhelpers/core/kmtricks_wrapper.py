@@ -28,12 +28,11 @@ class KmtricksWrapper(Wrapper):
         self,
         fof: Union[str, Path],
         run_dir: Union[str, Path],
+        bloom_size: int,
         k: int = 25,
         minim_size: int = 10,
         hard_min: int = 2,
-        bloom_size: Optional[int] = None,
-        nb_cell: Optional[int] = None,
-        bitw: int = 2,
+        bitw: Optional[int] = None,
         nb_partitions: int = 0,
         threads: int = 1,
         compress_intermediate: bool = False,
@@ -44,11 +43,9 @@ class KmtricksWrapper(Wrapper):
         """Build a kmindex-compatible Bloom filter matrix in ``run_dir``.
 
         Same command as ``kmindex build``: ``--mode hash:bf:bin`` for
-        presence/absence (``bloom_size``), ``--bitw N --mode hash:bfc:bin`` for
-        abundance (``nb_cell``).
+        presence/absence, ``--bitw N --mode hash:bfc:bin`` for abundance when
+        ``bitw`` is set, ``bloom_size`` being then the number of cells.
         """
-        if (bloom_size is None) == (nb_cell is None):
-            raise ValueError("exactly one of bloom_size and nb_cell must be given")
         if not (8 <= k <= 255):
             raise ValueError(f"K-mer size must be between 8 and 255, got {k}")
 
@@ -64,7 +61,7 @@ class KmtricksWrapper(Wrapper):
             "--hard-min",
             str(hard_min),
             "--bloom-size",
-            str(bloom_size if bloom_size is not None else nb_cell),
+            str(bloom_size),
             "--minimizer-size",
             str(minim_size),
             "--nb-partitions",
@@ -72,7 +69,7 @@ class KmtricksWrapper(Wrapper):
             "--threads",
             str(threads),
         ]
-        if nb_cell is not None:
+        if bitw:
             cmd += ["--bitw", str(bitw), "--mode", "hash:bfc:bin"]
         else:
             cmd += ["--mode", "hash:bf:bin"]

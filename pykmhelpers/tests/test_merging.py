@@ -203,11 +203,55 @@ class TestKmtricksWrapper(unittest.TestCase):
 
         cmd = (
             KmtricksWrapper(dry_run=True)
-            .pipeline("/x/a.fof", "/x/data/a", nb_cell=1000, bitw=3)["command"]
+            .pipeline("/x/a.fof", "/x/data/a", bloom_size=1000, bitw=3)["command"]
             .split()
         )
+        self.assertEqual(cmd[cmd.index("--bloom-size") + 1], "1000")
         self.assertEqual(cmd[cmd.index("--mode") + 1], "hash:bfc:bin")
         self.assertEqual(cmd[cmd.index("--bitw") + 1], "3")
+
+    def test_presence_absence_without_bitw(self):
+        from pykmhelpers.core.kmtricks_wrapper import KmtricksWrapper
+
+        for bitw in (None, 0):
+            cmd = (
+                KmtricksWrapper(dry_run=True)
+                .pipeline("/x/a.fof", "/x/data/a", bloom_size=1000, bitw=bitw)[
+                    "command"
+                ]
+                .split()
+            )
+            self.assertEqual(cmd[cmd.index("--mode") + 1], "hash:bf:bin")
+            self.assertNotIn("--bitw", cmd)
+
+    def test_kmindex_build_mode_follows_bitw(self):
+        """kmindex names the cells of an abundance index --nb-cell."""
+        from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
+
+        with tempfile.TemporaryDirectory() as tmp:
+            fof = os.path.join(tmp, "a.fof")
+            with open(fof, "w") as f:
+                f.write("a: /x/a.fa\n")
+            registry = os.path.join(tmp, "registry")
+
+            def build(**kwargs):
+                return KmindexWrapper(dry_run=True).build(
+                    input_fof_file=fof,
+                    bloom_size=1000,
+                    output_registry_path=registry,
+                    register_as="a",
+                    **kwargs,
+                )["command"].split()
+
+            pa = build()
+            self.assertEqual(pa[pa.index("--bloom-size") + 1], "1000")
+            self.assertNotIn("--nb-cell", pa)
+            self.assertNotIn("--bitw", pa)
+
+            ab = build(bitw=2)
+            self.assertEqual(ab[ab.index("--nb-cell") + 1], "1000")
+            self.assertEqual(ab[ab.index("--bitw") + 1], "2")
+            self.assertNotIn("--bloom-size", ab)
 
 
 if __name__ == "__main__":

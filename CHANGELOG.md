@@ -24,6 +24,9 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **`KmtricksWrapper.pipeline`, `KmindexWrapper.build`**: `bloom_size` is required and `bitw` optional; with `bitw` set, the index is an abundance index of `bloom_size` cells, otherwise presence/absence (`nb_cell` removed)
+  - `kmhelpers kmindex build`: `--bloom-size` is required, `--bitw` replaces `--nb-cell`
+  - Its size estimate counts `bloom_size` in bits (it was read as bytes)
 - **Index layout**: every index lives in place in `BUILD_DIR/<name>/` (a directory of the registry, not a symlink), and keeps that folder across updates
   - Everything temporary to a session (kmtricks runs, merges, previous version) is in `BUILD_DIR/work/SESSION/`, deleted when the session is done; `BUILD_DIR/kmindex_data/` is no longer used
   - `plan`, `apply` and `build` derive every path from one place (`BuildPaths`); scripts always go to `BUILD_DIR/assets/SESSION/`

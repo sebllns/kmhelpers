@@ -253,17 +253,17 @@ def index_limits_options(f):
 
 
 def estimate_build_size(
-    fof_path: str, bloom_size: int | None = None, nb_cell: int | None = None
+    fof_path: str, bloom_size: int, bitw: int | None = None
 ) -> dict:
     """
     Estimate the size required for building an index.
 
-    Simple calculation: index_size_bytes = nb_samples * bloom_size
+    Simple calculation: index_size_bytes = nb_samples * bloom_size * bitw / 8
 
     Args:
         fof_path: Path to the FOF file
-        bloom_size: Bloom filter size in bytes (for presence/absence)
-        nb_cell: Number of cells in bytes (for abundance counting)
+        bloom_size: Bloom filter size, in bits (cells for an abundance index)
+        bitw: Bits per cell of an abundance index, None for presence/absence
 
     Returns:
         Dictionary with size estimates
@@ -279,13 +279,8 @@ def estimate_build_size(
     #     os.path.getsize(path) for path in samples.values() if os.path.isfile(path)
     # )
 
-    # Estimate index size: nb_samples * bloom_size
-    if bloom_size is not None:
-        index_size_bytes = nb_samples * bloom_size
-    elif nb_cell is not None:
-        index_size_bytes = nb_samples * nb_cell
-    else:
-        index_size_bytes = 0
+    # Estimate index size: nb_samples * bloom_size bits (bitw bits per cell)
+    index_size_bytes = nb_samples * bloom_size * max(bitw or 0, 1) // 8
 
     # Convert to human-readable format
     index_size_obj = ByteCounter.auto(index_size_bytes, SizeFormat.BYTE)
