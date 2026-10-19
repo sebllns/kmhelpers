@@ -15,7 +15,7 @@ class LayoutStore:
 
     The layout holds what must stay identical across sessions, since indexes
     can only be merged when they share it: the partition count of each span
-    and the minimizer size. Values missing from it are resolved on the first
+    and the minimizer size. It also carries the chunk model of each span. Values missing from it are resolved on the first
     run and written back.
 
     Without a layout file (an index definition passed directly, or an older
@@ -73,6 +73,10 @@ class LayoutStore:
         return self._get(self._span(span), "max_samples") or self._get(
             self._span(span), "total_samples"
         )
+
+    def chunk_samples(self, span: int) -> Optional[int]:
+        """Most samples one kmtricks chunk of ``span`` holds (chunk model)."""
+        return self._get(self._span(span), "chunk_samples")
 
     def save(self) -> None:
         if not (self._dirty and self._path and self._data):

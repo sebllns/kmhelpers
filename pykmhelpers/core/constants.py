@@ -81,3 +81,8 @@ DEFAULT_PAIR_REGEX = r"[._][Rr]?[12](?=[._]|$)"
 AUTO_GROUP_SAMPLES = 1000
 AUTO_GROUP_MAX = 20
 AUTO_GROUP_MIN_GAIN = 0.20
+
+# Chunk model of `design`/`compose` (from Logan): a kmtricks chunk of span s
+# holds at most CHUNK_BUDGET / base**s samples, a shard SHARD_CHUNKS chunks
+CHUNK_BUDGET = 2**37
+SHARD_CHUNKS = 64

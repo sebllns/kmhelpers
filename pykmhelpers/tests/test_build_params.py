@@ -69,6 +69,22 @@ class TestChunkSize(unittest.TestCase):
         p = best(samples=10, max_chunks=1)
         self.assertEqual(p.samples, 10)
 
+    def test_chunk_model_caps_the_chunk(self):
+        p = best(max_chunk_samples=40)
+        self.assertEqual(p.samples, 40)
+        self.assertEqual(p.threads, THREADS)
+
+    def test_chunk_model_bounds_max_chunks(self):
+        """max_chunks raises the chunk up to the chunk model, not beyond."""
+        self.assertEqual(best(max_chunks=4, max_chunk_samples=500).samples, 250)
+        with self.assertLogs("pykmhelpers.core.build_params", "WARNING"):
+            p = best(max_chunks=4, max_chunk_samples=200)
+        self.assertEqual(p.samples, 200)
+        self.assertEqual(math.ceil(SAMPLES / p.samples), 5)
+
+    def test_chunk_model_above_the_optimum_changes_nothing(self):
+        self.assertEqual(best(max_chunk_samples=10**6).samples, best().samples)
+
 
 class TestAutoParams(unittest.TestCase):
     def test_cap_is_forwarded(self):

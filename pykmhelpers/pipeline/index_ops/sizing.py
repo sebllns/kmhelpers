@@ -80,6 +80,7 @@ def resolve_partitions(
             limits=config.limits or "{}",
             safety_margin=config.safety_margin,
             max_chunks=config.max_chunks or None,
+            max_chunk_samples=layout.chunk_samples(i.span),
         )
         if params.partitions is None:
             raise TypeError("expected auto_params() to set partitions")
@@ -102,13 +103,20 @@ def resolve_build_params(
     ``resolve_partitions``). Threads and chunking are per run: threads are
     the most that fit RAM at that partition count, unless
     ``config.kmindex_threads`` sets them, and chunking follows the open-files
-    ceiling and ``config.max_chunks``.
+    ceiling, ``config.max_chunks`` and the chunk model of the layout.
     """
     minim_size = resolve_minim_size(config, layout)
     partitions = resolve_partitions(i, sample_count, config, layout)
 
+    max_chunk_samples = layout.chunk_samples(i.span)
     if config.kmindex_threads:
-        return BuildParams(config.kmindex_threads, partitions, None, minim_size)
+        # Explicit threads skip the limits, but not the chunk model
+        chunk_size = (
+            max_chunk_samples
+            if max_chunk_samples and max_chunk_samples < sample_count
+            else None
+        )
+        return BuildParams(config.kmindex_threads, partitions, chunk_size, minim_size)
 
     params = params_for_partitions(
         kmers=bf_max_kmers(i.bf_size, i.fp_rate),
@@ -117,6 +125,7 @@ def resolve_build_params(
         limits=config.limits or "{}",
         safety_margin=config.safety_margin,
         max_chunks=config.max_chunks or None,
+        max_chunk_samples=max_chunk_samples,
     )
     if params.threads is None or params.samples is None:
         raise TypeError(

@@ -270,7 +270,7 @@ class TestAbundanceDesignBuildQuery(PipelineE2EBase):
             "2",
         )
         session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
-        definition = (session_file.parent / "shards" / "idx_g0.yaml").read_text()
+        definition = (session_file.parent / "shards" / "idx_g0_p0.yaml").read_text()
         self.assertIn("bitw: '2'", definition)
         self.assertIn("kmindex-abundance", definition)
 

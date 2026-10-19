@@ -168,6 +168,25 @@ class TestResolveBuildParams(unittest.TestCase):
         )
         self.assertEqual(params.chunk_size, 63)
 
+    def test_chunk_model_caps_the_chunk_size(self):
+        limits = '{"ram": 8000000000, "files": 4096, "threads": 64}'
+        params = resolve_build_params(
+            make_definition(),
+            1000,
+            make_config(limits=limits, max_chunks=4),
+            self.layout(chunk_samples=200),
+        )
+        self.assertEqual(params.chunk_size, 200)
+
+    def test_chunk_model_applies_with_explicit_threads(self):
+        params = resolve_build_params(
+            make_definition(partition_count=8),
+            1000,
+            make_config(kmindex_threads=3),
+            self.layout(chunk_samples=200),
+        )
+        self.assertEqual(params, BuildParams(3, 8, 200, 10))
+
     def test_limits_too_low_for_the_partition_count(self):
         """kmtricks needs at least one open file per partition, plus one."""
         config = make_config(limits='{"ram": 8000000000, "files": 4, "threads": 4}')

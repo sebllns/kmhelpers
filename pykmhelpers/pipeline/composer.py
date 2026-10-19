@@ -3,6 +3,7 @@
 import datetime
 import json
 import logging
+import math
 import os
 import shutil
 from typing import Generator, Optional
@@ -12,7 +13,12 @@ import yaml
 import pykmhelpers.pipeline.index_db as db
 from pykmhelpers.core.bloom_filter import SpanManager
 from pykmhelpers.core.byte import ByteCounter
-from pykmhelpers.core.constants import KMHELPERS_COMMIT, KMHELPERS_VERSION
+from pykmhelpers.core.constants import (
+    CHUNK_BUDGET,
+    KMHELPERS_COMMIT,
+    KMHELPERS_VERSION,
+    SHARD_CHUNKS,
+)
 from pykmhelpers.core.log import Log
 
 logger = logging.getLogger(__name__)
@@ -42,6 +48,8 @@ class IndexComposer:
         bitw: Optional[int] = None,
         no_merge=False,
         shard_size: int = 0,
+        chunk_budget: Optional[int] = None,
+        shard_chunks: Optional[int] = None,
         partition_count: int = 0,
         kmer_size: Optional[int] = None,
         false_positive_rate: Optional[float] = None,
@@ -57,6 +65,9 @@ class IndexComposer:
         self.bitw = None if bitw is None else max(bitw, 0)
         self.no_merge = no_merge
         self.shard_size = shard_size
+        # None: the layout's value on an update, the Logan model otherwise
+        self.chunk_budget = chunk_budget
+        self.shard_chunks = shard_chunks
         self.partition_count = partition_count
         self.kmer_size = kmer_size
         self.false_positive_rate = false_positive_rate
@@ -99,6 +110,8 @@ class IndexComposer:
         minim_size = 0
         out_layout = None
         sessions: list[str] = []
+        # Older layouts have no chunk model: no limit
+        layout_budget, layout_chunks = 0, SHARD_CHUNKS
 
         if self.layout_file:
             span_base, shard_size, minim_size, spans_properties = load_layout(
@@ -107,6 +120,7 @@ class IndexComposer:
             allowed_spans = sorted(spans_properties.keys())
             out_layout = os.path.realpath(self.layout_file)
             sessions = load_layout_sessions(self.layout_file)
+            layout_budget, layout_chunks = load_layout_chunking(self.layout_file)
             layout_bitw = load_layout_bitw(self.layout_file)
             if self.bitw is None:
                 self.bitw = layout_bitw
@@ -133,6 +147,17 @@ class IndexComposer:
         if self.bitw is None:
             self.bitw = 0
 
+        # An update keeps the layout's chunk model unless it is passed again
+        updating = bool(self.layout_file and not self.profiles_file)
+        rechunk = updating and (
+            (self.chunk_budget is not None and self.chunk_budget != layout_budget)
+            or (self.shard_chunks is not None and self.shard_chunks != layout_chunks)
+        )
+        if self.chunk_budget is None:
+            self.chunk_budget = layout_budget if updating else CHUNK_BUDGET
+        if self.shard_chunks is None:
+            self.shard_chunks = layout_chunks if updating else SHARD_CHUNKS
+
         kmer_size = self.kmer_size or file_k or 25
         false_positive_rate = self.false_positive_rate or file_fp or 0.25
 
@@ -143,17 +168,18 @@ class IndexComposer:
 
         if self.profiles_file:
             spans_properties = self._fill_span_props(
-                allowed_spans, span_manager, shard_size
+                allowed_spans, span_manager, span_base, shard_size
             )
-        elif self.shard_size and self.shard_size != shard_size:
+        elif rechunk or (self.shard_size and self.shard_size != shard_size):
             # A layout can be re-sharded: only shards opened later are affected
-            shard_size = self.shard_size
+            shard_size = self.shard_size or shard_size
             for span, props in spans_properties.items():
-                props["max_samples"] = max_samples_for(
-                    span_manager.get_bf_size(span), shard_size, self.bitw
+                props["chunk_samples"], props["max_samples"] = self._span_limits(
+                    span, span_manager, span_base, shard_size
                 )
             logger.info(
-                f"Layout re-sharded with a {ByteCounter.auto(shard_size)} limit"
+                f"Layout re-sharded (shard size: {ByteCounter.auto(shard_size)}, "
+                f"chunk budget: {self.chunk_budget}, shard chunks: {self.shard_chunks})"
             )
 
         if self.partition_count:
@@ -196,7 +222,7 @@ class IndexComposer:
 
                 props = spans_properties[span]
                 touched.add(span)
-                shard = self._current_shard(props, shard_size)
+                shard = self._current_shard(props)
 
                 index_name = self.db_tools.get_part_name(shard["name"], run_id)
                 if index_name not in db_instance.index_table:
@@ -292,17 +318,22 @@ class IndexComposer:
             )
 
     def _fill_span_props(
-        self, allowed_spans: list[int], span_manager: SpanManager, shard_size: int
+        self,
+        allowed_spans: list[int],
+        span_manager: SpanManager,
+        span_base: float,
+        shard_size: int,
     ) -> dict:
-        """Per-span properties of a new index: name, sample limit, shards."""
+        """Per-span properties of a new index: name, sample limits, shards."""
         props = {}
         for i, span in enumerate(allowed_spans):
-            max_samples = max_samples_for(
-                span_manager.get_bf_size(span), shard_size, self.bitw
+            chunk_samples, max_samples = self._span_limits(
+                span, span_manager, span_base, shard_size
             )
             props[span] = {
                 "id": i,
                 "name": self.db_tools.get_merge_name(self.name, i),
+                "chunk_samples": chunk_samples,
                 "max_samples": max_samples,
                 "total_samples": 0,
                 "updates": -1,
@@ -311,13 +342,28 @@ class IndexComposer:
             }
         return props
 
-    def _current_shard(self, props: dict, shard_size: int) -> dict:
+    def _span_limits(
+        self, span: int, span_manager: SpanManager, span_base: float, shard_size: int
+    ) -> tuple[int, int]:
+        """``(chunk_samples, max_samples)`` of a span, 0 meaning unlimited.
+
+        A shard is capped by ``shard_size`` and by ``shard_chunks`` chunks of
+        the chunk model, whichever is smaller.
+        """
+        chunk_samples = chunk_samples_for(span, span_base, self.chunk_budget or 0)
+        caps = [
+            max_samples_for(span_manager.get_bf_size(span), shard_size, self.bitw or 0),
+            (self.shard_chunks or SHARD_CHUNKS) * chunk_samples,
+        ]
+        return chunk_samples, min((c for c in caps if c), default=0)
+
+    def _current_shard(self, props: dict) -> dict:
         """Shard receiving the next sample: the last one, or a new one if full."""
         shards = props["shards"]
         max_samples = props["max_samples"]
         if not shards or (max_samples and shards[-1]["samples"] >= max_samples):
             # Without sharding a span holds one unlimited index, named without suffix
-            shard_id = len(shards) if shard_size else None
+            shard_id = len(shards) if max_samples else None
             # Derived from the span's recorded name, so a shard never drifts
             # from it (the group ordinal only ever mints that name)
             name = self.db_tools.get_shard_name(props["name"], shard_id)
@@ -348,10 +394,13 @@ class IndexComposer:
                 "shard_size": shard_size,
                 "minim_size": minim_size,
                 "bitw": self.bitw,
+                "chunk_budget": self.chunk_budget or 0,
+                "shard_chunks": self.shard_chunks or SHARD_CHUNKS,
                 "sessions": list(sessions or []),
                 "map": {
                     span: {
                         "name": props["name"],
+                        "chunk_samples": props.get("chunk_samples", 0),
                         "max_samples": props["max_samples"],
                         "total_samples": props["total_samples"],
                         "updates": props["updates"],
@@ -382,6 +431,29 @@ def max_samples_for(bf_size: int, shard_size: int, bitw: int = 0) -> int:
     if not shard_size or not bf_size:
         return 0
     return max(8, (8 * shard_size // (bf_size * max(bitw, 1))) // 8 * 8)
+
+
+def chunk_samples_for(span: int, base: float, chunk_budget: int) -> int:
+    """Samples one kmtricks chunk of ``span`` holds, 0 if unlimited.
+
+    Chunk model from Logan: ``chunk_budget / base**span`` samples per chunk
+    (``chunk_budget`` = 2**37), rounded up to a multiple of 8.
+    """
+    if not chunk_budget:
+        return 0
+    return max(8, math.ceil(chunk_budget / base**span / 8) * 8)
+
+
+def load_layout_chunking(path: str) -> tuple[int, int]:
+    """``(chunk_budget, shard_chunks)`` stored in a layout.
+
+    Layouts written before the chunk model have no budget: no limit (0).
+    """
+    with open(path) as f:
+        data = yaml.safe_load(f).get("data", {})
+    return int(data.get("chunk_budget") or 0), int(
+        data.get("shard_chunks") or SHARD_CHUNKS
+    )
 
 
 def load_layout_sessions(path: str) -> list[str]:
@@ -425,9 +497,10 @@ def load_layout(path: str) -> tuple[float, int, int, dict]:
             # A span mapped to a plain name predates sharding
             entry: dict = {"name": raw} if isinstance(raw, str) else dict(raw)
             stored_shards: list[dict] = list(entry.get("shards") or [])
+            max_samples = int(entry.get("max_samples") or 0)
             shards = [
                 {
-                    "id": n if shard_size else None,
+                    "id": n if max_samples else None,
                     "name": sh["name"],
                     "samples": int(sh.get("samples", 0)),
                 }
@@ -436,7 +509,8 @@ def load_layout(path: str) -> tuple[float, int, int, dict]:
             props[int(span)] = {
                 "id": i,
                 "name": entry["name"],
-                "max_samples": int(entry.get("max_samples") or 0),
+                "chunk_samples": int(entry.get("chunk_samples") or 0),
+                "max_samples": max_samples,
                 "total_samples": int(entry.get("total_samples") or 0),
                 "updates": int(entry.get("updates") or 0),
                 "partition_count": int(entry.get("partition_count") or 0),

@@ -15,23 +15,33 @@ logger = logging.getLogger(__name__)
 
 
 def _chunk_size(
-    samples: int, ulimit: int, n_threads: int, max_chunks: int | None
+    samples: int,
+    ulimit: int,
+    n_threads: int,
+    max_chunks: int | None,
+    max_chunk_samples: int | None = None,
 ) -> int:
     """Per-chunk sample count.
 
     Base value: the largest chunk that still fits ``n_threads`` in the merge
     stage (``n_threads * (chunk + 1) <= ulimit``), capped at the total sample
-    count and floored at 1.
+    count and at ``max_chunk_samples`` (the chunk model of the layout), and
+    floored at 1.
 
     With ``max_chunks``, the chunk is raised to ``ceil(samples / max_chunks)``
     so the build is split into at most that many chunks. The merge stage needs
     ``threads * (chunk + 1)`` open files, so a bigger chunk costs threads,
-    never RAM (``samples`` does not enter the memory model). ``ulimit - 1`` is
-    the largest chunk available at all (one merge thread): a cap that would
-    need more than that cannot be honoured, and we warn and stay at that
+    never RAM (``samples`` does not enter the memory model). ``ulimit - 1``
+    (one merge thread) and ``max_chunk_samples`` bound the largest chunk: a
+    cap that would need more cannot be honoured, and we warn and stay at that
     ceiling rather than fail.
     """
-    chunk_s = max(1, min(ulimit // n_threads - 1, samples))
+    ceiling = min(ulimit - 1, samples)
+    if max_chunk_samples:
+        ceiling = min(ceiling, max_chunk_samples)
+    ceiling = max(1, ceiling)
+
+    chunk_s = max(1, min(ulimit // n_threads - 1, ceiling))
     if max_chunks is None or max_chunks < 1:
         return chunk_s
 
@@ -39,14 +49,13 @@ def _chunk_size(
     if wanted <= chunk_s:
         return chunk_s
 
-    feasible = max(1, min(ulimit - 1, samples))
-    if wanted > feasible:
+    if wanted > ceiling:
         logger.warning(
-            f"max_chunks={max_chunks} needs {wanted} samples per chunk, but ulimit "
-            f"{ulimit} allows at most {feasible} (would need ulimit >= {wanted + 1}); "
-            f"using {feasible}, i.e. {math.ceil(samples / feasible)} chunks"
+            f"max_chunks={max_chunks} needs {wanted} samples per chunk, but at most "
+            f"{ceiling} fit (ulimit {ulimit}, chunk model {max_chunk_samples or 'none'}); "
+            f"using {ceiling}, i.e. {math.ceil(samples / ceiling)} chunks"
         )
-        return feasible
+        return ceiling
     return wanted
 
 
@@ -58,6 +67,7 @@ def get_best_params(
     n_threads: int,
     focus: float = 0.5,
     max_chunks: int | None = None,
+    max_chunk_samples: int | None = None,
 ) -> kmparams.kmtricks_params:
     """Maximize threads (up to n_threads), then minimize partitions.
 
@@ -75,6 +85,7 @@ def get_best_params(
     The chunk size comes from `_chunk_size`: the largest that fits
     ``n_threads`` in the merge stage, or a bigger one when ``max_chunks``
     caps the number of chunks, which lowers the thread ceiling in exchange.
+    ``max_chunk_samples`` bounds it in both cases.
 
     The objective is lexicographic but conflict-free:
       * threads is capped by n_threads, by RAM (via the partitions needed),
@@ -89,13 +100,15 @@ def get_best_params(
     logger.debug(
         f"get_best_params: kmers={kmers}, ram={ram}, samples={samples}, "
         f"ulimit={ulimit}, n_threads={n_threads}, focus={focus}, "
-        f"max_chunks={max_chunks}"
+        f"max_chunks={max_chunks}, max_chunk_samples={max_chunk_samples}"
     )
 
     if ulimit < 1:
         raise ValueError(f"ulimit {ulimit} too low: at least 1 open file required")
 
-    chunk_s = _chunk_size(samples, ulimit, n_threads, max_chunks)
+    chunk_s = _chunk_size(
+        samples, ulimit, n_threads, max_chunks, max_chunk_samples
+    )
 
     # hard ceiling on threads: user cap and the merge-stage file limit
     max_t = min(n_threads, ulimit // (chunk_s + 1))
@@ -133,6 +146,7 @@ def params_for_partitions(
     limits: str,
     safety_margin: float = 1.0,
     max_chunks: int | None = None,
+    max_chunk_samples: int | None = None,
 ) -> kmparams.kmtricks_params:
     """Resolve threads and chunk size for a FIXED partition count.
 
@@ -143,7 +157,8 @@ def params_for_partitions(
     limit and by the open-files ceiling of the merge and superk stages.
 
     ``p.samples`` on the returned params is the per-chunk sample count, as in
-    `get_best_params`, and ``max_chunks`` caps the number of chunks the same way.
+    `get_best_params`, and ``max_chunks`` and ``max_chunk_samples`` bound it
+    the same way.
     """
     ram, ulimit, n_threads, focus = _resolve_limits(limits, safety_margin)
     if partitions < 1:
@@ -158,7 +173,9 @@ def params_for_partitions(
     if ram_params.threads is None:
         raise TypeError("expected nb_threads() to set threads")
 
-    chunk_s = _chunk_size(samples, ulimit, n_threads, max_chunks)
+    chunk_s = _chunk_size(
+        samples, ulimit, n_threads, max_chunks, max_chunk_samples
+    )
     max_t = min(n_threads, ram_params.threads, ulimit // (chunk_s + 1))
     if max_t < 1:
         raise ValueError(
@@ -217,6 +234,7 @@ def auto_params(
     limits: str,
     safety_margin: float = 1.0,
     max_chunks: int | None = None,
+    max_chunk_samples: int | None = None,
 ) -> kmparams.kmtricks_params:
     """Resolve system limits and delegate to `get_best_params`.
 
@@ -231,6 +249,8 @@ def auto_params(
             corresponding key is absent from ``limits`` (default: 1.0).
         max_chunks: Cap on the number of chunks the dataset is split into.
             None (or < 1) leaves the chunk size to the open-files limit alone.
+        max_chunk_samples: Upper bound on the samples of one chunk (the
+            layout's chunk model). None leaves the chunk size unbounded.
 
     Returns:
         kmparams.kmtricks_params: best configuration for the given limits.
@@ -248,6 +268,7 @@ def auto_params(
         n_threads=n_threads,
         focus=focus,
         max_chunks=max_chunks,
+        max_chunk_samples=max_chunk_samples,
     )
 
     # sanity check: the chosen configuration must stay within the limits

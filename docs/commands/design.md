@@ -39,13 +39,13 @@ DESIGN_DIR/                            -> INPUT of build/plan/apply (-S SESSION)
 │   └── groups.png                     distribution plot
 └── compose/                           COMPOSE_DIR
     └── NAME/                          the index
-        ├── layout.yaml                state of the index: groups, shards, partitions, bitw, sessions
+        ├── layout.yaml                state of the index: groups, chunk model, shards, partitions, bitw, sessions
         └── SESSION/
             ├── index.yaml             the session: parameters, size and shards (readable summary)
             ├── samples.jsonl          the session's samples
             ├── summary.csv            one row per shard
             └── shards/
-                └── NAME_g<i>.yaml     the samples this session adds to shard NAME_g<i>
+                └── NAME_g<i>_p<k>.yaml  the samples this session adds to shard NAME_g<i>_p<k>
 ```
 
 ## Next Step
@@ -65,7 +65,9 @@ Set `-S` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 |--------|-------------|
 | `-g, --group N` | Partition Bloom Filters into `N` storage-balanced groups and overlay on plot; 0 chooses `N` (default: 0), tuned by the `KMHELPERS_AUTO_GROUP_*` environment variables, see [profile - Grouping](profile.md#description) |
 | `-b, --base FLOAT` | Base for span bucket boundaries (default: 1.1) |
-| `-si, --shard-size SIZE` | Max size of one shard (e.g. `10GB`); a span is split into independent shards, see [compose](compose.md) |
+| `-si, --shard-size SIZE` | Max size of one shard (e.g. `10GB`), on top of the chunk model limit, see [compose](compose.md) |
+| `-cb, --chunk-budget INT` | K-mer budget of one kmtricks chunk (default: `2**37` for a new index); 0 for no limit, see [compose](compose.md) |
+| `-sc, --shard-chunks INT` | Chunks per shard under the chunk model (default: 64 for a new index) |
 | `-fp, --false-positive-rate FLOAT` | Target Bloom-filter false-positive rate (default: 0.25) |
 | `-p, --partition-count INT` | Desired number of partitions per index, 0 for automatic (default: 0) |
 | `-ab, --abundance-bits INT` | Build an abundance index with `N` bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0), see [compose](compose.md) |

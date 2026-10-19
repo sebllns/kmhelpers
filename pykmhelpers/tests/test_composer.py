@@ -10,10 +10,14 @@ from pathlib import Path
 
 import yaml
 
+from pykmhelpers.core.bloom_filter import SpanManager
 from pykmhelpers.pipeline.composer import (
     IndexComposer,
+    chunk_samples_for,
+    layout_path,
     load_layout,
     load_layout_bitw,
+    load_layout_chunking,
     load_layout_sessions,
     max_samples_for,
 )
@@ -72,6 +76,109 @@ class TestShardNaming(unittest.TestCase):
         )
 
 
+class TestChunkModel(unittest.TestCase):
+    """Logan chunk model: c = 2**37 / base**span, rounded up to a multiple of 8."""
+
+    def test_unlimited(self):
+        self.assertEqual(chunk_samples_for(168, 1.1, 0), 0)
+
+    def test_logan_genomic_values(self):
+        for span, expected in [(168, 15288), (184, 3328), (218, 136), (250, 8)]:
+            self.assertEqual(chunk_samples_for(span, 1.1, 2**37), expected)
+
+    def test_logan_v1_base_2(self):
+        self.assertEqual(chunk_samples_for(30, 2.0, 2**37), 128)
+
+    def test_never_below_8(self):
+        self.assertEqual(chunk_samples_for(300, 1.1, 2**37), 8)
+
+    def test_shard_holds_shard_chunks_chunks(self):
+        composer = IndexComposer(name="idx", chunk_budget=2**37, shard_chunks=64)
+        limits = composer._span_limits(168, SpanManager(b=1.1), 1.1, 0)
+        self.assertEqual(limits, (15288, 64 * 15288))
+
+    def test_shard_size_wins_when_smaller(self):
+        composer = IndexComposer(name="idx", chunk_budget=2**37, shard_chunks=64)
+        manager = SpanManager(b=1.1)
+        limits = composer._span_limits(168, manager, 1.1, manager.get_bf_size(168))
+        self.assertEqual(limits, (15288, 8))
+
+    def test_zero_budget_is_unlimited(self):
+        composer = IndexComposer(name="idx", chunk_budget=0, shard_chunks=64)
+        self.assertEqual(composer._span_limits(168, SpanManager(b=1.1), 1.1, 0), (0, 0))
+
+
+class TestComposeChunking(unittest.TestCase):
+    """Default chunk model on a new index, kept or re-sharded on updates."""
+
+    SPAN = 144  # 10**6 k-mers in base 1.1
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.samples = str(self.tmp / "samples.jsonl")
+        with open(self.samples, "w") as f:
+            f.write('{"k": 25}\n')
+            for n in range(3):
+                f.write(
+                    f'{{"name": "S{n}", "files": ["S{n}.fa"], "kmer_count": 1000000}}\n'
+                )
+        self.profile = str(self.tmp / "profile.yaml")
+        with open(self.profile, "w") as f:
+            yaml.dump(
+                {
+                    "span_base": 1.1,
+                    "false_positive_rate": 0.25,
+                    "default_profile": "p",
+                    "profiles": {"p": {"span_list": [self.SPAN]}},
+                },
+                f,
+            )
+        self.out = str(self.tmp / "compose")
+        self.layout = layout_path(self.out, "idx")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def compose(self, session, profile=True, **kwargs):
+        # Database names are unique per process: free those of earlier runs
+        IndexDB._instances.clear()
+        IndexComposer(
+            profiles_file=self.profile if profile else None,
+            layout_file=None if profile else self.layout,
+            name="idx",
+            **kwargs,
+        ).run(input_file=self.samples, output_dir=self.out, run_id=session)
+        with open(self.layout) as f:
+            return yaml.safe_load(f)["data"]
+
+    def test_new_index_uses_the_logan_model(self):
+        data = self.compose("initial")
+        entry = data["map"][self.SPAN]
+        self.assertEqual((data["chunk_budget"], data["shard_chunks"]), (2**37, 64))
+        self.assertEqual(entry["chunk_samples"], chunk_samples_for(self.SPAN, 1.1, 2**37))
+        self.assertEqual(entry["max_samples"], 64 * entry["chunk_samples"])
+        self.assertEqual(entry["shards"][0]["name"], "idx_g0_p0")
+
+    def test_zero_budget_keeps_a_single_unlimited_index(self):
+        data = self.compose("initial", chunk_budget=0)
+        entry = data["map"][self.SPAN]
+        self.assertEqual((entry["chunk_samples"], entry["max_samples"]), (0, 0))
+        self.assertEqual(entry["shards"][0]["name"], "idx_g0")
+
+    def test_update_keeps_the_layout_model(self):
+        self.compose("initial", chunk_budget=0)
+        data = self.compose("upd", profile=False)
+        self.assertEqual(data["chunk_budget"], 0)
+        self.assertEqual(data["map"][self.SPAN]["max_samples"], 0)
+
+    def test_explicit_budget_reshards_an_update(self):
+        self.compose("initial", chunk_budget=0)
+        data = self.compose("upd", profile=False, chunk_budget=2**37, shard_chunks=2)
+        entry = data["map"][self.SPAN]
+        self.assertEqual(data["chunk_budget"], 2**37)
+        self.assertEqual(entry["max_samples"], 2 * entry["chunk_samples"])
+
+
 class TestCurrentShard(unittest.TestCase):
     def composer(self):
         return IndexComposer(name="idx")
@@ -86,25 +193,25 @@ class TestCurrentShard(unittest.TestCase):
 
     def test_first_shard_without_sharding_has_no_suffix(self):
         props = self.props(0)
-        shard = self.composer()._current_shard(props, 0)
+        shard = self.composer()._current_shard(props)
         self.assertEqual(shard["name"], "idx_g0")
         self.assertIsNone(shard["id"])
 
     def test_new_shard_when_full(self):
         props = self.props(8)
         composer = self.composer()
-        shard = composer._current_shard(props, 1000)
+        shard = composer._current_shard(props)
         self.assertEqual(shard["name"], "idx_g0_p0")
 
         shard["samples"] = 8
-        shard = composer._current_shard(props, 1000)
+        shard = composer._current_shard(props)
         self.assertEqual(shard["name"], "idx_g0_p1")
         self.assertEqual(shard["samples"], 0)
         self.assertEqual(len(props["shards"]), 2)
 
     def test_last_shard_is_filled_first(self):
         props = self.props(8, [{"id": 0, "name": "idx_g0_p0", "samples": 3}])
-        shard = self.composer()._current_shard(props, 1000)
+        shard = self.composer()._current_shard(props)
         self.assertEqual(shard["name"], "idx_g0_p0")
         self.assertEqual(len(props["shards"]), 1)
 
@@ -112,7 +219,7 @@ class TestCurrentShard(unittest.TestCase):
         """A shard derives from the span's name, not from its group ordinal."""
         props = self.props(8)
         props["name"] = "idx_g7"
-        shard = self.composer()._current_shard(props, 1000)
+        shard = self.composer()._current_shard(props)
         self.assertEqual(shard["name"], "idx_g7_p0")
 
 
@@ -129,6 +236,7 @@ class TestLayout(unittest.TestCase):
             76: {
                 "id": 0,
                 "name": "idx_g0",
+                "chunk_samples": 8,
                 "max_samples": 80,
                 "total_samples": 85,
                 "updates": 2,
@@ -155,6 +263,17 @@ class TestLayout(unittest.TestCase):
         )
         self.assertEqual(load_layout_sessions(self.path), ["initial", "upd"])
 
+    def test_chunking_round_trip(self):
+        composer = IndexComposer(name="idx", chunk_budget=2**37, shard_chunks=32)
+        composer._write_layout(self.path, 1.1, 0, 10, {})
+        self.assertEqual(load_layout_chunking(self.path), (2**37, 32))
+
+    def test_layout_without_chunking_has_no_limit(self):
+        legacy = {"type": "layout", "data": {"base": 1.1, "map": {76: "idx_g0"}}}
+        with open(self.path, "w") as f:
+            yaml.dump(legacy, f)
+        self.assertEqual(load_layout_chunking(self.path), (0, 64))
+
     def test_layout_without_bitw_is_presence_absence(self):
         legacy = {"type": "layout", "data": {"base": 1.1, "map": {76: "idx_g0"}}}
         with open(self.path, "w") as f:
@@ -171,6 +290,7 @@ class TestLayout(unittest.TestCase):
         self.assertEqual((base, shard_size, minim_size), (1.1, 0, 0))
         self.assertEqual(loaded[76]["name"], "idx_g0")
         self.assertEqual(loaded[76]["max_samples"], 0)
+        self.assertEqual(loaded[76]["chunk_samples"], 0)
         self.assertEqual(loaded[76]["partition_count"], 0)
         self.assertEqual(loaded[76]["total_samples"], 0)
         self.assertEqual(loaded[76]["updates"], 0)

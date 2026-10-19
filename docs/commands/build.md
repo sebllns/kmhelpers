@@ -49,15 +49,15 @@ coli_db/                          DESIGN_DIR (design -o): INPUT of build
         ├── layout.yaml           state of the index, shared by its sessions
         ├── initial/              SESSION (design/compose -S)
         │   ├── index.yaml        what INPUT resolves to (-S initial)
-        │   └── shards/           one definition per shard (coli_g0.yaml, ...)
+        │   └── shards/           one definition per shard (coli_g0_p0.yaml, ...)
         └── update/               the last session: built by default
             ├── index.yaml
             └── shards/
 
 coli_build/                       BUILD_DIR (build -o, query -r): the kmindex registry
 ├── index.json                    registry of all built indices
-├── coli_g0/                      an index, in place (a directory, not a symlink)
-├── coli_g1/
+├── coli_g0_p0/                   an index, in place (a directory, not a symlink)
+├── coli_g1_p0/
 ├── work/                         only while a SESSION is being built
 │   └── update/                   SESSION
 │       ├── runs/                 kmtricks runs (parts, chunks)

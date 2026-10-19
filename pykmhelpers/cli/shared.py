@@ -12,6 +12,7 @@ from pykmhelpers.core.constants import (
     AUTO_GROUP_MAX,
     AUTO_GROUP_MIN_GAIN,
     AUTO_GROUP_SAMPLES,
+    SHARD_CHUNKS,
 )
 from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.pipeline.index_ops.sources import resolve_input
@@ -27,6 +28,46 @@ def parse_shard_size(value: str | None) -> int:
         raise click.BadParameter(
             f"Invalid shard size: {value} (use a format like '10GB' or '500MB')"
         )
+
+
+def parse_chunk_budget(value: str | None) -> int | None:
+    """Parse a chunk budget such as '137438953472', '2**37' or '2^37'; None when not set."""
+    if value is None:
+        return None
+    try:
+        base, _, exp = value.replace("^", "**").partition("**")
+        result = int(base) ** int(exp) if exp else int(base)
+    except ValueError:
+        raise click.BadParameter(
+            f"Invalid chunk budget: {value} (use a format like '2**37', 0 for no limit)"
+        )
+    if result < 0:
+        raise click.BadParameter(f"Chunk budget must not be negative: {value}")
+    return result
+
+
+def sharding_options(f):
+    """Chunk model options of `design` and `compose`."""
+    f = click.option(
+        "--shard-chunks",
+        "-sc",
+        "shard_chunks",
+        type=click.IntRange(min=1),
+        default=None,
+        help="Chunks per shard under the chunk model. Fixed for the life of the "
+        f"index unless passed again. [default: {SHARD_CHUNKS} for a new index]",
+    )(f)
+    f = click.option(
+        "--chunk-budget",
+        "-cb",
+        "chunk_budget",
+        help="K-mer budget of one kmtricks chunk: a chunk of span s holds at most "
+        "ceil8(budget / base**s) samples, and a shard at most --shard-chunks chunks. "
+        "0 for no limit. Recorded in the layout and applied by plan/apply/build; "
+        "passing it on an update re-shards the layout. "
+        "[default: '2**37' (Logan) for a new index]",
+    )(f)
+    return f
 
 
 def deserialize(filename: str) -> Any:

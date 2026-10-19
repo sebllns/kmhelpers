@@ -169,7 +169,7 @@ class IndexExecutor:
         chunks = [items[n : n + size] for n in range(0, len(items), size)]
         logger.info(
             f"  └── Splitting '{i.name}' into {len(chunks)} chunks of up to "
-            f"{size} samples (open-files limit)"
+            f"{size} samples"
         )
         runs: dict[str, int] = {}
         for n, chunk_items in enumerate(chunks):

@@ -6,7 +6,12 @@ import os
 
 import click
 
-from pykmhelpers.cli.shared import auto_group_options, parse_shard_size
+from pykmhelpers.cli.shared import (
+    auto_group_options,
+    parse_chunk_budget,
+    parse_shard_size,
+    sharding_options,
+)
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.constants import DEFAULT_PAIR_REGEX
 from pykmhelpers.core.log import Log
@@ -46,7 +51,7 @@ logger = logging.getLogger(__name__)
     "--shard-size",
     "-si",
     "shard_size",
-    help="💾  Maximum size of one shard (e.g., '256GB', '500000MB'). A span is split into independent shards of at most this size; omit for a single unlimited index per span.",
+    help="💾  Maximum size of one shard (e.g., '256GB', '500000MB'). A span is split into independent shards of at most this size, on top of the chunk model limit (--chunk-budget).",
 )
 @click.option(
     "--session-id",
@@ -173,6 +178,7 @@ logger = logging.getLogger(__name__)
     "[default: 0 for a new index]",
 )
 @auto_group_options(hidden=True)
+@sharding_options
 @click.pass_context
 def design(
     ctx,
@@ -193,6 +199,8 @@ def design(
     base,
     partition_count,
     bitw,
+    chunk_budget,
+    shard_chunks,
     auto_group_samples,
     auto_group_max,
     auto_group_min_gain,
@@ -232,6 +240,7 @@ def design(
     """
 
     is_assembled = data_type.lower() in ("a", "assembled")
+    chunk_budget = parse_chunk_budget(chunk_budget)
     input_dir = input if os.path.isdir(input) else None
     input_list = input if os.path.isfile(input) else None
     input_is_jsonl = input_list is not None and input.lower().endswith(".jsonl")
@@ -325,6 +334,8 @@ def design(
             shard_size=parse_shard_size(shard_size),
             partition_count=partition_count,
             bitw=bitw,
+            chunk_budget=chunk_budget,
+            shard_chunks=shard_chunks,
         ).run(
             input_file=jsonl_path,
             output_dir=compose_dir,

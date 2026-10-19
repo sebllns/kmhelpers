@@ -6,7 +6,11 @@ import os
 
 import click
 
-from pykmhelpers.cli.shared import parse_shard_size
+from pykmhelpers.cli.shared import (
+    parse_chunk_budget,
+    parse_shard_size,
+    sharding_options,
+)
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.log import Log
 from pykmhelpers.pipeline.composer import IndexComposer, layout_path
@@ -65,7 +69,7 @@ logger = logging.getLogger(__name__)
     "--shard-size",
     "-si",
     "shard_size",
-    help="💾  Maximum size of one shard (e.g., '256GB', '500000MB'). A span is split into independent shards of at most this size; omit for a single unlimited index per span.",
+    help="💾  Maximum size of one shard (e.g., '256GB', '500000MB'). A span is split into independent shards of at most this size, on top of the chunk model limit (--chunk-budget).",
 )
 # @click.option(
 #     "--partition-min-size",
@@ -91,6 +95,7 @@ logger = logging.getLogger(__name__)
     "Fixed for the life of the index: an update takes the layout's value. "
     "[default: 0 for a new index]",
 )
+@sharding_options
 @click.pass_context
 def compose(
     ctx,
@@ -105,6 +110,8 @@ def compose(
     # partition_count_limit,
     session_id,
     bitw,
+    chunk_budget,
+    shard_chunks,
 ):
     """Compose index definition file(s) from a sample list.
 
@@ -192,6 +199,8 @@ def compose(
             shard_size=parse_shard_size(shard_size),
             partition_count=partition_count,
             bitw=bitw,
+            chunk_budget=parse_chunk_budget(chunk_budget),
+            shard_chunks=shard_chunks,
             # bf_max_size=bf_max_size,
             # partition_min_size=partition_min_size,
             # exact_partition_count=False,
