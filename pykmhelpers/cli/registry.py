@@ -35,8 +35,9 @@ def registry(ctx, registry_path):
     help="Input directory containing kmtricks indices",
 )
 @click.option(
-    "--index-ids",
+    "--name",
     "-n",
+    "index_ids",
     multiple=True,
     required=False,
     help="Specific index IDs to register (register all if not specified)",
@@ -108,8 +109,9 @@ def registry_create(obj, input_dir, index_ids):
     help="Input directory containing kmtricks indices",
 )
 @click.option(
-    "--index-ids",
+    "--name",
     "-n",
+    "index_ids",
     multiple=True,
     required=False,
     help="Specific index IDs to register (register all if not specified)",
@@ -271,8 +273,9 @@ def registry_info(obj, index_id, output_json):
     help="Show detailed validation output",
 )
 @click.option(
-    "--index-ids",
+    "--name",
     "-n",
+    "index_ids",
     multiple=True,
     help="Check only these index IDs (default: all); fails if one is not registered",
 )
@@ -333,8 +336,9 @@ def registry_check(obj, verbose, index_ids):
 
 @registry.command(name="remove")
 @click.option(
-    "--index-ids",
+    "--name",
     "-n",
+    "index_ids",
     multiple=True,
     required=True,
     help="Specific index IDs to remove",

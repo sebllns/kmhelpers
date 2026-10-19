@@ -15,7 +15,7 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
     | `-o, --output-dir COMPOSE_DIR` | Output directory for index definitions |
     | `-n, --name TEXT` | Name of created or updated index |
     | `-pf, --profiles-file FILE` | Profiles YAML file with index configuration (required to build a new index) |
-    | `-S, --session-id SESSION` | Session name: subdirectory of `COMPOSE_DIR/NAME/` and tag appended to index names (default: timestamp) |
+    | `-S, --session SESSION` | Session name: subdirectory of `COMPOSE_DIR/NAME/` and tag appended to index names (default: timestamp) |
 
 !!! abstract "I/O"
     **Input:** JSONL sample list (from [`list`](list.md)), profiles YAML required only for new index creation (from [`profile`](profile.md))  
@@ -26,7 +26,7 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 | Option | Description |
 |--------|-------------|
 | `-pr, --profile TEXT` | Profile name to use (default: `default_profile` from profiles file) |
-| `-p, --partition-count INT` | Fix the partition count of every shard for the life of the index: inherited by every later session, no longer adapted to the system limits of `plan`/`build`. 0 (default) lets the first `plan` of each shard size it, see Partitioning below |
+| `-P, --partition-count INT` | Fix the partition count of every shard for the life of the index: inherited by every later session, no longer adapted to the system limits of `plan`/`build`. 0 (default) lets the first `plan` of each shard size it, see Partitioning below |
 | `--minim-size INT` | Minimizer size (4-15), fixed for the life of the index (default: 10 for a new index, the layout's value on an update) |
 | `-si, --shard-size SIZE` | Max size of one shard (e.g. `256GB`, `500000MB`), on top of the chunk model limit |
 | `-cb, --chunk-budget INT` | K-mer budget of one kmtricks chunk (e.g. `2**37`); 0 for no limit (default: `2**37` for a new index, the layout's value on an update) |
@@ -41,7 +41,7 @@ Takes a JSONL sample list (produced by [`list`](list.md)) and generates index de
 files that can be passed to [`plan`](plan.md), [`build`](build.md) or [`apply`](apply.md).
 
 Output files are written to `COMPOSE_DIR/NAME/SESSION/`, where `SESSION` defaults to the
-current timestamp if `--session-id` is not provided:
+current timestamp if `--session` is not provided:
 
 - `index.yaml` describes the session: parameters, size, and the shards it adds samples to;
 - `shards/<shard>.yaml` lists the samples of each shard, and `samples.jsonl` their files;

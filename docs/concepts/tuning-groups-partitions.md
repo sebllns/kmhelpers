@@ -6,7 +6,7 @@ Index layout is controlled by two separate settings:
 
 - `-g, --group` ([`profile`](../commands/profile.md), [`design`](../commands/design.md))
 splits samples into `G` storage-balanced sub-indices.
-- `-p, --partition-count`
+- `-P, --partition-count`
 ([`compose`](../commands/compose.md), [`design`](../commands/design.md))
 splits each sub-index's Bloom-filter matrix into `P` partition files. Without it, the first
 [`plan`](../commands/plan.md) or [`build`](../commands/build.md) of each shard sizes `P` from

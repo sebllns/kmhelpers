@@ -138,8 +138,9 @@ _session_option = click.option(
     help="⚙   Session to build when INPUT is a directory (default: the last one composed).",
 )
 _base_path_option = click.option(
+    "--bp",
     "--base-path",
-    "-b",
+    "base_path",
     required=False,
     type=click.Path(file_okay=False, dir_okay=True),
     help="📁  Base path to resolve relative sample paths. By default, relative "
@@ -159,7 +160,7 @@ _index_ids_option = click.option(
     "index_ids",
     multiple=True,
     required=False,
-    help="⚙   Index IDs to build. Can be specified multiple times (-n id1 -n id2) or comma-separated (-n id1,id2).",
+    help="⚙   Shard name(s) to build (repeatable or comma-separated: -n id1 -n id2, -n id1,id2).",
 )
 _threads_option = click.option(
     "--threads",

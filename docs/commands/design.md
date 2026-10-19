@@ -14,7 +14,7 @@ Scan a directory or import a sample list, then run the full [`list`](list.md) â†
     | `INPUT` | Directory to scan, a plain-text / YAML sample list, or an existing JSONL sample index (required) |
     | `-o, --output-dir DESIGN_DIR` | Output directory (required) |
     | `-n, --name NAME` | Name of the created index (required) |
-    | `-S, --session-id SESSION` | Session name: subdirectory of `DESIGN_DIR/compose/NAME/` and tag appended to index names (default: timestamp `YYYYMMDD_HHMMSS`) |
+    | `-S, --session SESSION` | Session name: subdirectory of `DESIGN_DIR/compose/NAME/` and tag appended to index names (default: timestamp `YYYYMMDD_HHMMSS`) |
     | `-k, --kmer-size INT` | K-mer size for counting (default: 25) |
     | `-dt, --data-type TEXT` | Data type: `a`/`assembled` (default) or `u`/`unassembled` (raw reads) |
 
@@ -69,13 +69,13 @@ Set `-S` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 | `-cb, --chunk-budget INT` | K-mer budget of one kmtricks chunk (default: `2**37` for a new index); 0 for no limit, see [compose](compose.md) |
 | `-sc, --shard-chunks INT` | Chunks per shard under the chunk model (default: 64 for a new index) |
 | `-fp, --false-positive-rate FLOAT` | Target Bloom-filter false-positive rate (default: 0.25) |
-| `-p, --partition-count INT` | Fix the partition count of every shard for the life of the index: inherited by every later session, no longer adapted to the system limits of `plan`/`build`. 0 (default) lets the first `plan` of each shard size it, see [compose - Partitioning](compose.md#description) |
+| `-P, --partition-count INT` | Fix the partition count of every shard for the life of the index: inherited by every later session, no longer adapted to the system limits of `plan`/`build`. 0 (default) lets the first `plan` of each shard size it, see [compose - Partitioning](compose.md#description) |
 | `--minim-size INT` | Minimizer size (4-15), fixed for the life of the index (default: 10 for a new index, the layout's value on an update) |
 | `-ab, --abundance-bits INT` | Build an abundance index with `N` bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0), see [compose](compose.md) |
 | `-nc, --no-count` | Skip k-mer counting with ntcard |
 | `-lg, --leaf-grouping` | Group files by leaf folder; each leaf directory becomes one sample |
-| `--paired [REGEX]` | Group mate files (R1/R2) of a directory into one sample, see [list](list.md#description) |
-| `-r, --autorename` | Rename duplicate sample IDs by appending a numeric suffix instead of skipping |
+| `-p, --paired [REGEX]` | Group mate files (R1/R2) of a directory into one sample, see [list](list.md#description) |
+| `-a, --autorename` | Rename duplicate sample IDs by appending a numeric suffix instead of skipping |
 | `-ntt, --ntcard-threads INT` | Number of threads for ntcard k-mer counting (default: 8) |
 
 ## Description
@@ -113,7 +113,7 @@ kmhelpers design /data/sequences -o coli_db -n coli --leaf-grouping
 kmhelpers design /data/sequences -o coli_db -n coli -k 31 -fp 0.1
 
 # Force a specific partition count
-kmhelpers design /data/sequences -o coli_db -n coli -p 4
+kmhelpers design /data/sequences -o coli_db -n coli -P 4
 
 # Abundance index of paired raw reads (4 abundance classes)
 kmhelpers design /data/reads -o reads_db -n reads -dt u --paired -ab 2

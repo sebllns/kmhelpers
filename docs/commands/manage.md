@@ -37,20 +37,20 @@ Manage k-mer index registries.
 | Option | Description |
 |--------|-------------|
 | `-i, --input-dir DIR` | Directory containing existing kmtricks indices to register |
-| `-n, --index-ids TEXT` | Specific index IDs to register (default: all found) |
+| `-n, --name TEXT` | Specific index IDs to register (default: all found) |
 
 ### `add`
 
 | Option | Description |
 |--------|-------------|
 | `-i, --input-dir DIR` | Directory containing kmtricks indices to add (required) |
-| `-n, --index-ids TEXT` | Specific index IDs to register (default: all found) |
+| `-n, --name TEXT` | Specific index IDs to register (default: all found) |
 
 ### `check`
 
 | Option | Description |
 |--------|-------------|
-| `-n, --index-ids TEXT` | Check only these index IDs (repeatable, default: all); fails if one is not registered |
+| `-n, --name TEXT` | Check only these index IDs (repeatable, default: all); fails if one is not registered |
 | `-v, --verbose` | Show detailed validation output |
 
 ### `info`
@@ -64,7 +64,7 @@ Manage k-mer index registries.
 
 | Option | Description |
 |--------|-------------|
-| `-n, --index-ids TEXT` | Index ID(s) to remove (required, repeatable) |
+| `-n, --name TEXT` | Index ID(s) to remove (required, repeatable) |
 | `-d, --delete-files` | Also delete index files from disk |
 | `-y, --yes` | Skip confirmation prompt |
 | `--missing-ok` | Skip index IDs that are not registered instead of failing |

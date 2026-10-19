@@ -23,7 +23,7 @@ Validate paths then build k-mer indices from an index definition file in a singl
 
 | Option | Description |
 |--------|-------------|
-| `-b, --base-path DIR` | Base path to resolve relative sample paths |
+| `--bp, --base-path DIR` | Base path to resolve relative sample paths |
 | `-t, --threads INT` | Number of threads |
 | `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Builds and merges](build.md#builds-and-merges) |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use for any key missing from `--limits` (default: 0.9) |

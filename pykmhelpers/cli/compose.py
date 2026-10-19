@@ -34,8 +34,9 @@ logger = logging.getLogger(__name__)
     help="🏷️   Name of created index.",
 )
 @click.option(
-    "--session-id",
+    "--session",
     "-S",
+    "session_id",
     required=False,
     default=lambda: datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),
     show_default="current timestamp",
@@ -67,7 +68,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--partition-count",
-    "-p",
+    "-P",
     type=int,
     default=0,
     show_default=True,
@@ -135,7 +136,7 @@ def compose(
 
     Pass COMPOSE_DIR (or COMPOSE_DIR/NAME, or SESSION/index.yaml) to `plan`,
     `build` or `apply` to build the index, with -S SESSION to pick a session
-    (default: the last one). SESSION is set by --session-id.
+    (default: the last one). SESSION is set by --session.
 
     Use --profiles-file to build a new index. To update an existing index, omit
     --profiles-file: the layout file at COMPOSE_DIR/NAME/layout.yaml is loaded automatically.

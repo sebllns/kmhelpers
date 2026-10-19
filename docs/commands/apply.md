@@ -24,7 +24,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 ## Advanced Options
 | Option | Description |
 |--------|-------------|
-| `-b, --base-path DIR` | Base path to resolve relative sample paths |
+| `--bp, --base-path DIR` | Base path to resolve relative sample paths |
 | `-s, --span TEXT` | Span(s) to build: single value, comma-separated, or range (e.g. `27-30`) |
 | `-n, --name TEXT` | Index ID(s) to build (repeatable or comma-separated) |
 | `-t, --threads INT` | Number of threads |
@@ -60,7 +60,7 @@ kmhelpers apply coli_db -o coli_build/ -s 28
 kmhelpers apply coli_db -o coli_build/ -s 27-30
 
 # Resolve sample paths from a base directory
-kmhelpers apply coli_db -o coli_build/ -b /data/samples
+kmhelpers apply coli_db -o coli_build/ --bp /data/samples
 
 # Set threads, show progress, abort on first error
 kmhelpers apply coli_db -o coli_build/ -t 8 -SP -X

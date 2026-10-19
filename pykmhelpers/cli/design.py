@@ -54,8 +54,9 @@ logger = logging.getLogger(__name__)
     help="💾  Maximum size of one shard (e.g., '256GB', '500000MB'). A span is split into independent shards of at most this size, on top of the chunk model limit (--chunk-budget).",
 )
 @click.option(
-    "--session-id",
+    "--session",
     "-S",
+    "session_id",
     required=False,
     default=lambda: datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),
     show_default="current timestamp",
@@ -120,6 +121,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--paired",
+    "-p",
     "pair_regex",
     is_flag=False,
     flag_value=DEFAULT_PAIR_REGEX,
@@ -132,7 +134,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--autorename",
-    "-r",
+    "-a",
     is_flag=True,
     default=False,
     show_default=True,
@@ -168,7 +170,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--partition-count",
-    "-p",
+    "-P",
     type=int,
     default=0,
     show_default=True,

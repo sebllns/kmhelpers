@@ -25,7 +25,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 
 | Option | Description |
 |--------|-------------|
-| `-b, --base-path DIR` | Base path to resolve relative sample paths |
+| `--bp, --base-path DIR` | Base path to resolve relative sample paths |
 | `-s, --span TEXT` | Span(s) to preview: single value, comma-separated, or range (e.g. `27-30`) |
 | `-n, --name TEXT` | Index ID(s) to preview (repeatable or comma-separated) |
 | `-t, --threads INT` | Number of threads |

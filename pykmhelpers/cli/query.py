@@ -20,11 +20,12 @@ logger = logging.getLogger(__name__)
     help="📁  Path to kmindex registry.",
 )
 @click.option(
-    "--index-ids",
+    "--name",
     "-n",
+    "index_ids",
     multiple=True,
     required=False,
-    help="⚙   Index ID(s) to query against (can specify multiple, default: all).",
+    help="⚙   Shard name(s) to query (repeatable or comma-separated; default: all).",
 )
 @click.option(
     "--output-dir",
@@ -58,8 +59,9 @@ logger = logging.getLogger(__name__)
     help="⚙️  Number of threads for parallel execution.",
 )
 @click.option(
+    "--bq",
     "--batch-query",
-    "-b",
+    "batch_query",
     is_flag=True,
     default=False,
     show_default=True,
@@ -229,6 +231,8 @@ def query(
 
     registry = KmindexRegistry(registry_path)
 
+    # -n id1 -n id2, or -n id1,id2 (as plan/apply)
+    index_ids = [i for entry in index_ids for i in entry.split(",") if i]
     if index_ids:
         for idx_id in index_ids:
             if idx_id not in registry:

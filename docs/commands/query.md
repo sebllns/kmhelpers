@@ -22,11 +22,11 @@ Query indices with FASTA/FASTQ sequences.
 ## Advanced Options
 | Option | Description |
 |--------|-------------|
-| `-n, --index-ids TEXT` | Index ID(s) to query (repeatable, default: all) |
+| `-n, --name TEXT` | Shard name(s) to query (repeatable or comma-separated, default: all) |
 | `-t, --threads INT` | Number of threads (default: 1) |
 | `-z, --zvalue INT` | Z-value for findere algorithm to filter false positives (default: 6) |
 | `-R, --threshold FLOAT` | Score threshold for filtering results (default: 0.05) |
-| `-b, --batch-query` | Treat all sequences across all query files as a single batched query |
+| `--bq, --batch-query` | Treat all sequences across all query files as a single batched query |
 | `-s, --single-query NAME` | Name for the single batched query |
 | `-c, --compressed` | Index is compressed (forces `sub` parallelization) |
 | `-f, --format TEXT` | Data format: `tsv` (default), `json`, `yaml`, or `none` to keep only the raw kmindex results. `md` and `html` are deprecated, they map to `-f tsv --export <fmt>` |
