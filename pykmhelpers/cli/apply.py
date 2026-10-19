@@ -53,6 +53,7 @@ def _parse_spans(spans):
 def apply(
     ctx,
     input_file,
+    session,
     work_dir,
     base_path,
     span,
@@ -99,6 +100,8 @@ def apply(
     # Set threads and show progress
     kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build -t 8 --show-progress
     """
+
+    input_file = shared.resolve_definition(input_file, session)
 
     abort_msg = "Command 'apply' aborted."
     attachements = []

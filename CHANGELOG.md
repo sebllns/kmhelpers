@@ -26,6 +26,14 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Compose output**, simpler to read; old layouts and definition files are no longer read
+  - Everything about an index is in `COMPOSE_DIR/NAME/`: its layout is `NAME/layout.yaml` (was `COMPOSE_DIR/NAME_layout.yaml`), which also records the sessions composed
+  - A session `NAME/SESSION/` holds `index.yaml` (replacing the span registry `NAME.yaml`): parameters, size and shards of the session, keyed by shard name
+  - Each shard's definition is in `SESSION/shards/<shard>.yaml` (was `SESSION/<shard>_<SESSION>.yaml` next to the entry file)
+  - File names lose the `NAME_` prefix: `samples.jsonl`, `summary.csv` (one row per shard); `orig_dist.csv` is replaced by `distribution` in `index.yaml`
+  - `design` writes its sample list to `DESIGN_DIR/list/samples_SESSION.jsonl`
+- **`plan`, `apply`, `build` take a directory**: the design directory, a compose directory or `COMPOSE_DIR/NAME`, resolved to the session given by the new `-S/--session` or the last one composed; a session's `index.yaml` or a shard file can still be passed
+- **`compose`/`design -ab`** defaults to the layout's value on an update (0 for a new index), instead of 0; an explicit different value is still refused
 - **Default group count** (`profile -g`, `design -g`): 0 (automatic) instead of 20
 - **`KmtricksWrapper.pipeline`, `KmindexWrapper.build`**: `bloom_size` is required and `bitw` optional; with `bitw` set, the index is an abundance index of `bloom_size` cells, otherwise presence/absence (`nb_cell` removed)
   - `kmhelpers kmindex build`: `--bloom-size` is required, `--bitw` replaces `--nb-cell`

@@ -30,7 +30,7 @@ kmhelpers design coli_dataset \
     -g 2
 
 echo "== Step 3: build the index =="
-kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build/ --show-progress
+kmhelpers build coli_db -o coli_build/ --show-progress
 
 echo "== Step 4: query the index =="
 zcat coli_dataset/GCA_000780515.1_ASM78051v1_genomic.fna.gz \
@@ -52,7 +52,7 @@ echo "== Update step 3: design the update session =="
 kmhelpers design coli_update.txt -o coli_db/ -n coli -S update
 
 echo "== Update step 4: build the update session =="
-kmhelpers build coli_db/compose/coli/update/coli.yaml -o coli_build/ --show-progress
+kmhelpers build coli_db -S update -o coli_build/ --show-progress
 
 echo "== Update step 5: query the updated index =="
 kmhelpers query -r coli_build/ -o results_update/ query.fa

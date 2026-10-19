@@ -14,6 +14,7 @@ from pykmhelpers.core.constants import (
     AUTO_GROUP_SAMPLES,
 )
 from pykmhelpers.pipeline.fof import FofManager
+from pykmhelpers.pipeline.index_ops.sources import resolve_input
 
 
 def parse_shard_size(value: str | None) -> int:
@@ -88,6 +89,13 @@ output_dir_option = click.option(
     help="📁  Index directory (BUILD_DIR): receives the built index, reused across builds and passed to `query -r`.",
 )
 
+_session_option = click.option(
+    "--session",
+    "-S",
+    "session",
+    required=False,
+    help="⚙   Session to build when INPUT is a directory (default: the last one composed).",
+)
 _base_path_option = click.option(
     "--base-path",
     "-b",
@@ -197,6 +205,7 @@ _keep_previous_option = click.option(
 
 _INDEX_BUILD_OPTIONS = [
     output_dir_option,
+    _session_option,
     _base_path_option,
     _minim_size_option,
     _threads_option,
@@ -277,6 +286,14 @@ def auto_group_options(f=None, *, hidden: bool = False):
         return f
 
     return decorate(f) if f is not None else decorate
+
+
+def resolve_definition(input_path: str, session: str | None) -> str:
+    """Definition file for INPUT of plan/apply/build (a file or a directory)."""
+    try:
+        return resolve_input(input_path, session)
+    except (FileNotFoundError, ValueError) as e:
+        raise click.ClickException(str(e))
 
 
 def index_build_options(f):

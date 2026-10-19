@@ -34,15 +34,15 @@ class ApplyInputType(str, Enum):
 
     Values:
         UNKNOWN: File type could not be determined.
-        SPAN_REGISTRY: Input is a span registry file describing how partial
-            indexes should be merged.
+        INDEX_SESSION: Input is the session file (``SESSION/index.yaml``) of
+            an index, listing the shards its parts are merged into.
         INDEX_DEFINITION: Input is an index definition file describing one or
             more sub-indexes to build.
         NONE: No input file has been inspected yet.
     """
 
     UNKNOWN = "unknown"
-    SPAN_REGISTRY = "span registry"
+    INDEX_SESSION = "index session"
     INDEX_DEFINITION = "index definition"
     NONE = "none"
 

@@ -4,6 +4,9 @@ from typing import Optional
 
 import yaml
 
+from pykmhelpers.pipeline.composer import LAYOUT_FILE
+from pykmhelpers.pipeline.index_ops.sources import session_dir_of
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,17 +36,10 @@ class LayoutStore:
 
     @classmethod
     def next_to(cls, input_file: str) -> "LayoutStore":
-        """Locate the layout of ``COMPOSE_DIR/NAME/SESSION/<file>.yaml``.
-
-        `compose` writes it as ``COMPOSE_DIR/NAME_layout.yaml``.
-        """
-        session_dir = os.path.dirname(os.path.realpath(input_file))
-        name_dir = os.path.dirname(session_dir)
-        compose_dir = os.path.dirname(name_dir)
-        name = os.path.basename(name_dir)
-        if not name:
-            return cls(None)
-        return cls(os.path.join(compose_dir, f"{name}_layout.yaml"))
+        """Layout of the index of ``COMPOSE_DIR/NAME/SESSION/index.yaml`` (or of a
+        shard file of the session): ``COMPOSE_DIR/NAME/layout.yaml``."""
+        index_dir = os.path.dirname(session_dir_of(input_file))
+        return cls(os.path.join(index_dir, LAYOUT_FILE))
 
     @property
     def exists(self) -> bool:

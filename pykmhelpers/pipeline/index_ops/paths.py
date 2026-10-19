@@ -1,6 +1,8 @@
 import os
 from dataclasses import dataclass
 
+from pykmhelpers.pipeline.index_ops.sources import session_dir_of
+
 # Folders of BUILD_DIR that are not registry entries
 RESERVED_NAMES = frozenset({"work", "assets", "logs"})
 
@@ -42,8 +44,9 @@ class BuildPaths:
 
     @classmethod
     def for_input(cls, build_dir: str, input_file: str) -> "BuildPaths":
-        """Paths of the session of ``COMPOSE_DIR/NAME/SESSION/<file>``."""
-        session = os.path.basename(os.path.dirname(os.path.realpath(input_file)))
+        """Paths of the session of ``COMPOSE_DIR/NAME/SESSION/index.yaml`` (or of
+        a shard file of the session)."""
+        session = os.path.basename(session_dir_of(input_file))
         return cls(os.path.realpath(build_dir), session)
 
     @property

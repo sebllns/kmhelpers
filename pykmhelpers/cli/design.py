@@ -11,7 +11,11 @@ from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.constants import DEFAULT_PAIR_REGEX
 from pykmhelpers.core.log import Log
 from pykmhelpers.core.utils import Toolbox
-from pykmhelpers.pipeline.composer import IndexComposer
+from pykmhelpers.pipeline.composer import (
+    SESSION_FILE,
+    IndexComposer,
+    layout_path,
+)
 from pykmhelpers.pipeline.sample_lister import SampleLister
 from pykmhelpers.pipeline.span_profiler import SpanProfiler
 
@@ -162,11 +166,11 @@ logger = logging.getLogger(__name__)
     "-ab",
     "bitw",
     type=click.IntRange(0, 8),
-    default=0,
-    show_default=True,
+    default=None,
     help="🎯  Build an abundance index with this many bits per cell (2^N abundance "
     "classes, kmindex default: 2). 0 builds a presence/absence index. "
-    "Fixed for the life of the index.",
+    "Fixed for the life of the index: an update takes the layout's value. "
+    "[default: 0 for a new index]",
 )
 @auto_group_options(hidden=True)
 @click.pass_context
@@ -202,16 +206,17 @@ def design(
 
     \b
     Input:  directory to scan, a plain-text / YAML sample list, or a JSONL sample index
-    Output: DESIGN_DIR/compose/NAME/SESSION/NAME.yaml (INPUT_FILE for build/plan/apply)
+    Output: DESIGN_DIR, the INPUT of build/plan/apply (-S SESSION, default: the
+            last one); the session is DESIGN_DIR/compose/NAME/SESSION/index.yaml
     Intermediate: DESIGN_DIR/list/ (JSONL), DESIGN_DIR/profile/ (profile.yaml, groups.png),
-                  DESIGN_DIR/compose/NAME_layout.yaml
+                  DESIGN_DIR/compose/NAME/layout.yaml
 
     \b
     Steps:
       1. list    - scan INPUT, count k-mers, write JSONL output file to DESIGN_DIR/list/
                    (skipped if INPUT is already a JSONL sample index)
       2. profile - compute Bloom-filter span distribution, write profile.yaml to DESIGN_DIR/profile/
-      3. compose - write the index definition file to DESIGN_DIR/compose/NAME/SESSION/
+      3. compose - write the session (index.yaml, shards/) to DESIGN_DIR/compose/NAME/SESSION/
 
     \b
     ► NOTE: At query time, the effective FP rate is reduced to p^z, where p is
@@ -245,12 +250,12 @@ def design(
     jsonl_path = (
         Toolbox.get_canonical_path(input)
         if input_is_jsonl
-        else os.path.join(list_dir, f"{name}_samples_{session_id}.jsonl")
+        else os.path.join(list_dir, f"samples_{session_id}.jsonl")
     )
     profiles_file = os.path.join(profile_dir, "profile.yaml")
-    auto_layout = os.path.join(compose_dir, f"{name}_layout.yaml")
+    auto_layout = layout_path(compose_dir, name)
 
-    session_file = os.path.join(compose_dir, name, session_id, f"{name}.yaml")
+    session_file = os.path.join(compose_dir, name, session_id, f"{SESSION_FILE}.yaml")
 
     force = (ctx.obj or {}).get("yes", False)
 
@@ -326,7 +331,9 @@ def design(
             run_id=session_id,
         )
         logger.info("SUCCESS ('compose')")
-        logger.info(f"Suggested next step: kmhelpers build {session_file} -o BUILD_DIR")
+        logger.info(
+            f"Next step: kmhelpers build {output_dir} -o BUILD_DIR -S {session_id}"
+        )
     except Exception as e:
         Log.handle_exception(logger, e, "FAILED ('compose')")
         raise click.ClickException("FAILED ('compose')")

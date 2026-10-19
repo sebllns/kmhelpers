@@ -21,7 +21,7 @@ except ImportError:
 
 class SerializedDataType(str, Enum):
     INDEX_DEFINITION = "index"
-    SPAN_DEFINITION = "span"
+    INDEX_SESSION = "index_session"
 
 
 class DbFields(str, Enum):

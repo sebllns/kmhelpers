@@ -47,7 +47,7 @@ kmhelpers design db/list/bact.jsonl \
 
 # 3. Plan offline: sample files are not checked (they do not exist), and
 #    the build scripts are written to build/assets/
-kmhelpers plan db/compose/bact/initial/bact.yaml \
+kmhelpers plan db \
     -o build/ \
     --offline \
     --limits "$LIMITS"

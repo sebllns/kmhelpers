@@ -38,6 +38,7 @@ class PartialError(click.ClickException):
 def build(
     ctx,
     input_file,
+    session,
     work_dir,
     base_path,
     minim_size,
@@ -77,6 +78,8 @@ def build(
     # Add an update session to the same index directory
     kmhelpers build coli_db/compose/coli/update/coli.yaml -o coli_build
     """
+
+    input_file = shared.resolve_definition(input_file, session)
 
     abort_msg = "Command 'build' aborted."
     attachments = []

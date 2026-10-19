@@ -156,7 +156,7 @@ def main():
         )
 
         # 3. Build (plan -> apply).
-        build("db/compose/idx/initial/idx.yaml", "build")
+        build("db/compose/idx/initial/index.yaml", "build")
 
         # 4. Query a sample against its own index -> perfect hit.
         query("data/data_0.fasta", "build", "results")
@@ -177,14 +177,14 @@ def main():
         ).run()
         reset_index_registry()
         IndexComposer(
-            layout_file="db/compose/idx_layout.yaml",
+            layout_file="db/compose/idx/layout.yaml",
             name="idx",
         ).run(
             input_file="db/list/upd.jsonl",
             output_dir="db/compose",
             run_id="upd",
         )
-        build("db/compose/idx/upd/idx.yaml", "build")
+        build("db/compose/idx/upd/index.yaml", "build")
 
         # 6. The new sample is queryable, and the original still matches.
         query("update/update_0.fasta", "build", "results_upd")

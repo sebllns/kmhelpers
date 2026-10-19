@@ -9,7 +9,7 @@ import click
 from pykmhelpers.cli.shared import parse_shard_size
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.log import Log
-from pykmhelpers.pipeline.composer import IndexComposer
+from pykmhelpers.pipeline.composer import IndexComposer, layout_path
 
 logger = logging.getLogger(__name__)
 
@@ -85,11 +85,11 @@ logger = logging.getLogger(__name__)
     "-ab",
     "bitw",
     type=click.IntRange(0, 8),
-    default=0,
-    show_default=True,
+    default=None,
     help="🎯  Build an abundance index with this many bits per cell (2^N abundance "
     "classes, kmindex default: 2). 0 builds a presence/absence index. "
-    "Fixed for the life of the index.",
+    "Fixed for the life of the index: an update takes the layout's value. "
+    "[default: 0 for a new index]",
 )
 @click.pass_context
 def compose(
@@ -110,13 +110,15 @@ def compose(
 
     \b
     Input:  JSONL sample list (from `list`), profiles YAML for new index (from `profile`)
-    Output: index definition files in COMPOSE_DIR/NAME/SESSION/
+    Output: COMPOSE_DIR/NAME/layout.yaml and COMPOSE_DIR/NAME/SESSION/ (index.yaml,
+            samples.jsonl, summary.csv, shards/)
 
-    Pass COMPOSE_DIR/NAME/SESSION/NAME.yaml as INPUT_FILE to `plan`, `build` or
-    `apply` to build the index. SESSION is set by --session-id.
+    Pass COMPOSE_DIR (or COMPOSE_DIR/NAME, or SESSION/index.yaml) to `plan`,
+    `build` or `apply` to build the index, with -S SESSION to pick a session
+    (default: the last one). SESSION is set by --session-id.
 
     Use --profiles-file to build a new index. To update an existing index, omit
-    --profiles-file: the layout file at COMPOSE_DIR/NAME_layout.yaml is loaded automatically.
+    --profiles-file: the layout file at COMPOSE_DIR/NAME/layout.yaml is loaded automatically.
 
     Examples:
 
@@ -142,7 +144,7 @@ def compose(
     try:
         layout_file = None
         if not profiles_file:
-            auto_layout = os.path.join(output_dir, f"{name}_layout.yaml")
+            auto_layout = layout_path(output_dir, name)
             if os.path.isfile(auto_layout):
                 layout_file = auto_layout
             else:
@@ -151,7 +153,7 @@ def compose(
                     "Use --profiles-file to build a new index."
                 )
         else:
-            auto_layout = os.path.join(output_dir, f"{name}_layout.yaml")
+            auto_layout = layout_path(output_dir, name)
             force = (ctx.obj or {}).get("yes", False)
             if os.path.isfile(auto_layout) and not force:
                 if not click.confirm(

@@ -19,7 +19,7 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 
 !!! abstract "I/O"
     **Input:** JSONL sample list (from [`list`](list.md)), profiles YAML required only for new index creation (from [`profile`](profile.md))  
-    **Output:** index definition files in `COMPOSE_DIR/NAME/SESSION/`, with `NAME.yaml` as the entry point (`INPUT_FILE` for `plan`, `build` and `apply`)
+    **Output:** the session in `COMPOSE_DIR/NAME/SESSION/` (`index.yaml`, `samples.jsonl`, `summary.csv`, `shards/`), and the layout `COMPOSE_DIR/NAME/layout.yaml`. Pass `COMPOSE_DIR` (with `-S SESSION`) to `plan`, `build` or `apply`
 
 ## Advanced Options
 
@@ -38,14 +38,20 @@ Takes a JSONL sample list (produced by [`list`](list.md)) and generates index de
 files that can be passed to [`plan`](plan.md), [`build`](build.md) or [`apply`](apply.md).
 
 Output files are written to `COMPOSE_DIR/NAME/SESSION/`, where `SESSION` defaults to the
-current timestamp if `--session-id` is not provided. Pass the `NAME.yaml` file in that
-directory as the input to `plan`, `build` or `apply` to process the index.
+current timestamp if `--session-id` is not provided:
+
+- `index.yaml` describes the session: parameters, size, and the shards it adds samples to;
+- `shards/<shard>.yaml` lists the samples of each shard, and `samples.jsonl` their files;
+- `summary.csv` has one row per shard.
+
+Pass `COMPOSE_DIR` (or `COMPOSE_DIR/NAME`, or the session's `index.yaml`) to `plan`,
+`build` or `apply`, with `-S SESSION` to pick a session other than the last one.
 
 **Building a new index** - provide `--profiles-file` (produced by [`profile`](profile.md)).
-A layout file is written to `COMPOSE_DIR/NAME_layout.yaml` for future updates.
+A layout file is written to `COMPOSE_DIR/NAME/layout.yaml` for future updates.
 
 **Updating an existing index** - omit `--profiles-file`. The layout file at
-`COMPOSE_DIR/NAME_layout.yaml` is detected and loaded automatically.
+`COMPOSE_DIR/NAME/layout.yaml` is detected and loaded automatically.
 
 If `--profile` is not specified, the `default_profile` field in the profiles file is used.
 
@@ -92,7 +98,7 @@ dropped at build time. `list` sets it to 1 for assembled data and 2 for raw read
 ## Examples
 
 ```bash
-# Build a new index (writes layout to ./db/my_index_layout.yaml)
+# Build a new index (writes layout to ./db/my_index/layout.yaml)
 kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml
 
 # Build with a session tag (output goes to ./db/my_index/my_session/)
@@ -110,7 +116,7 @@ kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --partitio
 # Split large spans across multiple sub-indices
 kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --split-size 10GB
 
-# Update an existing index (auto-detects ./db/my_index_layout.yaml)
+# Update an existing index (auto-detects ./db/my_index/layout.yaml)
 kmhelpers compose samples.jsonl -o ./db -n my_index
 ```
 

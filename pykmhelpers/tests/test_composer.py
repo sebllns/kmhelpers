@@ -14,6 +14,7 @@ from pykmhelpers.pipeline.composer import (
     IndexComposer,
     load_layout,
     load_layout_bitw,
+    load_layout_sessions,
     max_samples_for,
 )
 from pykmhelpers.pipeline.index_db import (
@@ -147,6 +148,12 @@ class TestLayout(unittest.TestCase):
     def test_bitw_round_trip(self):
         IndexComposer(name="idx", bitw=2)._write_layout(self.path, 1.1, 0, 10, {})
         self.assertEqual(load_layout_bitw(self.path), 2)
+
+    def test_sessions_round_trip(self):
+        IndexComposer(name="idx")._write_layout(
+            self.path, 1.1, 0, 10, {}, ["initial", "upd"]
+        )
+        self.assertEqual(load_layout_sessions(self.path), ["initial", "upd"])
 
     def test_layout_without_bitw_is_presence_absence(self):
         legacy = {"type": "layout", "data": {"base": 1.1, "map": {76: "idx_g0"}}}

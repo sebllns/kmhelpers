@@ -20,28 +20,32 @@ Scan a directory or import a sample list, then run the full [`list`](list.md) �
 
 !!! abstract "I/O"
     **Input:** directory to scan, a plain-text / YAML sample list, or a JSONL sample index (`.jsonl`, in which case the `list` step is skipped and INPUT is used as-is)  
-    **Output (pass to `build`, `plan` or `apply`):** `DESIGN_DIR/compose/NAME/SESSION/NAME.yaml`  
+    **Output (pass to `build`, `plan` or `apply`):** `DESIGN_DIR` itself, with `-S SESSION` (default: the last session); the session is `DESIGN_DIR/compose/NAME/SESSION/index.yaml`  
     **Intermediate files (reused by later runs, not passed to `build`):**
 
-    - `DESIGN_DIR/list/NAME_samples_TIMESTAMP.jsonl` - sample manifest
+    - `DESIGN_DIR/list/samples_SESSION.jsonl` - sample manifest
     - `DESIGN_DIR/profile/` - span profile (`profile.yaml`, `baseline.csv`, `groups.png`)
-    - `DESIGN_DIR/compose/NAME_layout.yaml` - layout reused by updates
+    - `DESIGN_DIR/compose/NAME/layout.yaml` - layout reused by updates
 
 ## Output Structure
 
 ```
-DESIGN_DIR/
+DESIGN_DIR/                            -> INPUT of build/plan/apply (-S SESSION)
 ├── list/
-│   └── NAME_samples_TIMESTAMP.jsonl   intermediate: sample manifest (omitted if INPUT is already a JSONL index)
+│   └── samples_SESSION.jsonl          intermediate: sample manifest (omitted if INPUT is already a JSONL index)
 ├── profile/
 │   ├── profile.yaml                   intermediate: span profile (input for compose)
 │   ├── baseline.csv                   intermediate: natural distribution
 │   └── groups.png                     distribution plot
 └── compose/                           COMPOSE_DIR
-    ├── NAME_layout.yaml               intermediate: layout reused by updates
-    └── NAME/
+    └── NAME/                          the index
+        ├── layout.yaml                state of the index: groups, shards, partitions, bitw, sessions
         └── SESSION/
-            └── NAME.yaml              -> INPUT_FILE for build/plan/apply
+            ├── index.yaml             the session: parameters, size and shards (readable summary)
+            ├── samples.jsonl          the session's samples
+            ├── summary.csv            one row per shard
+            └── shards/
+                └── NAME_g<i>.yaml     the samples this session adds to shard NAME_g<i>
 ```
 
 ## Next Step
@@ -50,7 +54,7 @@ Pass the index definition file to [`build`](build.md):
 
 ```bash
 kmhelpers design /data/sequences -o coli_db -n coli -S initial
-kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build
+kmhelpers build coli_db -o coli_build
 ```
 
 Set `-S` to get a predictable path. Without it, `SESSION` is a timestamp: `design` logs the exact `build` command at the end of the run, or look up the folder in `DESIGN_DIR/compose/NAME/`. See [build - Paths](build.md#paths) for the full directory layout.
@@ -77,9 +81,9 @@ Set `-S` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 
 **Step 1 - list:** scans `INPUT` recursively for sequence files (or imports a sample list), counts k-mers with ntcard, and writes a JSONL manifest to `DESIGN_DIR/list/`. This step is **skipped** if `INPUT` is already a JSONL sample index (`.jsonl`); it is used directly as the manifest for the remaining steps.
 
-**Step 2 - profile:** reads k-mer counts from the manifest, assigns each sample to a Bloom-filter span, computes a storage-balanced grouping, and writes `profile.yaml`, `baseline.csv`, and `groups.png` to `DESIGN_DIR/profile/`. This step is **skipped automatically** if a layout file already exists at `DESIGN_DIR/compose/NAME_layout.yaml` (re-run scenario).
+**Step 2 - profile:** reads k-mer counts from the manifest, assigns each sample to a Bloom-filter span, computes a storage-balanced grouping, and writes `profile.yaml`, `baseline.csv`, and `groups.png` to `DESIGN_DIR/profile/`. This step is **skipped automatically** if a layout file already exists at `DESIGN_DIR/compose/NAME/layout.yaml` (re-run scenario).
 
-**Step 3 - compose:** reads the manifest and the profile to generate the index definition file `DESIGN_DIR/compose/NAME/SESSION/NAME.yaml`.
+**Step 3 - compose:** reads the manifest and the profile to generate the index definition file `DESIGN_DIR/compose/NAME/SESSION/index.yaml`.
 
 **Updates** - if the compose layout file already exists from a previous run, the profile step is skipped and the existing layout is used directly. This allows re-running `design` with a new `-S` to add samples to an existing index without re-profiling, then building the new session into the same `BUILD_DIR`. The new session is merged with the existing index at build time, which keeps both versions on disk - see [`build` - Updating an index](build.md#updating-an-index).
 
@@ -90,11 +94,11 @@ Set `-S` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 ```bash
 # Full pipeline from a directory, then build
 kmhelpers design /data/sequences -o coli_db -n coli -S initial
-kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build
+kmhelpers build coli_db -o coli_build
 
 # Add new samples to the same index, then build into the same BUILD_DIR
 kmhelpers design /data/new_sequences -o coli_db -n coli -S update
-kmhelpers build coli_db/compose/coli/update/coli.yaml -o coli_build
+kmhelpers build coli_db -S update -o coli_build
 
 # Skip k-mer counting (if counts are already in the sample list)
 kmhelpers design /data/sequences -o coli_db -n coli --no-count
@@ -115,7 +119,7 @@ kmhelpers design /data/reads -o reads_db -n reads -dt u --paired -ab 2
 kmhelpers design my_files.txt -o coli_db -n coli
 
 # Re-use an existing JSONL sample index, skipping the list step
-kmhelpers design coli_db/list/coli_samples_20260101_120000.jsonl -o coli_db -n coli
+kmhelpers design coli_db/list/samples_20260101_120000.jsonl -o coli_db -n coli
 ```
 
 ## See Also

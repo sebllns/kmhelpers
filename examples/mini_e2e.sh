@@ -24,7 +24,7 @@ kmhelpers design data \
     -b 1.1 \
     -g 1
 
-kmhelpers build db/compose/idx/initial/idx.yaml -o build/
+kmhelpers build db -o build/
 
 # 3. Query a whole indexed sample: it should score 1.0 against itself
 kmhelpers query -r build/ -o results/ -f json data/data_0.fasta
@@ -36,7 +36,7 @@ kmhelpers test create-fasta -o update -n 1 -a 2000 -m 1800
 kmhelpers list update -o db/list/upd.jsonl -k 21
 kmhelpers compose db/list/upd.jsonl -o db/compose -n idx -S upd
 
-kmhelpers build db/compose/idx/upd/idx.yaml -o build/
+kmhelpers build db -S upd -o build/
 
 # 5. The new sample is queryable, and the original still matches
 kmhelpers query -r build/ -o results_upd/ -f json update/update_0.fasta

@@ -94,11 +94,11 @@ kmhelpers design coli_10.txt \
 ## Step 4 - Build the index ([`build`](../commands/build.md))
 
 ```bash
-kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build/ --show-progress
+kmhelpers build coli_db -o coli_build/ --show-progress
 ```
 
 ??? abstract "I/O"
-    **Input:** `coli_db/compose/coli/initial/coli.yaml`  
+    **Input:** `coli_db/compose/coli/initial/index.yaml`  
     **Output:** `coli_build/index.json` + one folder per sub-index, `coli_build/coli_g0/` and `coli_build/coli_g1/` - ready-to-query index
 
 ??? info "INFO"

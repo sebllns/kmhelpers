@@ -17,6 +17,18 @@ from pykmhelpers.core.log import Log
 
 logger = logging.getLogger(__name__)
 
+# Files of COMPOSE_DIR/NAME/ (the index) and COMPOSE_DIR/NAME/SESSION/
+LAYOUT_FILE = "layout.yaml"
+SESSION_FILE = "index"  # + ".yaml" or ".json": the input of plan/apply/build
+SESSION_SAMPLES = "samples.jsonl"
+SESSION_SUMMARY = "summary.csv"
+SHARDS_DIR = "shards"
+
+
+def layout_path(compose_dir: str, name: str) -> str:
+    """Layout of index ``name``: ``COMPOSE_DIR/NAME/layout.yaml``."""
+    return os.path.join(compose_dir, name, LAYOUT_FILE)
+
 
 class IndexComposer:
 
@@ -27,7 +39,7 @@ class IndexComposer:
         selected_profile=None,
         name="index",
         abundance_min=1,
-        bitw: int = 0,
+        bitw: Optional[int] = None,
         no_merge=False,
         shard_size: int = 0,
         partition_count: int = 0,
@@ -41,7 +53,8 @@ class IndexComposer:
         self.selected_profile = selected_profile
         self.name = name or "index"
         self.abundance_min = abundance_min
-        self.bitw = max(bitw, 0)
+        # None: the layout's value on an update, presence/absence (0) otherwise
+        self.bitw = None if bitw is None else max(bitw, 0)
         self.no_merge = no_merge
         self.shard_size = shard_size
         self.partition_count = partition_count
@@ -78,13 +91,14 @@ class IndexComposer:
         os.makedirs(run_dir, exist_ok=True)
 
         try:
-            shutil.copy(input_file, os.path.join(run_dir, f"{self.name}_samples.jsonl"))
+            shutil.copy(input_file, os.path.join(run_dir, SESSION_SAMPLES))
         except shutil.SameFileError:
             pass
 
         shard_size = self.shard_size
         minim_size = 0
         out_layout = None
+        sessions: list[str] = []
 
         if self.layout_file:
             span_base, shard_size, minim_size, spans_properties = load_layout(
@@ -92,8 +106,11 @@ class IndexComposer:
             )
             allowed_spans = sorted(spans_properties.keys())
             out_layout = os.path.realpath(self.layout_file)
+            sessions = load_layout_sessions(self.layout_file)
             layout_bitw = load_layout_bitw(self.layout_file)
-            if layout_bitw != self.bitw:
+            if self.bitw is None:
+                self.bitw = layout_bitw
+            elif layout_bitw != self.bitw:
                 raise ValueError(
                     f"Layout {self.layout_file} was composed with bitw={layout_bitw}, "
                     f"got bitw={self.bitw}: presence/absence and abundance indexes "
@@ -111,9 +128,10 @@ class IndexComposer:
             if not profile.get("span_list"):
                 raise ValueError(f"Profile has no 'span_list' in {self.profiles_file}")
             allowed_spans = sorted(int(s) for s in profile["span_list"])
-            out_layout = os.path.realpath(
-                os.path.join(output_dir, f"{self.name}_layout.yaml")
-            )
+            out_layout = os.path.realpath(layout_path(output_dir, self.name))
+
+        if self.bitw is None:
+            self.bitw = 0
 
         kmer_size = self.kmer_size or file_k or 25
         false_positive_rate = self.false_positive_rate or file_fp or 0.25
@@ -195,7 +213,8 @@ class IndexComposer:
                         bf_size=bf_sizes[span],
                         abundance_min=abundance_min,
                         bitw=self.bitw,
-                        sample_file=f"{self.name}_samples.jsonl",
+                        # shards/<shard>.yaml -> SESSION/samples.jsonl
+                        sample_file=f"../{SESSION_SAMPLES}",
                         samples={},
                         partition_count=props.get("partition_count") or 0,
                     )
@@ -237,37 +256,39 @@ class IndexComposer:
                 f"  {i.merge_name}: {i.sample_count} samples → {str(i.get_stored_size())}"
             )
 
-        original_distribution_file = os.path.join(run_dir, f"{self.name}_orig_dist.csv")
-        with open(original_distribution_file, "w") as f:
-            f.write("span,bf_size,sample_count\n")
-            for span_id, count in sorted(original_distribution.items()):
-                f.write(f"{span_id},{bf_sizes[span_id]},{count}\n")
-
-        index_summary_file = os.path.join(run_dir, f"{self.name}_summary.csv")
-        with open(index_summary_file, "w") as f:
-            f.write("name,span,sample_count,stored_size_GB\n")
-            for i in db_instance.index_table.values():
+        with open(os.path.join(run_dir, SESSION_SUMMARY), "w") as f:
+            f.write("shard,span,bf_size,samples,size_GB\n")
+            for i in sorted(db_instance.index_table.values(), key=lambda i: i.span):
                 size = i.get_stored_size()
                 f.write(
-                    f"{i.merge_name},{i.span},{i.sample_count},{size.byte_count/(1000**3)}\n"
+                    f"{i.merge_name},{i.span},{i.bf_size},{i.sample_count},"
+                    f"{size.byte_count/(1000**3)}\n"
                 )
 
         logger.debug(f"Exporting database in {self.format} format to {run_dir}...")
 
-        export_db(
+        session_file = export_session(
             indices_data=db_instance,
             db_tools=self.db_tools,
             output_dir=run_dir,
             format=self.format,
-            split=True,
-            db_name=self.name,
+            index_name=self.name,
+            session=run_id,
+            distribution=original_distribution,
         )
 
-        logger.info(f"Exported database to {run_dir}")
+        logger.info(f"Exported session definition: {session_file}")
 
         if out_layout:
+            if run_id not in sessions:
+                sessions.append(run_id)
             self._write_layout(
-                out_layout, span_base, shard_size, minim_size, spans_properties
+                out_layout,
+                span_base,
+                shard_size,
+                minim_size,
+                spans_properties,
+                sessions,
             )
 
     def _fill_span_props(
@@ -316,8 +337,10 @@ class IndexComposer:
         shard_size: int,
         minim_size: int,
         spans_properties: dict,
+        sessions: Optional[list[str]] = None,
     ) -> None:
-        """Write the layout: shard state and build invariants of later sessions."""
+        """Write the layout: shard state, build invariants of later sessions,
+        and the sessions composed so far (the last one is built by default)."""
         layout_data = {
             "type": "layout",
             "data": {
@@ -325,6 +348,7 @@ class IndexComposer:
                 "shard_size": shard_size,
                 "minim_size": minim_size,
                 "bitw": self.bitw,
+                "sessions": list(sessions or []),
                 "map": {
                     span: {
                         "name": props["name"],
@@ -358,6 +382,13 @@ def max_samples_for(bf_size: int, shard_size: int, bitw: int = 0) -> int:
     if not shard_size or not bf_size:
         return 0
     return max(8, (8 * shard_size // (bf_size * max(bitw, 1))) // 8 * 8)
+
+
+def load_layout_sessions(path: str) -> list[str]:
+    """Sessions composed into a layout, oldest first."""
+    with open(path) as f:
+        data = yaml.safe_load(f)
+    return [str(s) for s in data.get("data", {}).get("sessions") or []]
 
 
 def load_layout_bitw(path: str) -> int:
@@ -442,61 +473,88 @@ def load_profile(
     return false_positive_rate, base, profile
 
 
-def export_db(
+def export_session(
     indices_data: db.IndexDB,
     db_tools: db.IndexDefinitionTools,
     output_dir: str,
     format: str,
-    split: bool,
-    db_name: str,
-):
-    """Export database to YAML or JSON format."""
-    os.makedirs(output_dir, exist_ok=True)
+    index_name: str,
+    session: str,
+    distribution: Optional[dict[int, int]] = None,
+) -> str:
+    """Write the definition of one session of an index, and return its path.
 
+    ``SESSION/index.<format>`` (the input of plan/apply/build) describes the
+    session: parameters, size, and the shards it adds samples to. Each shard's
+    definition is written to ``SESSION/shards/<shard>.<format>``.
+    """
     format = format.lower()
     if format not in ("yaml", "json"):
         raise ValueError(f"Unsupported format: {format}. Must be 'yaml' or 'json'")
 
-    total_size = 0
-    span_registry = {}
+    shards_dir = os.path.join(output_dir, SHARDS_DIR)
+    os.makedirs(shards_dir, exist_ok=True)
 
-    for span_id, span_data in indices_data.span_table.items():
-        span_size = span_data.get_total_stored_size()
-        span_registry[span_id] = {
-            "infos": {"total_sample_count": span_data.get_sample_count()},
-            "indices": {},
+    definitions = sorted(indices_data.index_table.values(), key=lambda i: i.span)
+    shards: dict[str, dict] = {}
+    total_size = 0
+    for i in definitions:
+        shard = i.merge_name or i.name
+        assert shard and i.name
+        size = i.get_stored_size()
+        total_size += size.byte_count
+        shard_file = f"{SHARDS_DIR}/{shard}.{format}"
+        db_tools.save_db(
+            db.IndexDB(name=i.name, index_table={i.name: i}),
+            os.path.join(output_dir, shard_file),
+        )
+        shards[shard] = {
+            "samples": i.sample_count,
+            "size": str(size),
+            "span": i.span,
+            "bf_size": i.bf_size,
+            "partitions": i.partition_count,
+            "file": shard_file,
         }
 
-        for index_id, index_data in span_data.index_table.items():
-            if index_data.merge_name:
-                if index_data.merge_name not in span_registry[span_id]["indices"]:
-                    span_registry[span_id]["indices"][index_data.merge_name] = []
-                span_registry[span_id]["indices"][index_data.merge_name].append(
-                    index_data.name
-                )
-            else:
-                span_registry[span_id]["indices"][index_id] = None
+    first = definitions[0] if definitions else None
+    sample_count = sum(i.sample_count for i in definitions)
+    data = {
+        "type": db.SerializedDataType.INDEX_SESSION.value,
+        "index": index_name,
+        "session": session,
+        "kmhelpers": {"version": KMHELPERS_VERSION, "commit": KMHELPERS_COMMIT},
+        "parameters": (
+            {
+                "kmer_size": first.kmer_size,
+                "bitw": first.bitw,
+                "abundance_min": first.abundance_min,
+                "fp_rate": first.fp_rate,
+            }
+            if first
+            else {}
+        ),
+        "total": {"samples": sample_count, "size": str(ByteCounter.auto(total_size))},
+        "distribution": dict(sorted((distribution or {}).items())),
+        "shards": shards,
+    }
 
-            if split:
-                db_tools.save_db(
-                    db.IndexDB(name=index_id, index_table={index_id: index_data}),
-                    os.path.join(output_dir, f"{index_id}.{format}"),
-                )
-
-        total_size += span_size.byte_count
-
-    span_registry_file = os.path.join(output_dir, f"{db_name}.{format}")
-
-    if not split:
-        db_tools.save_db(indices_data, os.path.join(output_dir, f"{db_name}.{format}"))
-
-    db_tools.serialize(
-        span_registry_file,
-        {"type": db.SerializedDataType.SPAN_DEFINITION.value, "data": span_registry},
-        sort_keys=True,
-    )
+    path = os.path.join(output_dir, f"{SESSION_FILE}.{format}")
+    db_tools.serialize(path, data)
+    if format == "yaml":
+        header = (
+            f"# {index_name}, session \"{session}\": {sample_count} samples "
+            f"in {len(shards)} shard(s).\n"
+            f"# Input of kmhelpers plan/apply/build: this file, or the design "
+            f"(or compose) directory with -S {session}.\n"
+        )
+        with open(path) as f:
+            body = f.read()
+        with open(path, "w") as f:
+            f.write(header + body)
 
     logger.info(f"Minimum storage required: {ByteCounter.auto(total_size)}")
+    return path
 
 
 def parse_span_list(path) -> list[int]:

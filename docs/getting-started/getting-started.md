@@ -50,7 +50,7 @@ Run the pipeline steps against a directory of sequence files (or a plain-text / 
 ??? example "Commands"
     ```bash
     kmhelpers design /data/sequences -o coli_db/ -n coli
-    kmhelpers build coli_db/compose/coli/*/coli.yaml -o coli_build/
+    kmhelpers build coli_db -o coli_build/
     ```
 
 Your index is ready to query:
@@ -74,10 +74,10 @@ Re-run `design` with the same `-o`/`-n` and a new sample source, tagging the run
 ??? example "Commands"
     ```bash
     kmhelpers design coli_5_update.txt -o coli_db/ -n coli -S update
-    kmhelpers build coli_db/compose/coli/update/coli.yaml -o coli_build/
+    kmhelpers build coli_db -S update -o coli_build/
     ```
 
-`design` detects the existing layout file at `coli_db/compose/coli_layout.yaml`, skips the `profile` step, and composes only the new samples. `build` then merges the new samples into the existing index automatically, without recounting the samples already indexed.
+`design` detects the existing layout file at `coli_db/compose/coli/layout.yaml`, skips the `profile` step, and composes only the new samples. `build` then merges the new samples into the existing index automatically, without recounting the samples already indexed.
 
 !!! warning "Disk space"
     `kmindex` cannot add samples to an existing index in place, so the update merges the previous samples and the new ones into a complete new index, which replaces the previous one in its folder (`coli_build/coli_g0/`). Both versions coexist on disk during the merge, so plan for at least twice the size of the sub-indices being updated.
@@ -120,7 +120,7 @@ For large sample counts, prefer running [`plan`](../commands/plan.md) and [`appl
 
 ??? example "Commands"
     ```bash
-    kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build/
+    kmhelpers plan coli_db -o coli_build/
     ```
 
 **Automatic build**
@@ -129,7 +129,7 @@ Review `coli_build/assets/` and `coli_build/logs/`, then:
 
 ??? example "Commands"
     ```bash
-    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build/
+    kmhelpers apply coli_db -o coli_build/
     ```
 
 **Manual build**
@@ -138,7 +138,7 @@ Review `coli_build/assets/` and `coli_build/logs/`, then:
 
 ??? example "Commands"
     ```bash
-    kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build/
+    kmhelpers plan coli_db -o coli_build/
     bash coli_build/assets/kmhelpers_apply.sh
     ```
 
@@ -147,8 +147,8 @@ Review `coli_build/assets/` and `coli_build/logs/`, then:
 ??? example "Commands"
     ```bash
     # each node builds a disjoint subset, and emails when its share is done
-    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build/ -n coli_g0 --notify you@example.com
-    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build/ -n coli_g1 --notify you@example.com
+    kmhelpers apply coli_db -o coli_build/ -n coli_g0 --notify you@example.com
+    kmhelpers apply coli_db -o coli_build/ -n coli_g1 --notify you@example.com
     ```
 
 ## Next Steps

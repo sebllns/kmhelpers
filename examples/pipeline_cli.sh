@@ -63,7 +63,7 @@ kmhelpers test create-fasta -o data -n 5 -a 3000 -m 2500
 kmhelpers design data -o db -n idx -S initial -k "$KMER_SIZE" -b 1.1 -g 1
 
 # 3. Build (plan -> apply).
-kmhelpers build db/compose/idx/initial/idx.yaml -o build
+kmhelpers build db -o build
 
 # 4. Query a sample against its own index -> perfect hit.
 kmhelpers query data/data_0.fasta -r build -o results -f json
@@ -75,7 +75,7 @@ kmhelpers test create-fasta -o update -n 1 -a 2000 -m 1800
 mkdir -p db/list
 kmhelpers list update -o db/list/upd.jsonl -k "$KMER_SIZE"
 kmhelpers compose db/list/upd.jsonl -o db/compose -n idx -S upd
-kmhelpers build db/compose/idx/upd/idx.yaml -o build
+kmhelpers build db -S upd -o build
 
 # 6. The new sample is queryable, and the original still matches.
 kmhelpers query update/update_0.fasta -r build -o results_upd -f json

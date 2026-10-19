@@ -195,13 +195,13 @@ class TestDesignBuildQueryUpdateQuery(PipelineE2EBase):
             "-g",
             "1",
         )
-        layout = self.tmp / "db" / "compose" / "idx_layout.yaml"
-        span_reg = self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml"
+        layout = self.tmp / "db" / "compose" / "idx" / "layout.yaml"
+        session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
         self.assertTrue(layout.is_file(), f"missing layout: {layout}")
-        self.assertTrue(span_reg.is_file(), f"missing span registry: {span_reg}")
+        self.assertTrue(session_file.is_file(), f"missing session file: {session_file}")
 
-        # 2. build (plan -> apply)
-        self.run_cli("build", span_reg, "-o", "build")
+        # 2. build (plan -> apply) the design directory: its only session
+        self.run_cli("build", "db", "-o", "build")
         index_json = self.tmp / "build" / "index.json"
         self.assertTrue(index_json.is_file(), "build did not produce index.json")
         self.assert_in_place("build")
@@ -228,9 +228,14 @@ class TestDesignBuildQueryUpdateQuery(PipelineE2EBase):
         self.run_cli(
             "compose", "db/list/upd.jsonl", "-o", "db/compose", "-n", "idx", "-S", "upd"
         )
-        upd_reg = self.tmp / "db" / "compose" / "idx" / "upd" / "idx.yaml"
-        self.assertTrue(upd_reg.is_file(), f"update compose missing: {upd_reg}")
-        self.run_cli("build", upd_reg, "-o", "build")
+        upd_session = self.tmp / "db" / "compose" / "idx" / "upd" / "index.yaml"
+        self.assertTrue(upd_session.is_file(), f"update compose missing: {upd_session}")
+        layout = (self.tmp / "db" / "compose" / "idx" / "layout.yaml").read_text()
+        self.assertIn("- upd", layout)
+        # build the session by name (it is also the last one)
+        self.run_cli("build", "db", "-o", "build", "-S", "upd")
+        # building the first session again changes nothing
+        self.run_cli("build", "db", "-o", "build", "-S", "initial")
 
         # 5. the new sample is now queryable, and the original still matches.
         qn, qn_header = self.write_query("snew", sample_idx=N_SAMPLES)
@@ -264,12 +269,12 @@ class TestAbundanceDesignBuildQuery(PipelineE2EBase):
             "-ab",
             "2",
         )
-        span_reg = self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml"
-        definition = (span_reg.parent / "idx_g0_initial.yaml").read_text()
+        session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
+        definition = (session_file.parent / "shards" / "idx_g0.yaml").read_text()
         self.assertIn("bitw: '2'", definition)
         self.assertIn("kmindex-abundance", definition)
 
-        self.run_cli("build", span_reg, "-o", "build")
+        self.run_cli("build", session_file, "-o", "build")
         self.assert_in_place("build")
         registry = json.loads((self.tmp / "build" / "index.json").read_text())
         for name, entry in registry["index"].items():
@@ -284,15 +289,30 @@ class TestAbundanceDesignBuildQuery(PipelineE2EBase):
         # a presence/absence session cannot be merged into the abundance index
         self.run_cli(
             "compose",
-            self.tmp / "db" / "list" / "idx_samples_initial.jsonl",
+            self.tmp / "db" / "list" / "samples_initial.jsonl",
             "-o",
             "db/compose",
             "-n",
             "idx",
             "-S",
             "pa",
+            "-ab",
+            "0",
             expect_success=False,
         )
+        # without -ab, an update takes the layout's bitw
+        self.run_cli(
+            "compose",
+            self.tmp / "db" / "list" / "samples_initial.jsonl",
+            "-o",
+            "db/compose",
+            "-n",
+            "idx",
+            "-S",
+            "same",
+        )
+        same = self.tmp / "db" / "compose" / "idx" / "same" / "index.yaml"
+        self.assertEqual(yaml.safe_load(same.read_text())["parameters"]["bitw"], 2)
 
 
 class UpdateSessionBase(PipelineE2EBase):
@@ -315,10 +335,10 @@ class UpdateSessionBase(PipelineE2EBase):
             "-g",
             "1",
         )
-        return self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml"
+        return self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
 
     def compose_update(self):
-        """Compose session 'upd' adding one sample; return its span registry."""
+        """Compose session 'upd' adding one sample; return its session file."""
         random.seed(SEED + 1)
         new_seq = "".join(random.choice("ACGT") for _ in range(SAMPLE_LEN - 400))
         self.sequences.append(new_seq)  # index N_SAMPLES == "sample_new"
@@ -331,20 +351,20 @@ class UpdateSessionBase(PipelineE2EBase):
         self.run_cli(
             "compose", "db/list/upd.jsonl", "-o", "db/compose", "-n", "idx", "-S", "upd"
         )
-        return self.tmp / "db" / "compose" / "idx" / "upd" / "idx.yaml"
+        return self.tmp / "db" / "compose" / "idx" / "upd" / "index.yaml"
 
 
 class TestRerunAndOldLayout(UpdateSessionBase):
     """Rerunning a session is a no-op; an old symlinked build dir can be updated."""
 
     def test_rerun_then_update_old_layout(self):
-        span_reg = self.design_initial()
-        self.run_cli("build", span_reg, "-o", "build")
+        session_file = self.design_initial()
+        self.run_cli("build", session_file, "-o", "build")
         build = self.tmp / "build"
         before = json.loads((build / "index.json").read_text())["index"]
 
         # 1. rerunning the finished session changes nothing
-        log = self.run_cli("build", span_reg, "-o", "build")
+        log = self.run_cli("build", session_file, "-o", "build")
         self.assertIn("already in", log.stdout + log.stderr)
         after = json.loads((build / "index.json").read_text())["index"]
         self.assertEqual(
@@ -361,17 +381,16 @@ class TestRerunAndOldLayout(UpdateSessionBase):
             (build / name).symlink_to(old_data / name, target_is_directory=True)
 
         # 3. update it, with junk left in the run folders by an interrupted attempt
-        upd_reg = self.compose_update()
-        spans = yaml.safe_load(upd_reg.read_text())["data"]
-        updated = {
-            t: parts for s in spans.values() for t, parts in s["indices"].items()
-        }
+        upd_session = self.compose_update()
+        shards = yaml.safe_load(upd_session.read_text())["shards"]
+        # each shard of the session receives one part, named after the session
+        updated = {t: [f"{t}_upd"] for t in shards}
         self.assertTrue(set(updated) & set(after), "the update creates a new shard")
         for parts in updated.values():
             for part in parts:
                 junk = self.mkdirs("build", "work", "upd", "runs", part, "matrices")
                 (junk / "matrix_0.cmbf").write_text("partial")
-        self.run_cli("build", upd_reg, "-o", "build")
+        self.run_cli("build", upd_session, "-o", "build")
 
         for name in after:
             if name in updated:
@@ -413,22 +432,21 @@ class TestInterruptedPublish(UpdateSessionBase):
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
 
     def test_swap_interrupted_after_each_command(self):
-        span_reg = self.design_initial()
-        upd_reg = None
+        session_file = self.design_initial()
+        upd_session = None
         for stop, rerun in [(1, "script"), (2, "apply"), (3, "apply")]:
             with self.subTest(stop=stop):
                 name = f"build{stop}"
                 build = self.tmp / name
-                self.run_cli("build", span_reg, "-o", name)
-                if upd_reg is None:
-                    upd_reg = self.compose_update()
-                spans = yaml.safe_load(upd_reg.read_text())["data"]
-                target = next(t for s in spans.values() for t in s["indices"])
+                self.run_cli("build", session_file, "-o", name)
+                if upd_session is None:
+                    upd_session = self.compose_update()
+                target = next(iter(yaml.safe_load(upd_session.read_text())["shards"]))
                 before = json.loads((build / "index.json").read_text())["index"]
                 self.assertIn(target, before)
 
                 # plan the update, build its runs, then stop the swap after `stop`
-                self.run_cli("plan", upd_reg, "-o", name)
+                self.run_cli("plan", upd_session, "-o", name)
                 scripts = build / "assets" / "upd"
                 merge_script = scripts / f"{target}_merge.sh"
                 self.bash(scripts / f"{target}.sh")
@@ -448,7 +466,7 @@ class TestInterruptedPublish(UpdateSessionBase):
                 if rerun == "script":
                     self.bash(merge_script)
                 else:
-                    self.run_cli("apply", upd_reg, "-o", name)
+                    self.run_cli("apply", upd_session, "-o", name)
 
                 registry = json.loads((build / "index.json").read_text())["index"]
                 self.assertEqual(
@@ -495,11 +513,11 @@ class TestStepByStepDesignAndBuild(PipelineE2EBase):
             "-pf",
             "db/profile/profile.yaml",
         )
-        span_reg = self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml"
-        self.assertTrue(span_reg.is_file(), f"missing span registry: {span_reg}")
+        session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
+        self.assertTrue(session_file.is_file(), f"missing session file: {session_file}")
 
         # build, decomposed
-        self.run_cli("plan", span_reg, "-o", "build2")
+        self.run_cli("plan", session_file, "-o", "build2")
         self.assertTrue(
             (
                 self.tmp / "build2" / "assets" / "initial" / "kmhelpers_apply.sh"
@@ -535,7 +553,7 @@ class TestStepByStepDesignAndBuild(PipelineE2EBase):
         built = json.loads((self.tmp / "build2" / "index.json").read_text())["index"]
 
         # apply on the same session finds everything published: nothing changes
-        self.run_cli("apply", span_reg, "-o", "build2")
+        self.run_cli("apply", session_file, "-o", "build2")
         after = json.loads((self.tmp / "build2" / "index.json").read_text())["index"]
         self.assertEqual(
             {n: e["nb_samples"] for n, e in after.items()},
@@ -570,7 +588,7 @@ class TestPartitionCountStaysFixed(PipelineE2EBase):
         )
         self.run_cli(
             "build",
-            self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml",
+            self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml",
             "-o",
             "build",
             "--limits",
@@ -578,7 +596,7 @@ class TestPartitionCountStaysFixed(PipelineE2EBase):
         )
 
         layout = yaml.safe_load(
-            (self.tmp / "db" / "compose" / "idx_layout.yaml").read_text()
+            (self.tmp / "db" / "compose" / "idx" / "layout.yaml").read_text()
         )["data"]
         registry = json.loads((self.tmp / "build" / "index.json").read_text())["index"]
         # what was built is what the layout records
@@ -608,7 +626,7 @@ class TestPartitionCountStaysFixed(PipelineE2EBase):
         )
         self.run_cli(
             "build",
-            self.tmp / "db" / "compose" / "idx" / "upd" / "idx.yaml",
+            self.tmp / "db" / "compose" / "idx" / "upd" / "index.yaml",
             "-o",
             "build",
             "--limits",
@@ -661,7 +679,7 @@ class TestShardedBuild(PipelineE2EBase):
             "1KB",
         )
         layout = yaml.safe_load(
-            (self.tmp / "db" / "compose" / "idx_layout.yaml").read_text()
+            (self.tmp / "db" / "compose" / "idx" / "layout.yaml").read_text()
         )["data"]
         self.assertGreater(layout["shard_size"], 0)
         shards = [
@@ -669,8 +687,8 @@ class TestShardedBuild(PipelineE2EBase):
         ]
         self.assertGreater(len(shards), 1, f"expected several shards, got {shards}")
 
-        span_reg = self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml"
-        self.run_cli("build", span_reg, "-o", "build")
+        session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
+        self.run_cli("build", session_file, "-o", "build")
 
         registry = json.loads((self.tmp / "build" / "index.json").read_text())["index"]
         # every shard is registered on its own; nothing merges them together
@@ -719,11 +737,11 @@ class TestChunkedBuild(PipelineE2EBase):
             "-g",
             "1",
         )
-        span_reg = self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml"
-        self.assertTrue(span_reg.is_file(), f"missing span registry: {span_reg}")
+        session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
+        self.assertTrue(session_file.is_file(), f"missing session file: {session_file}")
         # the same plan, written as scripts (apply runs it without writing them)
-        self.run_cli("plan", span_reg, "-o", "planned", "--limits", limits)
-        result = self.run_cli("apply", span_reg, "-o", "build", "--limits", limits)
+        self.run_cli("plan", session_file, "-o", "planned", "--limits", limits)
+        result = self.run_cli("apply", session_file, "-o", "build", "--limits", limits)
         return result.stdout + result.stderr
 
     def assert_merged_and_clean(self):
@@ -802,8 +820,8 @@ class TestQueryFormats(PipelineE2EBase):
             "-g",
             "1",
         )
-        span_reg = self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml"
-        self.run_cli("build", span_reg, "-o", "build")
+        session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
+        self.run_cli("build", session_file, "-o", "build")
 
         header = "q_fmt"
         seq = self.sequences[0][QUERY_START : QUERY_START + QUERY_LEN]
@@ -893,9 +911,9 @@ class TestDirectoryScanBuildQueryUpdateQuery(PipelineE2EBase):
             "-pf",
             "db/profile/profile.yaml",
         )
-        span_reg = self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml"
-        self.assertTrue(span_reg.is_file(), f"missing span registry: {span_reg}")
-        self.run_cli("build", span_reg, "-o", "build")
+        session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
+        self.assertTrue(session_file.is_file(), f"missing session file: {session_file}")
+        self.run_cli("build", session_file, "-o", "build")
         self.assertTrue(
             (self.tmp / "build" / "index.json").is_file(),
             "build did not produce index.json",
@@ -921,9 +939,9 @@ class TestDirectoryScanBuildQueryUpdateQuery(PipelineE2EBase):
         self.run_cli(
             "compose", "db/list/upd.jsonl", "-o", "db/compose", "-n", "idx", "-S", "upd"
         )
-        upd_reg = self.tmp / "db" / "compose" / "idx" / "upd" / "idx.yaml"
-        self.assertTrue(upd_reg.is_file(), f"update compose missing: {upd_reg}")
-        self.run_cli("build", upd_reg, "-o", "build")
+        upd_session = self.tmp / "db" / "compose" / "idx" / "upd" / "index.yaml"
+        self.assertTrue(upd_session.is_file(), f"update compose missing: {upd_session}")
+        self.run_cli("build", upd_session, "-o", "build")
 
         # 5. the new sample is queryable, and the original still matches.
         qn, qn_header = self.write_query("snew", sample_idx=N_SAMPLES)

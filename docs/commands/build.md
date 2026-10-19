@@ -6,16 +6,17 @@ Validate paths then build k-mer indices from an index definition file in a singl
 
 !!! abstract "USAGE"
     ```
-    kmhelpers build [OPTIONS] INPUT_FILE
+    kmhelpers build [OPTIONS] INPUT
     ```
 
     | Argument | Description |
     |----------|-------------|
-    | `INPUT_FILE` | Index definition file `COMPOSE_DIR/NAME/SESSION/NAME.yaml` written by `compose` or `design` (required) |
+    | `INPUT` | The design directory (`DESIGN_DIR` of `design`), a compose directory or one of its indexes (`COMPOSE_DIR/NAME`), a session (`COMPOSE_DIR/NAME/SESSION` or its `index.yaml`), or one shard file (`SESSION/shards/<shard>.yaml`, built without merge) (required) |
+    | `-S, --session SESSION` | Session to use when INPUT is a directory (default: the last one composed) |
     | `-o, --output-dir BUILD_DIR` | Index directory: receives the built index, reused across builds and passed to `query -r` (required) |
 
 !!! abstract "I/O"
-    **Input:** `COMPOSE_DIR/NAME/SESSION/NAME.yaml` written by `compose`, or `DESIGN_DIR/compose/NAME/SESSION/NAME.yaml` when produced by `design` (see [design - Next Step](design.md#next-step))  
+    **Input:** `DESIGN_DIR` of `design` (or `COMPOSE_DIR` of `compose`), with `-S` to pick a session; it resolves to `compose/NAME/SESSION/index.yaml` (see [design - Next Step](design.md#next-step))  
     **Output:** indices in `BUILD_DIR/<name>/`, registered in `BUILD_DIR/index.json`
 
 ## Advanced Options
@@ -42,14 +43,16 @@ Two directories are involved, and they are distinct:
 - `BUILD_DIR` holds the built index. It is the `-o` of `build`, and the `-r` of `query`.
 
 ```
-coli_db/                          DESIGN_DIR (design -o)
+coli_db/                          DESIGN_DIR (design -o): INPUT of build
 └── compose/                      COMPOSE_DIR
-    ├── coli_layout.yaml
-    └── coli/                     NAME
+    └── coli/                     NAME: the index
+        ├── layout.yaml           state of the index, shared by its sessions
         ├── initial/              SESSION (design/compose -S)
-        │   └── coli.yaml         INPUT_FILE for build
-        └── update/
-            └── coli.yaml
+        │   ├── index.yaml        what INPUT resolves to (-S initial)
+        │   └── shards/           one definition per shard (coli_g0.yaml, ...)
+        └── update/               the last session: built by default
+            ├── index.yaml
+            └── shards/
 
 coli_build/                       BUILD_DIR (build -o, query -r): the kmindex registry
 ├── index.json                    registry of all built indices
@@ -78,7 +81,7 @@ Building a session again resumes it: complete kmtricks runs are kept, incomplete
 
 **Step 2 - apply:** executes the build and registers all completed indices in `BUILD_DIR/index.json`.
 
-**Filtering** - `build` always processes every index declared in `INPUT_FILE`. Use [`plan`](plan.md) and [`apply`](apply.md) with `--name` or `--span` to build a subset.
+**Filtering** - `build` always processes every shard of the session. Use [`plan`](plan.md) and [`apply`](apply.md) with `--name` or `--span` to build a subset.
 
 **Notifications** - use `--notify` to receive an email when the build exits (requires `sendmail`). The notification is sent on both success and failure, including on `SIGTERM`.
 
@@ -114,16 +117,16 @@ Indices built by older versions of kmhelpers (registered as symlinks to `BUILD_D
 
 ```bash
 # Build the index defined by design/compose in session "initial"
-kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build/
+kmhelpers build coli_db -o coli_build/
 
 # Add an update session to the same index directory
-kmhelpers build coli_db/compose/coli/update/coli.yaml -o coli_build/
+kmhelpers build coli_db -S update -o coli_build/
 
 # Set threads and show progress
-kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build/ -t 8 -SP
+kmhelpers build coli_db -o coli_build/ -t 8 -SP
 
 # Notify by email when done
-kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build/ --notify user@example.com
+kmhelpers build coli_db -o coli_build/ --notify user@example.com
 ```
 
 ## See Also

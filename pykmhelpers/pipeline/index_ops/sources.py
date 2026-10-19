@@ -3,6 +3,12 @@ import os
 from dataclasses import dataclass, field
 
 from pykmhelpers.core.log import Log
+from pykmhelpers.pipeline.composer import (
+    LAYOUT_FILE,
+    SESSION_FILE,
+    SHARDS_DIR,
+    load_layout_sessions,
+)
 from pykmhelpers.pipeline.index_db import (
     IndexDB,
     IndexDefinition,
@@ -71,8 +77,8 @@ def detect_input(
     type_value = data.get("type") if data else None
     if type_value == SerializedDataType.INDEX_DEFINITION.value:
         return ApplyInputType.INDEX_DEFINITION, data
-    if type_value == SerializedDataType.SPAN_DEFINITION.value:
-        return ApplyInputType.SPAN_REGISTRY, data
+    if type_value == SerializedDataType.INDEX_SESSION.value:
+        return ApplyInputType.INDEX_SESSION, data
     return ApplyInputType.UNKNOWN, data
 
 
@@ -99,11 +105,12 @@ class IndexDefinitionSource:
         return (names is None or i.name in names) and (spans is None or i.span in spans)
 
 
-class SpanRegistrySource:
-    """Span registry: build the parts of each selected merge target, then merge them.
+class IndexSessionSource:
+    """Session file: build the parts of each selected shard, then merge them.
 
-    The registry maps each span to ``{"indices": {target: [part, ...]}}``.
-    Each part is described by a sibling definition file named after it.
+    ``SESSION/index.yaml`` maps each shard to ``{"span", "file", ...}``; the
+    shard file (``shards/<shard>.yaml``) holds the parts this session adds to
+    it, merged into the shard once built.
     """
 
     def __init__(self, config: IndexOpsConfig, cache: DbCache) -> None:
@@ -113,39 +120,111 @@ class SpanRegistrySource:
     def load(self, path: str, idt: IndexDefinitionTools, data: dict) -> WorkPlan:
         names = self._config.filter_names
         spans = self._config.filter_spans
-        dbs: list[IndexDB] = []
+        shards = data.get("shards")
+        if not shards:
+            raise ValueError(f"Session file has no 'shards': {path}")
+
+        definitions: list[IndexDefinition] = []
         merges: dict[str, list[str]] = {}
-
-        for span, entry in dict[int, dict](data["data"]).items():
-            if spans and span not in spans:
+        for shard, entry in dict[str, dict](shards).items():
+            if spans and entry.get("span") not in spans:
                 continue
-            indices = entry.get("indices")
-            if not indices:
-                raise ValueError("Span registry is missing field 'indices'")
-            for target, parts in dict[str, list[str]](indices).items():
-                if not names or target in names:
-                    merges[target] = parts
-                # A part is built when its target is selected, or when it is selected itself
-                for part in parts:
-                    if target in merges or (names and part in names):
-                        dbs.extend(self._cache.load(self._part_path(path, part), idt))
+            parts = _named(self._cache.load(self._shard_path(path, entry), idt))
+            # A shard is merged when selected; a part selected alone is only built
+            if not names or shard in names:
+                merges[shard] = [i.name for i in parts if i.name]
+                definitions.extend(parts)
+            else:
+                definitions.extend(i for i in parts if i.name in names)
 
-        scripts = {part: target for target, parts in merges.items() for part in parts}
-        return WorkPlan(definitions=_named(dbs), merges=merges, scripts=scripts)
+        scripts = {part: shard for shard, parts in merges.items() for part in parts}
+        return WorkPlan(definitions=definitions, merges=merges, scripts=scripts)
 
     @staticmethod
-    def _part_path(registry_path: str, part: str) -> str:
-        db_path = os.path.join(
-            os.path.dirname(registry_path), part + os.path.splitext(registry_path)[1]
-        )
-        if not os.path.isfile(db_path):
-            raise FileNotFoundError(f"Could not find required data file at {db_path}")
-        return db_path
+    def _shard_path(session_path: str, entry: dict) -> str:
+        if not entry.get("file"):
+            raise ValueError(f"Shard entry without 'file' in {session_path}")
+        shard_path = os.path.join(os.path.dirname(session_path), entry["file"])
+        if not os.path.isfile(shard_path):
+            raise FileNotFoundError(f"Could not find shard file at {shard_path}")
+        return shard_path
 
 
 SOURCES: dict[
-    ApplyInputType, type[IndexDefinitionSource] | type[SpanRegistrySource]
+    ApplyInputType, type[IndexDefinitionSource] | type[IndexSessionSource]
 ] = {
     ApplyInputType.INDEX_DEFINITION: IndexDefinitionSource,
-    ApplyInputType.SPAN_REGISTRY: SpanRegistrySource,
+    ApplyInputType.INDEX_SESSION: IndexSessionSource,
 }
+
+
+def session_dir_of(input_file: str) -> str:
+    """Session directory of ``SESSION/index.yaml`` or ``SESSION/shards/<x>.yaml``."""
+    directory = os.path.dirname(os.path.realpath(input_file))
+    if os.path.basename(directory) == SHARDS_DIR:
+        return os.path.dirname(directory)
+    return directory
+
+
+def _session_file(session_dir: str) -> str | None:
+    for ext in ("yaml", "yml", "json"):
+        path = os.path.join(session_dir, f"{SESSION_FILE}.{ext}")
+        if os.path.isfile(path):
+            return path
+    return None
+
+
+def resolve_input(path: str, session: str | None = None) -> str:
+    """Definition file to plan, apply or build for ``path``.
+
+    ``path`` can be a definition file (``SESSION/index.yaml``, or
+    ``SESSION/shards/<shard>.yaml`` to build one shard without merge), a
+    session directory, an index directory (``COMPOSE_DIR/NAME``, holding
+    ``layout.yaml``), a compose directory or a design directory holding one
+    index. In an index directory the session is ``session``, or else the last
+    one composed.
+    """
+    if os.path.isfile(path):
+        return path
+    if not os.path.isdir(path):
+        raise FileNotFoundError(f"No such file or directory: {path}")
+
+    found = _session_file(path)
+    if found:
+        return found
+
+    if os.path.isfile(os.path.join(path, LAYOUT_FILE)):
+        return _resolve_session(path, session)
+
+    compose_dir = path
+    if os.path.isdir(os.path.join(path, "compose")):
+        compose_dir = os.path.join(path, "compose")  # a design directory
+    indexes = sorted(
+        e.path
+        for e in os.scandir(compose_dir)
+        if e.is_dir() and os.path.isfile(os.path.join(e.path, LAYOUT_FILE))
+    )
+    if len(indexes) == 1:
+        return _resolve_session(indexes[0], session)
+    if not indexes:
+        raise FileNotFoundError(f"No index found in {path}")
+    raise ValueError(
+        f"{path} holds several indexes ({', '.join(os.path.basename(i) for i in indexes)}): "
+        f"pass one of them, e.g. {indexes[0]}"
+    )
+
+
+def _resolve_session(index_dir: str, session: str | None) -> str:
+    sessions = load_layout_sessions(os.path.join(index_dir, LAYOUT_FILE))
+    if session is None:
+        if not sessions:
+            raise ValueError(f"No session recorded in {index_dir}/{LAYOUT_FILE}")
+        session = sessions[-1]
+    found = _session_file(os.path.join(index_dir, session))
+    if not found:
+        known = ", ".join(sessions) or "none"
+        raise FileNotFoundError(
+            f"No session '{session}' in {index_dir} (sessions: {known})"
+        )
+    logger.info(f"Session '{session}' of {os.path.basename(index_dir)}: {found}")
+    return found

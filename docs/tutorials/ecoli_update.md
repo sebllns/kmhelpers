@@ -49,11 +49,11 @@ kmhelpers design coli_update.txt -o coli_db/ -n coli -S update
 ```
 
 ??? abstract "I/O"
-    **Input:** `coli_update.txt`, existing layout `coli_db/compose/coli_layout.yaml`  
-    **Output:** `coli_db/compose/coli/update/coli.yaml`
+    **Input:** `coli_update.txt`, existing layout `coli_db/compose/coli/layout.yaml`  
+    **Output:** `coli_db/compose/coli/update/index.yaml`
 
 ??? info "INFO"
-    `design` detects the existing layout file at `coli_db/compose/coli_layout.yaml`,
+    `design` detects the existing layout file at `coli_db/compose/coli/layout.yaml`,
     skips the [`profile`](../commands/profile.md) step, and composes only the new
     samples. The k-mer size, span base and grouping of the initial run are reused,
     so the new sub-indices stay compatible with the existing ones.
@@ -66,11 +66,11 @@ Build into the **same** `BUILD_DIR` as
 [Step 4](ecoli.md#step-4-build-the-index-build) of the tutorial:
 
 ```bash
-kmhelpers build coli_db/compose/coli/update/coli.yaml -o coli_build/ --show-progress
+kmhelpers build coli_db -S update -o coli_build/ --show-progress
 ```
 
 ??? abstract "I/O"
-    **Input:** `coli_db/compose/coli/update/coli.yaml`  
+    **Input:** `coli_db/compose/coli/update/index.yaml`  
     **Output:** updated `coli_g0` in `coli_build/coli_g0/`, updated
     `coli_build/index.json`
 

@@ -176,12 +176,12 @@ kmhelpers compose coli_db/list/coli.jsonl \
 
 ??? abstract "I/O"
     **Input:** `coli_db/list/coli.jsonl`, `coli_db/profile/profile.yaml`  
-    **Output:** `coli_db/compose/coli/initial/`, with `coli.yaml` as the entry point
+    **Output:** `coli_db/compose/coli/initial/` (`index.yaml` and `shards/`), and the layout `coli_db/compose/coli/layout.yaml`
 
 ??? info "INFO"
     `compose` reads the sample list and the profile, then writes index definition
-    files into `coli_db/compose/coli/initial/`. Pass the `coli.yaml` file in that
-    directory to `plan`, `build` or `apply` in the next step. The sample-to-sub-index
+    files into `coli_db/compose/coli/initial/`: `index.yaml` summarises the session and
+    its shards. Pass `coli_db` to `plan`, `build` or `apply` in the next step. The sample-to-sub-index
     repartition is driven by the selected profile - here `2_groups`, the default set
     by `profile` - whose Bloom-filter sizes are read from `coli_db/profile/profile.yaml`.
 
@@ -196,11 +196,11 @@ The two steps below are equivalent to [Step 4](ecoli.md#step-4-build-the-index-b
 ### Step 4.1 - Preview the build plan ([`plan`](../commands/plan.md))
 
 ```bash
-kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build/
+kmhelpers plan coli_db -o coli_build/
 ```
 
 ??? abstract "I/O"
-    **Input:** `coli_db/compose/coli/initial/coli.yaml`  
+    **Input:** `coli_db/compose/coli/initial/index.yaml`  
     **Output:** build scripts in `coli_build/assets/` + validation report in `coli_build/logs/`
 
 ??? info "INFO"
@@ -210,7 +210,7 @@ kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build/
 
 ??? success "RESULT"
     ??? tip "Validation report in `coli_build/logs/`"
-        - **`input_file`** -- path to the `coli.yaml` used as input
+        - **`input_file`** -- path to the `index.yaml` the input resolved to
         - **`kmindex` / `kmhelpers`** -- tool versions detected at runtime
         - **`span`** -- one entry per sub-index: sample count and estimated disk size
         - **`run`** -- validation result (`SUCCESS` / `FAILURE`) per sub-index
@@ -229,11 +229,11 @@ kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build/
 === "apply"
 
     ```bash
-    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build/
+    kmhelpers apply coli_db -o coli_build/
     ```
 
     ??? abstract "I/O"
-        **Input:** `coli_db/compose/coli/initial/coli.yaml`  
+        **Input:** `coli_db/compose/coli/initial/index.yaml`  
         **Output:** `coli_build/index.json` + one folder per sub-index, `coli_build/coli_g0/` and `coli_build/coli_g1/` - ready-to-query index  
 
 === "bash"

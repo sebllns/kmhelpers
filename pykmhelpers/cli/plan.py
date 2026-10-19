@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
     "input_file",
     nargs=1,
     required=True,
-    type=click.Path(dir_okay=False, file_okay=True, exists=True),
+    type=click.Path(exists=True),
 )
 @shared.index_build_options
 @shared.index_filter_options
@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 def plan(
     ctx,
     input_file,
+    session,
     work_dir,
     base_path,
     span,
@@ -77,6 +78,8 @@ def plan(
     # Skip path validation (for exporting scripts to another machine)
     kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build --offline
     """
+
+    input_file = shared.resolve_definition(input_file, session)
     try:
         abort_msg = "FAILED ('plan')"
 
