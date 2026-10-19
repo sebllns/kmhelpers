@@ -81,18 +81,17 @@ logger = logging.getLogger(__name__)
 @click.option(
     "--format",
     "-f",
-    type=click.Choice(
-        [
-            "html",
-            "json",
-            "md",
-            "tsv",
-            "yaml",
-        ]
-    ),
+    type=click.Choice(["tsv", "json", "yaml", "none"]),
     default="tsv",
     show_default=True,
-    help="⚙   Output format for results.",
+    help="⚙   Data format of the results. none keeps only the raw kmindex results. md and html are deprecated, use --export.",
+)
+@click.option(
+    "--export",
+    "-x",
+    type=click.Choice(["md", "html"]),
+    default=None,
+    help="⚙   [⚠️ IN DEVELOPMENT] Also write a human report (md or html), paged with --page-size, --top samples per sequence. Not available with -f none.",
 )
 @click.option(
     "--vec",
@@ -103,6 +102,20 @@ logger = logging.getLogger(__name__)
     help="🚩  Also output the per-k-mer presence/absence vector P along the query, not just the coverage ratio R. Adds coverage stats to the results (a coverage track in html, a coverage.tsv beside results.tsv in tsv).",
 )
 @click.option(
+    "--page-size",
+    type=click.IntRange(min=0),
+    default=100,
+    show_default=True,
+    help="⚙   --export: sequences per detail page. Up to this count, a single file is written. 0 disables paging.",
+)
+@click.option(
+    "--top",
+    type=click.IntRange(min=1),
+    default=100,
+    show_default=True,
+    help="⚙   --export: best samples listed per sequence. Statistics use all matches.",
+)
+@click.option(
     "--print",
     "-p",
     "print_output",
@@ -110,6 +123,12 @@ logger = logging.getLogger(__name__)
     default=False,
     show_default=True,
     help="🚩  Print result to console (stdout).",
+)
+@click.option(
+    "--stats/--no-stats",
+    default=True,
+    show_default=True,
+    help="🚩  Write sequence_stats.tsv and sample_stats.tsv.",
 )
 @click.option(
     "--keep-query",
@@ -161,8 +180,12 @@ def query(
     batch_query,
     compressed,
     format,
+    export,
     vec,
+    page_size,
+    top,
     print_output,
+    stats,
     keep_query,
     timestamp,
     existing,
@@ -201,6 +224,9 @@ def query(
       # Scan a directory recursively
       kmhelpers query -r ./registry -n idx1 -o results ./queries_dir/
     """
+    if format == "none" and export:
+        raise click.UsageError("--export requires a data format, not -f none")
+
     registry = KmindexRegistry(registry_path)
 
     if index_ids:
@@ -212,7 +238,7 @@ def query(
 
     if existing == "delete" and not force:
         if not click.confirm(
-            f"Proceed with 'delete' on existing output directories?", default=True
+            "Proceed with 'delete' on existing output directories?", default=True
         ):
             raise click.Abort()
         force = True
@@ -229,9 +255,13 @@ def query(
             batch=batch_query,
             aggregate=False,
             compressed=compressed,
-            output_format=format,
+            output_format=None if format == "none" else format,
+            export=export,
             vec=vec,
+            page_size=page_size,
+            top=top,
             print_output=print_output,
+            stats=stats,
             keep_query=keep_query,
             timestamp=timestamp,
             on_existing=existing,

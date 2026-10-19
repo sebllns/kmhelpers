@@ -138,6 +138,8 @@ nav:
                             - composer: api/pipeline/composer.md
                             - index_ops: api/pipeline/index_ops.md
                             - query: api/pipeline/query.md
+                            - query_result: api/pipeline/query_result.md
+                            - query_report: api/pipeline/query_report.md
                             - span_profiler: api/pipeline/span_profiler.md
                   - Operations:
                             - builder: api/operations/builder.md

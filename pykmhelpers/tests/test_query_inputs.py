@@ -108,9 +108,9 @@ class TestBatch(QueryInputsBase):
         ]
         captured = {}
 
-        def fake_run(qfile, total, idx):
+        def fake_run(qfile, *_):
             captured["data"] = Path(qfile).read_bytes()
-            return ["ok"]
+            return ["ok"], None
 
         runner = self.runner(batch=True)
         with mock.patch.object(runner, "_run_single_safe", side_effect=fake_run):
@@ -161,6 +161,237 @@ class TestInfoOnFailure(QueryInputsBase):
         self.assertEqual(info["error"], "no valid sequences")
         self.assertEqual(info["stderr"], "skipped")
         self.assertEqual(info["query_file"], os.path.abspath(query))
+
+
+class TestResultLayout(QueryInputsBase):
+    """kmindex writes <index>.jsonl for a single batch, batch_N/<index>.json[l]
+    for several batches, and both when --aggregate is set."""
+
+    @staticmethod
+    def record(query, score=0.5):
+        return f'{{"index":"idx","query":"{query}","samples":{{"s0":{score}}}}}\n'
+
+    def execute(self, files, **kwargs):
+        query = self.write("q.fa")
+        out = os.path.join(self.tmp, "out")
+
+        def fake_query(**kw):
+            for name, content in files.items():
+                path = Path(kw["output_dir"], name)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content)
+            return {}
+
+        with mock.patch(
+            "pykmhelpers.pipeline.query.KmindexWrapper.query", side_effect=fake_query
+        ):
+            return KmindexQuery(path=query).execute(
+                registry_path=self.tmp, output_dir=out, **kwargs
+            )
+
+    def queries(self, results):
+        return sorted(q for r in results for q in r.items["idx"])
+
+    def test_single_batch(self):
+        results = self.execute({"idx.jsonl": self.record("q0")})
+        self.assertEqual(self.queries(results), ["q0"])
+
+    def test_several_batches(self):
+        results = self.execute(
+            {
+                "batch_0/idx.json": self.record("q0"),
+                "batch_1/idx.json": self.record("q1"),
+                "batch_2/idx.jsonl": self.record("q2"),
+            }
+        )
+        self.assertEqual(self.queries(results), ["q0", "q1", "q2"])
+
+    def test_aggregate_not_counted_twice(self):
+        results = self.execute(
+            {
+                "idx.jsonl": self.record("q0") + self.record("q1"),
+                "batch_0/idx.json": self.record("q0"),
+                "batch_1/idx.json": self.record("q1"),
+            }
+        )
+        self.assertEqual(self.queries(results), ["q0", "q1"])
+
+    def test_no_match_is_not_a_failure(self):
+        runner = self.runner()
+        with mock.patch.object(runner, "_run_single", return_value=[]):
+            self.assertEqual(runner.run([self.write("q.fa")]), [[]])
+
+
+class TestErrorReport(QueryInputsBase):
+    def run_failing(self, files, **kwargs):
+        runner = self.runner(**kwargs)
+        error = QueryError("boom", {})
+        with mock.patch.object(runner, "_run_single", side_effect=error):
+            with self.assertLogs("pykmhelpers.pipeline.query", "ERROR"):
+                with self.assertRaises(RuntimeError) as ctx:
+                    runner.run(files)
+        return str(ctx.exception)
+
+    def test_reason_per_file(self):
+        msg = self.run_failing([self.write("a.fa"), self.write("b.fa")])
+        self.assertIn("2 query file(s) failed", msg)
+        self.assertIn("a.fa: QueryError: boom", msg)
+        self.assertIn("b.fa: QueryError: boom", msg)
+
+    def test_batch_label(self):
+        files = [self.write(f"{n}.fa") for n in "abc"]
+        msg = self.run_failing(files, batch=True)
+        self.assertIn("batch of 3 file(s): QueryError: boom", msg)
+        self.assertNotIn("kmhelpers_batch", msg)
+
+    def test_info_yaml_hint(self):
+        query = self.write("q.fa")
+        error = QueryError("boom", {})
+        runner = self.runner(output_dir=os.path.join(self.tmp, "out"))
+        with mock.patch(
+            "pykmhelpers.pipeline.query.KmindexWrapper.query", side_effect=error
+        ):
+            with self.assertLogs("pykmhelpers.pipeline.query", "ERROR"):
+                with self.assertRaises(RuntimeError) as ctx:
+                    runner.run([query])
+        self.assertIn(os.path.join(self.tmp, "out", "q", "info.yaml"), str(ctx.exception))
+
+    def runner(self, **kwargs):
+        kwargs.setdefault("output_dir", self.tmp)
+        return QueryRunner(QueryRunnerConfig(registry_path=self.tmp, **kwargs))
+
+
+class TestConvertLogs(QueryInputsBase):
+    def convert(self, files):
+        result_dir = Path(self.tmp, "kmindex_output")
+        result_dir.mkdir()
+        for name, content in files.items():
+            Path(result_dir, name).write_text(content)
+        runner = self.runner(output_format="tsv")
+        with self.assertLogs("pykmhelpers.pipeline.query", "INFO") as logs:
+            runner._convert_results(str(result_dir))
+        return "\n".join(logs.output)
+
+    def test_no_result_file(self):
+        with self.assertLogs("pykmhelpers.pipeline.query", "WARNING") as logs:
+            with mock.patch(
+                "pykmhelpers.pipeline.query.KmindexWrapper.query",
+                side_effect=lambda **kw: os.makedirs(kw["output_dir"]),
+            ):
+                KmindexQuery(path=self.write("q.fa")).execute(
+                    registry_path=self.tmp, output_dir=os.path.join(self.tmp, "out")
+                )
+        self.assertIn("No kmindex result file", "\n".join(logs.output))
+
+    def test_no_match(self):
+        empty = '{"index":"idx","query":"q0","samples":{}}\n'
+        out = self.convert({"idx.jsonl": empty})
+        self.assertIn("No match above threshold", out)
+        self.assertIn("1 result file(s) read", out)
+        stats = Path(self.tmp, "sequence_stats.tsv").read_text().split("\n")
+        self.assertEqual(stats[-1], "*\t0\t0\t\t\t")
+        stats = Path(self.tmp, "sample_stats.tsv").read_text().split("\n")
+        self.assertEqual(stats, [stats[0], "*\t0\t0\t\t\t"])
+
+    def test_paged_report_files(self):
+        result_dir = Path(self.tmp, "kmindex_output")
+        result_dir.mkdir()
+        Path(result_dir, "idx.jsonl").write_text(
+            '{"index":"idx","query":"q0","samples":{"s0":0.5}}\n'
+            '{"index":"idx","query":"q1","samples":{"s0":0.7}}\n'
+        )
+        runner = self.runner(output_format="tsv", export="html", page_size=1)
+        with self.assertLogs("pykmhelpers.pipeline.query", "INFO") as logs:
+            runner._convert_results(str(result_dir))
+        for name in ("index.html", "details/page_001.html", "details/page_002.html"):
+            self.assertTrue(Path(self.tmp, name).is_file(), name)
+        self.assertIn("2 detail page(s)", "\n".join(logs.output))
+
+
+class TestDataAndExport(QueryInputsBase):
+    """Data formats (tsv, json, yaml) and human reports (md, html) are independent."""
+
+    def convert(self, **kwargs):
+        result_dir = Path(self.tmp, "kmindex_output")
+        result_dir.mkdir()
+        Path(result_dir, "idx.jsonl").write_text(
+            '{"index":"idx","query":"q0","samples":{"s0":0.5}}\n'
+        )
+        with self.assertLogs("pykmhelpers.pipeline.query", "INFO"):
+            self.runner(**kwargs)._convert_results(str(result_dir))
+        return sorted(p.name for p in Path(self.tmp).iterdir())
+
+    STATS = ["sample_stats.tsv", "sequence_stats.tsv"]
+
+    def test_data_and_export(self):
+        files = self.convert(output_format="tsv", export="html")
+        self.assertEqual(
+            files, ["kmindex_output", "results.html", "results.tsv"] + self.STATS
+        )
+
+    def test_data_only(self):
+        self.assertEqual(
+            self.convert(output_format="json"),
+            ["kmindex_output", "results.json"] + self.STATS,
+        )
+
+    def test_no_data_format(self):
+        self.assertEqual(
+            self.convert(output_format=None), ["kmindex_output"] + self.STATS
+        )
+
+    def test_no_stats(self):
+        self.assertEqual(
+            self.convert(output_format="tsv", stats=False),
+            ["kmindex_output", "results.tsv"],
+        )
+
+    def test_export_requires_data_format(self):
+        with self.assertRaises(ValueError):
+            self.runner(output_format=None, export="md")
+
+    def test_deprecated_report_format(self):
+        with self.assertLogs("pykmhelpers.pipeline.query", "WARNING"):
+            cfg = self.runner(output_format="html").config
+        self.assertEqual((cfg.output_format, cfg.export), ("tsv", "html"))
+
+
+class TestQueryCli(QueryInputsBase):
+    def invoke(self, *args):
+        from click.testing import CliRunner
+
+        from pykmhelpers.cli.query import query
+
+        with mock.patch("pykmhelpers.cli.query.KmindexRegistry"), mock.patch(
+            "pykmhelpers.cli.query.QueryRunner"
+        ) as runner_cls:
+            result = CliRunner().invoke(
+                query, ["-o", self.tmp, *args, self.write("q.fa")], obj={}
+            )
+        config = runner_cls.call_args.args[0] if runner_cls.call_args else None
+        return result, config
+
+    def test_format_and_export(self):
+        result, config = self.invoke("-f", "json", "-x", "html")
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertEqual((config.output_format, config.export), ("json", "html"))
+
+    def test_format_none(self):
+        result, config = self.invoke("-f", "none")
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIsNone(config.output_format)
+
+    def test_stats_option(self):
+        self.assertTrue(self.invoke()[1].stats)
+        result, config = self.invoke("--no-stats")
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertFalse(config.stats)
+
+    def test_none_with_export_rejected(self):
+        result, config = self.invoke("-f", "none", "-x", "md")
+        self.assertEqual(result.exit_code, 2)
+        self.assertIn("--export requires a data format", result.output)
+        self.assertIsNone(config)
 
 
 if __name__ == "__main__":
