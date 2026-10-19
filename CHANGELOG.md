@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.2] - 2026-10-19
+
+### Added
+
+- **`query --export` (`-x`)**: writes a Markdown or HTML report beside the data results
+- **`query -f none`**: keeps only the raw kmindex results
+- **Query statistics**: `sequence_stats.tsv` (one row per query sequence) and `sample_stats.tsv` (one row per matched sample), with match count, perfect matches and mean and median scores; `--no-stats` skips them
+- **`.zenodo.json`**: archive metadata (title, authors, ORCIDs, license) matching the JOSS paper
+
+### Changed
+
+- **`query`**: the query module is split into runner, result and report; `-f md` and `-f html` are deprecated in favor of `--export`
+- **Paper**: JOSS review fixes (affiliation, typo, inline citation, BibTeX case protection)
+
+### Fixed
+
+- **`query`**: results were lost when kmindex wrote one output per batch (`batch_N/`); an empty result is no longer treated as a failure
+
 ## [0.7.1] - 2026-10-07
 
 ### Added

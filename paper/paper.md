@@ -21,7 +21,7 @@ authors:
 affiliations:
   - name: Genscale, Univ. Rennes, Inria, CNRS, IRISA - UMR 6074, Rennes, F-35000 France
     index: 1
-  - name: Tree of Life, Wellcome Sanger Institute, Hinxton CB10 1SA, UK
+  - name: Tree of Life, Wellcome Sanger Institute, Hinxton CB10 1SA, United Kingdom
     index: 2
 date: 2026-07-06
 bibliography: paper.bib
@@ -39,7 +39,7 @@ a single queryable resource.
 
 # Statement of Need
 
-$k$-mer-based sequence databases built with tools such as `kmindex` [@lemane2024] and `kmtricks` [@lemane2022] answer queries accross large sample collections in genomics, metagenomics, and population studies. They were recently used to index 50 petabases of raw sequencing data [@ls]. Yet a wide gap separates having the indexing software installed from running a reproducible, end-to-end, size-optimized indexing workflow.
+$k$-mer-based sequence databases built with tools such as `kmindex` [@lemane2024] and `kmtricks` [@lemane2022] answer queries across large sample collections in genomics, metagenomics, and population studies. They were recently used to index 50 petabases of raw sequencing data [@ls]. Yet a wide gap separates having the indexing software installed from running a reproducible, end-to-end, size-optimized indexing workflow.
 
 Crossing that gap currently requires a user to simultaneously master: Bloom filter sizing as a function of each sample's $k$-mer cardinality (number of $k$-mers to be indexed per sample); configuring internal components of `kmindex`; distributing data and computations; controlling the peak memory; and partitioning the samples into sub-indexes that balance index size against query speed. This expertise is not required to obtain *a* functional index but is needed to obtain an *efficient* one that minimizes index size and maximizes query speed under a fixed false-positive-rate constraint.
 
@@ -52,7 +52,7 @@ and the data distribution.
 
 # State of the Field
 
-Several tools tackle large-scale sequence search with $k$-mer-based data structures. `BIGSI` [@bradley2019] and `COBS` [@bingmann2019] use compressed Bloom-filter matrices to answer presence/absence queries across collections of sequencing experiments. `HowDeSBT` [@harris2019] and `Mantis` [@pandey2018] rely on sequence Bloom trees and counting quotient filters, respectively. More recent colored-$k$-mer indexes such as `MetaGraph` [@karasikov2025] and `Fulgor` [@fulgor] push scalability further; see [@marchet2024] for a survey. `kmindex`, which
+Several tools tackle large-scale sequence search with $k$-mer-based data structures. `BIGSI` [@bradley2019] and `COBS` [@bingmann2019] use compressed Bloom-filter matrices to answer presence/absence queries across collections of sequencing experiments. `HowDeSBT` [@harris2019] and `Mantis` [@pandey2018] rely on sequence Bloom trees and counting quotient filters, respectively. More recent colored-$k$-mer indexes such as `MetaGraph` [@karasikov2025] and `Fulgor` [@fulgor] push scalability further; see @marchet2024 for a survey. `kmindex`, which
 `kmhelpers` wraps, builds on the `kmtricks` [@lemane2022] counting pipeline and
 is designed for efficient querying of large sequence collections.
 
