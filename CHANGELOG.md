@@ -6,6 +6,11 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Abundance indexes**: `design -ab N` / `compose -ab N` (`--abundance-bits`) compose an index storing `N` bits per sample and k-mer (2^N abundance classes), built by kmtricks with `--mode hash:bfc:bin --bitw N`
+  - `bitw` is stored in the index definitions and the layout; definitions without it, and `-ab 0` (default), are presence/absence as before
+  - An update with another `bitw` than the layout is refused: presence/absence and abundance indexes cannot be merged
+  - Storage estimates, shard sample limits, merge memory and `bytes_per_row` count `bitw` bits per sample
+  - Queries report the abundance class of each sample instead of the fraction of k-mers found
 - **`list --paired [REGEX]`** (`design --paired`): groups mate files (R1/R2) of a directory into one sample
   - The default regex matches mate tokens such as `_R1`, `_R2`, `_1`, `.2`; `--paired=REGEX` sets a custom one
   - Without `--paired`, a warning is logged when unassembled files (`-dt u`) look like read pairs
@@ -54,6 +59,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **`compose` hard min**: the `abundance_min` of the JSONL header (2 for unassembled data) is used, instead of always 1
 - **Python 3.11**: deleting an index used `shutil.rmtree(onexc=...)`, which exists only from Python 3.12
 - **`manage remove`**: always deleted the index files, ignoring `-d/--delete-files`
 - **`query`**: results were lost when kmindex wrote one file per batch (`batch_N/`), and a query without match was reported as failed

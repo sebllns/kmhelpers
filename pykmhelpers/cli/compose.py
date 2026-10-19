@@ -80,6 +80,17 @@ logger = logging.getLogger(__name__)
 #     show_default=True,
 #     help="⚙️  Partition count limit for auto-partitioning.",
 # )
+@click.option(
+    "--abundance-bits",
+    "-ab",
+    "bitw",
+    type=click.IntRange(0, 8),
+    default=0,
+    show_default=True,
+    help="🎯  Build an abundance index with this many bits per cell (2^N abundance "
+    "classes, kmindex default: 2). 0 builds a presence/absence index. "
+    "Fixed for the life of the index.",
+)
 @click.pass_context
 def compose(
     ctx,
@@ -93,6 +104,7 @@ def compose(
     # partition_min_size,
     # partition_count_limit,
     session_id,
+    bitw,
 ):
     """Compose index definition file(s) from a sample list.
 
@@ -177,6 +189,7 @@ def compose(
             no_merge=False,
             shard_size=parse_shard_size(shard_size),
             partition_count=partition_count,
+            bitw=bitw,
             # bf_max_size=bf_max_size,
             # partition_min_size=partition_min_size,
             # exact_partition_count=False,

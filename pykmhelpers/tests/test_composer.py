@@ -10,8 +10,18 @@ from pathlib import Path
 
 import yaml
 
-from pykmhelpers.pipeline.composer import IndexComposer, load_layout, max_samples_for
-from pykmhelpers.pipeline.index_db import IndexDefinitionTools
+from pykmhelpers.pipeline.composer import (
+    IndexComposer,
+    load_layout,
+    load_layout_bitw,
+    max_samples_for,
+)
+from pykmhelpers.pipeline.index_db import (
+    IndexDB,
+    IndexDefinition,
+    IndexDefinitionTools,
+    Sample,
+)
 
 
 class TestMaxSamplesFor(unittest.TestCase):
@@ -28,6 +38,11 @@ class TestMaxSamplesFor(unittest.TestCase):
     def test_never_below_8(self):
         """A row is byte aligned, so a shard always holds at least 8 samples."""
         self.assertEqual(max_samples_for(10**9, 1000), 8)
+
+    def test_abundance_bits_per_sample(self):
+        """An abundance index stores bitw bits per sample: bitw times fewer fit."""
+        self.assertEqual(max_samples_for(1000, 10000, 2), 40)
+        self.assertEqual(max_samples_for(1000, 10000, 0), 80)
 
 
 class TestShardNaming(unittest.TestCase):
@@ -129,6 +144,16 @@ class TestLayout(unittest.TestCase):
         self.assertEqual((base, shard_size, minim_size), (1.1, 10000, 10))
         self.assertEqual(loaded, props)
 
+    def test_bitw_round_trip(self):
+        IndexComposer(name="idx", bitw=2)._write_layout(self.path, 1.1, 0, 10, {})
+        self.assertEqual(load_layout_bitw(self.path), 2)
+
+    def test_layout_without_bitw_is_presence_absence(self):
+        legacy = {"type": "layout", "data": {"base": 1.1, "map": {76: "idx_g0"}}}
+        with open(self.path, "w") as f:
+            yaml.dump(legacy, f)
+        self.assertEqual(load_layout_bitw(self.path), 0)
+
     def test_layout_without_sharding(self):
         """A pre-sharding layout reads as one unlimited shard keeping its name."""
         legacy = {"type": "layout", "data": {"base": 1.1, "map": {76: "idx_g0"}}}
@@ -143,6 +168,45 @@ class TestLayout(unittest.TestCase):
         self.assertEqual(loaded[76]["total_samples"], 0)
         self.assertEqual(loaded[76]["updates"], 0)
         self.assertEqual(loaded[76]["shards"], [])
+
+
+class TestAbundanceDefinition(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.tools = IndexDefinitionTools()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def round_trip(self, bitw):
+        # Item names are unique per process, so each test uses its own
+        name = f"idx_bitw{bitw}"
+        i = IndexDefinition(name=f"{name}_g0_initial", bf_size=1024, bitw=bitw)
+        path = str(self.tmp / f"{name}.yaml")
+        self.tools.save_db(IndexDB(name=name, index_table={i.name: i}), path)
+        # Loading creates a database of the same name
+        IndexDB._instances.pop(name, None)
+        return self.tools.load_db(path)[0].index_table[i.name], path
+
+    def test_bitw_round_trip(self):
+        i, _ = self.round_trip(2)
+        self.assertEqual(i.bitw, 2)
+
+    def test_presence_absence_writes_no_bitw(self):
+        """Presence/absence definitions are unchanged, and read back as bitw=0."""
+        i, path = self.round_trip(0)
+        self.assertEqual(i.bitw, 0)
+        self.assertNotIn("bitw:", Path(path).read_text())
+
+    def test_storage_counts_bitw_bits_per_sample(self):
+        pa = IndexDefinition(name="pa", bf_size=8 * 4096)
+        ab = IndexDefinition(name="ab", bf_size=8 * 4096, bitw=2)
+        for i in (pa, ab):
+            for n in range(16):
+                i.add_sample(f"{i.name}_s{n}", Sample())
+        self.assertEqual(
+            ab.get_bf_specs().matrix_size, 2 * pa.get_bf_specs().matrix_size
+        )
 
 
 if __name__ == "__main__":

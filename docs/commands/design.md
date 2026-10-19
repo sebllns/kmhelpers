@@ -64,6 +64,7 @@ Set `-S` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 | `-si, --shard-size SIZE` | Max size of one shard (e.g. `10GB`); a span is split into independent shards, see [compose](compose.md) |
 | `-fp, --false-positive-rate FLOAT` | Target Bloom-filter false-positive rate (default: 0.25) |
 | `-p, --partition-count INT` | Desired number of partitions per index, 0 for automatic (default: 0) |
+| `-ab, --abundance-bits INT` | Build an abundance index with `N` bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0), see [compose](compose.md) |
 | `-nc, --no-count` | Skip k-mer counting with ntcard |
 | `-lg, --leaf-grouping` | Group files by leaf folder; each leaf directory becomes one sample |
 | `--paired [REGEX]` | Group mate files (R1/R2) of a directory into one sample, see [list](list.md#description) |
@@ -106,6 +107,9 @@ kmhelpers design /data/sequences -o coli_db -n coli -k 31 -fp 0.1
 
 # Force a specific partition count
 kmhelpers design /data/sequences -o coli_db -n coli -p 4
+
+# Abundance index of paired raw reads (4 abundance classes)
+kmhelpers design /data/reads -o reads_db -n reads -dt u --paired -ab 2
 
 # Import from a plain-text file list
 kmhelpers design my_files.txt -o coli_db -n coli

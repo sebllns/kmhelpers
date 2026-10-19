@@ -28,6 +28,7 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 | `-pr, --profile TEXT` | Profile name to use (default: `default_profile` from profiles file) |
 | `-p, --partition-count INT` | Partitions per index, fixed for its whole life; 0 lets the first build size it (default: 0) |
 | `-si, --shard-size SIZE` | Max size of one shard (e.g. `256GB`, `500000MB`); omit for a single unlimited index per span |
+| `-ab, --abundance-bits INT` | Build an abundance index with `N` bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0) |
 | `-m, --partition-min-size SIZE` | Minimum partition file size (e.g. `500MB`, `1GB`) |
 | `-P, --partition-count-limit INT` | Upper bound on auto partition count (default: 256) |
 
@@ -75,6 +76,17 @@ split, see [plan](plan.md)) are merged as well.
 
 Without `--shard-size`, a span keeps a single index named `NAME_g<i>`. With it, shards are
 named `NAME_g<i>_p<k>`.
+
+**Abundance** - by default an index records the presence or absence of each k-mer in each
+sample. With `--abundance-bits N`, each sample gets `N` bits per Bloom filter cell instead of
+one, holding the abundance class of the k-mer (2^N classes, kmindex uses 2 by default). The
+index is then built by kmtricks with `--mode hash:bfc:bin --bitw N`, takes `N` times more
+space, and a query reports the abundance class of each sample instead of the fraction of
+k-mers found. `N` is stored in the layout and fixed for the life of the index: an update with
+another value is refused.
+
+**Hard min** - k-mers seen fewer times than the `abundance_min` of the JSONL header are
+dropped at build time. `list` sets it to 1 for assembled data and 2 for raw reads.
 
 
 ## Examples

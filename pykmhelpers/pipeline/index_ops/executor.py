@@ -210,6 +210,7 @@ class IndexExecutor:
                 name=name,
                 samples=fof,
                 abundance_min=i.abundance_min,
+                bitw=i.bitw,
                 bloom_size=i.bf_size,
                 n_partitions=params.partitions,
                 n_threads=params.threads,
@@ -425,6 +426,7 @@ class IndexExecutor:
                 params.minim_size,
                 i.bf_size,
                 threads,
+                bw=max(i.bitw, 1),
             )
             note = (
                 ", more than the RAM limit: relies on page-cache reclaim"

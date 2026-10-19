@@ -291,8 +291,8 @@ class KmtricksIndex:
     # Computed properties
     @property
     def bytes_per_row(self) -> int:
-        """Number of bytes per row based on sample count."""
-        return get_bytes_per_row(self.nb_samples)
+        """Number of bytes per row: bw bits per sample (1 for presence/absence)."""
+        return get_bytes_per_row(self.nb_samples * max(self.bw, 1))
 
     @property
     def header_size(self) -> int:

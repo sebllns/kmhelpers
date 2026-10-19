@@ -242,6 +242,59 @@ class TestDesignBuildQueryUpdateQuery(PipelineE2EBase):
         self.assert_in_place("build")
 
 
+class TestAbundanceDesignBuildQuery(PipelineE2EBase):
+    """design -ab 2 -> build -> query: the index stores 2 bits per sample."""
+
+    def test_abundance_design_build_query(self):
+        self.run_cli(
+            "design",
+            self.samples_txt,
+            "-o",
+            "db",
+            "-n",
+            "idx",
+            "-S",
+            "initial",
+            "-k",
+            KMER_SIZE,
+            "-b",
+            "1.1",
+            "-g",
+            "1",
+            "-ab",
+            "2",
+        )
+        span_reg = self.tmp / "db" / "compose" / "idx" / "initial" / "idx.yaml"
+        definition = (span_reg.parent / "idx_g0_initial.yaml").read_text()
+        self.assertIn("bitw: '2'", definition)
+        self.assertIn("kmindex-abundance", definition)
+
+        self.run_cli("build", span_reg, "-o", "build")
+        self.assert_in_place("build")
+        registry = json.loads((self.tmp / "build" / "index.json").read_text())
+        for name, entry in registry["index"].items():
+            self.assertEqual(entry["bw"], 2, f"{name} is not an abundance index")
+
+        q0, q0_header = self.write_query("s0", sample_idx=0)
+        self.run_cli("query", q0, "-r", "build", "-o", "results", "-f", "json")
+        merged = self.load_query_results("results")
+        self.assertIn(q0_header, merged)
+        self.assertGreater(merged[q0_header].get("sample_0", 0), 0)
+
+        # a presence/absence session cannot be merged into the abundance index
+        self.run_cli(
+            "compose",
+            self.tmp / "db" / "list" / "idx_samples_initial.jsonl",
+            "-o",
+            "db/compose",
+            "-n",
+            "idx",
+            "-S",
+            "pa",
+            expect_success=False,
+        )
+
+
 class UpdateSessionBase(PipelineE2EBase):
     """Helpers for tests building a session 'initial', then a session 'upd'."""
 

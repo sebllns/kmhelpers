@@ -154,6 +154,17 @@ logger = logging.getLogger(__name__)
     show_default=True,
     help="💾  Desired number of partitions per index, 0 for automatic count.",
 )
+@click.option(
+    "--abundance-bits",
+    "-ab",
+    "bitw",
+    type=click.IntRange(0, 8),
+    default=0,
+    show_default=True,
+    help="🎯  Build an abundance index with this many bits per cell (2^N abundance "
+    "classes, kmindex default: 2). 0 builds a presence/absence index. "
+    "Fixed for the life of the index.",
+)
 @click.pass_context
 def design(
     ctx,
@@ -173,6 +184,7 @@ def design(
     false_positive_rate,
     base,
     partition_count,
+    bitw,
 ):
     """Scan a directory, profile k-mer spans, and compose index definition files.
 
@@ -297,6 +309,7 @@ def design(
             no_merge=False,
             shard_size=parse_shard_size(shard_size),
             partition_count=partition_count,
+            bitw=bitw,
         ).run(
             input_file=jsonl_path,
             output_dir=compose_dir,
