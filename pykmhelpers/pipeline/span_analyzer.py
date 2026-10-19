@@ -154,15 +154,20 @@ class SpanAnalyzer:
         d_minus = self.bf[k] * self.lk[k]
         return (d_plus - d_minus) / 8e9
 
-    def auto_group_cap(
+    def auto_group_limit(self, max_groups: int = AUTO_GROUP_MAX) -> int:
+        """Most groups ``auto_groups`` may choose: ``max_groups``, and no more
+        than the spans."""
+        return max(1, min(max_groups, len(self.spans)))
+
+    def auto_group_start(
         self,
         samples_per_group: int = AUTO_GROUP_SAMPLES,
         max_groups: int = AUTO_GROUP_MAX,
     ) -> int:
-        """Most groups ``auto_groups`` may choose: one per ``samples_per_group``
-        samples, between 1 and ``max_groups``, and no more than the spans."""
-        cap = math.ceil(self.get_total_sample_count() / max(samples_per_group, 1))
-        return max(1, min(cap, max_groups, len(self.spans)))
+        """Fewest groups ``auto_groups`` chooses: one per ``samples_per_group``
+        samples (at least 1), within ``auto_group_limit``."""
+        start = math.ceil(self.get_total_sample_count() / max(samples_per_group, 1))
+        return max(1, min(start, self.auto_group_limit(max_groups)))
 
     def auto_groups(
         self,
@@ -170,18 +175,20 @@ class SpanAnalyzer:
         max_groups: int = AUTO_GROUP_MAX,
         min_gain: float = AUTO_GROUP_MIN_GAIN,
     ) -> int:
-        """Number of groups worth their cost, up to ``auto_group_cap``.
+        """Number of groups worth their cost.
 
-        Each group is one more sub-index to build, query and update, so a
-        group is added only while it saves at least ``min_gain`` of the total
-        storage. ``compute_groups`` balances the largest group, so the total
+        Starts from ``auto_group_start`` (so a group holds at most about
+        ``samples_per_group`` samples), then adds one group at a time while it
+        saves at least ``min_gain`` of the total storage, up to
+        ``auto_group_limit``: each group is one more sub-index to build, query
+        and update. ``compute_groups`` balances the largest group, so the total
         is not monotonic: the search stops at the first group that does not
         pay off.
         """
-        cap = self.auto_group_cap(samples_per_group, max_groups)
-        n_groups = 1
-        total = sum(self.compute_groups(1)[2])
-        while n_groups < cap:
+        limit = self.auto_group_limit(max_groups)
+        n_groups = self.auto_group_start(samples_per_group, max_groups)
+        total = sum(self.compute_groups(n_groups)[2])
+        while n_groups < limit:
             next_total = sum(self.compute_groups(n_groups + 1)[2])
             if next_total > (1 - min_gain) * total:
                 break

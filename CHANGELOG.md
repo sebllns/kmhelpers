@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- **Automatic group count** (`profile -g 0`, `design -g 0`): about one group per 100 samples (1 to 20), a group being added only if it saves at least 10% of the storage
+- **Automatic group count** (`profile -g 0`, `design -g 0`): starts from one group per 1000 samples, then adds one while it saves at least 20% of the storage, up to 20 groups
   - Tuned with `profile --auto-group-samples`, `--auto-group-max` and `--auto-group-min-gain` (env: `KMHELPERS_AUTO_GROUP_*`), recorded under `auto_group` in `profile.yaml`; `design` reads only the environment variables
 - **Abundance indexes**: `design -ab N` / `compose -ab N` (`--abundance-bits`) compose an index storing `N` bits per sample and k-mer (2^N abundance classes), built by kmtricks with `--mode hash:bfc:bin --bitw N`
   - `bitw` is stored in the index definitions and the layout; definitions without it, and `-ab 0` (default), are presence/absence as before

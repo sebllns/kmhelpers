@@ -135,8 +135,8 @@ class SpanProfiler:
             auto_group = dict(g, groups=n_groups)
             logger.info(
                 f"Auto groups: {n_groups} ({sample_count} samples, "
-                f"cap {sa.auto_group_cap(g['samples'], g['max'])}, "
-                f"min gain {g['min_gain']:.0%})"
+                f"start {sa.auto_group_start(g['samples'], g['max'])}, "
+                f"max {sa.auto_group_limit(g['max'])}, min gain {g['min_gain']:.0%})"
             )
         else:
             n_groups = min(self.n_groups, len(spans))

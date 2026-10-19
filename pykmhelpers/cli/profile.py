@@ -37,8 +37,8 @@ logger = logging.getLogger(__name__)
     type=click.IntRange(min=0),
     show_default=True,
     help="⚙   Partition index into N storage-balanced groups and overlay the result on the plot. "
-    "0 = auto: about one group per 100 samples (max 20), a group being added only "
-    "if it saves at least 10% of the storage.",
+    "0 = auto: one group per 1000 samples, plus one while it saves at least 20% "
+    "of the storage (at most 20).",
 )
 @click.option(
     "--false-positive-rate",

@@ -238,7 +238,7 @@ _AUTO_GROUP_OPTIONS = [
             type=click.IntRange(min=1),
             default=AUTO_GROUP_SAMPLES,
             envvar="KMHELPERS_AUTO_GROUP_SAMPLES",
-            help="⚙   With -g 0: about one group per this many samples.",
+            help="⚙   With -g 0: start from one group per this many samples.",
         ),
     ),
     (
@@ -247,7 +247,7 @@ _AUTO_GROUP_OPTIONS = [
             type=click.IntRange(min=1),
             default=AUTO_GROUP_MAX,
             envvar="KMHELPERS_AUTO_GROUP_MAX",
-            help="⚙   With -g 0: the most groups chosen.",
+            help="⚙   With -g 0: the most groups.",
         ),
     ),
     (
@@ -256,7 +256,7 @@ _AUTO_GROUP_OPTIONS = [
             type=click.FloatRange(0, 1),
             default=AUTO_GROUP_MIN_GAIN,
             envvar="KMHELPERS_AUTO_GROUP_MIN_GAIN",
-            help="⚙   With -g 0: storage fraction a group must save to be added.",
+            help="⚙   With -g 0: storage fraction a further group must save to be added.",
         ),
     ),
 ]

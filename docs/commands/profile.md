@@ -25,9 +25,9 @@ Analyse a JSONL sample manifest produced by `list` and produce a Bloom-filter sp
 | Option | Description |
 |--------|-------------|
 | `-fp, --false-positive-rate FLOAT` | Target Bloom-filter false-positive rate (default: 0.25) |
-| `--auto-group-samples N` | With `-g 0`: about one group per `N` samples (default: 100, env: `KMHELPERS_AUTO_GROUP_SAMPLES`) |
+| `--auto-group-samples N` | With `-g 0`: start from one group per `N` samples (default: 1000, env: `KMHELPERS_AUTO_GROUP_SAMPLES`) |
 | `--auto-group-max N` | With `-g 0`: at most `N` groups (default: 20, env: `KMHELPERS_AUTO_GROUP_MAX`) |
-| `--auto-group-min-gain F` | With `-g 0`: storage fraction a group must save to be added (default: 0.1, env: `KMHELPERS_AUTO_GROUP_MIN_GAIN`) |
+| `--auto-group-min-gain F` | With `-g 0`: storage fraction a further group must save to be added (default: 0.2, env: `KMHELPERS_AUTO_GROUP_MIN_GAIN`) |
 
 ## Output Files
 
@@ -68,14 +68,23 @@ $0.25^6 \approx 0.024\,\%$ effective FP rate.
 sub-indices reduce the number of partition files opened per query. The grouping is
 overlaid on the distribution plot for visual inspection.
 
-With `-g 0` (default), `profile` chooses `N`: at most one group per 100 samples, between
-1 and 20 (and no more than the number of spans), and a group is added only if it reduces the
-total storage by at least 10%. `--auto-group-samples`, `--auto-group-max` and
-`--auto-group-min-gain` (or their `KMHELPERS_AUTO_GROUP_*` environment variables) change these
-values; the ones used and the chosen count are recorded under `auto_group` in `profile.yaml`. Each group is one more sub-index to build, query and update,
-so a narrow distribution keeps few groups whatever its size. The chosen count is logged
-(`Auto groups: N`). For example, 169 samples whose k-mer counts spread over two orders of
-magnitude get 2 groups (one group would take 1.6 GB, two 0.95 GB).
+With `-g 0` (default), `profile` chooses `N`:
+
+1. it starts from one group per 1000 samples (at least 1), so a group holds at most about
+   1000 samples;
+2. it then adds one group at a time while the new group reduces the total storage by at
+   least 20%, and stops at the first one that does not;
+3. it never goes above 20 groups, nor above the number of spans.
+
+Each group is one more sub-index to build, query and update, so a narrow distribution keeps
+few groups whatever its size. For example, 169 samples whose k-mer counts spread over two
+orders of magnitude start from 1 group (1.6 GB); a 2nd one saves 42% (0.95 GB), a 3rd only 18%,
+so they get 2 groups.
+
+`--auto-group-samples`, `--auto-group-max` and `--auto-group-min-gain` (or their
+`KMHELPERS_AUTO_GROUP_*` environment variables) change these values. The chosen count is
+logged (`Auto groups: N (… start …, max …, min gain …)`), and recorded with the values used
+under `auto_group` in `profile.yaml`.
 
 ## Examples
 
