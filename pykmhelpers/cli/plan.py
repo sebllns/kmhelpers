@@ -55,7 +55,7 @@ def plan(
     Output: shell scripts in BUILD_DIR/assets/SESSION/, validation report in BUILD_DIR/logs/
 
     BUILD_DIR (-o) is the index directory later passed to `apply` or `build`.
-    Only indices matching --name or --span are processed; if neither is
+    Only shards matching --shard or --span are processed; if neither is
     specified, all declared indices are previewed.
 
     Use --offline to skip local path validation when generating scripts for
@@ -65,16 +65,16 @@ def plan(
 
     \b
     # Preview build plan for a definition file
-    kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build
+    kmhelpers plan coli_db -o coli_build
 
     \b
-    # Preview only selected indices or spans
-    kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build -n coli_g0,coli_g1
-    kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build -s 27-30
+    # Preview only selected shards or spans
+    kmhelpers plan coli_db -o coli_build --shard coli_g0,coli_g1
+    kmhelpers plan coli_db -o coli_build -s 27-30
 
     \b
     # Skip path validation (for exporting scripts to another machine)
-    kmhelpers plan coli_db/compose/coli/initial/coli.yaml -o coli_build --offline
+    kmhelpers plan coli_db -o coli_build --offline
     """
 
     input_file = shared.resolve_definition(input_file, session)

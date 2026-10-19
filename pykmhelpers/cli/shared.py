@@ -155,12 +155,12 @@ _span_option = click.option(
     help="⚙   Build only selected span (e.g., --span 28, --span 27,28,29, --span 27-30, --span [27-30]).",
 )
 _index_ids_option = click.option(
-    "--name",
-    "-n",
+    "--sh",
+    "--shard",
     "index_ids",
     multiple=True,
     required=False,
-    help="⚙   Shard name(s) to build (repeatable or comma-separated: -n id1 -n id2, -n id1,id2).",
+    help="⚙   Shard(s) to build (repeatable or comma-separated: --shard g0 --shard g1, --shard g0,g1).",
 )
 _threads_option = click.option(
     "--threads",

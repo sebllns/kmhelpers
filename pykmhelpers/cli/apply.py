@@ -76,27 +76,23 @@ def apply(
 
     BUILD_DIR (-o) is the index directory, reused across builds and passed to
     `query -r`. Parent indices are built automatically when required. Only
-    indices matching --name or --span are processed; if neither is specified,
+    shards matching --shard or --span are processed; if neither is specified,
     all declared indices are built.
 
     Examples:
 
     \b
     # Build all indices declared in a definition file
-    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build
+    kmhelpers apply coli_db -o coli_build
 
     \b
-    # Build only selected indices or spans
-    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build -n coli_g0,coli_g1
-    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build -s 27-30
-
-    \b
-    # Reuse parameters from an existing parent index
-    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build -n my_index --from parent_index
+    # Build only selected shards or spans
+    kmhelpers apply coli_db -o coli_build --shard coli_g0,coli_g1
+    kmhelpers apply coli_db -o coli_build -s 27-30
 
     \b
     # Set threads and show progress
-    kmhelpers apply coli_db/compose/coli/initial/coli.yaml -o coli_build -t 8 --show-progress
+    kmhelpers apply coli_db -o coli_build -t 8 --show-progress
     """
 
     input_file = shared.resolve_definition(input_file, session)

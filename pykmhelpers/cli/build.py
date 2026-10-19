@@ -70,11 +70,11 @@ def build(
 
     \b
     # Build the index defined in session "initial"
-    kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build
+    kmhelpers build coli_db -o coli_build
 
     \b
     # Add an update session to the same index directory
-    kmhelpers build coli_db/compose/coli/update/coli.yaml -o coli_build
+    kmhelpers build coli_db -S update -o coli_build
     """
 
     input_file = shared.resolve_definition(input_file, session)

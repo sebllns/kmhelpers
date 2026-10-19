@@ -35,12 +35,12 @@ def registry(ctx, registry_path):
     help="Input directory containing kmtricks indices",
 )
 @click.option(
-    "--name",
-    "-n",
+    "--sh",
+    "--shard",
     "index_ids",
     multiple=True,
     required=False,
-    help="Specific index IDs to register (register all if not specified)",
+    help="Shard(s) to register (default: all found)",
 )
 @click.pass_obj
 def registry_create(obj, input_dir, index_ids):
@@ -109,12 +109,12 @@ def registry_create(obj, input_dir, index_ids):
     help="Input directory containing kmtricks indices",
 )
 @click.option(
-    "--name",
-    "-n",
+    "--sh",
+    "--shard",
     "index_ids",
     multiple=True,
     required=False,
-    help="Specific index IDs to register (register all if not specified)",
+    help="Shard(s) to register (default: all found)",
 )
 @click.pass_obj
 def registry_add(obj, input_dir, index_ids):
@@ -195,10 +195,11 @@ def registry_list(obj):
 
 @registry.command(name="info")
 @click.option(
-    "--index-id",
-    "-n",
+    "--sh",
+    "--shard",
+    "index_id",
     required=True,
-    help="Index ID to show information for",
+    help="Shard to show information for",
 )
 @click.option(
     "--json",
@@ -273,11 +274,11 @@ def registry_info(obj, index_id, output_json):
     help="Show detailed validation output",
 )
 @click.option(
-    "--name",
-    "-n",
+    "--sh",
+    "--shard",
     "index_ids",
     multiple=True,
-    help="Check only these index IDs (default: all); fails if one is not registered",
+    help="Check only these shards (default: all); fails if one is not registered",
 )
 @click.pass_obj
 def registry_check(obj, verbose, index_ids):
@@ -336,12 +337,12 @@ def registry_check(obj, verbose, index_ids):
 
 @registry.command(name="remove")
 @click.option(
-    "--name",
-    "-n",
+    "--sh",
+    "--shard",
     "index_ids",
     multiple=True,
     required=True,
-    help="Specific index IDs to remove",
+    help="Shard(s) to remove",
 )
 @click.option(
     "-d",
@@ -358,7 +359,7 @@ def registry_check(obj, verbose, index_ids):
 @click.option(
     "--missing-ok",
     is_flag=True,
-    help="Skip index IDs that are not registered instead of failing",
+    help="Skip shards that are not registered instead of failing",
 )
 @click.option(
     "--keep-link",
@@ -451,10 +452,11 @@ def registry_rename(obj, index_id, new_index_id):
     help="Input directory containing kmtricks indices",
 )
 @click.option(
-    "--index-id",
-    "-n",
+    "--sh",
+    "--shard",
+    "index_id",
     required=False,
-    help="Index ID to relink. (If not specified, will relink all registered indices).",
+    help="Shard to relink (default: all registered shards)",
 )
 def registry_relink(obj, input_dir, index_id):
     """Recreate links in an index registry. Useful if links are broken or indices moved."""

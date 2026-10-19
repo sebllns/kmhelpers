@@ -59,7 +59,7 @@ kmhelpers query -r coli_build/ -o results_update/ query.fa
 
 echo "== Update step 6: check the updated index =="
 kmhelpers manage -r coli_build/ list
-kmhelpers manage -r coli_build/ info -n coli_g0_p0
+kmhelpers manage -r coli_build/ info --sh coli_g0_p0
 
 echo "The files of the previous version are unregistered from index, but kept on disk, until deleted:"
 echo "rm -rf coli_build/kmindex_data/initial/coli_g0_p0"

@@ -18,10 +18,11 @@ logger = logging.getLogger(__name__)
     help="📁  Path to kmindex registry.",
 )
 @click.option(
-    "--index-name",
-    "-n",
+    "--sh",
+    "--shard",
+    "index_name",
     required=True,
-    help="🏷️   Name of the index to compress.",
+    help="🏷️   Shard to compress.",
 )
 @click.option(
     "--block-size",

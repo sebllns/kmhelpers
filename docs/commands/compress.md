@@ -12,7 +12,7 @@ Compress an index managed in a registry.
     | Argument | Description |
     |----------|-------------|
     | `-r, --registry-path DIR` | Path to kmindex registry (required) |
-    | `-n, --index-name TEXT` | Name of the index to compress (required) |
+    | `--sh, --shard TEXT` | Name of the index to compress (required) |
 
 !!! abstract "I/O"
     **Input:** kmindex registry (`-r`), index name (`-n`)  
@@ -42,14 +42,14 @@ Registry-based compression using the KmindexWrapper. Provides a simpler interfac
 
 ```bash
 # Basic compression
-kmhelpers compress -r ./registry -n my_index
+kmhelpers compress -r ./registry --sh my_index
 
 # With column reordering
-kmhelpers compress -r ./registry -n my_index --reorder -s 50000
+kmhelpers compress -r ./registry --sh my_index --reorder -s 50000
 
 # Custom compression level with multiple threads
-kmhelpers compress -r ./registry -n my_index --cpr-level 6 -t 16
+kmhelpers compress -r ./registry --sh my_index --cpr-level 6 -t 16
 
 # Delete uncompressed index after compression
-kmhelpers compress -r ./registry -n my_index --delete
+kmhelpers compress -r ./registry --sh my_index --delete
 ```

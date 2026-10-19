@@ -20,12 +20,12 @@ logger = logging.getLogger(__name__)
     help="📁  Path to kmindex registry.",
 )
 @click.option(
-    "--name",
-    "-n",
+    "--sh",
+    "--shard",
     "index_ids",
     multiple=True,
     required=False,
-    help="⚙   Shard name(s) to query (repeatable or comma-separated; default: all).",
+    help="⚙   Shard(s) to query (repeatable or comma-separated; default: all).",
 )
 @click.option(
     "--output-dir",
@@ -206,32 +206,32 @@ def query(
 
     Examples:
       # Single query file against single index
-      kmhelpers query -r ./registry -n idx1 -o results query.fa
+      kmhelpers query -r ./registry --shard idx1 -o results query.fa
 
       # Multiple query files with threading
-      kmhelpers query -r ./registry -n idx1 -t 4 -o results q1.fa q2.fa
+      kmhelpers query -r ./registry --shard idx1 -t 4 -o results q1.fa q2.fa
 
       # Multiple indices
-      kmhelpers query -r ./registry -n idx1 -n idx2 -o results query.fa
+      kmhelpers query -r ./registry --shard idx1 --shard idx2 -o results query.fa
 
       # Pipe from stdin
-      cat query.fa | kmhelpers query -r ./registry -n idx1 -o results -
+      cat query.fa | kmhelpers query -r ./registry --shard idx1 -o results -
 
       # Treat all sequences as one query
-      kmhelpers query -r ./registry -n idx1 --single-query batch1 -o out multi.fa
+      kmhelpers query -r ./registry --shard idx1 --single-query batch1 -o out multi.fa
 
       # Compressed input from stdin
-      cat query.fa.gz | kmhelpers query -r ./registry -n idx1 -o results -
+      cat query.fa.gz | kmhelpers query -r ./registry --shard idx1 -o results -
 
       # Scan a directory recursively
-      kmhelpers query -r ./registry -n idx1 -o results ./queries_dir/
+      kmhelpers query -r ./registry --shard idx1 -o results ./queries_dir/
     """
     if format == "none" and export:
         raise click.UsageError("--export requires a data format, not -f none")
 
     registry = KmindexRegistry(registry_path)
 
-    # -n id1 -n id2, or -n id1,id2 (as plan/apply)
+    # --shard a --shard b, or --shard a,b (as plan/apply)
     index_ids = [i for entry in index_ids for i in entry.split(",") if i]
     if index_ids:
         for idx_id in index_ids:

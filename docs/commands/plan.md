@@ -27,7 +27,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 |--------|-------------|
 | `--bp, --base-path DIR` | Base path to resolve relative sample paths |
 | `-s, --span TEXT` | Span(s) to preview: single value, comma-separated, or range (e.g. `27-30`) |
-| `-n, --name TEXT` | Index ID(s) to preview (repeatable or comma-separated) |
+| `--sh, --shard TEXT` | Shard(s) to preview (repeatable or comma-separated) |
 | `-t, --threads INT` | Number of threads |
 | `-NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
 | `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Builds and merges](build.md#builds-and-merges) |
@@ -55,7 +55,7 @@ kmhelpers plan coli_db -o coli_build/
 kmhelpers plan coli_db -o coli_build/ -s 28,31
 
 # Preview for specific index names
-kmhelpers plan coli_db -o coli_build/ -n coli_g0
+kmhelpers plan coli_db -o coli_build/ --sh coli_g0
 
 # Skip path validation (for exporting scripts)
 kmhelpers plan coli_db -o coli_build/ --offline

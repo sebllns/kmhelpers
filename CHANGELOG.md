@@ -34,7 +34,7 @@ All notable changes to this project will be documented in this file.
   - `design`/`compose -S, --session` (was `--session-id`), the same name as in `plan`/`apply`/`build`
   - `design -a, --autorename` (was `-r`), as in `list`
   - `design -p, --paired`, as in `list`; `design`/`compose -P, --partition-count` (was `-p`)
-  - `query`/`manage -n, --name` (was `--index-ids`), as in `plan`/`apply`; `query -n` also takes comma-separated names
+  - Shards are selected with `--sh, --shard` in `plan`, `apply`, `query`, `manage` and `compress` (was `-n, --name`, `--index-ids`, `--index-id` or `--index-name`); `-n, --name` is only the index name of `design`/`compose`. `query --shard` also takes comma-separated names
   - `plan`/`apply`/`build --bp, --base-path` and `query --bq, --batch-query` (were `-b`); `-b` is `--base` in `profile`/`design`
 - **Minimizer size is set at design**: `design`/`compose --minim-size` (default 10, an update takes the layout's value and refuses another one); `plan`/`apply`/`build` lose `--minim-size`
 - **Partition count**: `-p` only on `design`/`compose`, where it fixes the count of every shard for the life of the index; otherwise `plan`/`apply`/`build` choose it per shard: a built shard keeps its count (another value is ignored with a warning), then started runs of the session, then the design's `-p`, else the resource limits. `plan`/`apply`/`build` lose `-p` and no longer write the design's layout

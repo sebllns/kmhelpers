@@ -342,7 +342,7 @@ class IndexExecutor:
             previous = paths.previous(target)
             unregister = shlex.join(
                 ["kmhelpers", "manage", "-r", paths.registry, "remove"]
-                + [a for n in [target] + absorbed for a in ("-n", n)]
+                + [a for n in [target] + absorbed for a in ("--shard", n)]
                 # the entry's folder (or old-layout symlink) is moved below
                 + ["-y", "--missing-ok", "--keep-link"]
             )
@@ -366,7 +366,7 @@ class IndexExecutor:
         # 4. a broken index must not cost its inputs
         self._sh(
             shlex.join(
-                ["kmhelpers", "manage", "-r", paths.registry, "check", "-n", target]
+                ["kmhelpers", "manage", "-r", paths.registry, "check", "--shard", target]
             ),
             f"check {target}",
         )

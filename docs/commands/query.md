@@ -22,7 +22,7 @@ Query indices with FASTA/FASTQ sequences.
 ## Advanced Options
 | Option | Description |
 |--------|-------------|
-| `-n, --name TEXT` | Shard name(s) to query (repeatable or comma-separated, default: all) |
+| `--sh, --shard TEXT` | Shard(s) to query (repeatable or comma-separated, default: all) |
 | `-t, --threads INT` | Number of threads (default: 1) |
 | `-z, --zvalue INT` | Z-value for findere algorithm to filter false positives (default: 6) |
 | `-R, --threshold FLOAT` | Score threshold for filtering results (default: 0.05) |
@@ -129,35 +129,35 @@ found.
 
 ```bash
 # Single query file against one index
-kmhelpers query -r ./registry -n idx1 -o results query.fa
+kmhelpers query -r ./registry --sh idx1 -o results query.fa
 
 # Multiple query files with threading
-kmhelpers query -r ./registry -n idx1 -t 4 -o results q1.fa q2.fa
+kmhelpers query -r ./registry --sh idx1 -t 4 -o results q1.fa q2.fa
 
 # Query multiple indices
-kmhelpers query -r ./registry -n idx1 -n idx2 -o results query.fa
+kmhelpers query -r ./registry --sh idx1 --sh idx2 -o results query.fa
 
 # Read from stdin
-cat query.fa | kmhelpers query -r ./registry -n idx1 -o results -
+cat query.fa | kmhelpers query -r ./registry --sh idx1 -o results -
 
 # Scan a directory recursively
-kmhelpers query -r ./registry -n idx1 -o results ./queries_dir/
+kmhelpers query -r ./registry --sh idx1 -o results ./queries_dir/
 
 # Treat all sequences as one batch query
-kmhelpers query -r ./registry -n idx1 --single-query batch1 -o results multi.fa
+kmhelpers query -r ./registry --sh idx1 --single-query batch1 -o results multi.fa
 
 # Score threshold filtering
-kmhelpers query -r ./registry -n idx1 -o results -R 0.1 query.fa
+kmhelpers query -r ./registry --sh idx1 -o results -R 0.1 query.fa
 
 # TSV data plus an HTML report
-kmhelpers query -r ./registry -n idx1 -o results -f tsv --export html query.fa
+kmhelpers query -r ./registry --sh idx1 -o results -f tsv --export html query.fa
 
 # Raw kmindex results only
-kmhelpers query -r ./registry -n idx1 -o results -f none query.fa
+kmhelpers query -r ./registry --sh idx1 -o results -f none query.fa
 
 # Paged HTML report for many reads: 500 reads per page, 20 best samples each
 kmhelpers query -r ./registry -o results -x html --page-size 500 --top 20 reads.fq.gz
 
 # Per-k-mer coverage track in the HTML report
-kmhelpers query -r ./registry -n idx1 -o results -x html --vec query.fa
+kmhelpers query -r ./registry --sh idx1 -o results -x html --vec query.fa
 ```

@@ -99,7 +99,7 @@ Point `query` at a built registry (`-r`) with one or more FASTA/FASTQ files, dir
     kmhelpers query -r coli_build/ -o results/ query.fa
 
     # Query specific sub-indices with multiple threads
-    kmhelpers query -r coli_build/ -n coli_g0 -n coli_g1 -t 4 -o results/ query.fa
+    kmhelpers query -r coli_build/ --sh coli_g0 --sh coli_g1 -t 4 -o results/ query.fa
 
     # Scan a directory of query files, or read from stdin
     kmhelpers query -r coli_build/ -o results/ ./queries_dir/
@@ -147,8 +147,8 @@ Review `coli_build/assets/` and `coli_build/logs/`, then:
 ??? example "Commands"
     ```bash
     # each node builds a disjoint subset, and emails when its share is done
-    kmhelpers apply coli_db -o coli_build/ -n coli_g0 --notify you@example.com
-    kmhelpers apply coli_db -o coli_build/ -n coli_g1 --notify you@example.com
+    kmhelpers apply coli_db -o coli_build/ --sh coli_g0 --notify you@example.com
+    kmhelpers apply coli_db -o coli_build/ --sh coli_g1 --notify you@example.com
     ```
 
 ## Next Steps

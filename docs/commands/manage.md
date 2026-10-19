@@ -37,34 +37,34 @@ Manage k-mer index registries.
 | Option | Description |
 |--------|-------------|
 | `-i, --input-dir DIR` | Directory containing existing kmtricks indices to register |
-| `-n, --name TEXT` | Specific index IDs to register (default: all found) |
+| `--sh, --shard TEXT` | Shard(s) to register (default: all found) |
 
 ### `add`
 
 | Option | Description |
 |--------|-------------|
 | `-i, --input-dir DIR` | Directory containing kmtricks indices to add (required) |
-| `-n, --name TEXT` | Specific index IDs to register (default: all found) |
+| `--sh, --shard TEXT` | Shard(s) to register (default: all found) |
 
 ### `check`
 
 | Option | Description |
 |--------|-------------|
-| `-n, --name TEXT` | Check only these index IDs (repeatable, default: all); fails if one is not registered |
+| `--sh, --shard TEXT` | Check only these shards (repeatable, default: all); fails if one is not registered |
 | `-v, --verbose` | Show detailed validation output |
 
 ### `info`
 
 | Option | Description |
 |--------|-------------|
-| `-n, --index-id TEXT` | Index ID to show information for (required) |
+| `--sh, --shard TEXT` | Shard to show information for (required) |
 | `--json` | Output as JSON |
 
 ### `remove`
 
 | Option | Description |
 |--------|-------------|
-| `-n, --name TEXT` | Index ID(s) to remove (required, repeatable) |
+| `--sh, --shard TEXT` | Shard(s) to remove (required, repeatable) |
 | `-d, --delete-files` | Also delete index files from disk |
 | `-y, --yes` | Skip confirmation prompt |
 | `--missing-ok` | Skip index IDs that are not registered instead of failing |
@@ -82,7 +82,7 @@ Manage k-mer index registries.
 | Option | Description |
 |--------|-------------|
 | `-i, --input-dir DIR` | Directory containing the moved index files (required) |
-| `-n, --index-id TEXT` | Index ID to relink (default: all registered indices) |
+| `--sh, --shard TEXT` | Shard to relink (default: all registered shards) |
 
 ## Examples
 
@@ -101,22 +101,22 @@ kmhelpers manage -r /path/to/registry list
 kmhelpers manage add -i /data/new_indices
 
 # Show info for a specific index
-kmhelpers manage info -n my_index
+kmhelpers manage info --sh my_index
 
 # Show info as JSON
-kmhelpers manage info -n my_index --json
+kmhelpers manage info --sh my_index --json
 
 # Check consistency
 kmhelpers manage check
 
 # Remove an index (keep files)
-kmhelpers manage remove -n my_index
+kmhelpers manage remove --sh my_index
 
 # Remove an index and delete files from disk
-kmhelpers manage remove -n my_index -d
+kmhelpers manage remove --sh my_index -d
 
 # Remove multiple indices without confirmation
-kmhelpers manage remove -n idx1 -n idx2 -y
+kmhelpers manage remove --sh idx1 --sh idx2 -y
 
 # Rename an index
 kmhelpers manage rename -f old_name -t new_name
@@ -125,5 +125,5 @@ kmhelpers manage rename -f old_name -t new_name
 kmhelpers manage relink -i /new/location
 
 # Relink a specific index
-kmhelpers manage relink -i /new/location -n my_index
+kmhelpers manage relink -i /new/location --sh my_index
 ```

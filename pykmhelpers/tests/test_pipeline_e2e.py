@@ -536,7 +536,7 @@ class TestStepByStepDesignAndBuild(PipelineE2EBase):
         self.assertNotIn("kmindex build", builds)
         self.assertIn("flock", merges)
         self.assertIn("manage move-dir", merges)
-        self.assertLess(merges.index("check -n"), merges.index("cleanup"))
+        self.assertLess(merges.index("check --shard"), merges.index("cleanup"))
         registry = json.loads((self.tmp / "build2" / "index.json").read_text())
         self.assertEqual(registry["index"], {}, "plan registered something")
         # the written scripts build the index on their own

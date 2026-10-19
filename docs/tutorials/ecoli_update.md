@@ -119,6 +119,6 @@ kmhelpers query -r coli_build/ -o results_update/ query.fa
 ```bash
 # Registered indices and the samples they hold
 kmhelpers manage -r coli_build/ list
-kmhelpers manage -r coli_build/ info -n coli_g0
+kmhelpers manage -r coli_build/ info --sh coli_g0
 kmhelpers manage -r coli_build/ check
 ```

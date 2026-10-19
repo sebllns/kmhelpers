@@ -26,7 +26,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 |--------|-------------|
 | `--bp, --base-path DIR` | Base path to resolve relative sample paths |
 | `-s, --span TEXT` | Span(s) to build: single value, comma-separated, or range (e.g. `27-30`) |
-| `-n, --name TEXT` | Index ID(s) to build (repeatable or comma-separated) |
+| `--sh, --shard TEXT` | Shard(s) to build (repeatable or comma-separated) |
 | `-t, --threads INT` | Number of threads |
 | `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Builds and merges](build.md#builds-and-merges) |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use (default: 0.9) |
@@ -52,8 +52,8 @@ See [build - Paths](build.md#paths) for the directory layout.
 kmhelpers apply coli_db -o coli_build/
 
 # Build only selected indices by name (comma-separated or repeated flags)
-kmhelpers apply coli_db -o coli_build/ -n coli_g0,coli_g1
-kmhelpers apply coli_db -o coli_build/ -n coli_g0 -n coli_g1
+kmhelpers apply coli_db -o coli_build/ --sh coli_g0,coli_g1
+kmhelpers apply coli_db -o coli_build/ --sh coli_g0 --sh coli_g1
 
 # Build only specific spans
 kmhelpers apply coli_db -o coli_build/ -s 28
