@@ -2,10 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.8.0] - 2026-10-19
 
 ### Added
 
+- **`list --paired [REGEX]`** (`design --paired`): groups mate files (R1/R2) of a directory into one sample
+  - The default regex matches mate tokens such as `_R1`, `_R2`, `_1`, `.2`; `--paired=REGEX` sets a custom one
+  - Without `--paired`, a warning is logged when unassembled files (`-dt u`) look like read pairs
+- **`query --export` (`-x`)**: writes a Markdown or HTML report beside the data results
+- **`query -f none`**: keeps only the raw kmindex results
+- **Query statistics**: `sequence_stats.tsv` (one row per query sequence) and `sample_stats.tsv` (one row per matched sample), with match count, perfect matches and mean and median scores; `--no-stats` skips them. The overall rows are also in the md and html reports
 - **`--keep-previous`** (`plan`, `apply`, `build`): keeps the replaced version of an updated index in `BUILD_DIR/work/SESSION/previous/`
 - **`manage check -n`**: checks only the given indices, and fails if one is not registered
 - **`manage move-dir`** (internal, hidden): renames a folder for the generated scripts, failing instead of copying across filesystems
@@ -33,6 +39,13 @@ All notable changes to this project will be documented in this file.
   - The merged shard is then registered in the main registry; chunks, intermediate merges and throwaway registries are deleted
 - **Merge threads**: `kmindex merge` gets at most one thread per partition (it runs one task per partition)
 - **`--limits`**: new optional `maps` key (default: `vm.max_map_count` of the machine)
+- **`query -f`**: selects the data format only (`tsv`, `json`, `yaml`, `none`); `-f md` and `-f html` are deprecated and map to `-f tsv --export md|html`. `--print` prints the data only
+- **Query module**: split into `pipeline/query.py` (runner), `pipeline/query_result.py` (`KmindexQueryResult`, still importable from `pykmhelpers`) and `pipeline/query_report.py`
+- **Documentation**:
+  - New [Python API](https://sebllns.github.io/kmhelpers/latest/tutorials/ecoli_api/) tutorial reproducing the *E. coli* tutorial, with per-step options, and an advanced page (custom sample lists and JSONL, filtering between steps, script-based builds, streaming and merging query results); script in `examples/tuto_ecoli_api.py`
+  - The *E. coli* tutorials and `examples/tuto_ecoli_e2e.sh` scan the dataset directories instead of using file lists
+  - `list`: new "When to use a sample list" section
+  - New `sample_lister` API reference page
 
 ### Removed
 
@@ -43,6 +56,8 @@ All notable changes to this project will be documented in this file.
 
 - **Python 3.11**: deleting an index used `shutil.rmtree(onexc=...)`, which exists only from Python 3.12
 - **`manage remove`**: always deleted the index files, ignoring `-d/--delete-files`
+- **`query`**: results were lost when kmindex wrote one file per batch (`batch_N/`), and a query without match was reported as failed
+- **`examples/pipeline_api.py`**: used `IndexOpsConfig` arguments removed by the in-place index layout
 
 ## [0.7.1] - 2026-10-07
 
