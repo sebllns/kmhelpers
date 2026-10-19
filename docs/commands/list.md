@@ -25,6 +25,7 @@ Scan a directory or import a sample list, count k-mers, and produce a JSONL samp
 |--------|-------------|
 | `-nc, --no-count` | Skip k-mer counting with ntcard |
 | `-lg, --leaf-grouping` | Group files by leaf folder; each leaf directory becomes one sample |
+| `-p, --paired [REGEX]` | Group mate files (R1/R2) of a directory into one sample, see [Grouping](#description) |
 | `-c, --continue` | Resume from an existing output file, skipping already-listed samples |
 | `-a, --autorename` | Rename duplicate sample IDs by appending a numeric suffix instead of skipping |
 | `-ntt, --ntcard-threads INT` | Number of threads for ntcard k-mer counting (default: 8) |
@@ -68,6 +69,13 @@ samples:
 
 **Grouping** - by default, each file is treated as its own sample. Use `--leaf-grouping` to group files by leaf folder, where each leaf directory becomes one sample whose ID is the folder name.
 
+**Paired reads** - use `--paired` to group mate files into one sample. The last match of a regex is removed from each file name (without extension), and files of the same directory with the same result form one sample named after it. The default regex `[._][Rr]?[12](?=[._]|$)` matches mate tokens such as `_R1`, `_R2`, `_1`, `.2`:
+
+- `S1_R1_clean.fastq.gz` + `S1_R2_clean.fastq.gz` -> `S1_clean`
+- `SRR123_1.fq.gz` + `SRR123_2.fq.gz` -> `SRR123`
+
+Files without a mate token stay single-file samples. Pass a custom regex as `--paired=REGEX` (the `=` is required when another argument follows). Without `--paired`, a warning is logged when files look like read pairs. `--paired` cannot be combined with `--leaf-grouping`.
+
 **K-mer counting** - enabled by default. Counting is skipped for any sample that already has a `kmer_count` value. Use `--no-count` to skip counting entirely. The `--data-type` option controls what is counted:
 
 - `assembled` (default) - counts all distinct k-mers; suited for assemblies where every k-mer is expected at least once
@@ -98,6 +106,12 @@ kmhelpers list /data/sequences -o samples.jsonl
 
 # Group files by leaf folder
 kmhelpers list /data/sequences -o samples.jsonl --leaf-grouping
+
+# Group paired-end reads (R1/R2) into one sample per pair
+kmhelpers list /data/reads -o samples.jsonl -dt u --paired
+
+# Custom mate pattern, e.g. "sample.fwd.fq" / "sample.rev.fq"
+kmhelpers list /data/reads -o samples.jsonl -dt u --paired='\.(fwd|rev)$'
 
 # Custom k-mer size
 kmhelpers list /data/sequences -o samples.jsonl -k 31

@@ -66,6 +66,7 @@ Set `-S` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 | `-p, --partition-count INT` | Desired number of partitions per index, 0 for automatic (default: 0) |
 | `-nc, --no-count` | Skip k-mer counting with ntcard |
 | `-lg, --leaf-grouping` | Group files by leaf folder; each leaf directory becomes one sample |
+| `--paired [REGEX]` | Group mate files (R1/R2) of a directory into one sample, see [list](list.md#description) |
 | `-r, --autorename` | Rename duplicate sample IDs by appending a numeric suffix instead of skipping |
 | `-ntt, --ntcard-threads INT` | Number of threads for ntcard k-mer counting (default: 8) |
 

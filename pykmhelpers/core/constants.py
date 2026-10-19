@@ -69,3 +69,8 @@ def strip_data_ext(fname: str) -> str:
         if base.endswith(ext):
             return base[: -len(ext)]
     return os.path.splitext(fname)[0]
+
+
+# Mate token in a file name without extension: "_R1", ".2", "_1"...
+# followed by a separator or the end of the name (matches "x_R1_clean", "SRR1_2").
+DEFAULT_PAIR_REGEX = r"[._][Rr]?[12](?=[._]|$)"

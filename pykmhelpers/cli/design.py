@@ -8,6 +8,7 @@ import click
 
 from pykmhelpers.cli.shared import parse_shard_size
 from pykmhelpers.core.byte import ByteCounter
+from pykmhelpers.core.constants import DEFAULT_PAIR_REGEX
 from pykmhelpers.core.log import Log
 from pykmhelpers.core.utils import Toolbox
 from pykmhelpers.pipeline.composer import IndexComposer
@@ -106,6 +107,18 @@ logger = logging.getLogger(__name__)
     help="🚩  Group files by leaf folder; each leaf directory becomes one sample.",
 )
 @click.option(
+    "--paired",
+    "pair_regex",
+    is_flag=False,
+    flag_value=DEFAULT_PAIR_REGEX,
+    default=None,
+    metavar="[REGEX]",
+    help="🚩  Group mate files (R1/R2) into one sample. The last match of REGEX "
+    "(default: mate tokens like _R1, _1, .2) is removed from each file name, and "
+    "files of a directory with the same result form one sample. "
+    "Pass a custom REGEX as --paired=REGEX.",
+)
+@click.option(
     "--autorename",
     "-r",
     is_flag=True,
@@ -153,6 +166,7 @@ def design(
     data_type,
     no_count,
     leaf_grouping,
+    pair_regex,
     autorename,
     ntcard_threads,
     n_groups,
@@ -242,6 +256,7 @@ def design(
                 is_assembled=is_assembled,
                 do_count=not no_count,
                 do_grouping=leaf_grouping,
+                pair_regex=pair_regex,
                 autorename=autorename,
                 ntcard_threads=ntcard_threads,
             ).run()

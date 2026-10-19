@@ -3,17 +3,24 @@
 import json
 import logging
 import os
+import re
 import typing
 from datetime import datetime, timezone
 
 import yaml
 
-from pykmhelpers.core.constants import DATA_EXT_ALL, strip_data_ext
+from pykmhelpers.core.constants import (
+    DATA_EXT_ALL,
+    DEFAULT_PAIR_REGEX,
+    strip_data_ext,
+)
 from pykmhelpers.core.kmer import KmerCounter, KmerCountMode
 from pykmhelpers.core.log import Log
 from pykmhelpers.pipeline.index_db import IndexDefinitionTools
 
 logger = logging.getLogger(__name__)
+
+_DEFAULT_PAIR_RE = re.compile(DEFAULT_PAIR_REGEX)
 
 
 class SampleLister:
@@ -34,6 +41,9 @@ class SampleLister:
                          False for raw reads (solid k-mer count).
         do_count:        Count k-mers with ntcard when no count is already known.
         do_grouping:     Group all files in a leaf directory under one sample ID.
+        pair_regex:      Group mate files (R1/R2) of a directory scan: the last
+                         match of this regex is removed from each file name and
+                         files of a directory with the same result form one sample.
         autorename:      Append ``_N`` suffix to duplicate IDs instead of skipping.
         ntcard_threads:  Thread count for ntcard (default 8).
     """
@@ -47,6 +57,7 @@ class SampleLister:
         is_assembled: bool = True,
         do_count: bool = True,
         do_grouping: bool = True,
+        pair_regex: str | None = None,
         do_continue: bool = False,
         autorename: bool = False,
         ntcard_threads: int = 8,
@@ -58,6 +69,12 @@ class SampleLister:
         self.is_assembled = is_assembled
         self.do_count = do_count
         self.do_grouping = do_grouping
+        if pair_regex is not None and do_grouping:
+            raise ValueError("--paired cannot be combined with --leaf-grouping")
+        try:
+            self._pair_re = re.compile(pair_regex) if pair_regex is not None else None
+        except re.error as e:
+            raise ValueError(f"Invalid --paired regex '{pair_regex}': {e}")
         self.autorename = autorename
         self._do_continue = do_continue
         self.ntcard_threads = ntcard_threads
@@ -303,12 +320,49 @@ class SampleLister:
             if self.do_grouping:
                 sample_id = self._tools.clean_sample_id(os.path.basename(dirpath))
                 process_callback(sample_id, data_files, 0)
+            elif self._pair_re is not None:
+                for sample_id, files in self._pair_files(data_files, self._pair_re):
+                    if len(files) > 2:
+                        logger.warning(f"{len(files)} files grouped as {sample_id}")
+                    process_callback(sample_id, files, 0)
             else:
+                pairs = sum(
+                    len(files) > 1
+                    for _, files in self._pair_files(data_files, _DEFAULT_PAIR_RE)
+                )
+                if pairs:
+                    logger.warning(
+                        f"{pairs} file group(s) in {dirpath} look like read pairs, "
+                        "use --paired to group each pair into one sample"
+                    )
                 for filepath in data_files:
                     sample_id = self._tools.clean_sample_id(
                         strip_data_ext(os.path.basename(filepath))
                     )
                     process_callback(sample_id, [filepath], 0)
+
+    def _pair_files(
+        self, data_files: list[str], pair_re: re.Pattern
+    ) -> list[tuple[str, list[str]]]:
+        """Group files of one directory by name with the last pair_re match removed.
+
+        Files without a match stay single-file samples named after the file.
+        """
+        groups: dict[tuple[bool, str], list[str]] = {}
+        for filepath in data_files:
+            stem = strip_data_ext(os.path.basename(filepath))
+            matches = list(pair_re.finditer(stem))
+            key = stem
+            if matches:
+                m = matches[-1]
+                key = stem[: m.start()] + stem[m.end() :] or stem
+            # Unmatched files are kept apart from mates sharing the same key.
+            groups.setdefault((bool(matches), key), []).append(filepath)
+
+        return [
+            (self._tools.clean_sample_id(key), files)
+            for (_, key), files in groups.items()
+        ]
 
     def _process_backup(self, backup_file: str) -> tuple:
         input_dir = self.input_dir

@@ -5,6 +5,7 @@ import os
 
 import click
 
+from pykmhelpers.core.constants import DEFAULT_PAIR_REGEX
 from pykmhelpers.pipeline.sample_lister import SampleLister
 
 logger = logging.getLogger(__name__)
@@ -61,6 +62,19 @@ logger = logging.getLogger(__name__)
     help="🚩  Group files by leaf folder; each leaf directory becomes one sample.",
 )
 @click.option(
+    "--paired",
+    "-p",
+    "pair_regex",
+    is_flag=False,
+    flag_value=DEFAULT_PAIR_REGEX,
+    default=None,
+    metavar="[REGEX]",
+    help="🚩  Group mate files (R1/R2) into one sample. The last match of REGEX "
+    "(default: mate tokens like _R1, _1, .2) is removed from each file name, and "
+    "files of a directory with the same result form one sample. "
+    "Pass a custom REGEX as --paired=REGEX.",
+)
+@click.option(
     "--continue",
     "-c",
     "do_continue",
@@ -93,6 +107,7 @@ def list_samples(
     data_type,
     no_count,
     leaf_grouping,
+    pair_regex,
     do_continue,
     autorename,
     ntcard_threads,
@@ -108,7 +123,8 @@ def list_samples(
 
     By default, each file is treated as its own sample. Use --leaf-grouping
     to group files by leaf folder, where each leaf directory becomes one
-    sample whose ID is the folder name.
+    sample whose ID is the folder name. Use --paired to group mate files
+    (R1/R2) of a directory into one sample.
 
     K-mer counting is enabled by default. Use --no-count to skip it. If the
     output file already exists and is incomplete, the run will resume from
@@ -126,6 +142,7 @@ def list_samples(
             is_assembled=is_assembled,
             do_count=not no_count,
             do_grouping=leaf_grouping,
+            pair_regex=pair_regex,
             do_continue=do_continue,
             autorename=autorename,
             ntcard_threads=ntcard_threads,
