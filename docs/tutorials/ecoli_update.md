@@ -9,47 +9,33 @@ assumes you have already followed the main steps and have `coli_db/` and
 
 ## Step 1 - Download a new sample
 
+Download it into its own directory, `coli_update/`: `design` scans the whole
+directory, and the samples already indexed must **not** be listed again.
+
 ```bash
-cd coli_dataset
+mkdir -p coli_update && cd coli_update
 wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/005/845/GCA_000005845.2_ASM584v2/GCA_000005845.2_ASM584v2_genomic.fna.gz"
 cd ..
 ```
 
 ??? abstract "I/O"
     **Input:** one NCBI FTP URL (*E. coli* K-12 MG1655 reference assembly)  
-    **Output:** `coli_dataset/GCA_000005845.2_ASM584v2_genomic.fna.gz`
+    **Output:** `coli_update/GCA_000005845.2_ASM584v2_genomic.fna.gz`
 
 ---
 
-## Step 2 - Create a file list for the new samples
-
-```bash
-cat > coli_update.txt << 'EOF'
-coli_dataset/GCA_000005845.2_ASM584v2_genomic.fna.gz
-EOF
-```
-
-??? abstract "I/O"
-    **Input:** path to the new `.fna.gz` file  
-    **Output:** `coli_update.txt`
-
-??? info "INFO"
-    List only the **new** samples. Samples already indexed must **not** be repeated.
-
----
-
-## Step 3 - Design the update session ([`design`](../commands/design.md))
+## Step 2 - Design the update session ([`design`](../commands/design.md))
 
 Re-run `design` with the same `-o` and `-n` as
-[Step 3](ecoli.md#step-3-design-the-index-design) of the tutorial, and a fresh
+[Step 2](ecoli.md#step-2-design-the-index-design) of the tutorial, and a fresh
 `-S` session ID:
 
 ```bash
-kmhelpers design coli_update.txt -o coli_db/ -n coli -S update
+kmhelpers design coli_update/ -o coli_db/ -n coli -S update
 ```
 
 ??? abstract "I/O"
-    **Input:** `coli_update.txt`, existing layout `coli_db/compose/coli_layout.yaml`  
+    **Input:** `coli_update/`, existing layout `coli_db/compose/coli_layout.yaml`  
     **Output:** `coli_db/compose/coli/update/coli.yaml`
 
 ??? info "INFO"
@@ -60,10 +46,10 @@ kmhelpers design coli_update.txt -o coli_db/ -n coli -S update
 
 ---
 
-## Step 4 - Build the update session ([`build`](../commands/build.md))
+## Step 3 - Build the update session ([`build`](../commands/build.md))
 
 Build into the **same** `BUILD_DIR` as
-[Step 4](ecoli.md#step-4-build-the-index-build) of the tutorial:
+[Step 3](ecoli.md#step-3-build-the-index-build) of the tutorial:
 
 ```bash
 kmhelpers build coli_db/compose/coli/update/coli.yaml -o coli_build/ --show-progress
@@ -96,7 +82,7 @@ kmhelpers build coli_db/compose/coli/update/coli.yaml -o coli_build/ --show-prog
 
 ---
 
-## Step 5 - Query the updated index ([`query`](../commands/query.md))
+## Step 4 - Query the updated index ([`query`](../commands/query.md))
 
 ```bash
 kmhelpers query -r coli_build/ -o results_update/ query.fa
@@ -114,7 +100,7 @@ kmhelpers query -r coli_build/ -o results_update/ query.fa
 
 ---
 
-## Step 6 - Check the result
+## Step 5 - Check the result
 
 ```bash
 # Registered indices and the samples they hold

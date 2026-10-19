@@ -103,6 +103,8 @@ nav:
                   - Main tutorial: tutorials/ecoli.md
                   - Step-by-step breakdown: tutorials/ecoli_steps.md
                   - Update an existing index: tutorials/ecoli_update.md
+                  - Python API: tutorials/ecoli_api.md
+                  - Python API (advanced): tutorials/ecoli_api_advanced.md
         #       - Concepts:
         #               - K-mer Counting: concepts/kmer-counting.md
         #               - kmindex Index: concepts/kmindex-index.md
@@ -140,6 +142,7 @@ nav:
                             - query: api/pipeline/query.md
                             - query_result: api/pipeline/query_result.md
                             - query_report: api/pipeline/query_report.md
+                            - sample_lister: api/pipeline/sample_lister.md
                             - span_profiler: api/pipeline/span_profiler.md
                   - Operations:
                             - builder: api/operations/builder.md

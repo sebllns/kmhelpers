@@ -44,33 +44,10 @@ cd ..
 
 ---
 
-## Step 2 - Create a file list
+## Step 2 - Design the index ([`design`](../commands/design.md))
 
 ```bash
-cat > coli_10.txt << 'EOF'
-coli_dataset/GCA_000780515.1_ASM78051v1_genomic.fna.gz
-coli_dataset/GCA_001076125.1_ASM107612v1_genomic.fna.gz
-coli_dataset/GCA_001417575.1_ASM141757v1_genomic.fna.gz
-coli_dataset/GCA_000944435.1_Ec57A_E8C1_MIRA_assembly_genomic.fna.gz
-coli_dataset/GCA_001075925.1_ASM107592v1_genomic.fna.gz
-coli_dataset/GCA_000936715.1_E8C1_assembly_genomic.fna.gz
-coli_dataset/GCA_000939215.1_Ec57A_A7_MIRA_assembly_genomic.fna.gz
-coli_dataset/GCA_001413795.1_ASM141379v1_genomic.fna.gz
-coli_dataset/GCA_001373195.1_57A_A7_assembly_genomic.fna.gz
-coli_dataset/GCA_000938575.1_D1C4_assembly_genomic.fna.gz
-EOF
-```
-
-??? abstract "I/O"
-    **Input:** paths to the 10 `.fna.gz` files (written manually)  
-    **Output:** `coli_10.txt`
-
----
-
-## Step 3 - Design the index ([`design`](../commands/design.md))
-
-```bash
-kmhelpers design coli_10.txt \
+kmhelpers design coli_dataset/ \
     -o coli_db/ \
     -n coli \
     -S initial \
@@ -80,18 +57,23 @@ kmhelpers design coli_10.txt \
 ```
 
 ??? abstract "I/O"
-    **Input:** `coli_10.txt`  
+    **Input:** `coli_dataset/`, scanned for sequence files (one sample per file)  
     **Output:** `coli_db/list/` (JSONL), `coli_db/profile/` (profile.yaml, groups.png),
     `coli_db/compose/` (index definitions)
 
 ??? info "INFO"
     `design` runs [`list`](../commands/list.md) → [`profile`](../commands/profile.md) → [`compose`](../commands/compose.md) in a single command.  
     For a detailed walkthrough of each sub-command, see
-    [Step-by-step: list → profile → compose](ecoli_steps.md#step-31-scan-samples-and-count-k-mers-list).
+    [Step-by-step: list → profile → compose](ecoli_steps.md#step-21-scan-samples-and-count-k-mers-list).
+
+??? question "Why scan a directory rather than pass a sample list?"
+    A directory scan names each sample after its file and counts its k-mers.
+    A sample list lets you set names, reuse k-mer counts, group files freely and
+    mix locations - see [When to use a sample list](../commands/list.md#when-to-use-a-sample-list).
 
 ---
 
-## Step 4 - Build the index ([`build`](../commands/build.md))
+## Step 3 - Build the index ([`build`](../commands/build.md))
 
 ```bash
 kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build/ --show-progress
@@ -105,11 +87,11 @@ kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build/ --show-pro
     `build` runs [`plan`](../commands/plan.md) → [`apply`](../commands/apply.md) in a single command, validating all paths before
     starting the build.  
     For a detailed walkthrough, or to run `plan` first and apply later with `bash`
-    or `apply`, see [Step-by-step: plan → apply](ecoli_steps.md#step-41-preview-the-build-plan-plan).
+    or `apply`, see [Step-by-step: plan → apply](ecoli_steps.md#step-31-preview-the-build-plan-plan).
 
 ---
 
-## Step 5 - Query the index ([`query`](../commands/query.md))
+## Step 4 - Query the index ([`query`](../commands/query.md))
 
 Extract the first contig of the first sample as a query sequence:
 
@@ -133,7 +115,7 @@ kmhelpers query -r coli_build/ -o results/ query.fa
     one row per query sequence and one column per matching sample:
 
     ```tsv
-    seq	GCA_000780515_1_ASM78051v1_genomic_fna
+    seq	GCA_000780515_1_ASM78051v1_genomic
     JSPL01000060.1	1.000
     ```
 
@@ -149,6 +131,8 @@ kmhelpers query -r coli_build/ -o results/ query.fa
 
 To add samples to this index later without rebuilding it from scratch, see
 [Update an existing index](ecoli_update.md).
+
+To run the same pipeline from Python, see [Python API](ecoli_api.md).
 
 ---
 

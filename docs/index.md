@@ -24,7 +24,7 @@ This typical lifecycle breaks down into four steps, shown below:
     <!-- termynal -->
 
     ```
-    $ kmhelpers design coli_10.txt -o coli_db/ -n coli -S initial -k 25 -b 1.1 -g 2
+    $ kmhelpers design coli_dataset/ -o coli_db/ -n coli -S initial -k 25 -b 1.1 -g 2
 
     Listed 10 samples -> coli_db/list/coli_samples_20260706_173255.jsonl
     SUCCESS ('list')
