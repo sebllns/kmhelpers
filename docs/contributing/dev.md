@@ -141,10 +141,12 @@ git checkout -b release/v$VERSION
 
 ```bash
 pytest
-rm -rf dist && python -m build && twine check dist/*
 git commit -am "release: v$VERSION"
 git push -u origin release/v$VERSION
 ```
+
+The sdist and wheel are built and checked with `twine check` in CI
+(`tests.yml`, `package` job).
 
 ### 2. Merge into `main`
 
@@ -159,19 +161,12 @@ gh pr merge --merge --delete-branch
 ```bash
 git checkout main
 git pull
-git tag -a v$VERSION -m "kmhelpers v$VERSION" \
-    -m "Documentation: https://sebllns.github.io/kmhelpers/$VERSION/
-Changelog: https://sebllns.github.io/kmhelpers/$VERSION/changelog/"
-git push origin v$VERSION
-```
-
-Or with `git create-release` (`scripts/git-create-release`, requires
-[`gh`](https://cli.github.com)), which runs the commands above after checks,
-then lists the release workflow runs:
-
-```bash
 git create-release [--view] [--overwrite] [VERSION]
 ```
+
+`git create-release` (`scripts/git-create-release`, requires
+[`gh`](https://cli.github.com)) tags `origin/main` and pushes the tag after
+checks, then lists the release workflow runs.
 
 `VERSION` defaults to `pykmhelpers/_version.py`; a different one asks for
 confirmation. Before tagging, it checks that `CHANGELOG.md` has the
@@ -188,6 +183,15 @@ The alias is defined in the versioned `.gitconfig`, enable it once per clone:
 
 ```bash
 git config include.path ../.gitconfig
+```
+
+Without the alias:
+
+```bash
+git tag -a v$VERSION -m "kmhelpers v$VERSION" \
+    -m "Documentation: https://sebllns.github.io/kmhelpers/$VERSION/
+Changelog: https://sebllns.github.io/kmhelpers/$VERSION/changelog/"
+git push origin v$VERSION
 ```
 
 Never move or re-create a pushed tag, except with `--overwrite` when the

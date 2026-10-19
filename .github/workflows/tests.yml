@@ -45,6 +45,24 @@ jobs:
       - name: Compile all sources
         run: python -m compileall -q pykmhelpers
 
+  # Catches broken metadata or README rendering before tagging
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build and check sdist and wheel
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          twine check --strict dist/*
+
   test:
     runs-on: ubuntu-latest
     steps:
