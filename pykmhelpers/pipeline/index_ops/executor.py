@@ -179,6 +179,7 @@ class IndexExecutor:
                 name=name,
                 samples=fof,
                 abundance_min=i.abundance_min,
+                bitw=i.bitw,
                 bloom_size=i.bf_size,
                 n_partitions=params.partitions,
                 n_threads=params.threads,

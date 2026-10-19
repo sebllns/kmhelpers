@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.4] - Unreleased
+
+### Added
+
+- **Abundance indexes**: `design -ab N` / `compose -ab N` (`--abundance-bits`) compose an index storing `N` bits per sample and k-mer (2^N abundance classes), built by kmindex with `--nb-cell` and `--bitw N`
+  - `bitw` is stored in the index definitions and the layout; definitions without it, and `-ab 0` (default), are presence/absence as before
+  - An update with another `bitw` than the layout is refused: presence/absence and abundance indexes cannot be merged
+  - Storage estimates, shard sample limits and `bytes_per_row` count `bitw` bits per sample
+
+### Fixed
+
+- **`compose` hard min**: the `abundance_min` of the JSONL header (2 for unassembled data) is used, instead of always 1
+
 ## [0.7.3] - 2026-10-28
 
 ### Changed
