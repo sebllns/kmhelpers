@@ -4,8 +4,10 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from pykmhelpers.core.constants import DEFAULT_PAIR_REGEX
+from pykmhelpers.pipeline import sample_lister
 from pykmhelpers.pipeline.sample_lister import SampleLister
 
 
@@ -37,8 +39,15 @@ class SampleListerPairingTest(unittest.TestCase):
     def test_default_lists_each_file(self):
         self.touch("S1_R1.fq.gz", "S1_R2.fq.gz")
         with self.assertLogs("pykmhelpers.pipeline.sample_lister", "WARNING"):
-            samples = self.run_lister()
+            samples = self.run_lister(is_assembled=False)
         self.assertEqual(set(samples), {"S1_R1", "S1_R2"})
+
+    def test_no_pair_warning_for_assembled(self):
+        self.touch("genome_1.fa", "genome_2.fa")
+        with mock.patch.object(sample_lister.logger, "warning") as warning:
+            samples = self.run_lister()
+        warning.assert_not_called()
+        self.assertEqual(set(samples), {"genome_1", "genome_2"})
 
     def test_paired_default_regex(self):
         self.touch(

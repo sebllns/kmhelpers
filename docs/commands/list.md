@@ -74,7 +74,7 @@ samples:
 - `S1_R1_clean.fastq.gz` + `S1_R2_clean.fastq.gz` -> `S1_clean`
 - `SRR123_1.fq.gz` + `SRR123_2.fq.gz` -> `SRR123`
 
-Files without a mate token stay single-file samples. Pass a custom regex as `--paired=REGEX` (the `=` is required when another argument follows). Without `--paired`, a warning is logged when files look like read pairs. `--paired` cannot be combined with `--leaf-grouping`.
+Files without a mate token stay single-file samples. Pass a custom regex as `--paired=REGEX` (the `=` is required when another argument follows). Without `--paired`, a warning is logged when unassembled files (`-dt u`) look like read pairs. `--paired` cannot be combined with `--leaf-grouping`.
 
 **K-mer counting** - enabled by default. Counting is skipped for any sample that already has a `kmer_count` value. Use `--no-count` to skip counting entirely. The `--data-type` option controls what is counted:
 

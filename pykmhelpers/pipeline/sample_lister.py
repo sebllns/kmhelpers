@@ -326,7 +326,8 @@ class SampleLister:
                         logger.warning(f"{len(files)} files grouped as {sample_id}")
                     process_callback(sample_id, files, 0)
             else:
-                pairs = sum(
+                # Raw reads only: assembled names like "genome_1" are not mates.
+                pairs = not self.is_assembled and sum(
                     len(files) > 1
                     for _, files in self._pair_files(data_files, _DEFAULT_PAIR_RE)
                 )
