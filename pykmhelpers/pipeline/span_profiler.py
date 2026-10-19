@@ -8,6 +8,11 @@ import yaml
 
 import pykmhelpers.pipeline.span_analyzer
 from pykmhelpers.core.bloom_filter import SpanManager
+from pykmhelpers.core.constants import (
+    AUTO_GROUP_MAX,
+    AUTO_GROUP_MIN_GAIN,
+    AUTO_GROUP_SAMPLES,
+)
 from pykmhelpers.core.log import Log
 
 logger = logging.getLogger(__name__)
@@ -26,7 +31,13 @@ class SpanProfiler:
         input_file:          Path to the JSONL sample index (produced by ``list``).
         output_dir:          Directory where output files are written.
         false_positive_rate: Bloom filter false-positive rate (default 0.25).
-        n_groups:            Number of storage-balanced span groups (0 = auto).
+        n_groups:            Number of storage-balanced span groups. 0 (default)
+                             chooses it, see ``SpanAnalyzer.auto_groups``.
+        auto_group_samples:  With ``n_groups=0``, about one group per this many
+                             samples.
+        auto_group_max:      With ``n_groups=0``, the most groups chosen.
+        auto_group_min_gain: With ``n_groups=0``, the storage fraction a group
+                             must save to be added.
     """
 
     def __init__(
@@ -34,14 +45,22 @@ class SpanProfiler:
         input_file: str,
         output_dir: str,
         false_positive_rate: float = 0.25,
-        n_groups: int = 20,
+        n_groups: int = 0,
         base: float = 2.0,
+        auto_group_samples: int = AUTO_GROUP_SAMPLES,
+        auto_group_max: int = AUTO_GROUP_MAX,
+        auto_group_min_gain: float = AUTO_GROUP_MIN_GAIN,
     ):
         self.input_file = input_file
         self.output_dir = output_dir
         self.false_positive_rate = false_positive_rate
         self.n_groups = n_groups
         self.base = base
+        self.auto_group = {
+            "samples": auto_group_samples,
+            "max": auto_group_max,
+            "min_gain": auto_group_min_gain,
+        }
 
     def run(self) -> None:
         with open(self.input_file) as f:
@@ -108,7 +127,19 @@ class SpanProfiler:
 
         sa = pykmhelpers.pipeline.span_analyzer.SpanAnalyzer(distribution_file)
 
-        n_groups = min(self.n_groups, len(spans)) or len(spans)
+        auto_group = None
+        if self.n_groups == 0:
+            g = self.auto_group
+            n_groups = sa.auto_groups(g["samples"], g["max"], g["min_gain"])
+            # Recorded in profile.yaml, so the grouping can be reproduced
+            auto_group = dict(g, groups=n_groups)
+            logger.info(
+                f"Auto groups: {n_groups} ({sample_count} samples, "
+                f"cap {sa.auto_group_cap(g['samples'], g['max'])}, "
+                f"min gain {g['min_gain']:.0%})"
+            )
+        else:
+            n_groups = min(self.n_groups, len(spans))
 
         sa.plot(n_groups=n_groups)
 
@@ -120,6 +151,7 @@ class SpanProfiler:
                     "sample_count": sample_count,
                     "biggest_sample": str(biggest_sample),
                     "max_kmer_count": sm.max_kmer_count(baseline[-1]),
+                    **({"auto_group": auto_group} if auto_group else {}),
                     "default_profile": sa.default_profile or "baseline",
                     "profiles": sa.serialize_profiles(),
                 },

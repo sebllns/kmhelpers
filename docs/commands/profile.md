@@ -13,7 +13,7 @@ Analyse a JSONL sample manifest produced by `list` and produce a Bloom-filter sp
     |----------|-------------|
     | `LIST_OUTPUT` | JSONL sample manifest produced by `list` (required) |
     | `-o, --output DIR` | Output directory for results (required) |
-    | `-g, --group N` | Partition Bloom Filters into `N` storage-balanced groups and overlay on plot (default: 20) |
+    | `-g, --group N` | Partition Bloom Filters into `N` storage-balanced groups and overlay on plot; 0 chooses `N` (default: 0), see [profile - Grouping](#description) |
     | `-b, --base FLOAT` | Base for span bucket boundaries (default: 1.1); use values like 1.1 or 2.0 to widen or narrow bucket granularity |
 
 !!! abstract "I/O"
@@ -25,6 +25,9 @@ Analyse a JSONL sample manifest produced by `list` and produce a Bloom-filter sp
 | Option | Description |
 |--------|-------------|
 | `-fp, --false-positive-rate FLOAT` | Target Bloom-filter false-positive rate (default: 0.25) |
+| `--auto-group-samples N` | With `-g 0`: about one group per `N` samples (default: 100, env: `KMHELPERS_AUTO_GROUP_SAMPLES`) |
+| `--auto-group-max N` | With `-g 0`: at most `N` groups (default: 20, env: `KMHELPERS_AUTO_GROUP_MAX`) |
+| `--auto-group-min-gain F` | With `-g 0`: storage fraction a group must save to be added (default: 0.1, env: `KMHELPERS_AUTO_GROUP_MIN_GAIN`) |
 
 ## Output Files
 
@@ -65,6 +68,15 @@ $0.25^6 \approx 0.024\,\%$ effective FP rate.
 sub-indices reduce the number of partition files opened per query. The grouping is
 overlaid on the distribution plot for visual inspection.
 
+With `-g 0` (default), `profile` chooses `N`: at most one group per 100 samples, between
+1 and 20 (and no more than the number of spans), and a group is added only if it reduces the
+total storage by at least 10%. `--auto-group-samples`, `--auto-group-max` and
+`--auto-group-min-gain` (or their `KMHELPERS_AUTO_GROUP_*` environment variables) change these
+values; the ones used and the chosen count are recorded under `auto_group` in `profile.yaml`. Each group is one more sub-index to build, query and update,
+so a narrow distribution keeps few groups whatever its size. The chosen count is logged
+(`Auto groups: N`). For example, 169 samples whose k-mer counts spread over two orders of
+magnitude get 2 groups (one group would take 1.6 GB, two 0.95 GB).
+
 ## Examples
 
 ```bash
@@ -73,6 +85,9 @@ kmhelpers profile samples.jsonl -o ./profile_output
 
 # Use a stricter false-positive rate
 kmhelpers profile samples.jsonl -o ./profile_output -fp 0.05
+
+# Let profile choose the number of span groups (default)
+kmhelpers profile samples.jsonl -o ./profile_output -g 0
 
 # Force a specific number of span groups
 kmhelpers profile samples.jsonl -o ./profile_output -g 3

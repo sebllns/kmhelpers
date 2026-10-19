@@ -74,3 +74,10 @@ def strip_data_ext(fname: str) -> str:
 # Mate token in a file name without extension: "_R1", ".2", "_1"...
 # followed by a separator or the end of the name (matches "x_R1_clean", "SRR1_2").
 DEFAULT_PAIR_REGEX = r"[._][Rr]?[12](?=[._]|$)"
+
+# Automatic group count of `profile -g 0`: about one group per
+# AUTO_GROUP_SAMPLES samples, at most AUTO_GROUP_MAX, a group being added only
+# if it saves AUTO_GROUP_MIN_GAIN of the total storage
+AUTO_GROUP_SAMPLES = 100
+AUTO_GROUP_MAX = 20
+AUTO_GROUP_MIN_GAIN = 0.10

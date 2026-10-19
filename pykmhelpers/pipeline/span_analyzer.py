@@ -11,6 +11,11 @@ from matplotlib.patches import Patch
 
 from pykmhelpers.core.bloom_filter import BloomFilterSpecs
 from pykmhelpers.core.byte import ByteCounter, SizeFormat
+from pykmhelpers.core.constants import (
+    AUTO_GROUP_MAX,
+    AUTO_GROUP_MIN_GAIN,
+    AUTO_GROUP_SAMPLES,
+)
 
 
 class FlowList(list):
@@ -148,6 +153,40 @@ class SpanAnalyzer:
         d_plus = self.bf[m] * (self._pack8(Nm + Nk) - Lm)
         d_minus = self.bf[k] * self.lk[k]
         return (d_plus - d_minus) / 8e9
+
+    def auto_group_cap(
+        self,
+        samples_per_group: int = AUTO_GROUP_SAMPLES,
+        max_groups: int = AUTO_GROUP_MAX,
+    ) -> int:
+        """Most groups ``auto_groups`` may choose: one per ``samples_per_group``
+        samples, between 1 and ``max_groups``, and no more than the spans."""
+        cap = math.ceil(self.get_total_sample_count() / max(samples_per_group, 1))
+        return max(1, min(cap, max_groups, len(self.spans)))
+
+    def auto_groups(
+        self,
+        samples_per_group: int = AUTO_GROUP_SAMPLES,
+        max_groups: int = AUTO_GROUP_MAX,
+        min_gain: float = AUTO_GROUP_MIN_GAIN,
+    ) -> int:
+        """Number of groups worth their cost, up to ``auto_group_cap``.
+
+        Each group is one more sub-index to build, query and update, so a
+        group is added only while it saves at least ``min_gain`` of the total
+        storage. ``compute_groups`` balances the largest group, so the total
+        is not monotonic: the search stops at the first group that does not
+        pay off.
+        """
+        cap = self.auto_group_cap(samples_per_group, max_groups)
+        n_groups = 1
+        total = sum(self.compute_groups(1)[2])
+        while n_groups < cap:
+            next_total = sum(self.compute_groups(n_groups + 1)[2])
+            if next_total > (1 - min_gain) * total:
+                break
+            n_groups, total = n_groups + 1, next_total
+        return n_groups
 
     def compute_groups(self, n_groups: int):
         """Partition spans into n_groups storage-balanced groups using DP (O(m²·X)).

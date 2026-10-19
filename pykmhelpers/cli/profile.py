@@ -4,6 +4,7 @@ import logging
 
 import click
 
+from pykmhelpers.cli.shared import auto_group_options
 from pykmhelpers.core.log import Log
 from pykmhelpers.core.utils import Toolbox
 from pykmhelpers.pipeline.span_profiler import SpanProfiler
@@ -32,10 +33,12 @@ logger = logging.getLogger(__name__)
     "-g",
     "n_groups",
     metavar="N_GROUPS",
-    default=20,
-    type=int,
+    default=0,
+    type=click.IntRange(min=0),
     show_default=True,
-    help="⚙   Partition index into N storage-balanced groups and overlay the result on the plot.",
+    help="⚙   Partition index into N storage-balanced groups and overlay the result on the plot. "
+    "0 = auto: about one group per 100 samples (max 20), a group being added only "
+    "if it saves at least 10% of the storage.",
 )
 @click.option(
     "--false-positive-rate",
@@ -57,7 +60,17 @@ logger = logging.getLogger(__name__)
     help="⚙   Base for bucket boundaries. "
     "Use values like 1.1 or 2 to widen or narrow bucket granularity.",
 )
-def profile(list_output, output_dir, n_groups, base, false_positive_rate):
+@auto_group_options
+def profile(
+    list_output,
+    output_dir,
+    n_groups,
+    base,
+    false_positive_rate,
+    auto_group_samples,
+    auto_group_max,
+    auto_group_min_gain,
+):
     """Analyse a JSONL sample index and output a Bloom-filter profile.
 
     \b
@@ -94,6 +107,9 @@ def profile(list_output, output_dir, n_groups, base, false_positive_rate):
             false_positive_rate=false_positive_rate,
             n_groups=n_groups,
             base=base,
+            auto_group_samples=auto_group_samples,
+            auto_group_max=auto_group_max,
+            auto_group_min_gain=auto_group_min_gain,
         ).run()
         logger.info("SUCCESS ('profile')")
     except Exception as e:

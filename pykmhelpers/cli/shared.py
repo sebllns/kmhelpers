@@ -8,6 +8,11 @@ import click
 import yaml
 
 from pykmhelpers.core.byte import ByteCounter, SizeFormat
+from pykmhelpers.core.constants import (
+    AUTO_GROUP_MAX,
+    AUTO_GROUP_MIN_GAIN,
+    AUTO_GROUP_SAMPLES,
+)
 from pykmhelpers.pipeline.fof import FofManager
 
 
@@ -222,6 +227,56 @@ _INDEX_LIMITS_OPTIONS = [
     _safety_margin_option,
     _max_chunks_option,
 ]
+
+
+# Tune the automatic group count of `-g 0`: shown by `profile`, hidden by
+# `design` (env vars and -C only, to keep it simple)
+_AUTO_GROUP_OPTIONS = [
+    (
+        "--auto-group-samples",
+        dict(
+            type=click.IntRange(min=1),
+            default=AUTO_GROUP_SAMPLES,
+            envvar="KMHELPERS_AUTO_GROUP_SAMPLES",
+            help="⚙   With -g 0: about one group per this many samples.",
+        ),
+    ),
+    (
+        "--auto-group-max",
+        dict(
+            type=click.IntRange(min=1),
+            default=AUTO_GROUP_MAX,
+            envvar="KMHELPERS_AUTO_GROUP_MAX",
+            help="⚙   With -g 0: the most groups chosen.",
+        ),
+    ),
+    (
+        "--auto-group-min-gain",
+        dict(
+            type=click.FloatRange(0, 1),
+            default=AUTO_GROUP_MIN_GAIN,
+            envvar="KMHELPERS_AUTO_GROUP_MIN_GAIN",
+            help="⚙   With -g 0: storage fraction a group must save to be added.",
+        ),
+    ),
+]
+
+
+def auto_group_options(f=None, *, hidden: bool = False):
+    """Options tuning the automatic group count of `-g 0`.
+
+    `profile` shows them; `design` passes ``hidden=True`` so they are only
+    read from their environment variables (or -C), not listed in its help.
+    """
+
+    def decorate(f):
+        for name, kwargs in reversed(_AUTO_GROUP_OPTIONS):
+            f = click.option(
+                name, show_default=True, show_envvar=True, hidden=hidden, **kwargs
+            )(f)
+        return f
+
+    return decorate(f) if f is not None else decorate
 
 
 def index_build_options(f):

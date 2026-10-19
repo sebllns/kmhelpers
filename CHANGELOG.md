@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Automatic group count** (`profile -g 0`, `design -g 0`): about one group per 100 samples (1 to 20), a group being added only if it saves at least 10% of the storage
+  - Tuned with `profile --auto-group-samples`, `--auto-group-max` and `--auto-group-min-gain` (env: `KMHELPERS_AUTO_GROUP_*`), recorded under `auto_group` in `profile.yaml`; `design` reads only the environment variables
 - **Abundance indexes**: `design -ab N` / `compose -ab N` (`--abundance-bits`) compose an index storing `N` bits per sample and k-mer (2^N abundance classes), built by kmtricks with `--mode hash:bfc:bin --bitw N`
   - `bitw` is stored in the index definitions and the layout; definitions without it, and `-ab 0` (default), are presence/absence as before
   - An update with another `bitw` than the layout is refused: presence/absence and abundance indexes cannot be merged
@@ -24,6 +26,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Default group count** (`profile -g`, `design -g`): 0 (automatic) instead of 20
 - **`KmtricksWrapper.pipeline`, `KmindexWrapper.build`**: `bloom_size` is required and `bitw` optional; with `bitw` set, the index is an abundance index of `bloom_size` cells, otherwise presence/absence (`nb_cell` removed)
   - `kmhelpers kmindex build`: `--bloom-size` is required, `--bitw` replaces `--nb-cell`
   - Its size estimate counts `bloom_size` in bits (it was read as bytes)

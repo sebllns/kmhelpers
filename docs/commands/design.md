@@ -59,7 +59,7 @@ Set `-S` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 
 | Option | Description |
 |--------|-------------|
-| `-g, --group N` | Partition Bloom Filters into `N` storage-balanced groups and overlay on plot (default: 20) |
+| `-g, --group N` | Partition Bloom Filters into `N` storage-balanced groups and overlay on plot; 0 chooses `N` (default: 0), tuned by the `KMHELPERS_AUTO_GROUP_*` environment variables, see [profile - Grouping](profile.md#description) |
 | `-b, --base FLOAT` | Base for span bucket boundaries (default: 1.1) |
 | `-si, --shard-size SIZE` | Max size of one shard (e.g. `10GB`); a span is split into independent shards, see [compose](compose.md) |
 | `-fp, --false-positive-rate FLOAT` | Target Bloom-filter false-positive rate (default: 0.25) |

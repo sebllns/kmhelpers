@@ -6,7 +6,7 @@ import os
 
 import click
 
-from pykmhelpers.cli.shared import parse_shard_size
+from pykmhelpers.cli.shared import auto_group_options, parse_shard_size
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.constants import DEFAULT_PAIR_REGEX
 from pykmhelpers.core.log import Log
@@ -74,10 +74,13 @@ logger = logging.getLogger(__name__)
     "-g",
     "n_groups",
     metavar="N_GROUPS",
-    default=20,
-    type=int,
+    default=0,
+    type=click.IntRange(min=0),
     show_default=True,
-    help="⚙   Partition index into N storage-balanced groups and overlay the result on the plot.",
+    help="⚙   Partition index into N storage-balanced groups and overlay the result on the plot. "
+    "0 = auto: about one group per 100 samples (max 20), a group being added only "
+    "if it saves at least 10% of the storage (tuned with the KMHELPERS_AUTO_GROUP_* "
+    "environment variables, see `profile --help`).",
 )
 @click.option(
     "--base",
@@ -165,6 +168,7 @@ logger = logging.getLogger(__name__)
     "classes, kmindex default: 2). 0 builds a presence/absence index. "
     "Fixed for the life of the index.",
 )
+@auto_group_options(hidden=True)
 @click.pass_context
 def design(
     ctx,
@@ -185,6 +189,9 @@ def design(
     base,
     partition_count,
     bitw,
+    auto_group_samples,
+    auto_group_max,
+    auto_group_min_gain,
 ):
     """Scan a directory, profile k-mer spans, and compose index definition files.
 
@@ -292,6 +299,9 @@ def design(
                 false_positive_rate=false_positive_rate,
                 n_groups=n_groups,
                 base=base,
+                auto_group_samples=auto_group_samples,
+                auto_group_max=auto_group_max,
+                auto_group_min_gain=auto_group_min_gain,
             ).run()
             logger.info("SUCCESS ('profile')")
         except (FileNotFoundError, ValueError) as e:
