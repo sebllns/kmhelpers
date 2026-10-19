@@ -55,16 +55,10 @@ def reset_index_registry():
 def build(reg, workdir):
     """Plan then apply a definition file into workdir (mirrors `kmhelpers build`)."""
     reset_index_registry()
-    # basename of the definition's parent dir (initial / upd) keeps the two
-    # builds' bloom directories distinct.
-    defn_dir = os.path.basename(os.path.dirname(os.path.realpath(reg)))
     iops = IndexOps(
         config=IndexOpsConfig(
             workdir=workdir,
-            index_data_folder=os.path.join(workdir, "kmindex_data", defn_dir),
-            registry_dir=workdir,
             minimizer_length=10,
-            on_existing="fail",
             safety_margin=0.75,
         )
     )
@@ -108,9 +102,9 @@ def load_query_results(results_dir):
 def assert_query_hit(results_dir, sample, min_score=MIN_SCORE):
     merged = load_query_results(results_dir)
     score = max((s.get(sample, 0.0) for s in merged.values()), default=0.0)
-    assert score >= min_score, (
-        f"FAIL: {sample} scored {score} (< {min_score}) in {results_dir}"
-    )
+    assert (
+        score >= min_score
+    ), f"FAIL: {sample} scored {score} (< {min_score}) in {results_dir}"
     print(f"OK: {sample} scored {score:.3f} in {results_dir}")
 
 
