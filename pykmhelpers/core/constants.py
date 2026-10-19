@@ -86,3 +86,6 @@ AUTO_GROUP_MIN_GAIN = 0.20
 # holds at most CHUNK_BUDGET / base**s samples, a shard SHARD_CHUNKS chunks
 CHUNK_BUDGET = 2**37
 SHARD_CHUNKS = 64
+
+# Minimizer size of a new index (kmtricks/kmindex default), fixed at design
+DEFAULT_MINIM_SIZE = 10

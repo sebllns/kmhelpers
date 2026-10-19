@@ -27,9 +27,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 | `-b, --base-path DIR` | Base path to resolve relative sample paths |
 | `-s, --span TEXT` | Span(s) to build: single value, comma-separated, or range (e.g. `27-30`) |
 | `-n, --name TEXT` | Index ID(s) to build (repeatable or comma-separated) |
-| `--minim-size INT` | Minimizer size (default: 10) |
 | `-t, --threads INT` | Number of threads |
-| `-p, --partition-count INT` | Partitions per index; ignored when the layout already stores one (see [compose](compose.md)) |
 | `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Builds and merges](build.md#builds-and-merges) |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use (default: 0.9) |
 | `--max-chunks INT` | Max number of chunks a single index is split into; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 200) |

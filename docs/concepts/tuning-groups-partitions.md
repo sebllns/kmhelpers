@@ -7,10 +7,10 @@ Index layout is controlled by two separate settings:
 - `-g, --group` ([`profile`](../commands/profile.md), [`design`](../commands/design.md))
 splits samples into `G` storage-balanced sub-indices.
 - `-p, --partition-count`
-([`compose`](../commands/compose.md), [`design`](../commands/design.md),
-[`plan`](../commands/plan.md), [`build`](../commands/build.md),
-[`apply`](../commands/apply.md)) splits each sub-index's Bloom-filter matrix into `P`
-partition files.
+([`compose`](../commands/compose.md), [`design`](../commands/design.md))
+splits each sub-index's Bloom-filter matrix into `P` partition files. Without it, the first
+[`plan`](../commands/plan.md) or [`build`](../commands/build.md) of each shard sizes `P` from
+the resource limits (see [compose - Partitioning](../commands/compose.md#description)).
 
 ```mermaid
 graph TD

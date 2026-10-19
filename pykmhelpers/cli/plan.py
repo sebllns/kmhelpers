@@ -39,9 +39,7 @@ def plan(
     base_path,
     span,
     index_ids,
-    minim_size,
     threads,
-    partition_count,
     limits,
     safety_margin,
     max_chunks,
@@ -124,11 +122,9 @@ def plan(
                 filter_names=selected_ids,
                 filter_spans=selected_spans,
                 keep_previous=keep_previous,
-                partition_count=partition_count,
                 limits=limits,
                 safety_margin=safety_margin,
                 max_chunks=max_chunks,
-                minimizer_length=int(minim_size) if minim_size else 10,
             )
         )
 

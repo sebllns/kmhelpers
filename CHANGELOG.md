@@ -30,6 +30,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Minimizer size is set at design**: `design`/`compose --minim-size` (default 10, an update takes the layout's value and refuses another one); `plan`/`apply`/`build` lose `--minim-size`
+- **Partition count**: `-p` only on `design`/`compose`, where it fixes the count of every shard for the life of the index; otherwise `plan`/`apply`/`build` choose it per shard: a built shard keeps its count (another value is ignored with a warning), then started runs of the session, then the design's `-p`, else the resource limits. `plan`/`apply`/`build` lose `-p` and no longer write the design's layout
 - **Compose output**, simpler to read; old layouts and definition files are no longer read
   - Everything about an index is in `COMPOSE_DIR/NAME/`: its layout is `NAME/layout.yaml` (was `COMPOSE_DIR/NAME_layout.yaml`), which also records the sessions composed
   - A session `NAME/SESSION/` holds `index.yaml` (replacing the span registry `NAME.yaml`): parameters, size and shards of the session, keyed by shard name

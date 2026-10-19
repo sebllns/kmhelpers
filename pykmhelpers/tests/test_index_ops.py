@@ -14,6 +14,7 @@ from types import SimpleNamespace
 import yaml
 
 from pykmhelpers.pipeline.index_ops import ApplyStatus, IndexOpsConfig
+from pykmhelpers.pipeline.index_ops.executor import IndexExecutor
 from pykmhelpers.pipeline.index_ops.layout import LayoutStore
 from pykmhelpers.pipeline.index_ops.ops import IndexOps
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths, check_index_name
@@ -36,10 +37,11 @@ def make_config(**kwargs):
     return IndexOpsConfig(workdir="w", **kwargs)
 
 
-def make_definition(name="idx", span=1, partition_count=0, samples=None):
+def make_definition(name="idx", span=1, partition_count=0, samples=None, minim_size=10):
     return SimpleNamespace(
         name=name,
         span=span,
+        minim_size=minim_size,
         bf_size=27160,
         fp_rate=0.25,
         partition_count=partition_count,
@@ -81,7 +83,8 @@ class TestStatus(unittest.TestCase):
 
 
 class TestResolveBuildParams(unittest.TestCase):
-    """Partitions and minimizer size are index invariants read from the layout."""
+    """The minimizer size comes from the design; the partition count from the
+    design (-p) or the limits. Resolving never writes the layout."""
 
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
@@ -108,22 +111,43 @@ class TestResolveBuildParams(unittest.TestCase):
         self.assertEqual(params, BuildParams(3, 8, None, 10))
         self.assertEqual(i.partition_count, 8)
 
-    def test_layout_wins_over_the_cli(self):
-        layout = self.layout(partition_count=16)
-        config = make_config(kmindex_threads=3, partition_count=8, minimizer_length=12)
-        layout.set_minim_size(10)
-
-        params = resolve_build_params(make_definition(), 10, config, layout)
+    def test_design_partitions_from_the_layout(self):
+        params = resolve_build_params(
+            make_definition(), 10, make_config(kmindex_threads=3), self.layout(partition_count=16)
+        )
         self.assertEqual(params.partitions, 16)
-        self.assertEqual(params.minim_size, 10)
 
-    def test_resolved_values_are_stored(self):
+    def test_minim_size_from_the_definition_then_the_layout(self):
+        config = make_config(kmindex_threads=3)
         layout = self.layout()
+        params = resolve_build_params(make_definition(minim_size=12), 10, config, layout)
+        self.assertEqual(params.minim_size, 12)
+
+        with open(self.path) as f:
+            data = yaml.safe_load(f)
+        data["data"]["minim_size"] = 9
+        with open(self.path, "w") as f:
+            yaml.dump(data, f)
+        params = resolve_build_params(
+            make_definition(minim_size=0), 10, config, LayoutStore(self.path)
+        )
+        self.assertEqual(params.minim_size, 9)
+
+    def test_no_minim_size_asks_to_redo_the_design(self):
+        with self.assertRaisesRegex(ValueError, "redo the design"):
+            resolve_build_params(
+                make_definition(minim_size=0), 10, make_config(kmindex_threads=3), self.layout()
+            )
+
+    def test_the_layout_is_never_written(self):
+        layout = self.layout()
+        before = Path(self.path).read_bytes()
         config = make_config(limits='{"ram": 8000000000, "files": 4096, "threads": 4}')
 
         params = resolve_build_params(make_definition(), 7, config, layout)
-        self.assertEqual(layout.partition_count(1), params.partitions)
-        self.assertEqual(layout.minim_size(), config.minimizer_length)
+        self.assertGreaterEqual(params.partitions, 4)
+        self.assertEqual(Path(self.path).read_bytes(), before)
+        self.assertIsNone(layout.partition_count(1))
 
     def test_partitions_sized_on_the_shard_capacity(self):
         """A full shard, not the current session, sets the partition count."""
@@ -364,6 +388,41 @@ class TestResolveInput(unittest.TestCase):
         )
         layout = LayoutStore.next_to(str(shard))
         self.assertEqual(layout._path, str((self.index / "layout.yaml").resolve()))
+
+
+class TestAlignWithStartedRuns(unittest.TestCase):
+    """A part whose runs are already started keeps their partition count."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.paths = BuildPaths(str(self.tmp), "s1")
+        self.executor = IndexExecutor.__new__(IndexExecutor)
+        self.executor._paths = self.paths
+        self.executor.has_index = lambda name: False
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def start_run(self, name, partitions):
+        run = Path(self.paths.run(name))
+        run.mkdir(parents=True)
+        (run / "options.txt").write_text(
+            f"Options: kmer_size=25, nb_parts={partitions}, minim_size=10"
+        )
+
+    def test_no_run_keeps_the_params(self):
+        params = BuildParams(4, 32, None, 10)
+        self.assertEqual(self.executor.align_with("t", params, "t_s1"), params)
+
+    def test_a_started_run_wins(self):
+        self.start_run("t_s1", 16)
+        aligned = self.executor.align_with("t", BuildParams(4, 32, None, 10), "t_s1")
+        self.assertEqual(aligned.partitions, 16)
+
+    def test_a_started_chunk_wins(self):
+        self.start_run("t_s1_chunk0", 8)
+        aligned = self.executor.align_with("t", BuildParams(4, 32, None, 10), "t_s1")
+        self.assertEqual(aligned.partitions, 8)
 
 
 class TestBuildPaths(unittest.TestCase):

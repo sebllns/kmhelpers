@@ -15,6 +15,7 @@ from pykmhelpers.core.bloom_filter import SpanManager
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.constants import (
     CHUNK_BUDGET,
+    DEFAULT_MINIM_SIZE,
     KMHELPERS_COMMIT,
     KMHELPERS_VERSION,
     SHARD_CHUNKS,
@@ -51,6 +52,7 @@ class IndexComposer:
         chunk_budget: Optional[int] = None,
         shard_chunks: Optional[int] = None,
         partition_count: int = 0,
+        minim_size: Optional[int] = None,
         kmer_size: Optional[int] = None,
         false_positive_rate: Optional[float] = None,
         format="yaml",
@@ -69,6 +71,8 @@ class IndexComposer:
         self.chunk_budget = chunk_budget
         self.shard_chunks = shard_chunks
         self.partition_count = partition_count
+        # None: the layout's value on an update, DEFAULT_MINIM_SIZE otherwise
+        self.minim_size = minim_size
         self.kmer_size = kmer_size
         self.false_positive_rate = false_positive_rate
         self.format = format
@@ -121,6 +125,15 @@ class IndexComposer:
             out_layout = os.path.realpath(self.layout_file)
             sessions = load_layout_sessions(self.layout_file)
             layout_budget, layout_chunks = load_layout_chunking(self.layout_file)
+            if self.minim_size is None:
+                # Layouts written before it was set at design: the default
+                self.minim_size = minim_size or DEFAULT_MINIM_SIZE
+            elif minim_size and minim_size != self.minim_size:
+                raise ValueError(
+                    f"Layout {self.layout_file} was composed with minimizer size "
+                    f"{minim_size}, got {self.minim_size}: indexes with different "
+                    "minimizer sizes cannot be merged"
+                )
             layout_bitw = load_layout_bitw(self.layout_file)
             if self.bitw is None:
                 self.bitw = layout_bitw
@@ -146,6 +159,9 @@ class IndexComposer:
 
         if self.bitw is None:
             self.bitw = 0
+        if self.minim_size is None:
+            self.minim_size = DEFAULT_MINIM_SIZE
+        minim_size = self.minim_size
 
         # An update keeps the layout's chunk model unless it is passed again
         updating = bool(self.layout_file and not self.profiles_file)
@@ -159,6 +175,10 @@ class IndexComposer:
             self.shard_chunks = layout_chunks if updating else SHARD_CHUNKS
 
         kmer_size = self.kmer_size or file_k or 25
+        if minim_size >= kmer_size:
+            raise ValueError(
+                f"Minimizer size ({minim_size}) must be smaller than k ({kmer_size})"
+            )
         false_positive_rate = self.false_positive_rate or file_fp or 0.25
 
         original_distribution: dict[int, int] = {}
@@ -239,6 +259,7 @@ class IndexComposer:
                         bf_size=bf_sizes[span],
                         abundance_min=abundance_min,
                         bitw=self.bitw,
+                        minim_size=minim_size,
                         # shards/<shard>.yaml -> SESSION/samples.jsonl
                         sample_file=f"../{SESSION_SAMPLES}",
                         samples={},
@@ -602,6 +623,7 @@ def export_session(
             {
                 "kmer_size": first.kmer_size,
                 "bitw": first.bitw,
+                "minim_size": first.minim_size,
                 "abundance_min": first.abundance_min,
                 "fp_rate": first.fp_rate,
             }

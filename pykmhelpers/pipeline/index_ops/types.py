@@ -71,8 +71,6 @@ class IndexOpsConfig:
     Attributes:
         workdir: ``BUILD_DIR``, the kmindex registry: published indexes are
             its subdirectories (see ``BuildPaths``). Created if absent.
-        minimizer_length: K-mer minimizer size passed to the builder.
-            Defaults to ``10``.
         sample_rootpath: Optional prefix prepended to every sample file path
             in an index definition.  Useful when paths are stored relative to
             a root that differs from the current working directory.
@@ -104,14 +102,12 @@ class IndexOpsConfig:
     """
 
     workdir: str
-    minimizer_length: int = 10
     sample_rootpath: Optional[str] = None
     kmindex_threads: Optional[int] = None
     kmindex_skip_compression: bool = False
     kmindex_build_from: Optional[str] = None
     filter_spans: Optional[list[int]] = None
     filter_names: Optional[list[str]] = None
-    partition_count: Optional[int] = None
     limits: Optional[str] = None
     safety_margin: float = 0.9
     max_chunks: int = 200

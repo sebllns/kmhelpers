@@ -58,7 +58,6 @@ def build(reg, workdir):
     iops = IndexOps(
         config=IndexOpsConfig(
             workdir=workdir,
-            minimizer_length=10,
             safety_margin=0.75,
         )
     )

@@ -201,7 +201,6 @@ class IndexOps:
             except Exception as e:
                 msg = f"   Failed to build index '{i.name}'"
                 if report.fail(e, msg, i.name, fail_on_error):
-                    layout.save()
                     return report.result
 
         for target, parts in targets.items():
@@ -210,10 +209,8 @@ class IndexOps:
             except Exception as e:
                 msg = f"Failed to publish index '{target}'"
                 if report.fail(e, msg, target, fail_on_error):
-                    layout.save()
                     return report.result
 
-        layout.save()
         return report.finish()
 
     # ---
@@ -234,12 +231,9 @@ class IndexOps:
                 targets.setdefault(i.name, [i.name])
         return targets
 
-    def _store_params(
-        self, layout: LayoutStore, i: IndexDefinition, params: BuildParams
-    ) -> None:
-        """Keep the layout in line with what is actually built."""
-        layout.set_partition_count(i.span, params.partitions)
-        layout.set_minim_size(params.minim_size)
+    @staticmethod
+    def _store_params(i: IndexDefinition, params: BuildParams) -> None:
+        """Keep the size estimates of ``i`` in line with what is built."""
         i.partition_count = params.partitions
 
     def _resolve_params(
@@ -302,8 +296,8 @@ class IndexOps:
         # Samples may have been skipped since the estimate: resolve for the actual count
         if sample_count != i.sample_count:
             params = self._resolve_params(i, sample_count, layout)
-        params = executor.align_with(target, params)
-        self._store_params(layout, i, params)
+        params = executor.align_with(target, params, i.name)
+        self._store_params(i, params)
         runs = executor.build(i, fof, params)
         report.record(i.name, ApplyStatus.SUCCESS, issues=issues)
         return _Built(i, params, runs)

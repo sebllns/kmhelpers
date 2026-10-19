@@ -33,6 +33,7 @@ class DbFields(str, Enum):
     # Index fields
     ABUNDANCE_MIN = "abundance_min"
     BITW = "bitw"
+    MINIM_SIZE = "minim_size"
     KMER_SIZE = "kmer_size"
     PARTITION_COUNT = "partition_count"
     FP_RATE = "fp_rate"
@@ -60,6 +61,7 @@ class DbFields(str, Enum):
             DbFields.LINKS: None,
             DbFields.ABUNDANCE_MIN: 2,
             DbFields.BITW: 0,
+            DbFields.MINIM_SIZE: 0,
             DbFields.KMER_SIZE: 25,
             DbFields.PARTITION_COUNT: 0,
             DbFields.SPAN: 0,
@@ -178,6 +180,8 @@ class IndexDefinition(Item, auto_increment=True):
     abundance_min: int = DbFields.ABUNDANCE_MIN.get_default() or 2
     # Bits per abundance cell, 0 for a presence/absence index
     bitw: int = DbFields.BITW.get_default() or 0
+    # Minimizer size, fixed at design; 0 for definitions written before that
+    minim_size: int = DbFields.MINIM_SIZE.get_default() or 0
     samples: dict[str, Sample] = field(default_factory=dict)
     merge_name: Optional[str] = None
     sample_file: Optional[str] = None
@@ -360,6 +364,7 @@ class IndexDefinitionTools:
                 sample_file=self.get_field_safe(DbFields.SAMPLE_FILE, index_data),
                 abundance_min=int(self.get_field(DbFields.ABUNDANCE_MIN, parameters)),
                 bitw=int(self.get_field(DbFields.BITW, parameters)),
+                minim_size=int(self.get_field(DbFields.MINIM_SIZE, parameters)),
                 samples=samples,
             )
 
@@ -437,6 +442,10 @@ class IndexDefinitionTools:
             }
             if index.bitw:
                 parameters[self.get_field_name(DbFields.BITW)] = str(index.bitw)
+            if index.minim_size:
+                parameters[self.get_field_name(DbFields.MINIM_SIZE)] = str(
+                    index.minim_size
+                )
 
             data[index_id] = {
                 self.get_field_name(

@@ -41,9 +41,7 @@ def build(
     session,
     work_dir,
     base_path,
-    minim_size,
     threads,
-    partition_count,
     skip_compression,
     keep_previous,
     show_progress,
@@ -145,7 +143,6 @@ def build(
     iops = ops.IndexOps(
         config=ops.IndexOpsConfig(
             workdir=work_dir,
-            minimizer_length=int(minim_size) if minim_size else 10,
             sample_rootpath=base_path,
             kmindex_threads=threads,
             kmindex_skip_compression=skip_compression,
@@ -153,7 +150,6 @@ def build(
             filter_names=None,
             filter_spans=None,
             keep_previous=keep_previous,
-            partition_count=partition_count,
             limits=limits,
             safety_margin=safety_margin,
             max_chunks=max_chunks,

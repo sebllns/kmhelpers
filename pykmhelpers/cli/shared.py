@@ -161,25 +161,12 @@ _index_ids_option = click.option(
     required=False,
     help="⚙   Index IDs to build. Can be specified multiple times (-n id1 -n id2) or comma-separated (-n id1,id2).",
 )
-_minim_size_option = click.option(
-    "--minim-size",
-    type=int,
-    required=False,
-    help="⚙   Minimizer size (4-15, default: 10).",
-)
 _threads_option = click.option(
     "--threads",
     "-t",
     type=int,
     required=False,
     help="⚙   Number of threads.",
-)
-_partition_count_option = click.option(
-    "--partition-count",
-    "-p",
-    type=int,
-    required=False,
-    help="⚙   Override number of partitions.",
 )
 _limits_option = click.option(
     "--limits",
@@ -248,9 +235,7 @@ _INDEX_BUILD_OPTIONS = [
     output_dir_option,
     _session_option,
     _base_path_option,
-    _minim_size_option,
     _threads_option,
-    _partition_count_option,
     _skip_compression_option,
     _keep_previous_option,
 ]

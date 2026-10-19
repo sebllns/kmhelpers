@@ -1,4 +1,5 @@
 import datetime
+import glob
 import logging
 import os
 import shlex
@@ -6,8 +7,10 @@ import shutil
 import subprocess
 import sys
 from dataclasses import replace
+from typing import Optional
 
 from pykmhelpers.core.byte import ByteCounter, SizeFormat
+from pykmhelpers.core.kmindex_layout import load_options_file
 from pykmhelpers.core.kmindex_paths import chunk_problems
 from pykmhelpers.core.utils import summarize_names
 from pykmhelpers.operations.builder import IndexBuilder, backup_name
@@ -125,21 +128,33 @@ class IndexExecutor:
         self._claimed.add(name)
         return True
 
-    def align_with(self, target: str, params: BuildParams) -> BuildParams:
-        """Match ``params`` to an already registered ``target``.
+    def align_with(
+        self, target: str, params: BuildParams, part: Optional[str] = None
+    ) -> BuildParams:
+        """Match ``params`` to an already registered ``target``, else to a run
+        of ``part`` already started in this session.
 
         kmindex refuses to merge indexes whose partition count or minimizer
-        size differ, so a part joining an existing shard must reuse them.
+        size differ, so a part joining an existing shard must reuse them, and
+        the runs of one part (plan then apply, a resumed build) must agree.
         """
         if not self.has_index(target):
+            started = self._run_partitions(part) if part else None
+            if started and started != params.partitions:
+                logger.warning(
+                    f"Runs of '{part}' are already built with {started} partitions, "
+                    f"not {params.partitions}: building with {started}"
+                )
+                return replace(params, partitions=started)
             return params
 
         registered = self._builder.index.get_index(target)
         aligned = params
         if registered.nb_partitions and registered.nb_partitions != params.partitions:
             logger.warning(
-                f"'{target}' is registered with {registered.nb_partitions} partitions, "
-                f"not {params.partitions}: building with the registered count"
+                f"'{target}' is built with {registered.nb_partitions} partitions, "
+                f"not {params.partitions}: building with {registered.nb_partitions} "
+                f"(a merge needs the same count)"
             )
             aligned = replace(aligned, partitions=registered.nb_partitions)
         if registered.minim_size and registered.minim_size != params.minim_size:
@@ -150,6 +165,18 @@ class IndexExecutor:
             )
             aligned = replace(aligned, minim_size=registered.minim_size)
         return aligned
+
+    def _run_partitions(self, part: str) -> Optional[int]:
+        """Partition count of a run of ``part`` (or of one of its chunks)
+        already in ``work/<session>/runs/``, None if there is none."""
+        run = self._paths.run(part)
+        for run_dir in [run] + sorted(glob.glob(f"{glob.escape(run)}_chunk*")):
+            options = os.path.join(run_dir, "options.txt")
+            if os.path.isfile(options):
+                count = load_options_file(options).get("nb_partitions")
+                if count:
+                    return int(count)
+        return None
 
     def build(
         self, i: IndexDefinition, fof: FofManager, params: BuildParams

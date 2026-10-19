@@ -58,9 +58,7 @@ def apply(
     base_path,
     span,
     index_ids,
-    minim_size,
     threads,
-    partition_count,
     limits,
     safety_margin,
     max_chunks,
@@ -158,8 +156,6 @@ def apply(
     try:
         selected_ids = [id for entry in index_ids for id in entry.split(",") if id]
         selected_spans = _parse_spans(span)
-        if not minim_size:
-            minim_size = 10
     except Exception as e:
         pykmhelpers.core.log.Log.handle_exception(logger, e, f"Invalid argument.")
         raise click.ClickException(abort_msg)
@@ -199,7 +195,6 @@ def apply(
             iops = ops.IndexOps(
                 config=ops.IndexOpsConfig(
                     workdir=work_dir,
-                    minimizer_length=int(minim_size),
                     sample_rootpath=base_path,
                     kmindex_threads=threads,
                     kmindex_skip_compression=skip_compression,
@@ -207,7 +202,6 @@ def apply(
                     filter_names=selected_ids,
                     filter_spans=selected_spans,
                     keep_previous=keep_previous,
-                    partition_count=partition_count,
                     limits=limits,
                     safety_margin=safety_margin,
                     max_chunks=max_chunks,

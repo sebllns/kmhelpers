@@ -159,12 +159,24 @@ logger = logging.getLogger(__name__)
     "See NOTE and RECOMMENDED above.",
 )
 @click.option(
+    "--minim-size",
+    "minim_size",
+    type=click.IntRange(4, 15),
+    default=None,
+    help="⚙   Minimizer size, fixed for the life of the index: an update takes the "
+    "layout's value. [default: 10 for a new index]",
+)
+@click.option(
     "--partition-count",
     "-p",
     type=int,
     default=0,
     show_default=True,
-    help="💾  Desired number of partitions per index, 0 for automatic count.",
+    help="💾  Fix the number of partitions of every shard for the life of the index: "
+    "it is inherited by every later session and no longer adapted to the system "
+    "limits of plan/build. 0 (default) lets the first plan of each shard size it "
+    "from the limits; fix it for deep raw reads, whose build memory the "
+    "automatic sizing underestimates.",
 )
 @click.option(
     "--abundance-bits",
@@ -198,6 +210,7 @@ def design(
     false_positive_rate,
     base,
     partition_count,
+    minim_size,
     bitw,
     chunk_budget,
     shard_chunks,
@@ -333,6 +346,7 @@ def design(
             no_merge=False,
             shard_size=parse_shard_size(shard_size),
             partition_count=partition_count,
+            minim_size=minim_size,
             bitw=bitw,
             chunk_budget=chunk_budget,
             shard_chunks=shard_chunks,

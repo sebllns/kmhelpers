@@ -24,9 +24,10 @@ def clamp_partitions(count: int) -> int:
 class BuildParams:
     """Resolved kmindex build parameters for one index.
 
-    ``partitions`` and ``minim_size`` are index invariants: indexes are only
-    mergeable when they share them, so they come from the layout once
-    resolved. ``chunk_size`` is set when the open-files ceiling can't fit
+    ``partitions`` and ``minim_size`` are invariants of a shard: indexes are
+    only mergeable when they share them. The minimizer size is fixed at
+    design; the partition count by the design (``-p``) or by the first build
+    of the shard (see ``resolve_partitions``). ``chunk_size`` is set when the open-files ceiling can't fit
     every sample in one kmtricks build; the build is then split into chunks
     of at most that many samples, which are merged.
     """
@@ -37,57 +38,46 @@ class BuildParams:
     minim_size: int = 10
 
 
-def resolve_minim_size(config: IndexOpsConfig, layout: LayoutStore) -> int:
-    """Minimizer size of the index: the layout's, else the configured one."""
-    stored = layout.minim_size()
-    if stored is None:
-        layout.set_minim_size(config.minimizer_length)
-        return config.minimizer_length
-    if stored != config.minimizer_length:
-        logger.warning(
-            f"Ignoring --minim-size {config.minimizer_length}: this index is "
-            f"built with {stored} (from the layout)"
+def resolve_minim_size(i: IndexDefinition, layout: LayoutStore) -> int:
+    """Minimizer size of ``i``, fixed at design: its definition's, else the
+    layout's."""
+    minim_size = getattr(i, "minim_size", 0) or layout.minim_size()
+    if not minim_size:
+        raise ValueError(
+            f"'{i.name}' has no minimizer size: it is set at design, "
+            "redo the design (design/compose --minim-size)"
         )
-    return stored
+    return minim_size
 
 
 def resolve_partitions(
     i: IndexDefinition, sample_count: int, config: IndexOpsConfig, layout: LayoutStore
 ) -> int:
-    """Partition count of the span holding ``i``, fixed for the index's life.
+    """Partition count of ``i``: fixed at design (``compose -p``), else sized
+    from the resource limits for a full shard.
 
-    Taken from the layout, else from the definition (``compose -p``), else
-    sized from the resource limits for a full shard and stored in the layout.
+    A shard already built, or a run of the session already started, keeps its
+    own count: ``IndexExecutor.align_with`` applies it afterwards.
     """
-    stored = layout.partition_count(i.span) or i.partition_count
-    if stored:
-        if config.partition_count and config.partition_count != stored:
-            logger.warning(
-                f"Ignoring --partition-count {config.partition_count}: span "
-                f"{i.span} is built with {stored} partitions (mergeable indexes "
-                f"must share it)"
-            )
-        return clamp_partitions(stored)
+    fixed = i.partition_count or layout.partition_count(i.span)
+    if fixed:
+        logger.info(f"  └── Partitions: {clamp_partitions(fixed)} (design -p)")
+        return clamp_partitions(fixed)
 
-    if config.partition_count:
-        partitions = clamp_partitions(config.partition_count)
-    else:
-        # Sized for a full shard so the value holds as the index grows
-        samples = layout.sample_budget(i.span) or sample_count
-        params = auto_params(
-            kmers=bf_max_kmers(i.bf_size, i.fp_rate),
-            samples=max(1, samples),
-            limits=config.limits or "{}",
-            safety_margin=config.safety_margin,
-            max_chunks=config.max_chunks or None,
-            max_chunk_samples=layout.chunk_samples(i.span),
-        )
-        if params.partitions is None:
-            raise TypeError("expected auto_params() to set partitions")
-        partitions = clamp_partitions(params.partitions)
-
-    layout.set_partition_count(i.span, partitions)
-    logger.info(f"  └── Span {i.span} sized to {partitions} partitions")
+    # Sized for a full shard so the value holds as the index grows
+    samples = layout.sample_budget(i.span) or sample_count
+    params = auto_params(
+        kmers=bf_max_kmers(i.bf_size, i.fp_rate),
+        samples=max(1, samples),
+        limits=config.limits or "{}",
+        safety_margin=config.safety_margin,
+        max_chunks=config.max_chunks or None,
+        max_chunk_samples=layout.chunk_samples(i.span),
+    )
+    if params.partitions is None:
+        raise TypeError("expected auto_params() to set partitions")
+    partitions = clamp_partitions(params.partitions)
+    logger.info(f"  └── Partitions: {partitions} (auto from the limits)")
     return partitions
 
 
@@ -105,7 +95,7 @@ def resolve_build_params(
     ``config.kmindex_threads`` sets them, and chunking follows the open-files
     ceiling, ``config.max_chunks`` and the chunk model of the layout.
     """
-    minim_size = resolve_minim_size(config, layout)
+    minim_size = resolve_minim_size(i, layout)
     partitions = resolve_partitions(i, sample_count, config, layout)
 
     max_chunk_samples = layout.chunk_samples(i.span)

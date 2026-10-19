@@ -26,7 +26,8 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 | Option | Description |
 |--------|-------------|
 | `-pr, --profile TEXT` | Profile name to use (default: `default_profile` from profiles file) |
-| `-p, --partition-count INT` | Partitions per index, fixed for its whole life; 0 lets the first build size it (default: 0) |
+| `-p, --partition-count INT` | Fix the partition count of every shard for the life of the index: inherited by every later session, no longer adapted to the system limits of `plan`/`build`. 0 (default) lets the first `plan` of each shard size it, see Partitioning below |
+| `--minim-size INT` | Minimizer size (4-15), fixed for the life of the index (default: 10 for a new index, the layout's value on an update) |
 | `-si, --shard-size SIZE` | Max size of one shard (e.g. `256GB`, `500000MB`), on top of the chunk model limit |
 | `-cb, --chunk-budget INT` | K-mer budget of one kmtricks chunk (e.g. `2**37`); 0 for no limit (default: `2**37` for a new index, the layout's value on an update) |
 | `-sc, --shard-chunks INT` | Chunks per shard under the chunk model (default: 64 for a new index, the layout's value on an update) |
@@ -57,14 +58,30 @@ A layout file is written to `COMPOSE_DIR/NAME/layout.yaml` for future updates.
 
 If `--profile` is not specified, the `default_profile` field in the profiles file is used.
 
-**Partitioning** - each Bloom filter is split into N partition files. Two indexes can only be
-merged when they share that count, and an update merges new samples into an existing shard, so
-the count is fixed once for the life of the index and stored in the layout file.
+**Minimizer size** - set at design (`--minim-size`, default 10) and recorded in the layout and
+in the session's definitions. Indexes can only be merged when they share it, so an update takes
+the layout's value and refuses another one. `plan`, `apply` and `build` have no `--minim-size`.
 
-Set it with `--partition-count`, or leave it at 0: the first `plan`, `apply` or `build` then
-sizes it from the resource limits (`--limits`), for a full shard when sharding is on, and writes
-it to the layout. Later runs reuse the stored value and warn when `-p` asks for another one.
-The minimizer size (`--minim-size`) is stored the same way.
+**Partitioning** - each Bloom filter is split into N partition files, and a shard can only be
+merged with updates built with the same N. By default `compose` leaves it open, and `plan`
+(or `apply`/`build`) chooses it for each shard, in this order:
+
+1. a shard already built in `BUILD_DIR` keeps its count, so the session merges into it; any
+   other value is ignored, with a warning;
+2. a part whose kmtricks runs are already started in `BUILD_DIR/work/SESSION/` keeps theirs
+   (`apply` after `plan`, a resumed build);
+3. the count fixed at design with `-p`;
+4. otherwise, a count sized from the resource limits (`--limits`) for a full shard.
+
+`plan`, `apply` and `build` have no `-p`: they never write the design, and each machine sizes the
+shards it builds first. Fixing `-p` at design is inherited by every later session and is no longer
+adapted to the system limits.
+
+!!! warning "Deep raw reads"
+    The automatic sizing estimates memory from the distinct k-mers kept in the Bloom filters.
+    kmtricks counts every k-mer *occurrence* of a sample, so for deep raw reads (e.g.
+    metabarcoding) it needs far more: fix `-p` at design, sized from the occurrences (about
+    `occurrences / p × 8 bytes` per thread).
 
 The layout also records, per span, the samples composed so far (`total_samples`) and the number
 of sessions that added samples to it (`updates`).
@@ -118,7 +135,7 @@ kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml -S my_sess
 # Use a specific profile
 kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --profile baseline
 
-# Override partition count
+# Fix the partition count of every shard (inherited by later sessions)
 kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --partition-count 4
 
 # Set minimum partition size

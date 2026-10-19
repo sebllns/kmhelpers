@@ -69,7 +69,8 @@ Set `-S` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 | `-cb, --chunk-budget INT` | K-mer budget of one kmtricks chunk (default: `2**37` for a new index); 0 for no limit, see [compose](compose.md) |
 | `-sc, --shard-chunks INT` | Chunks per shard under the chunk model (default: 64 for a new index) |
 | `-fp, --false-positive-rate FLOAT` | Target Bloom-filter false-positive rate (default: 0.25) |
-| `-p, --partition-count INT` | Desired number of partitions per index, 0 for automatic (default: 0) |
+| `-p, --partition-count INT` | Fix the partition count of every shard for the life of the index: inherited by every later session, no longer adapted to the system limits of `plan`/`build`. 0 (default) lets the first `plan` of each shard size it, see [compose - Partitioning](compose.md#description) |
+| `--minim-size INT` | Minimizer size (4-15), fixed for the life of the index (default: 10 for a new index, the layout's value on an update) |
 | `-ab, --abundance-bits INT` | Build an abundance index with `N` bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0), see [compose](compose.md) |
 | `-nc, --no-count` | Skip k-mer counting with ntcard |
 | `-lg, --leaf-grouping` | Group files by leaf folder; each leaf directory becomes one sample |
