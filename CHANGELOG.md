@@ -50,6 +50,8 @@ All notable changes to this project will be documented in this file.
 - **New indexes are sharded by default** under the shard budget: shards are named `NAME_g<i>_p<k>` (was `NAME_g<i>` without `--shard-size`); layouts without a budget keep no limit
 - **`compose`/`design --shard-size` (`-si`) is now the hidden `--shard-budget-bytes`**: it caps a shard by bytes on disk instead of the shard budget, not on top of it, and cannot be combined with `--shard-budget`
 - **`--max-chunks`** (`plan`, `apply`, `build`): caps the chunks of a shard, default 64 (was 200)
+- **`--threads`** (`plan`, `apply`, `build`) is hidden and loses `-t`: threads are sized from `--limits` (e.g. `--limits '{"threads": 8}'`)
+- **`design`/`compose -P, --partition-count`** is hidden: the partition count is sized at plan from `--limits` unless fixed
 - **`KmtricksWrapper.pipeline`, `KmindexWrapper.build`**: `bloom_size` is required and `bitw` optional; with `bitw` set, the index is an abundance index of `bloom_size` cells, otherwise presence/absence (`nb_cell` removed)
   - `kmhelpers kmindex build`: `--bloom-size` is required, `--bitw` replaces `--nb-cell`
   - Its size estimate counts `bloom_size` in bits (it was read as bytes)

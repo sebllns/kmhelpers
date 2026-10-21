@@ -24,7 +24,7 @@ Validate paths then build k-mer indices from an index definition file in a singl
 | Option | Description |
 |--------|-------------|
 | `--bp, --base-path DIR` | Base path to resolve relative sample paths |
-| `-t, --threads INT` | Number of threads |
+| `--threads INT` | Hidden. Force the number of kmtricks threads instead of sizing them from `--limits` |
 | `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Builds and merges](build.md#builds-and-merges) |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use for any key missing from `--limits` (default: 0.9) |
 | `--max-chunks INT` | Max number of kmtricks chunks a shard is built in; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 64) |
@@ -137,7 +137,7 @@ kmhelpers build coli_db -o coli_build/
 kmhelpers build coli_db -S update -o coli_build/
 
 # Set threads and show progress
-kmhelpers build coli_db -o coli_build/ -t 8 -SP
+kmhelpers build coli_db -o coli_build/ --limits '{"threads": 8}' -SP
 
 # Notify by email when done
 kmhelpers build coli_db -o coli_build/ --notify user@example.com

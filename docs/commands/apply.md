@@ -27,7 +27,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 | `--bp, --base-path DIR` | Base path to resolve relative sample paths |
 | `-s, --span TEXT` | Span(s) to build: single value, comma-separated, or range (e.g. `27-30`) |
 | `--sh, --shard TEXT` | Shard(s) to build (repeatable or comma-separated) |
-| `-t, --threads INT` | Number of threads |
+| `--threads INT` | Hidden. Force the number of kmtricks threads instead of sizing them from `--limits` |
 | `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Builds and merges](build.md#builds-and-merges) |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use (default: 0.9) |
 | `--max-chunks INT` | Max number of kmtricks chunks a shard is built in; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 64) |
@@ -64,7 +64,7 @@ kmhelpers apply coli_db -o coli_build/ -s 27-30
 kmhelpers apply coli_db -o coli_build/ --bp /data/samples
 
 # Set threads, show progress, abort on first error
-kmhelpers apply coli_db -o coli_build/ -t 8 -SP -X
+kmhelpers apply coli_db -o coli_build/ --limits '{"threads": 8}' -SP -X
 
 # Notify by email when done
 kmhelpers apply coli_db -o coli_build/ --notify user@example.com

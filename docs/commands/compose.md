@@ -26,7 +26,7 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 | Option | Description |
 |--------|-------------|
 | `-pr, --profile TEXT` | Profile name to use (default: `default_profile` from profiles file) |
-| `-P, --partition-count INT` | Fix the partition count of every shard for the life of the index: inherited by every later session, no longer adapted to the system limits of `plan`/`build`. 0 (default) lets the first `plan` of each shard size it, see Partitioning below |
+| `-P, --partition-count INT` | Hidden. Fix the partition count of every shard for the life of the index: inherited by every later session, no longer adapted to the system limits of `plan`/`build`. 0 (default) lets the first `plan` of each shard size it, see Partitioning below |
 | `--minim-size INT` | Minimizer size (4-15), fixed for the life of the index (default: 10 for a new index, the layout's value on an update) |
 | `-sb, --shard-budget INT` | Shard budget: a shard of span `s` holds at most `ceil8(budget / base^s)` samples (e.g. `2**43`); 0 for no limit (default: `2**43` for a new index, the layout's rule on an update) |
 | `--shard-budget-bytes SIZE` | Hidden. Cap a shard by its size on disk (e.g. `256GB`, `500000MB`) rather than by `--shard-budget`: when set, `--shard-budget` is not used. Cannot be combined with `--shard-budget` |

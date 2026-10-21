@@ -174,10 +174,11 @@ _index_ids_option = click.option(
 )
 _threads_option = click.option(
     "--threads",
-    "-t",
     type=int,
     required=False,
-    help="⚙   Number of threads.",
+    hidden=True,
+    help="⚙   Force the number of kmtricks threads instead of sizing them from "
+    "--limits.",
 )
 _limits_option = click.option(
     "--limits",

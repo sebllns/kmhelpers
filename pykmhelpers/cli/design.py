@@ -167,6 +167,7 @@ logger = logging.getLogger(__name__)
     type=int,
     default=0,
     show_default=True,
+    hidden=True,
     help="💾  Fix the number of partitions of every shard for the life of the index: "
     "it is inherited by every later session and no longer adapted to the system "
     "limits of plan/build. 0 (default) lets the first plan of each shard size it "
