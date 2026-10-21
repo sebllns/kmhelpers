@@ -30,7 +30,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 | `--run TEXT` | Build only the kmtricks runs matching these names or glob patterns (`<part>` or `<part>_chunk<N>`), without merging; see [Building chunks separately](apply.md#building-chunks-separately) |
 | `--threads INT` | Hidden. Force the number of kmtricks threads instead of sizing them from `--limits` |
 | `--ncp, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
-| `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Builds and merges](build.md#builds-and-merges) |
+| `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set, for the shard's k-mer occurrences (see [compose - Partitioning](compose.md#description)) (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Builds and merges](build.md#builds-and-merges) |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use (default: 0.9) |
 | `--max-chunks INT` | Max number of kmtricks chunks a shard is built in; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 64) |
 | `--cb, --chunk-budget INT` | K-mer budget of one kmtricks chunk: a chunk of span `s` holds at most `ceil8(budget / base^s)` samples. 0 for no limit (default: `2**37`), see [build - Shards and chunks](build.md#shards-and-chunks) |

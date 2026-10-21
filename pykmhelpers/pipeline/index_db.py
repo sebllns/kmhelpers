@@ -39,6 +39,7 @@ class DbFields(str, Enum):
     FP_RATE = "fp_rate"
     SPAN = "span"
     BF_SIZE = "bf_size"
+    KMER_RATIO = "kmer_ratio"
     KMHELPERS_VERSION = "kmhelpers_version"
     KMHELPERS_COMMIT = "kmhelpers_commit"
     INDEX_TYPE = "index_type"
@@ -51,6 +52,7 @@ class DbFields(str, Enum):
     # Sample fields
     FILES = "files"
     KMER_COUNT = "kmer_count"
+    KMER_TOTAL = "kmer_total"
     ORIGINAL_ID = "original_id"
 
     def get_default(self):
@@ -72,6 +74,8 @@ class DbFields(str, Enum):
             DbFields.INDEX_TYPE: "undefined",
             DbFields.FILES: [],
             DbFields.KMER_COUNT: 0,
+            DbFields.KMER_TOTAL: 0,
+            DbFields.KMER_RATIO: 1.0,
             DbFields.SAMPLES: {},
         }
         return defaults.get(self)
@@ -163,6 +167,8 @@ class Sample(Item, auto_increment=True):
     parent_index: Optional["IndexDefinition"] = field(default=None, repr=False)
     files: list[str] = field(default_factory=list)
     kmer_count: int = 0
+    # k-mer occurrences, 0 when the sample list does not give them
+    kmer_total: int = 0
 
 
 @dataclass
@@ -182,6 +188,8 @@ class IndexDefinition(Item, auto_increment=True):
     bitw: int = DbFields.BITW.get_default() or 0
     # Minimizer size, fixed at design; 0 for definitions written before that
     minim_size: int = DbFields.MINIM_SIZE.get_default() or 0
+    # k-mer occurrences per counted k-mer, scales the build memory model
+    kmer_ratio: float = DbFields.KMER_RATIO.get_default() or 1.0
     samples: dict[str, Sample] = field(default_factory=dict)
     merge_name: Optional[str] = None
     sample_file: Optional[str] = None
@@ -365,6 +373,7 @@ class IndexDefinitionTools:
                 abundance_min=int(self.get_field(DbFields.ABUNDANCE_MIN, parameters)),
                 bitw=int(self.get_field(DbFields.BITW, parameters)),
                 minim_size=int(self.get_field(DbFields.MINIM_SIZE, parameters)),
+                kmer_ratio=float(self.get_field(DbFields.KMER_RATIO, parameters)),
                 samples=samples,
             )
 
@@ -445,6 +454,10 @@ class IndexDefinitionTools:
             if index.minim_size:
                 parameters[self.get_field_name(DbFields.MINIM_SIZE)] = str(
                     index.minim_size
+                )
+            if index.kmer_ratio != 1:
+                parameters[self.get_field_name(DbFields.KMER_RATIO)] = str(
+                    index.kmer_ratio
                 )
 
             data[index_id] = {

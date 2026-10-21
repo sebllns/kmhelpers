@@ -8,6 +8,7 @@ import click
 
 from pykmhelpers.cli.shared import (
     auto_group_options,
+    kmer_ratio_option,
     no_copy_list_option,
     parse_shard_rule,
     sharding_options,
@@ -189,6 +190,7 @@ logger = logging.getLogger(__name__)
 @auto_group_options(hidden=True)
 @sharding_options
 @no_copy_list_option
+@kmer_ratio_option
 @click.pass_context
 def design(
     ctx,
@@ -212,6 +214,7 @@ def design(
     shard_budget,
     shard_budget_bytes,
     no_copy_list,
+    kmer_ratio,
     auto_group_samples,
     auto_group_max,
     auto_group_min_gain,
@@ -349,6 +352,7 @@ def design(
             shard_budget=shard_budget,
             # a list written by design is per session and never rewritten
             copy_list=input_is_jsonl and not no_copy_list,
+            kmer_ratio=kmer_ratio,
         ).run(
             input_file=jsonl_path,
             output_dir=compose_dir,

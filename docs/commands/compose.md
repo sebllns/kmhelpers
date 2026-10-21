@@ -29,6 +29,7 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 | `-P, --partition-count INT` | Hidden. Fix the partition count of every shard for the life of the index: inherited by every later session, no longer adapted to the system limits of `plan`/`build`. 0 (default) lets the first `plan` of each shard size it, see Partitioning below |
 | `--minim-size INT` | Minimizer size (4-15), fixed for the life of the index (default: 10 for a new index, the layout's value on an update) |
 | `--sb, --shard-budget INT` | Shard budget: a shard of span `s` holds at most `ceil8(budget / base^s)` samples (e.g. `2**43`); 0 for no limit (default: `2**43` for a new index, the layout's rule on an update) |
+| `--kr, --kmer-ratio FLOAT` | Multiply the k-mer ratio (k-mer occurrences per counted k-mer) that sizes the build memory (default: 1), see Partitioning below |
 | `--ncl, --no-copy-list` | Point the index definition files to the input sample list instead of copying it into the compose output folder; the list must then stay in place and unchanged as it is used for building |
 | `--shard-budget-bytes SIZE` | Hidden. Cap a shard by its size on disk (e.g. `256GB`, `500000MB`) rather than by `--shard-budget`: when set, `--shard-budget` is not used. Cannot be combined with `--shard-budget` |
 | `--ab, --abundance-bits INT` | Build an abundance index with `N` bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0) |
@@ -70,18 +71,26 @@ merged with updates built with the same N. By default `compose` leaves it open, 
    other value is ignored, with a warning;
 2. a part whose kmtricks runs are already started in `BUILD_DIR/work/SESSION/` keeps theirs
    (`apply` after `plan`, a resumed build);
-3. the count fixed at design with `-p`;
+3. the count fixed at design with `-P`;
 4. otherwise, a count sized from the resource limits (`--limits`) for a full shard.
 
-`plan`, `apply` and `build` have no `-p`: they never write the design, and each machine sizes the
-shards it builds first. Fixing `-p` at design is inherited by every later session and is no longer
+`plan`, `apply` and `build` have no `-P`: they never write the design, and each machine sizes the
+shards it builds first. Fixing `-P` at design is inherited by every later session and is no longer
 adapted to the system limits.
 
+**k-mer ratio** - kmtricks holds every k-mer *occurrence* of a sample partition in memory
+before it filters them (`--hard-min`), about `occurrences / partitions × 8 bytes` per thread.
+The Bloom filter capacity counts distinct k-mers (solid ones for raw reads), so `plan` sizes
+partitions and threads from that capacity × the shard's **k-mer ratio**, recorded as
+`kmer_ratio` in `index.yaml` and in each shard file:
+
+- per sample, `kmer_total / kmer_count` from the sample list ([`list`](list.md) records
+  both), at least 1; without `kmer_total`, 1 for assembled data and 4 for raw reads;
+- per shard, the largest ratio of its samples, multiplied by `--kmer-ratio`.
+
 !!! warning "Deep raw reads"
-    The automatic sizing estimates memory from the distinct k-mers kept in the Bloom filters.
-    kmtricks counts every k-mer *occurrence* of a sample, so for deep raw reads (e.g.
-    metabarcoding) it needs far more: fix `-p` at design, sized from the occurrences (about
-    `occurrences / p × 8 bytes` per thread).
+    Deep raw reads (e.g. metabarcoding) can reach hundreds of occurrences per solid k-mer.
+    For a list without `kmer_total`, raise `--kmer-ratio` or fix `-P` at design.
 
 The layout also records, per span, the samples composed so far (`total_samples`) and the number
 of sessions that added samples to it (`updates`).

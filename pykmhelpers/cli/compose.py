@@ -7,6 +7,7 @@ import os
 import click
 
 from pykmhelpers.cli.shared import (
+    kmer_ratio_option,
     no_copy_list_option,
     parse_shard_rule,
     sharding_options,
@@ -105,6 +106,7 @@ logger = logging.getLogger(__name__)
 )
 @sharding_options
 @no_copy_list_option
+@kmer_ratio_option
 @click.pass_context
 def compose(
     ctx,
@@ -122,6 +124,7 @@ def compose(
     shard_budget,
     shard_budget_bytes,
     no_copy_list,
+    kmer_ratio,
 ):
     """Compose index definition file(s) from a sample list.
 
@@ -210,6 +213,7 @@ def compose(
             bitw=bitw,
             shard_budget=shard_budget,
             copy_list=not no_copy_list,
+            kmer_ratio=kmer_ratio,
             # bf_max_size=bf_max_size,
             # partition_min_size=partition_min_size,
             # exact_partition_count=False,

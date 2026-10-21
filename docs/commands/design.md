@@ -70,6 +70,7 @@ Set `-s` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 | `--minim-size INT` | Minimizer size (4-15), fixed for the life of the index (default: 10 for a new index, the layout's value on an update) |
 | `--ab, --abundance-bits INT` | Build an abundance index with `N` bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0), see [compose](compose.md) |
 | `--nc, --no-count` | Skip k-mer counting with ntcard |
+| `--kr, --kmer-ratio FLOAT` | Multiply the k-mer ratio (k-mer occurrences per counted k-mer) that sizes the build memory (default: 1), see [compose - Partitioning](compose.md#description) |
 | `--ncl, --no-copy-list` | With a JSONL INPUT, point the index definition files to it instead of copying it into the compose output folder; the list must then stay in place and unchanged as it is used for building. A list written by `design` is never copied |
 | `--shard-budget-bytes SIZE` | Hidden. Cap a shard by its size on disk (e.g. `10GB`) rather than by `--shard-budget`: when set, `--shard-budget` is not used. Cannot be combined with `--shard-budget`, see [compose](compose.md) |
 | `--lg, --leaf-grouping` | Group files by leaf folder; each leaf directory becomes one sample |

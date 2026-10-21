@@ -1,6 +1,8 @@
 """Unit tests for SampleLister directory grouping, including --paired."""
 
 import json
+import random
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -90,3 +92,39 @@ class SampleListerPairingTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(shutil.which("ntcard"), "ntcard not on PATH")
+class SampleListerCountTest(unittest.TestCase):
+    """One ntcard run gives kmer_count and kmer_total (occurrences)."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name) / "data"
+        self.root.mkdir()
+        rng = random.Random(0)
+        seq = "".join(rng.choice("ACGT") for _ in range(50000))
+        # the same sequence 4 times: every k-mer is solid and seen 4 times
+        # (ntcard estimates from a sketch: too small an input reads as empty)
+        (self.root / "S1.fa").write_text("".join(f">r{n}\n{seq}\n" for n in range(4)))
+
+    def count(self, **kwargs):
+        out = Path(self._tmp.name) / "out.jsonl"
+        SampleLister(
+            output_file=str(out),
+            input_dir=str(self.root),
+            do_grouping=False,
+            kmer_size=25,
+            **kwargs,
+        ).run()
+        return json.loads(out.read_text().splitlines()[1])
+
+    def test_raw_reads_record_occurrences(self):
+        entry = self.count(is_assembled=False)
+        self.assertGreater(entry["kmer_count"], 0)
+        self.assertGreater(entry["kmer_total"], entry["kmer_count"])
+
+    def test_assembled_records_occurrences_too(self):
+        entry = self.count()
+        self.assertGreater(entry["kmer_total"], entry["kmer_count"])

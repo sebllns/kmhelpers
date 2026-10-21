@@ -38,12 +38,21 @@ def make_config(**kwargs):
     return IndexOpsConfig(workdir="w", **kwargs)
 
 
-def make_definition(name="idx", span=1, partition_count=0, samples=None, minim_size=10):
+def make_definition(
+    name="idx",
+    span=1,
+    partition_count=0,
+    samples=None,
+    minim_size=10,
+    bf_size=27160,
+    kmer_ratio=1.0,
+):
     return SimpleNamespace(
         name=name,
         span=span,
         minim_size=minim_size,
-        bf_size=27160,
+        kmer_ratio=kmer_ratio,
+        bf_size=bf_size,
         fp_rate=0.25,
         partition_count=partition_count,
         samples=samples or {},
@@ -165,6 +174,23 @@ class TestResolveBuildParams(unittest.TestCase):
         self.assertIsNone(params.chunk_size)
         self.assertGreaterEqual(params.partitions, 4)
         self.assertGreater(params.threads, 0)
+
+    def test_kmer_ratio_scales_the_sizing(self):
+        """Partitions, then threads at a fixed count, follow k-mer occurrences."""
+        config = make_config(limits='{"ram": 8000000000, "files": 4096, "threads": 16}')
+        big = 2**33  # bits: about 1.5 G k-mers at fp 0.25
+        solid = resolve_build_params(make_definition(bf_size=big), 7, config, self.layout())
+        raw = resolve_build_params(
+            make_definition(bf_size=big, kmer_ratio=10), 7, config, self.layout()
+        )
+        self.assertGreater(raw.partitions, solid.partitions)
+
+        fixed = self.layout(partition_count=solid.partitions)
+        raw_fixed = resolve_build_params(
+            make_definition(bf_size=big, kmer_ratio=10), 7, config, fixed
+        )
+        self.assertEqual(raw_fixed.partitions, solid.partitions)
+        self.assertLess(raw_fixed.threads, solid.threads)
 
     def test_auto_sizing_chunks_under_low_files_limit(self):
         config = make_config(limits='{"ram": 8000000000, "files": 8, "threads": 4}')

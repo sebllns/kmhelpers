@@ -81,6 +81,8 @@ Files without a mate token stay single-file samples. Pass a custom regex as `--p
 - `assembled` (default) - counts all distinct k-mers; suited for assemblies where every k-mer is expected at least once
 - `unassembled` - counts only k-mers appearing at least twice, filtering out likely sequencing errors; suited for raw reads
 
+The same ntcard run also records `kmer_total`, the k-mer occurrences of the sample, which sizes the build memory (see [compose - Partitioning](compose.md#description)).
+
 **Resuming** - if the output file already exists, it is backed up. Pass `--continue` to resume from that backup without reprocessing already-listed samples; otherwise the run starts fresh. Use `--autorename` to rename duplicate sample IDs instead of skipping them.
 
 
@@ -92,8 +94,8 @@ The output is a JSONL file. The first line is a header and the remaining lines a
 
 ```jsonl
 {"k": 25, "assembled": true}
-{"name": "sample_A", "files": ["/data/sequences/sample_A/reads_1.fa", "/data/sequences/sample_A/reads_2.fa"], "kmer_count": 1234567}
-{"name": "sample_B", "files": ["/data/sequences/sample_B/reads.fa"], "kmer_count": 987654}
+{"name": "sample_A", "files": ["/data/sequences/sample_A/reads_1.fa", "/data/sequences/sample_A/reads_2.fa"], "kmer_count": 1234567, "kmer_total": 1302114}
+{"name": "sample_B", "files": ["/data/sequences/sample_B/reads.fa"], "kmer_count": 987654, "kmer_total": 1011540}
 ```
 
 This file is the input for [`profile`](profile.md) and [`compose`](compose.md).

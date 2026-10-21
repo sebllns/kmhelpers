@@ -3,6 +3,7 @@
 The full compose flow is covered by ``test_pipeline_e2e.py``.
 """
 
+import json
 import os
 import shutil
 import tempfile
@@ -241,6 +242,54 @@ class TestSessionSampleList(TestComposeSharding):
         self.compose("initial", copy_list=False)
         session_dir, _ = self.shard_sample_file()
         self.assertFalse((session_dir / "samples.jsonl").exists())
+
+
+class TestKmerRatio(TestComposeSharding):
+    """Each shard records its k-mer ratio: occurrences per counted k-mer."""
+
+    def write_samples(self, header, totals):
+        with open(self.samples, "w") as f:
+            f.write(header + "\n")
+            for n, total in enumerate(totals):
+                entry = {"name": f"S{n}", "files": [f"S{n}.fa"], "kmer_count": 1000000}
+                if total:
+                    entry["kmer_total"] = total
+                f.write(json.dumps(entry) + "\n")
+
+    def ratios(self, **kwargs):
+        self.compose("initial", **kwargs)
+        session_dir = Path(self.out) / "idx" / "initial"
+        index = yaml.safe_load((session_dir / "index.yaml").read_text())
+        (shard,) = IndexDefinitionTools().load_db(
+            str(session_dir / "shards" / "idx_g0_p0.yaml")
+        )
+        part = shard.index_table["idx_g0_p0_initial"]
+        return index["shards"]["idx_g0_p0"]["kmer_ratio"], part.kmer_ratio
+
+    def test_largest_ratio_of_the_samples(self):
+        self.write_samples('{"k": 25, "assembled": false}', [2000000, 7500000, 0])
+        # S2 has no kmer_total: the raw-read default (4) counts too
+        self.assertEqual(self.ratios(), (7.5, 7.5))
+
+    def test_raw_read_default(self):
+        self.write_samples('{"k": 25, "assembled": false}', [0, 0, 0])
+        self.assertEqual(self.ratios(), (4.0, 4.0))
+
+    def test_assembled_default(self):
+        self.write_samples('{"k": 25}', [0, 0, 0])
+        self.assertEqual(self.ratios(), (1.0, 1.0))
+
+    def test_option_multiplies_the_ratio(self):
+        self.write_samples('{"k": 25, "assembled": false}', [3000000, 0, 0])
+        self.assertEqual(self.ratios(kmer_ratio=2), (8.0, 8.0))
+
+    def test_ratio_is_at_least_one(self):
+        self.write_samples('{"k": 25}', [900000, 900000, 900000])
+        self.assertEqual(self.ratios(), (1.0, 1.0))
+
+    def test_non_positive_option_is_refused(self):
+        with self.assertRaises(ValueError):
+            IndexComposer(name="idx", kmer_ratio=0)
 
 
 class TestCurrentShard(unittest.TestCase):

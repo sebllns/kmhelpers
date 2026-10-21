@@ -29,6 +29,9 @@ SESSION_FILE = "index"  # + ".yaml" or ".json": the input of plan/apply/build
 SESSION_SAMPLES = "samples.jsonl"
 SESSION_SUMMARY = "summary.csv"
 SHARDS_DIR = "shards"
+# k-mer occurrences per counted k-mer of a sample whose list has no kmer_total
+DEFAULT_KMER_RATIO_ASSEMBLED = 1.0
+DEFAULT_KMER_RATIO_RAW = 4.0
 
 
 def layout_path(compose_dir: str, name: str) -> str:
@@ -56,6 +59,7 @@ class IndexComposer:
         format="yaml",
         db_tools: Optional[db.IndexDefinitionTools] = None,
         copy_list: bool = True,
+        kmer_ratio: float = 1.0,
     ):
         self.profiles_file = profiles_file
         self.layout_file = layout_file
@@ -82,6 +86,10 @@ class IndexComposer:
         # False: the shards point to the input sample list instead of a copy
         # in the session, so the list must stay in place and unchanged
         self.copy_list = copy_list
+        if kmer_ratio <= 0:
+            raise ValueError(f"k-mer ratio must be positive, got {kmer_ratio}")
+        # Multiplies the k-mer ratio computed from the sample list
+        self.kmer_ratio = kmer_ratio
 
     def _session_sample_file(
         self, input_file: str, output_dir: str, run_dir: str
@@ -125,6 +133,13 @@ class IndexComposer:
         abundance_min = (
             read_jsonl_abundance_min(input_file) or self.abundance_min
         )
+        default_ratio = (
+            DEFAULT_KMER_RATIO_ASSEMBLED
+            if read_jsonl_assembled(input_file)
+            else DEFAULT_KMER_RATIO_RAW
+        )
+        # Largest occurrences / counted k-mers of the samples of each definition
+        sample_ratios: dict[str, float] = {}
         file_fp = None
 
         span_base = 2.0
@@ -302,6 +317,16 @@ class IndexComposer:
                 db_instance.index_table[index_name].add_sample(
                     sample_id=sample.name, sample=sample
                 )
+                # At least 1: ntcard estimates kmer_count, which can exceed
+                # the occurrences of a small sample
+                ratio = (
+                    max(1.0, sample.kmer_total / sample.kmer_count)
+                    if sample.kmer_total
+                    else default_ratio
+                )
+                sample_ratios[index_name] = max(
+                    sample_ratios.get(index_name, 0.0), ratio
+                )
 
                 shard["samples"] += 1
                 props["total_samples"] += 1
@@ -320,6 +345,11 @@ class IndexComposer:
 
         for span in touched:
             spans_properties[span]["updates"] += 1
+
+        for index_name, ratio in sample_ratios.items():
+            db_instance.index_table[index_name].kmer_ratio = round(
+                self.kmer_ratio * ratio, 2
+            )
 
         logger.info(
             f"Composed {sample_count} samples into {len(db_instance.index_table)} "
@@ -640,6 +670,7 @@ def export_session(
             "span": i.span,
             "bf_size": i.bf_size,
             "partitions": i.partition_count,
+            "kmer_ratio": i.kmer_ratio,
             "file": shard_file,
         }
 
@@ -724,6 +755,19 @@ def read_jsonl_abundance_min(filename: str) -> Optional[int]:
         return None
 
 
+def read_jsonl_assembled(filename: str) -> bool:
+    """Return the ``assembled`` flag of the JSONL header, True when missing."""
+    with open(filename) as f:
+        line = f.readline().strip()
+    if not line:
+        return True
+    try:
+        return bool(json.loads(line).get("assembled", True))
+    except json.JSONDecodeError:
+        logger.warning(f"Could not parse JSONL header in {filename}")
+        return True
+
+
 def stream_samples(filename: str) -> Generator[db.Sample, None, None]:
     """Yield Sample objects from a JSONL file, skipping the header line."""
     with open(filename) as f:
@@ -747,6 +791,7 @@ def stream_samples(filename: str) -> Generator[db.Sample, None, None]:
                 name=entry["name"],
                 files=files,
                 kmer_count=entry.get("kmer_count", 0),
+                kmer_total=entry.get("kmer_total", 0),
             )
 
 

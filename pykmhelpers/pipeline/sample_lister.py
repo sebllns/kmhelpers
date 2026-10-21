@@ -170,7 +170,7 @@ class SampleLister:
     def _import_yaml_list(
         self,
         input_list,
-        process_callback: typing.Callable[[str, list[str], int], None],
+        process_callback: typing.Callable[..., None],
         root_path: str | None = None,
     ):
         with open(input_list) as f:
@@ -185,10 +185,12 @@ class SampleLister:
                 if root_path
                 else attrs.get("files", [])
             )
-            process_callback(name, files, attrs.get("kmer_count", 0))
+            process_callback(
+                name, files, attrs.get("kmer_count", 0), attrs.get("kmer_total", 0)
+            )
 
     def _process_sample(
-        self, sample_id: str, files: list[str], kmer_count: int
+        self, sample_id: str, files: list[str], kmer_count: int, kmer_total: int = 0
     ) -> None:
         try:
             assert sample_id, "Sample ID null or empty"
@@ -208,10 +210,11 @@ class SampleLister:
             entry: dict = {"name": sample_id, "files": files}
 
             if self.do_count and kmer_count <= 0:
-                kmer_count = self._count_sample(sample_id, files)
-
-            if kmer_count > 0:
+                entry.update(self._count_sample(sample_id, files))
+            elif kmer_count > 0:
                 entry["kmer_count"] = kmer_count
+                if kmer_total > 0:
+                    entry["kmer_total"] = kmer_total
 
             self._out.write(json.dumps(entry) + "\n")
         except Exception as e:
@@ -222,9 +225,15 @@ class SampleLister:
                 level=logging.WARNING,
             )
 
-    def _count_sample(self, sample_id: str, files: list[str]) -> int:
+    def _count_sample(self, sample_id: str, files: list[str]) -> dict[str, int]:
+        """Count the k-mers of a sample with one ntcard run.
+
+        Returns the entry fields: ``kmer_count`` (distinct k-mers, solid for
+        raw reads) and ``kmer_total`` (k-mer occurrences, which size the build
+        memory), or nothing when counting failed.
+        """
         if self._counter is None:
-            return 0
+            return {}
         try:
             # Entries store paths relative to root_path; resolve them so
             # ntcard can find the files regardless of the current directory.
@@ -236,13 +245,17 @@ class SampleLister:
                 )
                 for f in files
             ]
-            kmer_count = self._counter.count_files(
-                resolved,
-                mode=self._count_mode,
-                verbose=logger.isEnabledFor(logging.DEBUG),
+            counts = self._counter.count_files_all(
+                resolved, verbose=logger.isEnabledFor(logging.DEBUG)
             )
+            kmer_count = counts[self._count_mode]
+            if kmer_count <= 0:
+                raise ValueError("no k-mers found")
+            fields = {"kmer_count": kmer_count}
+            if counts[KmerCountMode.TOTAL] > 0:
+                fields["kmer_total"] = counts[KmerCountMode.TOTAL]
             logger.info(f"{sample_id}:{kmer_count}")
-            return kmer_count
+            return fields
         except Exception as e:
             Log.handle_exception(
                 logger=logger,
@@ -250,12 +263,12 @@ class SampleLister:
                 e=e,
                 level=logging.WARNING,
             )
-            return 0
+            return {}
 
     def _import_plain_text_list(
         self,
         filename: str,
-        process_callback: typing.Callable[[str, list[str], int], None],
+        process_callback: typing.Callable[..., None],
         root_path: str | None = None,
     ) -> None:
         # Plain text: [sample_id] file_1[,file_2,...] [kmer_count]
@@ -299,7 +312,7 @@ class SampleLister:
         self,
         root: str,
         extensions: tuple[str, ...],
-        process_callback: typing.Callable[[str, list[str], int], None],
+        process_callback: typing.Callable[..., None],
     ) -> None:
         """Walk root and call process_callback(sample_id, files, kmer_count) for each sample.
 
@@ -398,8 +411,8 @@ class SampleLister:
                     entry = first_entry
                     self._samples.add(entry["name"])
                     if self.do_count and "kmer_count" not in entry:
-                        entry["kmer_count"] = self._count_sample(
-                            entry["name"], entry.get("files", [])
+                        entry.update(
+                            self._count_sample(entry["name"], entry.get("files", []))
                         )
                     self._out.write(json.dumps(entry) + "\n")
 
@@ -418,6 +431,7 @@ class SampleLister:
                             entry.get("name"),
                             entry.get("files"),
                             entry.get("kmer_count", 0),
+                            entry.get("kmer_total", 0),
                         )
 
         return input_dir, kmer_size, parsed

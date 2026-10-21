@@ -131,6 +131,19 @@ no_copy_list_option = click.option(
 )
 
 
+kmer_ratio_option = click.option(
+    "--kmer-ratio",
+    "--kr",
+    "kmer_ratio",
+    type=click.FloatRange(min=0, min_open=True),
+    default=1.0,
+    show_default=True,
+    help="⚙   Multiply the k-mer ratio (k-mer occurrences per counted k-mer) that "
+    "sizes the build memory. Computed per shard from the sample list (kmer_total), "
+    "else 1 for assembled data and 4 for raw reads. Raise it for deep raw reads "
+    "listed without kmer_total.",
+)
+
 output_dir_option = click.option(
     "--output-dir",
     "-o",

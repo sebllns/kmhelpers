@@ -124,6 +124,23 @@ class KmerCounter(Wrapper):
             ValueError: If ntcard produces no output or parsing fails.
             subprocess.SubprocessError: If ntcard returns a non-zero exit code.
         """
+        value = self.count_files_all(files, verbose=verbose)[mode]
+        if verbose:
+            print(f"{mode.name}={value}")
+        if value == 0:
+            raise ValueError(
+                f"No k-mers found. Check if files are empty or k={self._k} is larger than sequences."
+            )
+        return value
+
+    def count_files_all(
+        self, files: list, verbose: bool = False
+    ) -> dict[KmerCountMode, int]:
+        """Count k-mers for one or more files in a single ntcard call, in every mode.
+
+        One ntcard run gives the histogram all the modes are read from. TOTAL
+        is 0 when ntcard does not report F1.
+        """
         if not files:
             raise ValueError("At least one file is required")
 
@@ -169,13 +186,9 @@ class KmerCounter(Wrapper):
                         raise ValueError(f"Cannot parse ntcard output line: {line!r}")
                     return int(parts[1])
 
-                if mode == KmerCountMode.DISTINCT:
-                    value = parse_hist_line(lines[1])  # F0
-                elif mode == KmerCountMode.SOLID:
-                    freq1 = parse_hist_line(lines[2]) if len(lines) > 2 else 0
-                    value = parse_hist_line(lines[1]) - freq1  # F0 - freq[1]
-                else:  # TOTAL
-                    value = parse_hist_line(lines[0])  # F1
+                f0 = parse_hist_line(lines[1])
+                freq1 = parse_hist_line(lines[2]) if len(lines) > 2 else 0
+                f1 = parse_hist_line(lines[0])
 
             elif os.path.getsize(tmp_file) > 0:
                 # New ntcard: output written directly to "-o" path as TSV "k\tf\tn"
@@ -208,25 +221,14 @@ class KmerCounter(Wrapper):
                         except ValueError:
                             pass
 
-                if mode == KmerCountMode.DISTINCT:
-                    value = f0
-                elif mode == KmerCountMode.SOLID:
-                    value = f0 - freq1
-                else:  # TOTAL
-                    value = f1 or 0
-
             else:
                 raise ValueError("ntcard produced no output")
 
-            if verbose:
-                print(f"{mode.name}={value}")
-
-            if value == 0:
-                raise ValueError(
-                    f"No k-mers found. Check if files are empty or k={self._k} is larger than sequences."
-                )
-
-            return value
+            return {
+                KmerCountMode.DISTINCT: f0,
+                KmerCountMode.SOLID: f0 - freq1,
+                KmerCountMode.TOTAL: f1 or 0,
+            }
 
         finally:
             hist_file = f"{tmp_file}_k{self._k}.hist"

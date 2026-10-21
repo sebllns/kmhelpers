@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **k-mer ratio**: `list` records `kmer_total` (k-mer occurrences, ntcard F1) next to `kmer_count`; `compose` records each shard's `kmer_ratio` (largest `kmer_total / kmer_count` of its samples, else 1 assembled / 4 raw reads, times `compose`/`design --kr, --kmer-ratio`) in `index.yaml` and the shard files, and `plan` sizes partitions and threads from the Bloom filter capacity × that ratio, since kmtricks holds every occurrence before `--hard-min`
 - **`compose`/`design --ncl, --no-copy-list`**: the session points to the input sample list instead of copying it to `SESSION/samples.jsonl`; `design` never copies the list it writes (`list/samples_<SESSION>.jsonl`), so its sessions have no `samples.jsonl`
 - **Automatic group count** (`profile -g 0`, `design -g 0`): starts from one group per 1000 samples, then adds one while it saves at least 20% of the storage, up to 20 groups
   - Tuned with `profile --auto-group-samples`, `--auto-group-max` and `--auto-group-min-gain` (env: `KMHELPERS_AUTO_GROUP_*`), recorded under `auto_group` in `profile.yaml`; `design` reads only the environment variables

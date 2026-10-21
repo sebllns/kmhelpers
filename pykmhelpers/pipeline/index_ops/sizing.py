@@ -64,10 +64,20 @@ def chunk_samples(
     return budget_samples_for(i.span, base, config.chunk_budget) or None
 
 
+def build_kmers(i: IndexDefinition) -> int:
+    """k-mers the build of ``i`` holds in memory, for a full shard.
+
+    The Bloom filter capacity counts distinct (solid for raw reads) k-mers;
+    kmtricks counts every occurrence before filtering, so it is scaled by the
+    shard's k-mer ratio.
+    """
+    return math.ceil(bf_max_kmers(i.bf_size, i.fp_rate) * i.kmer_ratio)
+
+
 def resolve_partitions(
     i: IndexDefinition, sample_count: int, config: IndexOpsConfig, layout: LayoutStore
 ) -> int:
-    """Partition count of ``i``: fixed at design (``compose -p``), else sized
+    """Partition count of ``i``: fixed at design (``compose -P``), else sized
     from the resource limits for a full shard.
 
     A shard already built, or a run of the session already started, keeps its
@@ -75,13 +85,13 @@ def resolve_partitions(
     """
     fixed = i.partition_count or layout.partition_count(i.span)
     if fixed:
-        logger.info(f"  └── Partitions: {clamp_partitions(fixed)} (design -p)")
+        logger.info(f"  └── Partitions: {clamp_partitions(fixed)} (design -P)")
         return clamp_partitions(fixed)
 
     # Sized for a full shard so the value holds as the index grows
     samples = layout.sample_budget(i.span) or sample_count
     params = auto_params(
-        kmers=bf_max_kmers(i.bf_size, i.fp_rate),
+        kmers=build_kmers(i),
         samples=max(1, samples),
         limits=config.limits or "{}",
         safety_margin=config.safety_margin,
@@ -91,7 +101,10 @@ def resolve_partitions(
     if params.partitions is None:
         raise TypeError("expected auto_params() to set partitions")
     partitions = clamp_partitions(params.partitions)
-    logger.info(f"  └── Partitions: {partitions} (auto from the limits)")
+    logger.info(
+        f"  └── Partitions: {partitions} (auto from the limits, "
+        f"k-mer ratio {i.kmer_ratio})"
+    )
     return partitions
 
 
@@ -123,7 +136,7 @@ def resolve_build_params(
         return BuildParams(config.kmindex_threads, partitions, chunk_size, minim_size)
 
     params = params_for_partitions(
-        kmers=bf_max_kmers(i.bf_size, i.fp_rate),
+        kmers=build_kmers(i),
         samples=sample_count,
         partitions=partitions,
         limits=config.limits or "{}",
