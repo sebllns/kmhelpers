@@ -35,7 +35,7 @@ From these, `KmerCounter` (`pykmhelpers/core/kmer.py`) derives three modes:
 | `SOLID` | F0 - freq[1] | Raw reads, where k-mers occurring exactly once (`freq[1]`) are likely sequencing errors |
 | `TOTAL` | F1 | Total k-mer occurrences across all reads |
 
-The `list` and `design` commands expose this choice through `-dt, --data-type`:
+The `list` and `design` commands expose this choice through `--dt, --data-type`:
 `assembled` maps to `DISTINCT`, `unassembled` maps to `SOLID`.
 
 **Assembled sequences** have already been through the assembler's own error

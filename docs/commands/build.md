@@ -28,10 +28,10 @@ Validate paths then build k-mer indices from an index definition file in a singl
 | `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Builds and merges](build.md#builds-and-merges) |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use for any key missing from `--limits` (default: 0.9) |
 | `--max-chunks INT` | Max number of kmtricks chunks a shard is built in; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 64) |
-| `-cb, --chunk-budget INT` | K-mer budget of one kmtricks chunk: a chunk of span `s` holds at most `ceil8(budget / base^s)` samples. 0 for no limit (default: `2**37`), see [build - Shards and chunks](build.md#shards-and-chunks) |
-| `-NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
+| `--cb, --chunk-budget INT` | K-mer budget of one kmtricks chunk: a chunk of span `s` holds at most `ceil8(budget / base^s)` samples. 0 for no limit (default: `2**37`), see [build - Shards and chunks](build.md#shards-and-chunks) |
+| `--NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
 | `--keep-previous` | Keep the replaced version of an updated index in `BUILD_DIR/work/SESSION/previous/` instead of deleting it |
-| `-SP, --show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
+| `--SP, --show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
 | `--notify EMAIL` | Send email notification on exit (requires sendmail) |
 
 ## Paths
@@ -137,7 +137,7 @@ kmhelpers build coli_db -o coli_build/
 kmhelpers build coli_db -S update -o coli_build/
 
 # Set threads and show progress
-kmhelpers build coli_db -o coli_build/ --limits '{"threads": 8}' -SP
+kmhelpers build coli_db -o coli_build/ --limits '{"threads": 8}' --SP
 
 # Notify by email when done
 kmhelpers build coli_db -o coli_build/ --notify user@example.com

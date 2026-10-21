@@ -65,7 +65,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--data-type",
-    "-dt",
+    "--dt",
     "data_type",
     type=click.Choice(["a", "assembled", "u", "unassembled"], case_sensitive=False),
     default="a",
@@ -96,7 +96,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--no-count",
-    "-nc",
+    "--nc",
     "no_count",
     is_flag=True,
     default=False,
@@ -105,7 +105,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--leaf-grouping",
-    "-lg",
+    "--lg",
     "leaf_grouping",
     is_flag=True,
     default=False,
@@ -135,7 +135,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--ntcard-threads",
-    "-ntt",
+    "--ntt",
     "ntcard_threads",
     type=int,
     default=8,
@@ -144,7 +144,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--false-positive-rate",
-    "-fp",
+    "--fp",
     type=float,
     default=0.25,
     show_default=True,
@@ -176,7 +176,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--abundance-bits",
-    "-ab",
+    "--ab",
     "bitw",
     type=click.IntRange(0, 8),
     default=None,

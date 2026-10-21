@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--false-positive-rate",
-    "-fp",
+    "--fp",
     type=float,
     default=0.25,
     show_default=True,

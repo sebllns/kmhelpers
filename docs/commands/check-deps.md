@@ -18,7 +18,7 @@ A `<TOOL>_BIN_PATH` environment variable (e.g. `KMINDEX_BIN_PATH`) is prepended 
 ## Example
 
 ```
-$ kmhelpers -NF check-deps
+$ kmhelpers --NF check-deps
 INFO     | kmindex    kmindex v0.6.1       /opt/kmhelpers/.env/bin/kmindex
 INFO     | kmtricks   kmtricks v1.6.0      /opt/kmhelpers/.env/bin/kmtricks
 WARNING  | ntcard     ntcard not found. Either add its installation directory to PATH, or set the NTCARD_BIN_PATH environment variable to that directory.

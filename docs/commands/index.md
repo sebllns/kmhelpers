@@ -49,7 +49,7 @@ These options are available on the root `kmhelpers` command and apply to all sub
 -v, --verbose             Increase verbosity: -v for DEBUG
 -q, --quiet               Decrease verbosity: -q for WARNING, -qq for ERROR,
                           -qqq for CRITICAL
--NF, --no-log-formatting  Disable log formatter  [env var:
+--NF, --no-log-formatting  Disable log formatter  [env var:
                           KMHELPERS_NO_LOG_FORMATTING]
 -L, --log-file FILE       Path to log file (logs will be written in addition
                           to console output)  [env var: KMHELPERS_LOG_FILE]

@@ -171,7 +171,7 @@ kmhelpers compose coli_db/list/coli.jsonl \
     -o coli_db/compose/ \
     -n coli \
     -S initial \
-    -pf coli_db/profile/profile.yaml
+    --pf coli_db/profile/profile.yaml
 ```
 
 ??? abstract "I/O"

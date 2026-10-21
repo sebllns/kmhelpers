@@ -275,7 +275,7 @@ def test_create_db(output_dir, n_samples, average_size, min_size, kmer_size, ver
 )
 @click.option(
     "--median",
-    "-mu",
+    "--mu",
     "median",
     type=float,
     default=500000000.0,
@@ -284,7 +284,7 @@ def test_create_db(output_dir, n_samples, average_size, min_size, kmer_size, ver
 )
 @click.option(
     "--stddev",
-    "-sd",
+    "--sd",
     type=float,
     default=3.0,
     show_default=True,
@@ -306,7 +306,7 @@ def test_create_db(output_dir, n_samples, average_size, min_size, kmer_size, ver
 )
 @click.option(
     "--data-type",
-    "-dt",
+    "--dt",
     type=click.Choice(["a", "assembled", "u", "unassembled"], case_sensitive=False),
     default="a",
     show_default=True,
@@ -339,10 +339,10 @@ def test_create_list(
 
     Examples:
       # 100 samples, k=31, median 50000 kmers, spread of 2 spans
-      kmhelpers test create-list -o fake.jsonl -n 100 -k 31 -mu 50000 -sd 2
+      kmhelpers test create-list -o fake.jsonl -n 100 -k 31 --mu 50000 --sd 2
 
       # Reproducible unassembled list
-      kmhelpers test create-list -o fake.jsonl -n 20 -dt u --seed 42
+      kmhelpers test create-list -o fake.jsonl -n 20 --dt u --seed 42
     """
     if n_samples < 1:
         raise click.BadParameter(f"n-samples ({n_samples}) must be >= 1")

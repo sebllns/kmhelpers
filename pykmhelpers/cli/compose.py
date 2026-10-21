@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--profiles-file",
-    "-pf",
+    "--pf",
     "profiles_file",
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
     required=False,
@@ -51,7 +51,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--profile",
-    "-pr",
+    "--pr",
     "selected_profile",
     type=str,
     required=False,
@@ -93,7 +93,7 @@ logger = logging.getLogger(__name__)
 # )
 @click.option(
     "--abundance-bits",
-    "-ab",
+    "--ab",
     "bitw",
     type=click.IntRange(0, 8),
     default=None,
@@ -137,16 +137,16 @@ def compose(
     Examples:
 
       \b
-      kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml
+      kmhelpers compose samples.jsonl -o ./db -n my_index --pf profiles.yaml
 
       \b
-      kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --profile baseline
+      kmhelpers compose samples.jsonl -o ./db -n my_index --pf profiles.yaml --profile baseline
 
       \b
-      kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --partition-count 4
+      kmhelpers compose samples.jsonl -o ./db -n my_index --pf profiles.yaml --partition-count 4
 
       \b
-      kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --shard-budget 2**40
+      kmhelpers compose samples.jsonl -o ./db -n my_index --pf profiles.yaml --shard-budget 2**40
 
       \b
       kmhelpers compose samples.jsonl -o ./db -n my_index

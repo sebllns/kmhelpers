@@ -198,7 +198,7 @@ class SectionedGroup(click.Group):
 )
 @click.option(
     "--no-log-formatting",
-    "-NF",
+    "--NF",
     "no_formatting",
     envvar="KMHELPERS_NO_LOG_FORMATTING",
     show_envvar=True,

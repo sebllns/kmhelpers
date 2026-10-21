@@ -6,7 +6,7 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 
 !!! abstract "USAGE"
     ```
-    kmhelpers compose -o COMPOSE_DIR -n NAME [-pf PROFILES_FILE] [-S SESSION] [OPTIONS] INPUT_FILE
+    kmhelpers compose -o COMPOSE_DIR -n NAME [--pf PROFILES_FILE] [-S SESSION] [OPTIONS] INPUT_FILE
     ```
 
     | Argument | Description |
@@ -14,7 +14,7 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
     | `INPUT_FILE` | JSONL sample list produced by `list` |
     | `-o, --output-dir COMPOSE_DIR` | Output directory for index definitions |
     | `-n, --name TEXT` | Name of created or updated index |
-    | `-pf, --profiles-file FILE` | Profiles YAML file with index configuration (required to build a new index) |
+    | `--pf, --profiles-file FILE` | Profiles YAML file with index configuration (required to build a new index) |
     | `-S, --session SESSION` | Session name: subdirectory of `COMPOSE_DIR/NAME/` and tag appended to index names (default: timestamp) |
 
 !!! abstract "I/O"
@@ -25,12 +25,12 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 
 | Option | Description |
 |--------|-------------|
-| `-pr, --profile TEXT` | Profile name to use (default: `default_profile` from profiles file) |
+| `--pr, --profile TEXT` | Profile name to use (default: `default_profile` from profiles file) |
 | `-P, --partition-count INT` | Hidden. Fix the partition count of every shard for the life of the index: inherited by every later session, no longer adapted to the system limits of `plan`/`build`. 0 (default) lets the first `plan` of each shard size it, see Partitioning below |
 | `--minim-size INT` | Minimizer size (4-15), fixed for the life of the index (default: 10 for a new index, the layout's value on an update) |
-| `-sb, --shard-budget INT` | Shard budget: a shard of span `s` holds at most `ceil8(budget / base^s)` samples (e.g. `2**43`); 0 for no limit (default: `2**43` for a new index, the layout's rule on an update) |
+| `--sb, --shard-budget INT` | Shard budget: a shard of span `s` holds at most `ceil8(budget / base^s)` samples (e.g. `2**43`); 0 for no limit (default: `2**43` for a new index, the layout's rule on an update) |
 | `--shard-budget-bytes SIZE` | Hidden. Cap a shard by its size on disk (e.g. `256GB`, `500000MB`) rather than by `--shard-budget`: when set, `--shard-budget` is not used. Cannot be combined with `--shard-budget` |
-| `-ab, --abundance-bits INT` | Build an abundance index with `N` bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0) |
+| `--ab, --abundance-bits INT` | Build an abundance index with `N` bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0) |
 
 ## Description
 
@@ -127,19 +127,19 @@ dropped at build time. `list` sets it to 1 for assembled data and 2 for raw read
 
 ```bash
 # Build a new index (writes layout to ./db/my_index/layout.yaml)
-kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml
+kmhelpers compose samples.jsonl -o ./db -n my_index --pf profiles.yaml
 
 # Build with a session tag (output goes to ./db/my_index/my_session/)
-kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml -S my_session
+kmhelpers compose samples.jsonl -o ./db -n my_index --pf profiles.yaml -S my_session
 
 # Use a specific profile
-kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --profile baseline
+kmhelpers compose samples.jsonl -o ./db -n my_index --pf profiles.yaml --profile baseline
 
 # Fix the partition count of every shard (inherited by later sessions)
-kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --partition-count 4
+kmhelpers compose samples.jsonl -o ./db -n my_index --pf profiles.yaml --partition-count 4
 
 # Split spans into smaller shards
-kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --shard-budget 2**40
+kmhelpers compose samples.jsonl -o ./db -n my_index --pf profiles.yaml --shard-budget 2**40
 
 # Update an existing index (auto-detects ./db/my_index/layout.yaml)
 kmhelpers compose samples.jsonl -o ./db -n my_index

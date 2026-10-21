@@ -31,10 +31,10 @@ See [build - Paths](build.md#paths) for the directory layout.
 | `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Builds and merges](build.md#builds-and-merges) |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use (default: 0.9) |
 | `--max-chunks INT` | Max number of kmtricks chunks a shard is built in; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 64) |
-| `-cb, --chunk-budget INT` | K-mer budget of one kmtricks chunk: a chunk of span `s` holds at most `ceil8(budget / base^s)` samples. 0 for no limit (default: `2**37`), see [build - Shards and chunks](build.md#shards-and-chunks) |
+| `--cb, --chunk-budget INT` | K-mer budget of one kmtricks chunk: a chunk of span `s` holds at most `ceil8(budget / base^s)` samples. 0 for no limit (default: `2**37`), see [build - Shards and chunks](build.md#shards-and-chunks) |
 | `--keep-previous` | Keep the replaced version of an updated index in `BUILD_DIR/work/SESSION/previous/` instead of deleting it |
-| `-NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
-| `-SP, --show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
+| `--NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
+| `--SP, --show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
 | `-X, --fail-fast` | Abort on first failure instead of continuing |
 | `--notify EMAIL` | Send email notification on exit (requires sendmail) |
 
@@ -74,7 +74,7 @@ kmhelpers apply coli_db -o coli_build/ --sh 'coli_g0_*'
 kmhelpers apply coli_db -o coli_build/ --bp /data/samples
 
 # Set threads, show progress, abort on first error
-kmhelpers apply coli_db -o coli_build/ --limits '{"threads": 8}' -SP -X
+kmhelpers apply coli_db -o coli_build/ --limits '{"threads": 8}' --SP -X
 
 # Notify by email when done
 kmhelpers apply coli_db -o coli_build/ --notify user@example.com

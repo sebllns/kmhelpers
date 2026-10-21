@@ -16,7 +16,7 @@ Scan a directory or import a sample list, then run the full [`list`](list.md) â†
     | `-n, --name NAME` | Name of the created index (required) |
     | `-S, --session SESSION` | Session name: subdirectory of `DESIGN_DIR/compose/NAME/` and tag appended to index names (default: timestamp `YYYYMMDD_HHMMSS`) |
     | `-k, --kmer-size INT` | K-mer size for counting (default: 25) |
-    | `-dt, --data-type TEXT` | Data type: `a`/`assembled` (default) or `u`/`unassembled` (raw reads) |
+    | `--dt, --data-type TEXT` | Data type: `a`/`assembled` (default) or `u`/`unassembled` (raw reads) |
 
 !!! abstract "I/O"
     **Input:** directory to scan, a plain-text / YAML sample list, or a JSONL sample index (`.jsonl`, in which case the `list` step is skipped and INPUT is used as-is)  
@@ -65,17 +65,17 @@ Set `-S` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 |--------|-------------|
 | `-g, --group N` | Partition Bloom Filters into `N` storage-balanced groups and overlay on plot; 0 chooses `N` (default: 0), tuned by the `KMHELPERS_AUTO_GROUP_*` environment variables, see [profile - Grouping](profile.md#description) |
 | `-b, --base FLOAT` | Base for span bucket boundaries (default: 1.1) |
-| `-sb, --shard-budget INT` | Shard budget: a shard of span `s` holds at most `ceil8(budget / base^s)` samples (default: `2**43` for a new index); 0 for no limit, see [compose](compose.md) |
-| `-fp, --false-positive-rate FLOAT` | Target Bloom-filter false-positive rate (default: 0.25) |
+| `--sb, --shard-budget INT` | Shard budget: a shard of span `s` holds at most `ceil8(budget / base^s)` samples (default: `2**43` for a new index); 0 for no limit, see [compose](compose.md) |
+| `--fp, --false-positive-rate FLOAT` | Target Bloom-filter false-positive rate (default: 0.25) |
 | `-P, --partition-count INT` | Hidden. Fix the partition count of every shard for the life of the index: inherited by every later session, no longer adapted to the system limits of `plan`/`build`. 0 (default) lets the first `plan` of each shard size it, see [compose - Partitioning](compose.md#description) |
 | `--minim-size INT` | Minimizer size (4-15), fixed for the life of the index (default: 10 for a new index, the layout's value on an update) |
-| `-ab, --abundance-bits INT` | Build an abundance index with `N` bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0), see [compose](compose.md) |
-| `-nc, --no-count` | Skip k-mer counting with ntcard |
+| `--ab, --abundance-bits INT` | Build an abundance index with `N` bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0), see [compose](compose.md) |
+| `--nc, --no-count` | Skip k-mer counting with ntcard |
 | `--shard-budget-bytes SIZE` | Hidden. Cap a shard by its size on disk (e.g. `10GB`) rather than by `--shard-budget`: when set, `--shard-budget` is not used. Cannot be combined with `--shard-budget`, see [compose](compose.md) |
-| `-lg, --leaf-grouping` | Group files by leaf folder; each leaf directory becomes one sample |
+| `--lg, --leaf-grouping` | Group files by leaf folder; each leaf directory becomes one sample |
 | `-p, --paired [REGEX]` | Group mate files (R1/R2) of a directory into one sample, see [list](list.md#description) |
 | `-a, --autorename` | Rename duplicate sample IDs by appending a numeric suffix instead of skipping |
-| `-ntt, --ntcard-threads INT` | Number of threads for ntcard k-mer counting (default: 8) |
+| `--ntt, --ntcard-threads INT` | Number of threads for ntcard k-mer counting (default: 8) |
 
 ## Description
 
@@ -109,13 +109,13 @@ kmhelpers design /data/sequences -o coli_db -n coli --no-count
 kmhelpers design /data/sequences -o coli_db -n coli --leaf-grouping
 
 # Custom k-mer size and false-positive rate
-kmhelpers design /data/sequences -o coli_db -n coli -k 31 -fp 0.1
+kmhelpers design /data/sequences -o coli_db -n coli -k 31 --fp 0.1
 
 # Force a specific partition count
 kmhelpers design /data/sequences -o coli_db -n coli -P 4
 
 # Abundance index of paired raw reads (4 abundance classes)
-kmhelpers design /data/reads -o reads_db -n reads -dt u --paired -ab 2
+kmhelpers design /data/reads -o reads_db -n reads --dt u --paired --ab 2
 
 # Import from a plain-text file list
 kmhelpers design my_files.txt -o coli_db -n coli

@@ -70,7 +70,7 @@ kmhelpers query data/data_0.fasta -r build -o results -f json
 check_hit results data_0
 
 # 5. Update: a new, smaller sample in a separate dir (distinct name update_0),
-#    composed against the existing layout (no -pf) and rebuilt in place.
+#    composed against the existing layout (no --pf) and rebuilt in place.
 kmhelpers test create-fasta -o update -n 1 -a 2000 -m 1800
 mkdir -p db/list
 kmhelpers list update -o db/list/upd.jsonl -k "$KMER_SIZE"

@@ -24,7 +24,7 @@ Analyse a JSONL sample manifest produced by `list` and produce a Bloom-filter sp
 
 | Option | Description |
 |--------|-------------|
-| `-fp, --false-positive-rate FLOAT` | Target Bloom-filter false-positive rate (default: 0.25) |
+| `--fp, --false-positive-rate FLOAT` | Target Bloom-filter false-positive rate (default: 0.25) |
 | `--auto-group-samples N` | With `-g 0`: start from one group per `N` samples (default: 1000, env: `KMHELPERS_AUTO_GROUP_SAMPLES`) |
 | `--auto-group-max N` | With `-g 0`: at most `N` groups (default: 20, env: `KMHELPERS_AUTO_GROUP_MAX`) |
 | `--auto-group-min-gain F` | With `-g 0`: storage fraction a further group must save to be added (default: 0.2, env: `KMHELPERS_AUTO_GROUP_MIN_GAIN`) |
@@ -93,7 +93,7 @@ under `auto_group` in `profile.yaml`.
 kmhelpers profile samples.jsonl -o ./profile_output
 
 # Use a stricter false-positive rate
-kmhelpers profile samples.jsonl -o ./profile_output -fp 0.05
+kmhelpers profile samples.jsonl -o ./profile_output --fp 0.05
 
 # Let profile choose the number of span groups (default)
 kmhelpers profile samples.jsonl -o ./profile_output -g 0

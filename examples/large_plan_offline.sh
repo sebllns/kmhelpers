@@ -30,8 +30,8 @@ kmhelpers test create-list \
     -o db/list/bact.jsonl \
     -n 300000 \
     -k 25 \
-    -mu 5000000 \
-    -sd 1 \
+    --mu 5000000 \
+    --sd 1 \
     -p bact \
     --seed 42
 

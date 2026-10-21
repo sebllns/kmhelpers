@@ -70,7 +70,7 @@ def sharding_options(f):
     )(f)
     f = click.option(
         "--shard-budget",
-        "-sb",
+        "--sb",
         "shard_budget",
         help="💾  Shard budget: a span s is split into shards of at most "
         "ceil8(budget / base**s) samples (about k-mers x samples). 0 for no "
@@ -184,7 +184,7 @@ _safety_margin_option = click.option(
 # which `test auto-params` does not have
 chunk_budget_option = click.option(
     "--chunk-budget",
-    "-cb",
+    "--cb",
     "chunk_budget",
     default="2**37",
     show_default=True,
@@ -202,7 +202,7 @@ _max_chunks_option = click.option(
 )
 _skip_compression_option = click.option(
     "--skip-compression",
-    "-NC",
+    "--NC",
     is_flag=True,
     default=False,
     show_default=True,
@@ -210,7 +210,7 @@ _skip_compression_option = click.option(
 )
 _show_progress_option = click.option(
     "--show-progress",
-    "-SP",
+    "--SP",
     is_flag=True,
     default=False,
     show_default=True,

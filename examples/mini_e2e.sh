@@ -31,7 +31,7 @@ kmhelpers query -r build/ -o results/ -f json data/data_0.fasta
 cat results/data_0/results.json
 
 # 4. Update: one new, slightly smaller sample (must fit an existing span
-#    bucket), listed then composed against the existing layout (no -pf)
+#    bucket), listed then composed against the existing layout (no --pf)
 kmhelpers test create-fasta -o update -n 1 -a 2000 -m 1800
 kmhelpers list update -o db/list/upd.jsonl -k 21
 kmhelpers compose db/list/upd.jsonl -o db/compose -n idx -S upd

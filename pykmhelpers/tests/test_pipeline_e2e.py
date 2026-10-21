@@ -212,7 +212,7 @@ class TestDesignBuildQueryUpdateQuery(PipelineE2EBase):
         self.assert_query_hit("results", q0_header, "sample_0")
 
         # 4. update: add a new sample, compose it against the existing layout
-        #    (no -pf), and rebuild into the same work dir. The new sample must
+        #    (no --pf), and rebuild into the same work dir. The new sample must
         #    fit an existing span bucket, so keep it a bit smaller than the
         #    initial samples (ntcard k-mer estimates are noisy, so leave margin).
         random.seed(SEED + 1)
@@ -248,7 +248,7 @@ class TestDesignBuildQueryUpdateQuery(PipelineE2EBase):
 
 
 class TestAbundanceDesignBuildQuery(PipelineE2EBase):
-    """design -ab 2 -> build -> query: the index stores 2 bits per sample."""
+    """design --ab 2 -> build -> query: the index stores 2 bits per sample."""
 
     def test_abundance_design_build_query(self):
         self.run_cli(
@@ -266,7 +266,7 @@ class TestAbundanceDesignBuildQuery(PipelineE2EBase):
             "1.1",
             "-g",
             "1",
-            "-ab",
+            "--ab",
             "2",
         )
         session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
@@ -296,11 +296,11 @@ class TestAbundanceDesignBuildQuery(PipelineE2EBase):
             "idx",
             "-S",
             "pa",
-            "-ab",
+            "--ab",
             "0",
             expect_success=False,
         )
-        # without -ab, an update takes the layout's bitw
+        # without --ab, an update takes the layout's bitw
         self.run_cli(
             "compose",
             self.tmp / "db" / "list" / "samples_initial.jsonl",
@@ -510,7 +510,7 @@ class TestStepByStepDesignAndBuild(PipelineE2EBase):
             "idx",
             "-S",
             "initial",
-            "-pf",
+            "--pf",
             "db/profile/profile.yaml",
         )
         session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
@@ -961,7 +961,7 @@ class TestDirectoryScanBuildQueryUpdateQuery(PipelineE2EBase):
             "idx",
             "-S",
             "initial",
-            "-pf",
+            "--pf",
             "db/profile/profile.yaml",
         )
         session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
@@ -978,7 +978,7 @@ class TestDirectoryScanBuildQueryUpdateQuery(PipelineE2EBase):
         self.assert_query_hit("results", q0_header, "sample_0")
 
         # 4. update: scan a separate dir holding one new sample, compose against
-        #    the existing layout (no -pf), and rebuild into the same work dir.
+        #    the existing layout (no --pf), and rebuild into the same work dir.
         #    Keep the new sample smaller so it fits an existing span bucket.
         random.seed(SEED + 1)
         new_seq = "".join(random.choice("ACGT") for _ in range(SAMPLE_LEN - 400))
@@ -1021,7 +1021,7 @@ class TestListLeafGrouping(PipelineE2EBase):
 
         self.mkdirs("db", "list")
         self.run_cli(
-            "list", grp_data, "-o", "db/list/grp.jsonl", "-lg", "-k", KMER_SIZE
+            "list", grp_data, "-o", "db/list/grp.jsonl", "--lg", "-k", KMER_SIZE
         )
 
         lines = [
@@ -1053,7 +1053,7 @@ class TestPipelineFailuresExitNonzero(PipelineE2EBase):
         self.run_cli(
             "list", self.samples_txt, "-o", "db/list/idx.jsonl", "-k", KMER_SIZE
         )
-        # Update mode (no -pf) with no existing <name>_layout.yaml -> non-zero.
+        # Update mode (no --pf) with no existing <name>_layout.yaml -> non-zero.
         self.run_cli(
             "compose",
             "db/list/idx.jsonl",

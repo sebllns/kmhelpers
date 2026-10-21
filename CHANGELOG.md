@@ -8,14 +8,14 @@ All notable changes to this project will be documented in this file.
 
 - **Automatic group count** (`profile -g 0`, `design -g 0`): starts from one group per 1000 samples, then adds one while it saves at least 20% of the storage, up to 20 groups
   - Tuned with `profile --auto-group-samples`, `--auto-group-max` and `--auto-group-min-gain` (env: `KMHELPERS_AUTO_GROUP_*`), recorded under `auto_group` in `profile.yaml`; `design` reads only the environment variables
-- **Abundance indexes**: `design -ab N` / `compose -ab N` (`--abundance-bits`) compose an index storing `N` bits per sample and k-mer (2^N abundance classes), built by kmtricks with `--mode hash:bfc:bin --bitw N`
-  - `bitw` is stored in the index definitions and the layout; definitions without it, and `-ab 0` (default), are presence/absence as before
+- **Abundance indexes**: `design --ab N` / `compose --ab N` (`--abundance-bits`) compose an index storing `N` bits per sample and k-mer (2^N abundance classes), built by kmtricks with `--mode hash:bfc:bin --bitw N`
+  - `bitw` is stored in the index definitions and the layout; definitions without it, and `--ab 0` (default), are presence/absence as before
   - An update with another `bitw` than the layout is refused: presence/absence and abundance indexes cannot be merged
   - Storage estimates, shard sample limits, merge memory and `bytes_per_row` count `bitw` bits per sample
   - Queries report the abundance class of each sample instead of the fraction of k-mers found
 - **`list --paired [REGEX]`** (`design --paired`): groups mate files (R1/R2) of a directory into one sample
   - The default regex matches mate tokens such as `_R1`, `_R2`, `_1`, `.2`; `--paired=REGEX` sets a custom one
-  - Without `--paired`, a warning is logged when unassembled files (`-dt u`) look like read pairs
+  - Without `--paired`, a warning is logged when unassembled files (`--dt u`) look like read pairs
 - **`query --export` (`-x`)**: writes a Markdown or HTML report beside the data results
 - **`query -f none`**: keeps only the raw kmindex results
 - **Query statistics**: `sequence_stats.tsv` (one row per query sequence) and `sample_stats.tsv` (one row per matched sample), with match count, perfect matches and mean and median scores; `--no-stats` skips them. The overall rows are also in the md and html reports
@@ -23,10 +23,10 @@ All notable changes to this project will be documented in this file.
 - **`manage check -n`**: checks only the given indices, and fails if one is not registered
 - **`manage move-dir`** (internal, hidden): renames a folder for the generated scripts, failing instead of copying across filesystems
 - **`manage remove --missing-ok`** and **`--keep-link`**: skip unregistered IDs; only edit `index.json`
-- **Shard budget** (from Logan, `compose`/`design -sb, --shard-budget`): a shard of span `s` holds at most `ceil8(budget / base^s)` samples
+- **Shard budget** (from Logan, `compose`/`design --sb, --shard-budget`): a shard of span `s` holds at most `ceil8(budget / base^s)` samples
   - Defaults to `2**43` for a new index; `--shard-budget 0` disables it
   - `shard_budget` is stored in the layout; an update keeps it, passing it again re-shards the layout
-- **Chunk budget** (`plan`, `apply`, `build` `-cb, --chunk-budget`): a kmtricks chunk of span `s` holds at most `ceil8(budget / base^s)` samples (default `2**37`, 0 for no limit), still within the open-files limit and `--max-chunks`
+- **Chunk budget** (`plan`, `apply`, `build` `--cb, --chunk-budget`): a kmtricks chunk of span `s` holds at most `ceil8(budget / base^s)` samples (default `2**37`, 0 for no limit), still within the open-files limit and `--max-chunks`
 
 ### Changed
 
@@ -45,11 +45,12 @@ All notable changes to this project will be documented in this file.
   - File names lose the `NAME_` prefix: `samples.jsonl`, `summary.csv` (one row per shard); `orig_dist.csv` is replaced by `distribution` in `index.yaml`
   - `design` writes its sample list to `DESIGN_DIR/list/samples_SESSION.jsonl`
 - **`plan`, `apply`, `build` take a directory**: the design directory, a compose directory or `COMPOSE_DIR/NAME`, resolved to the session given by the new `-S/--session` or the last one composed; a session's `index.yaml` or a shard file can still be passed
-- **`compose`/`design -ab`** defaults to the layout's value on an update (0 for a new index), instead of 0; an explicit different value is still refused
+- **`compose`/`design --ab`** defaults to the layout's value on an update (0 for a new index), instead of 0; an explicit different value is still refused
 - **Default group count** (`profile -g`, `design -g`): 0 (automatic) instead of 20
 - **New indexes are sharded by default** under the shard budget: shards are named `NAME_g<i>_p<k>` (was `NAME_g<i>` without `--shard-size`); layouts without a budget keep no limit
 - **`compose`/`design --shard-size` (`-si`) is now the hidden `--shard-budget-bytes`**: it caps a shard by bytes on disk instead of the shard budget, not on top of it, and cannot be combined with `--shard-budget`
 - **`--max-chunks`** (`plan`, `apply`, `build`): caps the chunks of a shard, default 64 (was 200)
+- **Multi-letter short flags take two dashes**: `-dt`, `-lg`, `-ntt`, `-nc`, `-fp`, `-ab`, `-pf`, `-pr`, `-NC`, `-SP`, `-NF` (and `test` `-mu`, `-sd`) become `--dt`, `--lg`, `--ntt`, `--nc`, `--fp`, `--ab`, `--pf`, `--pr`, `--NC`, `--SP`, `--NF` (`--mu`, `--sd`); single-letter flags keep one dash
 - **`--threads`** (`plan`, `apply`, `build`) is hidden and loses `-t`: threads are sized from `--limits` (e.g. `--limits '{"threads": 8}'`)
 - **Shard selection by glob pattern**: `plan`, `apply` and `query` `--sh, --shard` take glob patterns (`'idx_g0_*'`); a name without wildcard matches exactly, and a pattern matching nothing is an error. `plan`/`apply -s, --span` is removed: `--shard 'NAME_g<i>*'` selects a group
 - **`plan`/`apply --run PATTERN`**: builds only the matching kmtricks runs (`<part>`, `<part>_chunk<N>`) without merging, e.g. one chunk per SLURM array task; a later `apply --shard` merges them
