@@ -127,7 +127,9 @@ class SampleLister:
 
         self._root_path = root_path
 
-        with open(self.output_file, "w") as out:
+        # Line-buffered: each entry is on disk once counted, so a killed run
+        # loses no counted sample and --continue resumes after it
+        with open(self.output_file, "w", buffering=1) as out:
             self._out = out
 
             if self._do_continue and backup_file:
