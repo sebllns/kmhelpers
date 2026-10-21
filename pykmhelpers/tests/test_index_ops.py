@@ -197,8 +197,9 @@ class TestResolveBuildParams(unittest.TestCase):
         params = resolve_build_params(
             make_definition(),
             1000,
-            make_config(limits=limits, max_chunks=4),
-            self.layout(chunk_samples=200),
+            # ceil8(220 / 1.1**1) = 200 samples per chunk
+            make_config(limits=limits, max_chunks=4, chunk_budget=220),
+            self.layout(),
         )
         self.assertEqual(params.chunk_size, 200)
 
@@ -206,8 +207,8 @@ class TestResolveBuildParams(unittest.TestCase):
         params = resolve_build_params(
             make_definition(partition_count=8),
             1000,
-            make_config(kmindex_threads=3),
-            self.layout(chunk_samples=200),
+            make_config(kmindex_threads=3, chunk_budget=220),
+            self.layout(),
         )
         self.assertEqual(params, BuildParams(3, 8, 200, 10))
 

@@ -82,10 +82,13 @@ AUTO_GROUP_SAMPLES = 1000
 AUTO_GROUP_MAX = 20
 AUTO_GROUP_MIN_GAIN = 0.20
 
-# Chunk model of `design`/`compose` (from Logan): a kmtricks chunk of span s
-# holds at most CHUNK_BUDGET / base**s samples, a shard SHARD_CHUNKS chunks
+# Budgets from Logan, in samples * base**span: a shard of span s holds at most
+# SHARD_BUDGET / base**s samples (`design`/`compose`), one kmtricks chunk at
+# most CHUNK_BUDGET / base**s (`plan`/`apply`/`build`), and a shard is built in
+# at most MAX_CHUNKS chunks
+SHARD_BUDGET = 2**43
 CHUNK_BUDGET = 2**37
-SHARD_CHUNKS = 64
+MAX_CHUNKS = 64
 
 # Minimizer size of a new index (kmtricks/kmindex default), fixed at design
 DEFAULT_MINIM_SIZE = 10

@@ -75,7 +75,7 @@ class TestChunkSize(unittest.TestCase):
         self.assertEqual(p.threads, THREADS)
 
     def test_chunk_model_bounds_max_chunks(self):
-        """max_chunks raises the chunk up to the chunk model, not beyond."""
+        """max_chunks raises the chunk up to the chunk budget, not beyond."""
         self.assertEqual(best(max_chunks=4, max_chunk_samples=500).samples, 250)
         with self.assertLogs("pykmhelpers.core.build_params", "WARNING"):
             p = best(max_chunks=4, max_chunk_samples=200)

@@ -27,7 +27,8 @@ Validate paths then build k-mer indices from an index definition file in a singl
 | `-t, --threads INT` | Number of threads |
 | `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Builds and merges](build.md#builds-and-merges) |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use for any key missing from `--limits` (default: 0.9) |
-| `--max-chunks INT` | Max number of chunks a single index is split into; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 200) |
+| `--max-chunks INT` | Max number of kmtricks chunks a shard is built in; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 64) |
+| `-cb, --chunk-budget INT` | K-mer budget of one kmtricks chunk: a chunk of span `s` holds at most `ceil8(budget / base^s)` samples. 0 for no limit (default: `2**37`), see [build - Shards and chunks](build.md#shards-and-chunks) |
 | `-NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
 | `--keep-previous` | Keep the replaced version of an updated index in `BUILD_DIR/work/SESSION/previous/` instead of deleting it |
 | `-SP, --show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
@@ -83,11 +84,26 @@ Building a session again resumes it: complete kmtricks runs are kept, incomplete
 
 **Notifications** - use `--notify` to receive an email when the build exits (requires `sendmail`). The notification is sent on both success and failure, including on `SIGTERM`.
 
+### Shards and chunks
+
+A shard is fixed at design: a span is split into shards of at most `ceil8(shard_budget / base^s)`
+samples, see [compose - Sharding](compose.md#description). Each build then splits the new
+samples of a shard into kmtricks runs (chunks), `<part>_chunk<N>`. A chunk holds the smallest of:
+
+1. **Open files**: `files / threads - 1`, from `--limits files` (or the system limit x `--safety-margin`);
+2. **Chunk budget**: `ceil8(chunk_budget / base^s)` samples (`--chunk-budget`, default `2**37`, 0 for no limit);
+3. the samples of the part.
+
+`--max-chunks` (default 64, 0 disables it) then raises the chunk to `ceil(samples / max_chunks)`,
+so a shard is built in at most that many runs, with fewer threads to stay within the open
+files. It never goes above bounds 1 and 2: when it would have to, `plan` warns and uses more
+chunks. With the default budgets, a full shard fits 64 chunks (`2**43 = 64 x 2**37`).
+
 ### Builds and merges
 
 Every sub-index is built as unregistered `kmtricks` runs, then published:
 
-1. **Build** - each part of the sub-index (its samples of this session) is built with `kmtricks pipeline` into `BUILD_DIR/work/SESSION/runs/<part>/`, not registered. When one `kmtricks` build cannot hold all the samples of a part (open files, see `--limits` and `--max-chunks`), the part is built in chunks, `<part>_chunk<N>/`. These commands are in `assets/SESSION/<shard>.sh`, and can be run anywhere, e.g. as a SLURM array.
+1. **Build** - each part of the sub-index (its samples of this session) is built with `kmtricks pipeline` into `BUILD_DIR/work/SESSION/runs/<part>/`, not registered. When one `kmtricks` build cannot hold all the samples of a part (open files, `--chunk-budget` and `--max-chunks`, see [Shards and chunks](#shards-and-chunks)), the part is built in chunks, `<part>_chunk<N>/`. These commands are in `assets/SESSION/<shard>.sh`, and can be run anywhere, e.g. as a SLURM array.
 2. **Check** - `assets/SESSION/<shard>_merge.sh` starts by checking every run: `run_infos.txt` (written by kmtricks only when it finishes), `kmtricks.fof`, `options.txt`, and all partition matrices present, non-empty and of equal size. If one run is incomplete, the script stops before registering or merging anything; rebuild that run and run the merge script again.
 3. **Publish a single run** - a new sub-index built in one run is moved in place (`kmindex register --mode move`): no copy, no merge.
 4. **Merge** - otherwise the runs, plus the current version of the sub-index when it is already registered (see [Updating an index](#updating-an-index)), are merged. Each `kmindex merge` runs in a throwaway registry, `BUILD_DIR/work/SESSION/merges/<name>/<step>/`, holding only its inputs. `kmindex merge` loads the repartition table of every registered sub-index (2 MiB each at minimizer size 10), so a registry limited to the inputs keeps its memory proportional to what is merged. Merges get at most one thread per partition.

@@ -34,6 +34,7 @@ class PartialError(click.ClickException):
 @shared.index_build_options
 @shared.index_apply_options
 @shared.index_limits_options
+@shared.chunk_budget_option
 @click.pass_context
 def build(
     ctx,
@@ -49,6 +50,7 @@ def build(
     limits,
     safety_margin,
     max_chunks,
+    chunk_budget,
 ):
     """Validate paths then build indices from definition files.
 
@@ -153,6 +155,7 @@ def build(
             limits=limits,
             safety_margin=safety_margin,
             max_chunks=max_chunks,
+            chunk_budget=chunk_budget,
         )
     )
 

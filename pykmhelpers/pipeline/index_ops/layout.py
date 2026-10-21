@@ -14,9 +14,9 @@ class LayoutStore:
     """Read-only access to the layout of the index being built.
 
     The layout is written by ``compose`` only: plan/apply/build never modify
-    the design. It holds the minimizer size, the partition count of each span
-    when the design fixes it (``-p``), the shard capacity and the chunk model
-    of each span.
+    the design. It holds the minimizer size, the span base, the partition
+    count of each span when the design fixes it (``-P``) and the shard
+    capacity of each span.
 
     Without a layout file (an index definition passed directly), every getter
     returns ``None``.
@@ -47,6 +47,11 @@ class LayoutStore:
     def minim_size(self) -> Optional[int]:
         return self._get(self._payload(), "minim_size")
 
+    def base(self) -> Optional[float]:
+        """Base of the spans: span s holds samples of base**s to base**(s+1) k-mers."""
+        value = (self._payload() or {}).get("base")
+        return float(value) if value else None
+
     def partition_count(self, span: int) -> Optional[int]:
         return self._get(self._span(span), "partition_count")
 
@@ -58,10 +63,6 @@ class LayoutStore:
         return self._get(self._span(span), "max_samples") or self._get(
             self._span(span), "total_samples"
         )
-
-    def chunk_samples(self, span: int) -> Optional[int]:
-        """Most samples one kmtricks chunk of ``span`` holds (chunk model)."""
-        return self._get(self._span(span), "chunk_samples")
 
     # ---
 

@@ -25,7 +25,7 @@ def _chunk_size(
 
     Base value: the largest chunk that still fits ``n_threads`` in the merge
     stage (``n_threads * (chunk + 1) <= ulimit``), capped at the total sample
-    count and at ``max_chunk_samples`` (the chunk model of the layout), and
+    count and at ``max_chunk_samples`` (the chunk budget), and
     floored at 1.
 
     With ``max_chunks``, the chunk is raised to ``ceil(samples / max_chunks)``
@@ -52,7 +52,7 @@ def _chunk_size(
     if wanted > ceiling:
         logger.warning(
             f"max_chunks={max_chunks} needs {wanted} samples per chunk, but at most "
-            f"{ceiling} fit (ulimit {ulimit}, chunk model {max_chunk_samples or 'none'}); "
+            f"{ceiling} fit (ulimit {ulimit}, chunk budget {max_chunk_samples or 'none'}); "
             f"using {ceiling}, i.e. {math.ceil(samples / ceiling)} chunks"
         )
         return ceiling
@@ -250,7 +250,7 @@ def auto_params(
         max_chunks: Cap on the number of chunks the dataset is split into.
             None (or < 1) leaves the chunk size to the open-files limit alone.
         max_chunk_samples: Upper bound on the samples of one chunk (the
-            layout's chunk model). None leaves the chunk size unbounded.
+            chunk budget). None leaves the chunk size unbounded.
 
     Returns:
         kmparams.kmtricks_params: best configuration for the given limits.

@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
+from pykmhelpers.core.constants import CHUNK_BUDGET, MAX_CHUNKS
+
 
 class ApplyMode(int, Enum):
     DRY_RUN = 0
@@ -92,10 +94,13 @@ class IndexOpsConfig:
             from the system. Defaults to ``None`` (all keys auto-detected).
         safety_margin: Fraction of a detected system limit to use for any
             key missing from ``limits``. Defaults to ``0.9``.
-        max_chunks: Cap on the number of chunks a single index is split into.
-            A bigger chunk needs more open files in the merge stage, so the
-            cap is paid for with threads. ``0`` disables it, leaving the chunk
-            size to the open-files limit alone. Defaults to ``200``.
+        max_chunks: Cap on the number of chunks a shard is built in. A
+            bigger chunk needs more open files in the merge stage, so the cap
+            is paid for with threads. ``0`` disables it, leaving the chunk
+            size to the open-files limit alone. Defaults to ``MAX_CHUNKS``.
+        chunk_budget: K-mer budget of one kmtricks chunk: a chunk of span s
+            holds at most ``ceil8(chunk_budget / base**s)`` samples. ``0``
+            for no limit. Defaults to ``CHUNK_BUDGET``.
         keep_previous: Keep the replaced version of an updated index in
             ``work/<session>/previous/`` instead of deleting it. Defaults to
             ``False``.
@@ -110,5 +115,6 @@ class IndexOpsConfig:
     filter_names: Optional[list[str]] = None
     limits: Optional[str] = None
     safety_margin: float = 0.9
-    max_chunks: int = 200
+    max_chunks: int = MAX_CHUNKS
+    chunk_budget: int = CHUNK_BUDGET
     keep_previous: bool = False

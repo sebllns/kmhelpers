@@ -28,9 +28,8 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 | `-pr, --profile TEXT` | Profile name to use (default: `default_profile` from profiles file) |
 | `-P, --partition-count INT` | Fix the partition count of every shard for the life of the index: inherited by every later session, no longer adapted to the system limits of `plan`/`build`. 0 (default) lets the first `plan` of each shard size it, see Partitioning below |
 | `--minim-size INT` | Minimizer size (4-15), fixed for the life of the index (default: 10 for a new index, the layout's value on an update) |
-| `-si, --shard-size SIZE` | Max size of one shard (e.g. `256GB`, `500000MB`), on top of the chunk model limit |
-| `-cb, --chunk-budget INT` | K-mer budget of one kmtricks chunk (e.g. `2**37`); 0 for no limit (default: `2**37` for a new index, the layout's value on an update) |
-| `-sc, --shard-chunks INT` | Chunks per shard under the chunk model (default: 64 for a new index, the layout's value on an update) |
+| `-sb, --shard-budget INT` | Shard budget: a shard of span `s` holds at most `ceil8(budget / base^s)` samples (e.g. `2**43`); 0 for no limit (default: `2**43` for a new index, the layout's rule on an update) |
+| `--shard-budget-bytes SIZE` | Hidden. Cap a shard by its size on disk (e.g. `256GB`, `500000MB`) rather than by `--shard-budget`: when set, `--shard-budget` is not used. Cannot be combined with `--shard-budget` |
 | `-ab, --abundance-bits INT` | Build an abundance index with `N` bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0) |
 | `-m, --partition-min-size SIZE` | Minimum partition file size (e.g. `500MB`, `1GB`) |
 | `-P, --partition-count-limit INT` | Upper bound on auto partition count (default: 256) |
@@ -90,26 +89,29 @@ of sessions that added samples to it (`updates`).
 bound. Shards are never merged together: each one is built and registered on its own, and a
 query hits them all.
 
-The per-span sample limit of a shard is the smaller of two limits:
+The per-span sample limit of a shard follows one rule:
 
-- the chunk model (from Logan), on by default: a kmtricks chunk of span `s` holds at most
-  `c = ceil8(budget / base^s)` samples (`--chunk-budget`, default `2**37`), and a shard at most
-  `--shard-chunks` chunks (default 64), i.e. `64 x c` samples. `plan`, `apply` and `build` cap
-  the chunk size at `c`, within the open-files limit. `--chunk-budget 0` disables it;
-- `--shard-size`, derived from the Bloom filter size of the span, since a shard costs about
-  `bf_size x samples / 8` bytes, rounded down to a multiple of 8 samples (minimum 8).
+- the shard budget (from Logan), on by default: a shard of span `s` holds at most
+  `ceil8(budget / base^s)` samples (`--shard-budget`, default `2**43`, about k-mers x samples).
+  `--shard-budget 0` disables it;
+- or, with the hidden `--shard-budget-bytes SIZE`, its size on disk instead: a shard costs about
+  `bf_size x samples x bitw / 8` bytes, rounded down to a multiple of 8 samples (minimum 8).
 
-Both limits, `c` (`chunk_samples`) and the shard limit (`max_samples`), are written to the
-layout file, together with the shards and their sample counts, so a later session knows where
-to continue. An update keeps the layout's chunk model; passing `--chunk-budget` or
-`--shard-chunks` again re-shards it, affecting only the shards opened later.
+The rule (`shard_budget` or `shard_size`) and the shard limit of each span (`max_samples`) are
+written to the layout file, together with the shards and their sample counts, so a later
+session knows where to continue. An update keeps the layout's rule; passing `--shard-budget` or
+`--shard-budget-bytes` again re-shards it, affecting only the shards opened later. Layouts
+written with the former chunk model read as a shard budget of `chunk_budget x shard_chunks`.
+
+How a shard is split into kmtricks chunks is decided at build time, see
+[build - Shards and chunks](build.md#shards-and-chunks).
 
 An update fills the last shard of the span until that limit is reached, then opens a new one.
 Filling a shard means merging the session's new samples into it; only chunks (a build-time
 split, see [plan](plan.md)) are merged as well.
 
-Shards are named `NAME_g<i>_p<k>`. Without any limit (`--chunk-budget 0` and no
-`--shard-size`), a span keeps a single index named `NAME_g<i>`.
+Shards are named `NAME_g<i>_p<k>`. Without any limit (`--shard-budget 0`), a span keeps a
+single index named `NAME_g<i>`.
 
 **Abundance** - by default an index records the presence or absence of each k-mer in each
 sample. With `--abundance-bits N`, each sample gets `N` bits per Bloom filter cell instead of

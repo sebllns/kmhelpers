@@ -14,11 +14,10 @@ import pykmhelpers.pipeline.index_db as db
 from pykmhelpers.core.bloom_filter import SpanManager
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.constants import (
-    CHUNK_BUDGET,
     DEFAULT_MINIM_SIZE,
     KMHELPERS_COMMIT,
     KMHELPERS_VERSION,
-    SHARD_CHUNKS,
+    SHARD_BUDGET,
 )
 from pykmhelpers.core.log import Log
 
@@ -49,8 +48,7 @@ class IndexComposer:
         bitw: Optional[int] = None,
         no_merge=False,
         shard_size: int = 0,
-        chunk_budget: Optional[int] = None,
-        shard_chunks: Optional[int] = None,
+        shard_budget: Optional[int] = None,
         partition_count: int = 0,
         minim_size: Optional[int] = None,
         kmer_size: Optional[int] = None,
@@ -66,10 +64,13 @@ class IndexComposer:
         # None: the layout's value on an update, presence/absence (0) otherwise
         self.bitw = None if bitw is None else max(bitw, 0)
         self.no_merge = no_merge
+        if shard_size and shard_budget is not None:
+            raise ValueError("A shard is capped by a budget or by a size, not both")
+        # The shard rule, one of: a byte size (shard_size), or a budget of
+        # samples * base**span (shard_budget). Neither: the layout's rule on an
+        # update, SHARD_BUDGET otherwise
         self.shard_size = shard_size
-        # None: the layout's value on an update, the Logan model otherwise
-        self.chunk_budget = chunk_budget
-        self.shard_chunks = shard_chunks
+        self.shard_budget = shard_budget
         self.partition_count = partition_count
         # None: the layout's value on an update, DEFAULT_MINIM_SIZE otherwise
         self.minim_size = minim_size
@@ -110,12 +111,11 @@ class IndexComposer:
         except shutil.SameFileError:
             pass
 
-        shard_size = self.shard_size
+        shard_size = 0
         minim_size = 0
         out_layout = None
         sessions: list[str] = []
-        # Older layouts have no chunk model: no limit
-        layout_budget, layout_chunks = 0, SHARD_CHUNKS
+        layout_budget = 0
 
         if self.layout_file:
             span_base, shard_size, minim_size, spans_properties = load_layout(
@@ -124,7 +124,7 @@ class IndexComposer:
             allowed_spans = sorted(spans_properties.keys())
             out_layout = os.path.realpath(self.layout_file)
             sessions = load_layout_sessions(self.layout_file)
-            layout_budget, layout_chunks = load_layout_chunking(self.layout_file)
+            layout_budget = load_layout_shard_budget(self.layout_file)
             if self.minim_size is None:
                 # Layouts written before it was set at design: the default
                 self.minim_size = minim_size or DEFAULT_MINIM_SIZE
@@ -163,16 +163,19 @@ class IndexComposer:
             self.minim_size = DEFAULT_MINIM_SIZE
         minim_size = self.minim_size
 
-        # An update keeps the layout's chunk model unless it is passed again
+        # An update keeps the layout's shard rule unless one is passed again
         updating = bool(self.layout_file and not self.profiles_file)
-        rechunk = updating and (
-            (self.chunk_budget is not None and self.chunk_budget != layout_budget)
-            or (self.shard_chunks is not None and self.shard_chunks != layout_chunks)
-        )
-        if self.chunk_budget is None:
-            self.chunk_budget = layout_budget if updating else CHUNK_BUDGET
-        if self.shard_chunks is None:
-            self.shard_chunks = layout_chunks if updating else SHARD_CHUNKS
+        layout_rule = (layout_budget, shard_size)
+        if self.shard_size:
+            self.shard_budget = 0
+        elif self.shard_budget is not None:
+            self.shard_size = 0
+        elif updating:
+            self.shard_budget, self.shard_size = layout_rule
+        else:
+            self.shard_budget, self.shard_size = SHARD_BUDGET, 0
+        reshard = updating and (self.shard_budget, self.shard_size) != layout_rule
+        shard_size = self.shard_size
 
         kmer_size = self.kmer_size or file_k or 25
         if minim_size >= kmer_size:
@@ -190,17 +193,13 @@ class IndexComposer:
             spans_properties = self._fill_span_props(
                 allowed_spans, span_manager, span_base, shard_size
             )
-        elif rechunk or (self.shard_size and self.shard_size != shard_size):
+        elif reshard:
             # A layout can be re-sharded: only shards opened later are affected
-            shard_size = self.shard_size or shard_size
             for span, props in spans_properties.items():
-                props["chunk_samples"], props["max_samples"] = self._span_limits(
+                props["max_samples"] = self._max_samples(
                     span, span_manager, span_base, shard_size
                 )
-            logger.info(
-                f"Layout re-sharded (shard size: {ByteCounter.auto(shard_size)}, "
-                f"chunk budget: {self.chunk_budget}, shard chunks: {self.shard_chunks})"
-            )
+            logger.info(f"Layout re-sharded ({self._shard_rule()})")
 
         if self.partition_count:
             # Fixed by the user: every shard of the index keeps this count
@@ -348,14 +347,12 @@ class IndexComposer:
         """Per-span properties of a new index: name, sample limits, shards."""
         props = {}
         for i, span in enumerate(allowed_spans):
-            chunk_samples, max_samples = self._span_limits(
-                span, span_manager, span_base, shard_size
-            )
             props[span] = {
                 "id": i,
                 "name": self.db_tools.get_merge_name(self.name, i),
-                "chunk_samples": chunk_samples,
-                "max_samples": max_samples,
+                "max_samples": self._max_samples(
+                    span, span_manager, span_base, shard_size
+                ),
                 "total_samples": 0,
                 "updates": -1,
                 "partition_count": 0,
@@ -363,20 +360,24 @@ class IndexComposer:
             }
         return props
 
-    def _span_limits(
+    def _max_samples(
         self, span: int, span_manager: SpanManager, span_base: float, shard_size: int
-    ) -> tuple[int, int]:
-        """``(chunk_samples, max_samples)`` of a span, 0 meaning unlimited.
+    ) -> int:
+        """Samples one shard of ``span`` holds, 0 meaning unlimited.
 
-        A shard is capped by ``shard_size`` and by ``shard_chunks`` chunks of
-        the chunk model, whichever is smaller.
+        Capped by ``shard_size`` bytes when set, else by the shard budget.
         """
-        chunk_samples = chunk_samples_for(span, span_base, self.chunk_budget or 0)
-        caps = [
-            max_samples_for(span_manager.get_bf_size(span), shard_size, self.bitw or 0),
-            (self.shard_chunks or SHARD_CHUNKS) * chunk_samples,
-        ]
-        return chunk_samples, min((c for c in caps if c), default=0)
+        if shard_size:
+            return max_samples_for(
+                span_manager.get_bf_size(span), shard_size, self.bitw or 0
+            )
+        return budget_samples_for(span, span_base, self.shard_budget or 0)
+
+    def _shard_rule(self) -> str:
+        """The shard rule, for logs."""
+        if self.shard_size:
+            return f"shard size: {ByteCounter.auto(self.shard_size)}"
+        return f"shard budget: {self.shard_budget or 'no limit'}"
 
     def _current_shard(self, props: dict) -> dict:
         """Shard receiving the next sample: the last one, or a new one if full."""
@@ -415,13 +416,11 @@ class IndexComposer:
                 "shard_size": shard_size,
                 "minim_size": minim_size,
                 "bitw": self.bitw,
-                "chunk_budget": self.chunk_budget or 0,
-                "shard_chunks": self.shard_chunks or SHARD_CHUNKS,
+                "shard_budget": self.shard_budget or 0,
                 "sessions": list(sessions or []),
                 "map": {
                     span: {
                         "name": props["name"],
-                        "chunk_samples": props.get("chunk_samples", 0),
                         "max_samples": props["max_samples"],
                         "total_samples": props["total_samples"],
                         "updates": props["updates"],
@@ -454,27 +453,32 @@ def max_samples_for(bf_size: int, shard_size: int, bitw: int = 0) -> int:
     return max(8, (8 * shard_size // (bf_size * max(bitw, 1))) // 8 * 8)
 
 
-def chunk_samples_for(span: int, base: float, chunk_budget: int) -> int:
-    """Samples one kmtricks chunk of ``span`` holds, 0 if unlimited.
+def budget_samples_for(span: int, base: float, budget: int) -> int:
+    """Samples of ``span`` that fit a k-mer ``budget``, 0 if unlimited.
 
-    Chunk model from Logan: ``chunk_budget / base**span`` samples per chunk
-    (``chunk_budget`` = 2**37), rounded up to a multiple of 8.
+    Model from Logan: ``budget / base**span`` samples, rounded up to a
+    multiple of 8. Sizes a shard (design ``--shard-budget``) and a kmtricks
+    chunk (plan ``--chunk-budget``).
     """
-    if not chunk_budget:
+    if not budget:
         return 0
-    return max(8, math.ceil(chunk_budget / base**span / 8) * 8)
+    return max(8, math.ceil(budget / base**span / 8) * 8)
 
 
-def load_layout_chunking(path: str) -> tuple[int, int]:
-    """``(chunk_budget, shard_chunks)`` stored in a layout.
+def load_layout_shard_budget(path: str) -> int:
+    """Shard budget stored in a layout, 0 when unlimited or capped by size.
 
-    Layouts written before the chunk model have no budget: no limit (0).
+    Layouts written with the chunk model store ``chunk_budget`` and
+    ``shard_chunks`` instead: their product is the shard budget. Older
+    layouts have none: no limit.
     """
     with open(path) as f:
         data = yaml.safe_load(f).get("data", {})
-    return int(data.get("chunk_budget") or 0), int(
-        data.get("shard_chunks") or SHARD_CHUNKS
-    )
+    if data.get("shard_size"):
+        return 0
+    if "shard_budget" in data:
+        return int(data["shard_budget"] or 0)
+    return int(data.get("chunk_budget") or 0) * int(data.get("shard_chunks") or 64)
 
 
 def load_layout_sessions(path: str) -> list[str]:
@@ -530,7 +534,6 @@ def load_layout(path: str) -> tuple[float, int, int, dict]:
             props[int(span)] = {
                 "id": i,
                 "name": entry["name"],
-                "chunk_samples": int(entry.get("chunk_samples") or 0),
                 "max_samples": max_samples,
                 "total_samples": int(entry.get("total_samples") or 0),
                 "updates": int(entry.get("updates") or 0),

@@ -663,7 +663,7 @@ class TestPartitionCountStaysFixed(PipelineE2EBase):
 
 
 class TestShardedBuild(PipelineE2EBase):
-    """--shard-size splits a span into independent shards, never merged together."""
+    """--shard-budget-bytes splits a span into independent shards, never merged together."""
 
     def test_design_build_query_with_shards(self):
         # -b 4 buckets every sample into one span; a shard size small enough
@@ -690,7 +690,7 @@ class TestShardedBuild(PipelineE2EBase):
             "4",
             "-g",
             "1",
-            "-si",
+            "--shard-budget-bytes",
             "1KB",
         )
         layout = yaml.safe_load(

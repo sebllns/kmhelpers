@@ -23,10 +23,10 @@ All notable changes to this project will be documented in this file.
 - **`manage check -n`**: checks only the given indices, and fails if one is not registered
 - **`manage move-dir`** (internal, hidden): renames a folder for the generated scripts, failing instead of copying across filesystems
 - **`manage remove --missing-ok`** and **`--keep-link`**: skip unregistered IDs; only edit `index.json`
-- **Chunk model** (from Logan, `compose`/`design --chunk-budget`, `--shard-chunks`): a kmtricks chunk of span `s` holds at most `c = ceil8(budget / base^s)` samples, a shard at most `shard_chunks` chunks
-  - Defaults to `2**37` and 64 for a new index; `--chunk-budget 0` disables it
-  - `chunk_budget` and `shard_chunks` are stored in the layout, with `chunk_samples` (`c`) per span; an update keeps them, passing them again re-shards the layout
-  - `plan`, `apply` and `build` cap the chunk size at `c`, still within the open-files limit and `--max-chunks`
+- **Shard budget** (from Logan, `compose`/`design -sb, --shard-budget`): a shard of span `s` holds at most `ceil8(budget / base^s)` samples
+  - Defaults to `2**43` for a new index; `--shard-budget 0` disables it
+  - `shard_budget` is stored in the layout; an update keeps it, passing it again re-shards the layout
+- **Chunk budget** (`plan`, `apply`, `build` `-cb, --chunk-budget`): a kmtricks chunk of span `s` holds at most `ceil8(budget / base^s)` samples (default `2**37`, 0 for no limit), still within the open-files limit and `--max-chunks`
 
 ### Changed
 
@@ -47,7 +47,9 @@ All notable changes to this project will be documented in this file.
 - **`plan`, `apply`, `build` take a directory**: the design directory, a compose directory or `COMPOSE_DIR/NAME`, resolved to the session given by the new `-S/--session` or the last one composed; a session's `index.yaml` or a shard file can still be passed
 - **`compose`/`design -ab`** defaults to the layout's value on an update (0 for a new index), instead of 0; an explicit different value is still refused
 - **Default group count** (`profile -g`, `design -g`): 0 (automatic) instead of 20
-- **New indexes are sharded by default** under the chunk model: shards are named `NAME_g<i>_p<k>` (was `NAME_g<i>` without `--shard-size`); layouts without a chunk model keep no limit
+- **New indexes are sharded by default** under the shard budget: shards are named `NAME_g<i>_p<k>` (was `NAME_g<i>` without `--shard-size`); layouts without a budget keep no limit
+- **`compose`/`design --shard-size` (`-si`) is now the hidden `--shard-budget-bytes`**: it caps a shard by bytes on disk instead of the shard budget, not on top of it, and cannot be combined with `--shard-budget`
+- **`--max-chunks`** (`plan`, `apply`, `build`): caps the chunks of a shard, default 64 (was 200)
 - **`KmtricksWrapper.pipeline`, `KmindexWrapper.build`**: `bloom_size` is required and `bitw` optional; with `bitw` set, the index is an abundance index of `bloom_size` cells, otherwise presence/absence (`nb_cell` removed)
   - `kmhelpers kmindex build`: `--bloom-size` is required, `--bitw` replaces `--nb-cell`
   - Its size estimate counts `bloom_size` in bits (it was read as bytes)

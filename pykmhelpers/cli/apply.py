@@ -47,6 +47,7 @@ def _parse_spans(spans):
 @shared.index_build_options
 @shared.index_filter_options
 @shared.index_limits_options
+@shared.chunk_budget_option
 @shared.index_apply_options
 @shared.fail_fast_option
 @click.pass_context
@@ -62,6 +63,7 @@ def apply(
     limits,
     safety_margin,
     max_chunks,
+    chunk_budget,
     skip_compression,
     keep_previous,
     show_progress,
@@ -201,6 +203,7 @@ def apply(
                     limits=limits,
                     safety_margin=safety_margin,
                     max_chunks=max_chunks,
+                    chunk_budget=chunk_budget,
                 )
             )
             log_dir = iops.log_dir

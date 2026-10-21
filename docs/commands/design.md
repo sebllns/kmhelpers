@@ -39,7 +39,7 @@ DESIGN_DIR/                            -> INPUT of build/plan/apply (-S SESSION)
 │   └── groups.png                     distribution plot
 └── compose/                           COMPOSE_DIR
     └── NAME/                          the index
-        ├── layout.yaml                state of the index: groups, chunk model, shards, partitions, bitw, sessions
+        ├── layout.yaml                state of the index: groups, shard budget, shards, partitions, bitw, sessions
         └── SESSION/
             ├── index.yaml             the session: parameters, size and shards (readable summary)
             ├── samples.jsonl          the session's samples
@@ -65,14 +65,13 @@ Set `-S` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 |--------|-------------|
 | `-g, --group N` | Partition Bloom Filters into `N` storage-balanced groups and overlay on plot; 0 chooses `N` (default: 0), tuned by the `KMHELPERS_AUTO_GROUP_*` environment variables, see [profile - Grouping](profile.md#description) |
 | `-b, --base FLOAT` | Base for span bucket boundaries (default: 1.1) |
-| `-si, --shard-size SIZE` | Max size of one shard (e.g. `10GB`), on top of the chunk model limit, see [compose](compose.md) |
-| `-cb, --chunk-budget INT` | K-mer budget of one kmtricks chunk (default: `2**37` for a new index); 0 for no limit, see [compose](compose.md) |
-| `-sc, --shard-chunks INT` | Chunks per shard under the chunk model (default: 64 for a new index) |
+| `-sb, --shard-budget INT` | Shard budget: a shard of span `s` holds at most `ceil8(budget / base^s)` samples (default: `2**43` for a new index); 0 for no limit, see [compose](compose.md) |
 | `-fp, --false-positive-rate FLOAT` | Target Bloom-filter false-positive rate (default: 0.25) |
 | `-P, --partition-count INT` | Fix the partition count of every shard for the life of the index: inherited by every later session, no longer adapted to the system limits of `plan`/`build`. 0 (default) lets the first `plan` of each shard size it, see [compose - Partitioning](compose.md#description) |
 | `--minim-size INT` | Minimizer size (4-15), fixed for the life of the index (default: 10 for a new index, the layout's value on an update) |
 | `-ab, --abundance-bits INT` | Build an abundance index with `N` bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0), see [compose](compose.md) |
 | `-nc, --no-count` | Skip k-mer counting with ntcard |
+| `--shard-budget-bytes SIZE` | Hidden. Cap a shard by its size on disk (e.g. `10GB`) rather than by `--shard-budget`: when set, `--shard-budget` is not used. Cannot be combined with `--shard-budget`, see [compose](compose.md) |
 | `-lg, --leaf-grouping` | Group files by leaf folder; each leaf directory becomes one sample |
 | `-p, --paired [REGEX]` | Group mate files (R1/R2) of a directory into one sample, see [list](list.md#description) |
 | `-a, --autorename` | Rename duplicate sample IDs by appending a numeric suffix instead of skipping |

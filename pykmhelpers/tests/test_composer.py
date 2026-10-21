@@ -13,12 +13,12 @@ import yaml
 from pykmhelpers.core.bloom_filter import SpanManager
 from pykmhelpers.pipeline.composer import (
     IndexComposer,
-    chunk_samples_for,
+    budget_samples_for,
     layout_path,
     load_layout,
     load_layout_bitw,
-    load_layout_chunking,
     load_layout_sessions,
+    load_layout_shard_budget,
     max_samples_for,
 )
 from pykmhelpers.pipeline.index_db import (
@@ -76,40 +76,48 @@ class TestShardNaming(unittest.TestCase):
         )
 
 
-class TestChunkModel(unittest.TestCase):
-    """Logan chunk model: c = 2**37 / base**span, rounded up to a multiple of 8."""
+class TestBudgetModel(unittest.TestCase):
+    """Logan model: budget / base**span samples, rounded up to a multiple of 8."""
 
     def test_unlimited(self):
-        self.assertEqual(chunk_samples_for(168, 1.1, 0), 0)
+        self.assertEqual(budget_samples_for(168, 1.1, 0), 0)
 
-    def test_logan_genomic_values(self):
+    def test_logan_genomic_chunks(self):
         for span, expected in [(168, 15288), (184, 3328), (218, 136), (250, 8)]:
-            self.assertEqual(chunk_samples_for(span, 1.1, 2**37), expected)
+            self.assertEqual(budget_samples_for(span, 1.1, 2**37), expected)
 
     def test_logan_v1_base_2(self):
-        self.assertEqual(chunk_samples_for(30, 2.0, 2**37), 128)
+        self.assertEqual(budget_samples_for(30, 2.0, 2**37), 128)
 
     def test_never_below_8(self):
-        self.assertEqual(chunk_samples_for(300, 1.1, 2**37), 8)
+        self.assertEqual(budget_samples_for(300, 1.1, 2**37), 8)
 
-    def test_shard_holds_shard_chunks_chunks(self):
-        composer = IndexComposer(name="idx", chunk_budget=2**37, shard_chunks=64)
-        limits = composer._span_limits(168, SpanManager(b=1.1), 1.1, 0)
-        self.assertEqual(limits, (15288, 64 * 15288))
+    def test_shard_budget(self):
+        composer = IndexComposer(name="idx", shard_budget=2**43)
+        max_samples = composer._max_samples(168, SpanManager(b=1.1), 1.1, 0)
+        self.assertEqual(max_samples, budget_samples_for(168, 1.1, 2**43))
 
-    def test_shard_size_wins_when_smaller(self):
-        composer = IndexComposer(name="idx", chunk_budget=2**37, shard_chunks=64)
+    def test_shard_size_replaces_the_budget(self):
+        """A byte size is used instead of the budget, even when larger."""
         manager = SpanManager(b=1.1)
-        limits = composer._span_limits(168, manager, 1.1, manager.get_bf_size(168))
-        self.assertEqual(limits, (15288, 8))
+        size = 10**15
+        composer = IndexComposer(name="idx", shard_size=size)
+        self.assertEqual(
+            composer._max_samples(168, manager, 1.1, size),
+            max_samples_for(manager.get_bf_size(168), size),
+        )
 
     def test_zero_budget_is_unlimited(self):
-        composer = IndexComposer(name="idx", chunk_budget=0, shard_chunks=64)
-        self.assertEqual(composer._span_limits(168, SpanManager(b=1.1), 1.1, 0), (0, 0))
+        composer = IndexComposer(name="idx", shard_budget=0)
+        self.assertEqual(composer._max_samples(168, SpanManager(b=1.1), 1.1, 0), 0)
+
+    def test_budget_and_size_are_exclusive(self):
+        with self.assertRaises(ValueError):
+            IndexComposer(name="idx", shard_budget=2**43, shard_size=1000)
 
 
-class TestComposeChunking(unittest.TestCase):
-    """Default chunk model on a new index, kept or re-sharded on updates."""
+class TestComposeSharding(unittest.TestCase):
+    """Default shard budget on a new index, kept or re-sharded on updates."""
 
     SPAN = 144  # 10**6 k-mers in base 1.1
 
@@ -151,32 +159,50 @@ class TestComposeChunking(unittest.TestCase):
         with open(self.layout) as f:
             return yaml.safe_load(f)["data"]
 
-    def test_new_index_uses_the_logan_model(self):
+    def test_new_index_uses_the_default_budget(self):
         data = self.compose("initial")
         entry = data["map"][self.SPAN]
-        self.assertEqual((data["chunk_budget"], data["shard_chunks"]), (2**37, 64))
-        self.assertEqual(entry["chunk_samples"], chunk_samples_for(self.SPAN, 1.1, 2**37))
-        self.assertEqual(entry["max_samples"], 64 * entry["chunk_samples"])
+        self.assertEqual((data["shard_budget"], data["shard_size"]), (2**43, 0))
+        self.assertEqual(
+            entry["max_samples"], budget_samples_for(self.SPAN, 1.1, 2**43)
+        )
+        self.assertNotIn("chunk_samples", entry)
         self.assertEqual(entry["shards"][0]["name"], "idx_g0_p0")
 
     def test_zero_budget_keeps_a_single_unlimited_index(self):
-        data = self.compose("initial", chunk_budget=0)
+        data = self.compose("initial", shard_budget=0)
         entry = data["map"][self.SPAN]
-        self.assertEqual((entry["chunk_samples"], entry["max_samples"]), (0, 0))
+        self.assertEqual(entry["max_samples"], 0)
         self.assertEqual(entry["shards"][0]["name"], "idx_g0")
 
-    def test_update_keeps_the_layout_model(self):
-        self.compose("initial", chunk_budget=0)
+    def test_update_keeps_the_layout_rule(self):
+        self.compose("initial", shard_budget=0)
         data = self.compose("upd", profile=False)
-        self.assertEqual(data["chunk_budget"], 0)
+        self.assertEqual(data["shard_budget"], 0)
         self.assertEqual(data["map"][self.SPAN]["max_samples"], 0)
 
     def test_explicit_budget_reshards_an_update(self):
-        self.compose("initial", chunk_budget=0)
-        data = self.compose("upd", profile=False, chunk_budget=2**37, shard_chunks=2)
-        entry = data["map"][self.SPAN]
-        self.assertEqual(data["chunk_budget"], 2**37)
-        self.assertEqual(entry["max_samples"], 2 * entry["chunk_samples"])
+        self.compose("initial", shard_budget=0)
+        data = self.compose("upd", profile=False, shard_budget=2**40)
+        self.assertEqual(data["shard_budget"], 2**40)
+        self.assertEqual(
+            data["map"][self.SPAN]["max_samples"],
+            budget_samples_for(self.SPAN, 1.1, 2**40),
+        )
+
+    def test_size_switches_the_rule_of_an_update(self):
+        self.compose("initial")
+        data = self.compose("upd", profile=False, shard_size=10**9)
+        self.assertEqual((data["shard_budget"], data["shard_size"]), (0, 10**9))
+        bf_size = SpanManager(b=1.1).get_bf_size(self.SPAN)
+        self.assertEqual(
+            data["map"][self.SPAN]["max_samples"], max_samples_for(bf_size, 10**9)
+        )
+
+    def test_update_keeps_a_size_rule(self):
+        self.compose("initial", shard_size=10**9)
+        data = self.compose("upd", profile=False)
+        self.assertEqual((data["shard_budget"], data["shard_size"]), (0, 10**9))
 
 
 class TestCurrentShard(unittest.TestCase):
@@ -236,7 +262,6 @@ class TestLayout(unittest.TestCase):
             76: {
                 "id": 0,
                 "name": "idx_g0",
-                "chunk_samples": 8,
                 "max_samples": 80,
                 "total_samples": 85,
                 "updates": 2,
@@ -263,16 +288,30 @@ class TestLayout(unittest.TestCase):
         )
         self.assertEqual(load_layout_sessions(self.path), ["initial", "upd"])
 
-    def test_chunking_round_trip(self):
-        composer = IndexComposer(name="idx", chunk_budget=2**37, shard_chunks=32)
+    def test_shard_budget_round_trip(self):
+        composer = IndexComposer(name="idx", shard_budget=2**40)
         composer._write_layout(self.path, 1.1, 0, 10, {})
-        self.assertEqual(load_layout_chunking(self.path), (2**37, 32))
+        self.assertEqual(load_layout_shard_budget(self.path), 2**40)
 
-    def test_layout_without_chunking_has_no_limit(self):
-        legacy = {"type": "layout", "data": {"base": 1.1, "map": {76: "idx_g0"}}}
+    def write_legacy(self, **fields):
+        legacy = {
+            "type": "layout",
+            "data": {"base": 1.1, "map": {76: "idx_g0"}, **fields},
+        }
         with open(self.path, "w") as f:
             yaml.dump(legacy, f)
-        self.assertEqual(load_layout_chunking(self.path), (0, 64))
+
+    def test_layout_without_budget_has_no_limit(self):
+        self.write_legacy()
+        self.assertEqual(load_layout_shard_budget(self.path), 0)
+
+    def test_chunk_model_layout_reads_as_a_shard_budget(self):
+        self.write_legacy(chunk_budget=2**37, shard_chunks=64)
+        self.assertEqual(load_layout_shard_budget(self.path), 2**43)
+
+    def test_layout_with_a_size_has_no_budget(self):
+        self.write_legacy(chunk_budget=2**37, shard_chunks=64, shard_size=10**9)
+        self.assertEqual(load_layout_shard_budget(self.path), 0)
 
     def test_layout_without_bitw_is_presence_absence(self):
         legacy = {"type": "layout", "data": {"base": 1.1, "map": {76: "idx_g0"}}}
@@ -290,7 +329,6 @@ class TestLayout(unittest.TestCase):
         self.assertEqual((base, shard_size, minim_size), (1.1, 0, 0))
         self.assertEqual(loaded[76]["name"], "idx_g0")
         self.assertEqual(loaded[76]["max_samples"], 0)
-        self.assertEqual(loaded[76]["chunk_samples"], 0)
         self.assertEqual(loaded[76]["partition_count"], 0)
         self.assertEqual(loaded[76]["total_samples"], 0)
         self.assertEqual(loaded[76]["updates"], 0)

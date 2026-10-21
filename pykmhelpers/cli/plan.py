@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 @shared.index_build_options
 @shared.index_filter_options
 @shared.index_limits_options
+@shared.chunk_budget_option
 @shared.fail_fast_option
 @click.option(
     "--offline",
@@ -43,6 +44,7 @@ def plan(
     limits,
     safety_margin,
     max_chunks,
+    chunk_budget,
     skip_compression,
     keep_previous,
     fail_on_error,
@@ -125,6 +127,7 @@ def plan(
                 limits=limits,
                 safety_margin=safety_margin,
                 max_chunks=max_chunks,
+                chunk_budget=chunk_budget,
             )
         )
 

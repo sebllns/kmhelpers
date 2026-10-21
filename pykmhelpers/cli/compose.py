@@ -7,8 +7,7 @@ import os
 import click
 
 from pykmhelpers.cli.shared import (
-    parse_chunk_budget,
-    parse_shard_size,
+    parse_shard_rule,
     sharding_options,
 )
 from pykmhelpers.core.byte import ByteCounter
@@ -78,12 +77,6 @@ logger = logging.getLogger(__name__)
     "from the limits; fix it for deep raw reads, whose build memory the "
     "automatic sizing underestimates.",
 )
-@click.option(
-    "--shard-size",
-    "-si",
-    "shard_size",
-    help="💾  Maximum size of one shard (e.g., '256GB', '500000MB'). A span is split into independent shards of at most this size, on top of the chunk model limit (--chunk-budget).",
-)
 # @click.option(
 #     "--partition-min-size",
 #     "-m",
@@ -119,13 +112,12 @@ def compose(
     name,
     partition_count,
     minim_size,
-    shard_size,
     # partition_min_size,
     # partition_count_limit,
     session_id,
     bitw,
-    chunk_budget,
-    shard_chunks,
+    shard_budget,
+    shard_budget_bytes,
 ):
     """Compose index definition file(s) from a sample list.
 
@@ -162,6 +154,7 @@ def compose(
       kmhelpers compose samples.jsonl -o ./db -n my_index
     """
 
+    shard_budget, shard_size = parse_shard_rule(shard_budget, shard_budget_bytes)
     try:
         layout_file = None
         if not profiles_file:
@@ -210,12 +203,11 @@ def compose(
             selected_profile=selected_profile,
             name=name,
             no_merge=False,
-            shard_size=parse_shard_size(shard_size),
+            shard_size=shard_size,
             partition_count=partition_count,
             minim_size=minim_size,
             bitw=bitw,
-            chunk_budget=parse_chunk_budget(chunk_budget),
-            shard_chunks=shard_chunks,
+            shard_budget=shard_budget,
             # bf_max_size=bf_max_size,
             # partition_min_size=partition_min_size,
             # exact_partition_count=False,

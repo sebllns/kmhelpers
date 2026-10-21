@@ -12,7 +12,7 @@ from pykmhelpers.core.constants import (
     AUTO_GROUP_MAX,
     AUTO_GROUP_MIN_GAIN,
     AUTO_GROUP_SAMPLES,
-    SHARD_CHUNKS,
+    MAX_CHUNKS,
 )
 from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.pipeline.index_ops.sources import resolve_input
@@ -30,8 +30,8 @@ def parse_shard_size(value: str | None) -> int:
         )
 
 
-def parse_chunk_budget(value: str | None) -> int | None:
-    """Parse a chunk budget such as '137438953472', '2**37' or '2^37'; None when not set."""
+def parse_budget(value: str | None) -> int | None:
+    """Parse a budget such as '137438953472', '2**37' or '2^37'; None when not set."""
     if value is None:
         return None
     try:
@@ -39,33 +39,43 @@ def parse_chunk_budget(value: str | None) -> int | None:
         result = int(base) ** int(exp) if exp else int(base)
     except ValueError:
         raise click.BadParameter(
-            f"Invalid chunk budget: {value} (use a format like '2**37', 0 for no limit)"
+            f"Invalid budget: {value} (use a format like '2**37', 0 for no limit)"
         )
     if result < 0:
-        raise click.BadParameter(f"Chunk budget must not be negative: {value}")
+        raise click.BadParameter(f"Budget must not be negative: {value}")
     return result
 
 
+def parse_shard_rule(
+    shard_budget: str | None, shard_budget_bytes: str | None
+) -> tuple[int | None, int]:
+    """``(shard_budget, shard_size)`` of `design`/`compose`: one rule at most."""
+    if shard_budget is not None and shard_budget_bytes:
+        raise click.UsageError(
+            "--shard-budget and --shard-budget-bytes cannot be combined"
+        )
+    return parse_budget(shard_budget), parse_shard_size(shard_budget_bytes)
+
+
 def sharding_options(f):
-    """Chunk model options of `design` and `compose`."""
+    """Shard rule options of `design` and `compose`."""
     f = click.option(
-        "--shard-chunks",
-        "-sc",
-        "shard_chunks",
-        type=click.IntRange(min=1),
-        default=None,
-        help="Chunks per shard under the chunk model. Fixed for the life of the "
-        f"index unless passed again. [default: {SHARD_CHUNKS} for a new index]",
+        "--shard-budget-bytes",
+        "shard_budget_bytes",
+        hidden=True,
+        help="💾  Cap a shard by its size on disk (e.g., '256GB', '500000MB') "
+        "rather than by --shard-budget: when set, --shard-budget is not used. "
+        "Cannot be combined with --shard-budget. Recorded in the layout; passing "
+        "it on an update re-shards the layout.",
     )(f)
     f = click.option(
-        "--chunk-budget",
-        "-cb",
-        "chunk_budget",
-        help="K-mer budget of one kmtricks chunk: a chunk of span s holds at most "
-        "ceil8(budget / base**s) samples, and a shard at most --shard-chunks chunks. "
-        "0 for no limit. Recorded in the layout and applied by plan/apply/build; "
-        "passing it on an update re-shards the layout. "
-        "[default: '2**37' (Logan) for a new index]",
+        "--shard-budget",
+        "-sb",
+        "shard_budget",
+        help="💾  Shard budget: a span s is split into shards of at most "
+        "ceil8(budget / base**s) samples (about k-mers x samples). 0 for no "
+        "limit. Recorded in the layout; passing it on an update re-shards the "
+        "layout. [default: '2**43' for a new index]",
     )(f)
     return f
 
@@ -185,12 +195,24 @@ _safety_margin_option = click.option(
     show_default=True,
     help="⚙   Fraction of a detected system limit to use for any key missing from --limits.",
 )
+# Not part of _INDEX_LIMITS_OPTIONS: the chunk of a shard depends on its span,
+# which `test auto-params` does not have
+chunk_budget_option = click.option(
+    "--chunk-budget",
+    "-cb",
+    "chunk_budget",
+    default="2**37",
+    show_default=True,
+    callback=lambda ctx, param, value: parse_budget(value),
+    help="⚙   K-mer budget of one kmtricks chunk: a chunk of span s holds at most "
+    "ceil8(budget / base**s) samples. 0 for no limit.",
+)
 _max_chunks_option = click.option(
     "--max-chunks",
     type=click.IntRange(min=0),
-    default=200,
+    default=MAX_CHUNKS,
     show_default=True,
-    help="⚙   Max number of chunks a single index is split into. Bigger chunks mean "
+    help="⚙   Max number of chunks a shard is built in. Bigger chunks mean "
     "fewer build/merge passes but fewer threads. Use 0 to disable the cap.",
 )
 _skip_compression_option = click.option(

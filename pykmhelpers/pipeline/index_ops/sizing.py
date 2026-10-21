@@ -5,6 +5,7 @@ from typing import Optional
 
 from pykmhelpers.core.bloom_filter import bf_max_kmers
 from pykmhelpers.core.build_params import auto_params, params_for_partitions
+from pykmhelpers.pipeline.composer import budget_samples_for
 from pykmhelpers.pipeline.index_db import IndexDefinition
 from pykmhelpers.pipeline.index_ops.layout import LayoutStore
 from pykmhelpers.pipeline.index_ops.types import IndexOpsConfig
@@ -50,6 +51,19 @@ def resolve_minim_size(i: IndexDefinition, layout: LayoutStore) -> int:
     return minim_size
 
 
+def chunk_samples(
+    i: IndexDefinition, config: IndexOpsConfig, layout: LayoutStore
+) -> Optional[int]:
+    """Most samples one kmtricks chunk of ``i`` holds under ``config.chunk_budget``.
+
+    None when the budget is 0 or without a layout (no span base).
+    """
+    base = layout.base()
+    if not base:
+        return None
+    return budget_samples_for(i.span, base, config.chunk_budget) or None
+
+
 def resolve_partitions(
     i: IndexDefinition, sample_count: int, config: IndexOpsConfig, layout: LayoutStore
 ) -> int:
@@ -72,7 +86,7 @@ def resolve_partitions(
         limits=config.limits or "{}",
         safety_margin=config.safety_margin,
         max_chunks=config.max_chunks or None,
-        max_chunk_samples=layout.chunk_samples(i.span),
+        max_chunk_samples=chunk_samples(i, config, layout),
     )
     if params.partitions is None:
         raise TypeError("expected auto_params() to set partitions")
@@ -93,14 +107,14 @@ def resolve_build_params(
     ``resolve_partitions``). Threads and chunking are per run: threads are
     the most that fit RAM at that partition count, unless
     ``config.kmindex_threads`` sets them, and chunking follows the open-files
-    ceiling, ``config.max_chunks`` and the chunk model of the layout.
+    ceiling, ``config.max_chunks`` and ``config.chunk_budget``.
     """
     minim_size = resolve_minim_size(i, layout)
     partitions = resolve_partitions(i, sample_count, config, layout)
 
-    max_chunk_samples = layout.chunk_samples(i.span)
+    max_chunk_samples = chunk_samples(i, config, layout)
     if config.kmindex_threads:
-        # Explicit threads skip the limits, but not the chunk model
+        # Explicit threads skip the limits, but not the chunk budget
         chunk_size = (
             max_chunk_samples
             if max_chunk_samples and max_chunk_samples < sample_count
