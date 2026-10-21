@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--threshold",
-    "-R",
+    "--thr",
     type=float,
     default=0.05,
     show_default=True,
@@ -99,7 +99,6 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--vec",
-    "-V",
     is_flag=True,
     default=False,
     show_default=True,
@@ -136,7 +135,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--keep-query",
-    "-K",
+    "--kpq",
     is_flag=True,
     default=False,
     show_default=True,
@@ -144,7 +143,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--timestamp",
-    "-T",
+    "--tms",
     is_flag=True,
     default=False,
     show_default=True,
@@ -160,7 +159,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--parallel",
-    "-P",
+    "--par",
     type=click.Choice(["seq", "sub"]),
     default="seq",
     show_default=True,

@@ -36,7 +36,7 @@ Compresses each selected shard with `kmindex compress`, one after the other. Wit
 
 **Column reordering** - use `--reorder` to reorder columns before compression, which can improve compression ratio. Use `--sampling` to control how many rows are sampled to determine the optimal column order.
 
-**Deletion** - use `--delete` to remove the uncompressed matrices after successful compression. Requires confirmation unless `-y` is passed at the root level.
+**Deletion** - use `--delete` to remove the uncompressed matrices after successful compression. Requires confirmation unless `-Y` is passed at the root level.
 
 ## Examples
 

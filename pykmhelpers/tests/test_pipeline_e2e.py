@@ -85,7 +85,7 @@ class PipelineE2EBase(unittest.TestCase):
     def run_cli(self, *args, expect_success=True):
         """Run one CLI command in a fresh subprocess; assert the exit code."""
         # -v is a top-level group option, so it precedes the subcommand.
-        cmd = [sys.executable, "-m", CLI_MODULE, "-v"] + [str(a) for a in args]
+        cmd = [sys.executable, "-m", CLI_MODULE, "-V"] + [str(a) for a in args]
         proc = subprocess.run(cmd, cwd=self.tmp, capture_output=True, text=True)
         pretty = "kmhelpers " + " ".join(str(a) for a in args)
         if expect_success:
@@ -186,7 +186,7 @@ class TestDesignBuildQueryUpdateQuery(PipelineE2EBase):
             "db",
             "-n",
             "idx",
-            "-S",
+            "-s",
             "initial",
             "-k",
             KMER_SIZE,
@@ -228,16 +228,16 @@ class TestDesignBuildQueryUpdateQuery(PipelineE2EBase):
         self.mkdirs("db", "list")
         self.run_cli("list", new_list, "-o", "db/list/upd.jsonl", "-k", KMER_SIZE)
         self.run_cli(
-            "compose", "db/list/upd.jsonl", "-o", "db/compose", "-n", "idx", "-S", "upd"
+            "compose", "db/list/upd.jsonl", "-o", "db/compose", "-n", "idx", "-s", "upd"
         )
         upd_session = self.tmp / "db" / "compose" / "idx" / "upd" / "index.yaml"
         self.assertTrue(upd_session.is_file(), f"update compose missing: {upd_session}")
         layout = (self.tmp / "db" / "compose" / "idx" / "layout.yaml").read_text()
         self.assertIn("- upd", layout)
         # build the session by name (it is also the last one)
-        self.run_cli("build", "db", "-o", "build", "-S", "upd")
+        self.run_cli("build", "db", "-o", "build", "-s", "upd")
         # building the first session again changes nothing
-        self.run_cli("build", "db", "-o", "build", "-S", "initial")
+        self.run_cli("build", "db", "-o", "build", "-s", "initial")
 
         # 5. the new sample is now queryable, and the original still matches.
         qn, qn_header = self.write_query("snew", sample_idx=N_SAMPLES)
@@ -260,7 +260,7 @@ class TestAbundanceDesignBuildQuery(PipelineE2EBase):
             "db",
             "-n",
             "idx",
-            "-S",
+            "-s",
             "initial",
             "-k",
             KMER_SIZE,
@@ -296,7 +296,7 @@ class TestAbundanceDesignBuildQuery(PipelineE2EBase):
             "db/compose",
             "-n",
             "idx",
-            "-S",
+            "-s",
             "pa",
             "--ab",
             "0",
@@ -310,7 +310,7 @@ class TestAbundanceDesignBuildQuery(PipelineE2EBase):
             "db/compose",
             "-n",
             "idx",
-            "-S",
+            "-s",
             "same",
         )
         same = self.tmp / "db" / "compose" / "idx" / "same" / "index.yaml"
@@ -328,7 +328,7 @@ class UpdateSessionBase(PipelineE2EBase):
             "db",
             "-n",
             "idx",
-            "-S",
+            "-s",
             "initial",
             "-k",
             KMER_SIZE,
@@ -351,7 +351,7 @@ class UpdateSessionBase(PipelineE2EBase):
         self.mkdirs("db", "list")
         self.run_cli("list", new_list, "-o", "db/list/upd.jsonl", "-k", KMER_SIZE)
         self.run_cli(
-            "compose", "db/list/upd.jsonl", "-o", "db/compose", "-n", "idx", "-S", "upd"
+            "compose", "db/list/upd.jsonl", "-o", "db/compose", "-n", "idx", "-s", "upd"
         )
         return self.tmp / "db" / "compose" / "idx" / "upd" / "index.yaml"
 
@@ -510,7 +510,7 @@ class TestStepByStepDesignAndBuild(PipelineE2EBase):
             "db/compose",
             "-n",
             "idx",
-            "-S",
+            "-s",
             "initial",
             "--pf",
             "db/profile/profile.yaml",
@@ -582,7 +582,7 @@ class TestPartitionCountStaysFixed(PipelineE2EBase):
             "db",
             "-n",
             "idx",
-            "-S",
+            "-s",
             "initial",
             "-k",
             KMER_SIZE,
@@ -634,14 +634,14 @@ class TestPartitionCountStaysFixed(PipelineE2EBase):
             "db/compose",
             "-n",
             "idx",
-            "-S",
+            "-s",
             "upd",
             "--minim-size",
             "12",
             expect_success=False,
         )
         self.run_cli(
-            "compose", "db/list/upd.jsonl", "-o", "db/compose", "-n", "idx", "-S", "upd"
+            "compose", "db/list/upd.jsonl", "-o", "db/compose", "-n", "idx", "-s", "upd"
         )
         composed = layout_file.read_bytes()
         log = self.run_cli(
@@ -649,7 +649,7 @@ class TestPartitionCountStaysFixed(PipelineE2EBase):
             "db",
             "-o",
             "build",
-            "-S",
+            "-s",
             "upd",
             "--limits",
             '{"ram": 512000000000, "files": 65536, "threads": 32}',
@@ -687,7 +687,7 @@ class TestShardedBuild(PipelineE2EBase):
             "db",
             "-n",
             "idx",
-            "-S",
+            "-s",
             "initial",
             "-k",
             KMER_SIZE,
@@ -760,7 +760,7 @@ class TestChunkedBuild(PipelineE2EBase):
             "db",
             "-n",
             "idx",
-            "-S",
+            "-s",
             "initial",
             "-k",
             KMER_SIZE,
@@ -828,7 +828,7 @@ class TestChunkedBuild(PipelineE2EBase):
         """apply --run builds one chunk without merging; --shard merges later."""
         limits = '{"files": 5}'
         self.run_cli(
-            "design", self.samples_txt, "-o", "db", "-n", "idx", "-S", "initial",
+            "design", self.samples_txt, "-o", "db", "-n", "idx", "-s", "initial",
             "-k", KMER_SIZE, "-b", "4", "-g", "1",
         )
         session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
@@ -851,7 +851,7 @@ class TestChunkedBuild(PipelineE2EBase):
 
     def test_unmatched_run_pattern_fails(self):
         self.run_cli(
-            "design", self.samples_txt, "-o", "db", "-n", "idx", "-S", "initial",
+            "design", self.samples_txt, "-o", "db", "-n", "idx", "-s", "initial",
             "-k", KMER_SIZE, "-b", "4", "-g", "1",
         )
         session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
@@ -881,7 +881,7 @@ class TestQueryFormats(PipelineE2EBase):
             "db",
             "-n",
             "idx",
-            "-S",
+            "-s",
             "initial",
             "-k",
             KMER_SIZE,
@@ -976,7 +976,7 @@ class TestDirectoryScanBuildQueryUpdateQuery(PipelineE2EBase):
             "db/compose",
             "-n",
             "idx",
-            "-S",
+            "-s",
             "initial",
             "--pf",
             "db/profile/profile.yaml",
@@ -1007,7 +1007,7 @@ class TestDirectoryScanBuildQueryUpdateQuery(PipelineE2EBase):
             "list", self.tmp / "scan_upd", "-o", "db/list/upd.jsonl", "-k", KMER_SIZE
         )
         self.run_cli(
-            "compose", "db/list/upd.jsonl", "-o", "db/compose", "-n", "idx", "-S", "upd"
+            "compose", "db/list/upd.jsonl", "-o", "db/compose", "-n", "idx", "-s", "upd"
         )
         upd_session = self.tmp / "db" / "compose" / "idx" / "upd" / "index.yaml"
         self.assertTrue(upd_session.is_file(), f"update compose missing: {upd_session}")

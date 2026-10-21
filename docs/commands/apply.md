@@ -12,11 +12,11 @@ Build k-mer indices from an index definition file.
     | Argument | Description |
     |----------|-------------|
     | `INPUT` | The design directory (`DESIGN_DIR` of `design`), a compose directory or one of its indexes (`COMPOSE_DIR/NAME`), a session (`COMPOSE_DIR/NAME/SESSION` or its `index.yaml`), or one shard file (`SESSION/shards/<shard>.yaml`, built without merge) (required) |
-    | `-S, --session SESSION` | Session to use when INPUT is a directory (default: the last one composed) |
+    | `-s, --session SESSION` | Session to use when INPUT is a directory (default: the last one composed) |
     | `-o, --output-dir BUILD_DIR` | Index directory: receives the built index, reused across builds and passed to `query -r` (required) |
 
 !!! abstract "I/O"
-    **Input:** `DESIGN_DIR` of `design` (or `COMPOSE_DIR` of `compose`), with `-S` to pick a session; it resolves to `compose/NAME/SESSION/index.yaml` (see [design - Next Step](design.md#next-step))  
+    **Input:** `DESIGN_DIR` of `design` (or `COMPOSE_DIR` of `compose`), with `-s` to pick a session; it resolves to `compose/NAME/SESSION/index.yaml` (see [design - Next Step](design.md#next-step))  
     **Output:** indices in `BUILD_DIR/<name>/`, registered in `BUILD_DIR/index.json`
 
 See [build - Paths](build.md#paths) for the directory layout.
@@ -33,9 +33,9 @@ See [build - Paths](build.md#paths) for the directory layout.
 | `--max-chunks INT` | Max number of kmtricks chunks a shard is built in; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 64) |
 | `--cb, --chunk-budget INT` | K-mer budget of one kmtricks chunk: a chunk of span `s` holds at most `ceil8(budget / base^s)` samples. 0 for no limit (default: `2**37`), see [build - Shards and chunks](build.md#shards-and-chunks) |
 | `--keep-previous` | Keep the replaced version of an updated index in `BUILD_DIR/work/SESSION/previous/` instead of deleting it |
-| `--NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
-| `--SP, --show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
-| `-X, --fail-fast` | Abort on first failure instead of continuing |
+| `--ncp, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
+| `--sp, --show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
+| `-x, --fail-fast` | Abort on first failure instead of continuing |
 | `--notify EMAIL` | Send email notification on exit (requires sendmail) |
 
 ## Description
@@ -74,7 +74,7 @@ kmhelpers apply coli_db -o coli_build/ --sh 'coli_g0_*'
 kmhelpers apply coli_db -o coli_build/ --bp /data/samples
 
 # Set threads, show progress, abort on first error
-kmhelpers apply coli_db -o coli_build/ --limits '{"threads": 8}' --SP -X
+kmhelpers apply coli_db -o coli_build/ --limits '{"threads": 8}' --sp -x
 
 # Notify by email when done
 kmhelpers apply coli_db -o coli_build/ --notify user@example.com

@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--session",
-    "-S",
+    "-s",
     "session_id",
     required=False,
     default=lambda: datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),
@@ -225,7 +225,7 @@ def design(
 
     \b
     Input:  directory to scan, a plain-text / YAML sample list, or a JSONL sample index
-    Output: DESIGN_DIR, the INPUT of build/plan/apply (-S SESSION, default: the
+    Output: DESIGN_DIR, the INPUT of build/plan/apply (-s SESSION, default: the
             last one); the session is DESIGN_DIR/compose/NAME/SESSION/index.yaml
     Intermediate: DESIGN_DIR/list/ (JSONL, read by the session's shards), DESIGN_DIR/profile/ (profile.yaml, groups.png),
                   DESIGN_DIR/compose/NAME/layout.yaml
@@ -246,7 +246,7 @@ def design(
 
     \b
     # Design then build
-    kmhelpers design /data/sequences -o coli_db -n coli -S initial
+    kmhelpers design /data/sequences -o coli_db -n coli -s initial
     kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build
     """
 
@@ -356,7 +356,7 @@ def design(
         )
         logger.info("SUCCESS ('compose')")
         logger.info(
-            f"Next step: kmhelpers build {output_dir} -o BUILD_DIR -S {session_id}"
+            f"Next step: kmhelpers build {output_dir} -o BUILD_DIR -s {session_id}"
         )
     except Exception as e:
         Log.handle_exception(logger, e, "FAILED ('compose')")

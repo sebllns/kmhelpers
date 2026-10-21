@@ -25,20 +25,20 @@ Query indices with FASTA/FASTQ sequences.
 | `--sh, --shard TEXT` | Shards to query, as names or glob patterns (repeatable or comma-separated, e.g. `'idx_g0_*'`; default: all) |
 | `-t, --threads INT` | Number of threads (default: 1) |
 | `-z, --zvalue INT` | Z-value for findere algorithm to filter false positives (default: 6) |
-| `-R, --threshold FLOAT` | Score threshold for filtering results (default: 0.05) |
+| `--thr, --threshold FLOAT` | Score threshold for filtering results (default: 0.05) |
 | `--bq, --batch-query` | Treat all sequences across all query files as a single batched query |
 | `-s, --single-query NAME` | Name for the single batched query |
 | `-c, --compressed` | Index is compressed (forces `sub` parallelization) |
 | `-f, --format TEXT` | Data format: `tsv` (default), `json`, `yaml`, or `none` to keep only the raw kmindex results. `md` and `html` are deprecated, they map to `-f tsv --export <fmt>` |
 | `-x, --export TEXT` | Also write a human report: `md` or `html`. Not available with `-f none` |
-| `-V, --vec` | Also collect the per-k-mer presence/absence vector, not just the coverage ratio |
+| `--vec` | Also collect the per-k-mer presence/absence vector, not just the coverage ratio |
 | `--page-size INT` | `--export`: sequences per detail page, a single file up to this count, `0` disables paging (default: 100) |
 | `--top INT` | `--export`: best samples listed per sequence (default: 100) |
 | `--no-stats` | Do not write `sequence_stats.tsv` and `sample_stats.tsv` |
 | `-p, --print` | Print the data format to console instead of `results.<format>`, a report is still written to files |
-| `-T, --timestamp` | Append timestamp suffix to output directory to avoid overwriting |
+| `--tms, --timestamp` | Append timestamp suffix to output directory to avoid overwriting |
 | `-e, --existing TEXT` | Conflict resolution: `skip` (default), `fail`, `delete`, `new-name` |
-| `-P, --parallel TEXT` | Parallelization strategy: `seq` (by sequence, default) or `sub` (by sub-index) |
+| `--par, --parallel TEXT` | Parallelization strategy: `seq` (by sequence, default) or `sub` (by sub-index) |
 
 ## Description
 
@@ -147,7 +147,7 @@ kmhelpers query -r ./registry --sh idx1 -o results ./queries_dir/
 kmhelpers query -r ./registry --sh idx1 --single-query batch1 -o results multi.fa
 
 # Score threshold filtering
-kmhelpers query -r ./registry --sh idx1 -o results -R 0.1 query.fa
+kmhelpers query -r ./registry --sh idx1 -o results --thr 0.1 query.fa
 
 # TSV data plus an HTML report
 kmhelpers query -r ./registry --sh idx1 -o results -f tsv --export html query.fa

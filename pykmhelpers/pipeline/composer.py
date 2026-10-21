@@ -673,7 +673,7 @@ def export_session(
             f"# {index_name}, session \"{session}\": {sample_count} samples "
             f"in {len(shards)} shard(s).\n"
             f"# Input of kmhelpers plan/apply/build: this file, or the design "
-            f"(or compose) directory with -S {session}.\n"
+            f"(or compose) directory with -s {session}.\n"
         )
         with open(path) as f:
             body = f.read()

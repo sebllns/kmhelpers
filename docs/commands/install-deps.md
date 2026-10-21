@@ -24,7 +24,7 @@ Download and install `kmtricks`, `kmindex` and `ntcard` prebuilt binaries from t
 
 ## Description
 
-The operating system (Linux or macOS) is detected automatically. Existing binaries with the same name are overwritten after confirmation (skipped with the global `-y` option). A warning is logged if the installation directory is not in `PATH`.
+The operating system (Linux or macOS) is detected automatically. Existing binaries with the same name are overwritten after confirmation (skipped with the global `-Y` option). A warning is logged if the installation directory is not in `PATH`.
 
 `ntcard` comes from [sebllns/ntCard](https://github.com/sebllns/ntCard), a fork of ntCard that publishes portable builds: fully static on Linux, and depending only on the system library on macOS. The download is verified against the `SHA256SUMS` file of the release.
 
@@ -35,5 +35,5 @@ The operating system (Linux or macOS) is detected automatically. Existing binari
 kmhelpers install-deps
 
 # Install only kmindex 0.6.1 into a custom directory
-kmhelpers -y install-deps --kmtricks 0 --kmindex 0.6.1 --path ~/bin
+kmhelpers -Y install-deps --kmtricks 0 --kmindex 0.6.1 --path ~/bin
 ```

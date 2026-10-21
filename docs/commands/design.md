@@ -6,7 +6,7 @@ Scan a directory or import a sample list, then run the full [`list`](list.md) �
 
 !!! abstract "USAGE"
     ```
-    kmhelpers design -o DESIGN_DIR -n NAME [-S SESSION] [OPTIONS] INPUT
+    kmhelpers design -o DESIGN_DIR -n NAME [-s SESSION] [OPTIONS] INPUT
     ```
 
     | Argument | Description |
@@ -14,13 +14,13 @@ Scan a directory or import a sample list, then run the full [`list`](list.md) �
     | `INPUT` | Directory to scan, a plain-text / YAML sample list, or an existing JSONL sample index (required) |
     | `-o, --output-dir DESIGN_DIR` | Output directory (required) |
     | `-n, --name NAME` | Name of the created index (required) |
-    | `-S, --session SESSION` | Session name: subdirectory of `DESIGN_DIR/compose/NAME/` and tag appended to index names (default: timestamp `YYYYMMDD_HHMMSS`) |
+    | `-s, --session SESSION` | Session name: subdirectory of `DESIGN_DIR/compose/NAME/` and tag appended to index names (default: timestamp `YYYYMMDD_HHMMSS`) |
     | `-k, --kmer-size INT` | K-mer size for counting (default: 25) |
     | `--dt, --data-type TEXT` | Data type: `a`/`assembled` (default) or `u`/`unassembled` (raw reads) |
 
 !!! abstract "I/O"
     **Input:** directory to scan, a plain-text / YAML sample list, or a JSONL sample index (`.jsonl`, in which case the `list` step is skipped and INPUT is used as-is)  
-    **Output (pass to `build`, `plan` or `apply`):** `DESIGN_DIR` itself, with `-S SESSION` (default: the last session); the session is `DESIGN_DIR/compose/NAME/SESSION/index.yaml`  
+    **Output (pass to `build`, `plan` or `apply`):** `DESIGN_DIR` itself, with `-s SESSION` (default: the last session); the session is `DESIGN_DIR/compose/NAME/SESSION/index.yaml`  
     **Intermediate files (reused by later runs, not passed to `build`):**
 
     - `DESIGN_DIR/list/samples_SESSION.jsonl` - sample manifest, read by the session's shards (not copied)
@@ -30,7 +30,7 @@ Scan a directory or import a sample list, then run the full [`list`](list.md) �
 ## Output Structure
 
 ```
-DESIGN_DIR/                            -> INPUT of build/plan/apply (-S SESSION)
+DESIGN_DIR/                            -> INPUT of build/plan/apply (-s SESSION)
 ├── list/
 │   └── samples_SESSION.jsonl          sample manifest, read by the session (omitted if INPUT is already a JSONL index)
 ├── profile/
@@ -52,11 +52,11 @@ DESIGN_DIR/                            -> INPUT of build/plan/apply (-S SESSION)
 Pass the index definition file to [`build`](build.md):
 
 ```bash
-kmhelpers design /data/sequences -o coli_db -n coli -S initial
+kmhelpers design /data/sequences -o coli_db -n coli -s initial
 kmhelpers build coli_db -o coli_build
 ```
 
-Set `-S` to get a predictable path. Without it, `SESSION` is a timestamp: `design` logs the exact `build` command at the end of the run, or look up the folder in `DESIGN_DIR/compose/NAME/`. See [build - Paths](build.md#paths) for the full directory layout.
+Set `-s` to get a predictable path. Without it, `SESSION` is a timestamp: `design` logs the exact `build` command at the end of the run, or look up the folder in `DESIGN_DIR/compose/NAME/`. See [build - Paths](build.md#paths) for the full directory layout.
 
 ## Advanced Options
 
@@ -87,7 +87,7 @@ Set `-S` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 
 **Step 3 - compose:** reads the manifest and the profile to generate the index definition file `DESIGN_DIR/compose/NAME/SESSION/index.yaml`.
 
-**Updates** - if the compose layout file already exists from a previous run, the profile step is skipped and the existing layout is used directly. This allows re-running `design` with a new `-S` to add samples to an existing index without re-profiling, then building the new session into the same `BUILD_DIR`. The new session is merged with the existing index at build time, which keeps both versions on disk - see [`build` - Updating an index](build.md#updating-an-index).
+**Updates** - if the compose layout file already exists from a previous run, the profile step is skipped and the existing layout is used directly. This allows re-running `design` with a new `-s` to add samples to an existing index without re-profiling, then building the new session into the same `BUILD_DIR`. The new session is merged with the existing index at build time, which keeps both versions on disk - see [`build` - Updating an index](build.md#updating-an-index).
 
 **False-positive rate** - a higher rate reduces Bloom-filter size and disk footprint. At query time the [findere](https://doi.org/10.1007/978-3-030-86692-1_13) algorithm compensates by querying $(k+z)$-mers, reducing the effective FP rate to $p^z$. Recommended: build with `--fp 0.25` (default), query with `-z 6`, giving $0.25^6 \approx 0.024\,\%$ effective FP rate.
 
@@ -95,12 +95,12 @@ Set `-S` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 
 ```bash
 # Full pipeline from a directory, then build
-kmhelpers design /data/sequences -o coli_db -n coli -S initial
+kmhelpers design /data/sequences -o coli_db -n coli -s initial
 kmhelpers build coli_db -o coli_build
 
 # Add new samples to the same index, then build into the same BUILD_DIR
-kmhelpers design /data/new_sequences -o coli_db -n coli -S update
-kmhelpers build coli_db -S update -o coli_build
+kmhelpers design /data/new_sequences -o coli_db -n coli -s update
+kmhelpers build coli_db -s update -o coli_build
 
 # Skip k-mer counting (if counts are already in the sample list)
 kmhelpers design /data/sequences -o coli_db -n coli --no-count

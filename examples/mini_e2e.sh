@@ -19,7 +19,7 @@ kmhelpers test create-fasta -o data -n 10 -a 3000 -m 2500
 kmhelpers design data \
     -o db/ \
     -n idx \
-    -S initial \
+    -s initial \
     -k 21 \
     -b 1.1 \
     -g 1
@@ -34,9 +34,9 @@ cat results/data_0/results.json
 #    bucket), listed then composed against the existing layout (no --pf)
 kmhelpers test create-fasta -o update -n 1 -a 2000 -m 1800
 kmhelpers list update -o db/list/upd.jsonl -k 21
-kmhelpers compose db/list/upd.jsonl -o db/compose -n idx -S upd
+kmhelpers compose db/list/upd.jsonl -o db/compose -n idx -s upd
 
-kmhelpers build db -S upd -o build/
+kmhelpers build db -s upd -o build/
 
 # 5. The new sample is queryable, and the original still matches
 kmhelpers query -r build/ -o results_upd/ -f json update/update_0.fasta

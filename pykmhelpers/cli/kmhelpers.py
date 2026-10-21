@@ -171,7 +171,7 @@ class SectionedGroup(click.Group):
     cls=SectionedGroup,
     context_settings={"help_option_names": ["-h", "--help"]},
     epilog="Also honors KMHELPERS_LOG_LEVEL: default log level 0-4 "
-    "(0=CRITICAL, 4=DEBUG) before -v/-q adjustments. Default: 3 (INFO). "
+    "(0=CRITICAL, 4=DEBUG) before -V/-Q adjustments. Default: 3 (INFO). "
     "KMHELPERS_SEED: seed the random generator for reproducible test data.",
 )
 @click.version_option(version=__version__, prog_name="kmhelpers")
@@ -185,16 +185,16 @@ class SectionedGroup(click.Group):
     help="YAML config file for default values",
 )
 @click.option(
-    "-v",
+    "-V",
     "--verbose",
     count=True,
-    help="Increase verbosity: -v for DEBUG",
+    help="Increase verbosity: -V for DEBUG",
 )
 @click.option(
-    "-q",
+    "-Q",
     "--quiet",
     count=True,
-    help="Decrease verbosity: -q for WARNING, -qq for ERROR, -qqq for CRITICAL",
+    help="Decrease verbosity: -Q for WARNING, -QQ for ERROR, -QQQ for CRITICAL",
 )
 @click.option(
     "--no-log-formatting",
@@ -224,7 +224,7 @@ class SectionedGroup(click.Group):
 )
 @click.option(
     "--yes",
-    "-y",
+    "-Y",
     envvar="KMHELPERS_SKIP_CONFIRMATION",
     show_envvar=True,
     is_flag=True,
@@ -400,6 +400,43 @@ test.section = "Other"  # type: ignore[assignment]
 cli.add_command(test)
 about.section = "Other"  # type: ignore[assignment]
 cli.add_command(about)
+
+
+def _full_help(ctx: click.Context, _param, value) -> None:
+    """Print the help of the command with its hidden options, then exit."""
+    if not value or ctx.resilient_parsing:
+        return
+    hidden = [p for p in ctx.command.params if getattr(p, "hidden", False)]
+    saved = [(p, p.help) for p in hidden]
+    try:
+        for p in hidden:
+            p.hidden = False
+            p.help = f"[hidden] {p.help or ''}"
+        click.echo(ctx.get_help(), color=ctx.color)
+    finally:
+        for p, help_text in saved:
+            p.hidden = True
+            p.help = help_text
+    ctx.exit()
+
+
+def add_full_help(cmd: click.Command) -> None:
+    """Give cmd and its subcommands -H, --HELP: the help with hidden options."""
+    cmd.params.append(
+        click.Option(
+            ["-H", "--HELP"],
+            is_flag=True,
+            expose_value=False,
+            is_eager=True,
+            callback=_full_help,
+            help="Show this message with hidden options and exit.",
+        )
+    )
+    for sub in getattr(cmd, "commands", {}).values():
+        add_full_help(sub)
+
+
+add_full_help(cli)
 
 if __name__ == "__main__":
     cli()

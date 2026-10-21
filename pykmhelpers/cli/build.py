@@ -76,7 +76,7 @@ def build(
 
     \b
     # Add an update session to the same index directory
-    kmhelpers build coli_db -S update -o coli_build
+    kmhelpers build coli_db -s update -o coli_build
     """
 
     input_file = shared.resolve_definition(input_file, session)

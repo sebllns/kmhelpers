@@ -32,7 +32,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - **Option names made consistent**
-  - `design`/`compose -S, --session` (was `--session-id`), the same name as in `plan`/`apply`/`build`
+  - `design`/`compose -s, --session` (was `--session-id`), the same name as in `plan`/`apply`/`build`
   - `design -a, --autorename` (was `-r`), as in `list`
   - `design -p, --paired`, as in `list`; `design`/`compose -P, --partition-count` (was `-p`)
   - Shards are selected with `--sh, --shard` in `plan`, `apply`, `query`, `manage` and `compress` (was `-n, --name`, `--index-ids`, `--index-id` or `--index-name`); `-n, --name` is only the index name of `design`/`compose`. `query --shard` also takes comma-separated names
@@ -51,7 +51,13 @@ All notable changes to this project will be documented in this file.
 - **New indexes are sharded by default** under the shard budget: shards are named `NAME_g<i>_p<k>` (was `NAME_g<i>` without `--shard-size`); layouts without a budget keep no limit
 - **`compose`/`design --shard-size` (`-si`) is now the hidden `--shard-budget-bytes`**: it caps a shard by bytes on disk instead of the shard budget, not on top of it, and cannot be combined with `--shard-budget`
 - **`--max-chunks`** (`plan`, `apply`, `build`): caps the chunks of a shard, default 64 (was 200)
-- **Multi-letter short flags take two dashes**: `-dt`, `-lg`, `-ntt`, `-nc`, `-fp`, `-ab`, `-pf`, `-pr`, `-NC`, `-SP`, `-NF` (and `test` `-mu`, `-sd`) become `--dt`, `--lg`, `--ntt`, `--nc`, `--fp`, `--ab`, `--pf`, `--pr`, `--NC`, `--SP`, `--NF` (`--mu`, `--sd`); single-letter flags keep one dash
+- **Multi-letter short flags take two dashes**: `-dt`, `-lg`, `-ntt`, `-nc`, `-fp`, `-ab`, `-pf`, `-pr`, `-NC`, `-SP`, `-NF` (and `test` `-mu`, `-sd`) become `--dt`, `--lg`, `--ntt`, `--nc`, `--fp`, `--ab`, `--pf`, `--pr`, `--ncp`, `--sp`, `--NF` (`--mu`, `--sd`); single-letter flags keep one dash
+- **Option case: uppercase short flags only for global options**; long names are unchanged
+  - Global: `-v`, `-q`, `-y` become `-V`, `-Q`, `-Y` (`-C`, `-L`, `--NF` unchanged)
+  - `compose`/`design`/`plan`/`apply`/`build`: `-S` becomes `-s` (`--session`); `plan`/`apply`: `-X` becomes `-x` (`--fail-fast`); `apply`/`build`: `--SP` becomes `--sp`; `plan`/`apply`/`build`: `--NC` becomes `--ncp` (`--skip-compression`); `plan`: `-O` becomes `--off` (`--offline`)
+  - `query`: `-R` becomes `--thr` (`--threshold`), `-T` becomes `--tms` (`--timestamp`), `-K` becomes `--kpq` (`--keep-query`), `-P` becomes `--par` (`--parallel`), and `--vec` loses `-V`
+  - The hidden `compose`/`design -P, --partition-count` keeps its capital: `-p` is `--pair-regex` in `design`
+- **`-H, --HELP`** on every command: the help including hidden options, marked `[hidden]`
 - **`--threads`** (`plan`, `apply`, `build`) is hidden and loses `-t`: threads are sized from `--limits` (e.g. `--limits '{"threads": 8}'`)
 - **Shard selection by glob pattern**: `plan`, `apply`, `query` and `compress` `--sh, --shard` take glob patterns (`'idx_g0_*'`); a name without wildcard matches exactly. A pattern matching nothing is a warning; only no match at all is an error (also for `--run`). `plan`/`apply -s, --span` is removed: `--shard 'NAME_g<i>*'` selects a group
 - **`compress` without `--shard` compresses every shard of the registry**, one after the other; a failed shard does not stop the others, the command fails at the end

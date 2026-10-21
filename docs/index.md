@@ -24,7 +24,7 @@ This typical lifecycle breaks down into four steps, shown below:
     <!-- termynal -->
 
     ```
-    $ kmhelpers design coli_10.txt -o coli_db/ -n coli -S initial -k 25 -b 1.1 -g 2
+    $ kmhelpers design coli_10.txt -o coli_db/ -n coli -s initial -k 25 -b 1.1 -g 2
 
     Listed 10 samples -> coli_db/list/samples_20260706_173255.jsonl
     SUCCESS ('list')
@@ -71,7 +71,7 @@ This typical lifecycle breaks down into four steps, shown below:
     <!-- termynal -->
 
     ```
-    $ kmhelpers design coli_5_update.txt -o coli_db/ -n coli -S update
+    $ kmhelpers design coli_5_update.txt -o coli_db/ -n coli -s update
 
     Listed 5 samples -> coli_db/list/samples_20260706_180519.jsonl
     SUCCESS ('list')
@@ -88,7 +88,7 @@ This typical lifecycle breaks down into four steps, shown below:
     <!-- termynal -->
 
     ```
-    $ kmhelpers build coli_db -S update -o coli_build/ --show-progress
+    $ kmhelpers build coli_db -s update -o coli_build/ --show-progress
 
     SUCCESS ('plan')
     Building index 'coli_g161_update_p0'...

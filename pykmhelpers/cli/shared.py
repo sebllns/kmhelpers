@@ -142,7 +142,7 @@ output_dir_option = click.option(
 
 _session_option = click.option(
     "--session",
-    "-S",
+    "-s",
     "session",
     required=False,
     help="⚙   Session to build when INPUT is a directory (default: the last one composed).",
@@ -222,7 +222,7 @@ _max_chunks_option = click.option(
 )
 _skip_compression_option = click.option(
     "--skip-compression",
-    "--NC",
+    "--ncp",
     is_flag=True,
     default=False,
     show_default=True,
@@ -230,7 +230,7 @@ _skip_compression_option = click.option(
 )
 _show_progress_option = click.option(
     "--show-progress",
-    "--SP",
+    "--sp",
     is_flag=True,
     default=False,
     show_default=True,
@@ -240,7 +240,7 @@ _show_progress_option = click.option(
 # `plan`/`apply` expose this flag individually via @shared.fail_fast_option.
 fail_fast_option = click.option(
     "--fail-fast",
-    "-X",
+    "-x",
     "fail_on_error",
     is_flag=True,
     help="🚩  Abort the entire run if any index fails to build, instead of skipping it and continuing.",

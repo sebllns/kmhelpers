@@ -42,10 +42,10 @@ EOF
 
 Re-run `design` with the same `-o` and `-n` as
 [Step 3](ecoli.md#step-3-design-the-index-design) of the tutorial, and a fresh
-`-S` session ID:
+`-s` session ID:
 
 ```bash
-kmhelpers design coli_update.txt -o coli_db/ -n coli -S update
+kmhelpers design coli_update.txt -o coli_db/ -n coli -s update
 ```
 
 ??? abstract "I/O"
@@ -66,7 +66,7 @@ Build into the **same** `BUILD_DIR` as
 [Step 4](ecoli.md#step-4-build-the-index-build) of the tutorial:
 
 ```bash
-kmhelpers build coli_db -S update -o coli_build/ --show-progress
+kmhelpers build coli_db -s update -o coli_build/ --show-progress
 ```
 
 ??? abstract "I/O"

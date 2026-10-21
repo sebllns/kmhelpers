@@ -46,17 +46,24 @@ These options are available on the root `kmhelpers` command and apply to all sub
 ```
 -C, --config FILE         YAML config file for default values  [env var:
                           KMHELPERS_CONFIG]
--v, --verbose             Increase verbosity: -v for DEBUG
--q, --quiet               Decrease verbosity: -q for WARNING, -qq for ERROR,
-                          -qqq for CRITICAL
+-V, --verbose             Increase verbosity: -V for DEBUG
+-Q, --quiet               Decrease verbosity: -Q for WARNING, -QQ for ERROR,
+                          -QQQ for CRITICAL
 --NF, --no-log-formatting  Disable log formatter  [env var:
                           KMHELPERS_NO_LOG_FORMATTING]
 -L, --log-file FILE       Path to log file (logs will be written in addition
                           to console output)  [env var: KMHELPERS_LOG_FILE]
 --chdir DIRECTORY         Change to directory before initialization  [env
                           var: KMHELPERS_RUN_DIR]
--y, --yes                 Automatically answer yes to all confirmation
+-Y, --yes                 Automatically answer yes to all confirmation
                           prompts.  [env var: KMHELPERS_SKIP_CONFIRMATION]
 ```
 
-Also honors `KMHELPERS_LOG_LEVEL`: default log level 0-4 (0=CRITICAL, 4=DEBUG) before `-v`/`-q` adjustments. Default: 3 (INFO).
+Also honors `KMHELPERS_LOG_LEVEL`: default log level 0-4 (0=CRITICAL, 4=DEBUG) before `-V`/`-Q` adjustments. Default: 3 (INFO).
+
+## Option names
+
+- Global options, given before the command, have uppercase short flags (`-V`, `-Q`, `-Y`, `-C`, `-L`).
+- Command options are lowercase. When a letter is already taken in a command, the option gets a short double-dash name instead (`query --thr, --threshold`, `plan --off, --offline`).
+- Long names never change.
+- Every command takes `-h, --help`, and `-H, --HELP` to also list its hidden (expert) options.

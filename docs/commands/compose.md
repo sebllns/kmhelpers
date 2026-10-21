@@ -6,7 +6,7 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 
 !!! abstract "USAGE"
     ```
-    kmhelpers compose -o COMPOSE_DIR -n NAME [--pf PROFILES_FILE] [-S SESSION] [OPTIONS] INPUT_FILE
+    kmhelpers compose -o COMPOSE_DIR -n NAME [--pf PROFILES_FILE] [-s SESSION] [OPTIONS] INPUT_FILE
     ```
 
     | Argument | Description |
@@ -15,11 +15,11 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
     | `-o, --output-dir COMPOSE_DIR` | Output directory for index definitions |
     | `-n, --name TEXT` | Name of created or updated index |
     | `--pf, --profiles-file FILE` | Profiles YAML file with index configuration (required to build a new index) |
-    | `-S, --session SESSION` | Session name: subdirectory of `COMPOSE_DIR/NAME/` and tag appended to index names (default: timestamp) |
+    | `-s, --session SESSION` | Session name: subdirectory of `COMPOSE_DIR/NAME/` and tag appended to index names (default: timestamp) |
 
 !!! abstract "I/O"
     **Input:** JSONL sample list (from [`list`](list.md)), profiles YAML required only for new index creation (from [`profile`](profile.md))  
-    **Output:** the session in `COMPOSE_DIR/NAME/SESSION/` (`index.yaml`, `samples.jsonl` unless `--no-copy-list`, `summary.csv`, `shards/`), and the layout `COMPOSE_DIR/NAME/layout.yaml`. Pass `COMPOSE_DIR` (with `-S SESSION`) to `plan`, `build` or `apply`
+    **Output:** the session in `COMPOSE_DIR/NAME/SESSION/` (`index.yaml`, `samples.jsonl` unless `--no-copy-list`, `summary.csv`, `shards/`), and the layout `COMPOSE_DIR/NAME/layout.yaml`. Pass `COMPOSE_DIR` (with `-s SESSION`) to `plan`, `build` or `apply`
 
 ## Advanced Options
 
@@ -48,7 +48,7 @@ current timestamp if `--session` is not provided:
 - `summary.csv` has one row per shard.
 
 Pass `COMPOSE_DIR` (or `COMPOSE_DIR/NAME`, or the session's `index.yaml`) to `plan`,
-`build` or `apply`, with `-S SESSION` to pick a session other than the last one.
+`build` or `apply`, with `-s SESSION` to pick a session other than the last one.
 
 **Building a new index** - provide `--profiles-file` (produced by [`profile`](profile.md)).
 A layout file is written to `COMPOSE_DIR/NAME/layout.yaml` for future updates.
@@ -133,7 +133,7 @@ dropped at build time. `list` sets it to 1 for assembled data and 2 for raw read
 kmhelpers compose samples.jsonl -o ./db -n my_index --pf profiles.yaml
 
 # Build with a session tag (output goes to ./db/my_index/my_session/)
-kmhelpers compose samples.jsonl -o ./db -n my_index --pf profiles.yaml -S my_session
+kmhelpers compose samples.jsonl -o ./db -n my_index --pf profiles.yaml -s my_session
 
 # Use a specific profile
 kmhelpers compose samples.jsonl -o ./db -n my_index --pf profiles.yaml --profile baseline

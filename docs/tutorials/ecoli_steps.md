@@ -170,7 +170,7 @@ kmhelpers profile coli_db/list/coli.jsonl -o coli_db/profile/ -b 1.1 -g 2
 kmhelpers compose coli_db/list/coli.jsonl \
     -o coli_db/compose/ \
     -n coli \
-    -S initial \
+    -s initial \
     --pf coli_db/profile/profile.yaml
 ```
 

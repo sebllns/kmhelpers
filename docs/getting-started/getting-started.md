@@ -69,12 +69,12 @@ See the [E. coli tutorial](../tutorials/ecoli.md) for a full walkthrough.
     **Input:** an existing index, plus the new samples to add.  
     **Output:** the same index, now also containing the new samples.
 
-Re-run `design` with the same `-o`/`-n` and a new sample source, tagging the run with a fresh `-S` session ID:
+Re-run `design` with the same `-o`/`-n` and a new sample source, tagging the run with a fresh `-s` session ID:
 
 ??? example "Commands"
     ```bash
-    kmhelpers design coli_5_update.txt -o coli_db/ -n coli -S update
-    kmhelpers build coli_db -S update -o coli_build/
+    kmhelpers design coli_5_update.txt -o coli_db/ -n coli -s update
+    kmhelpers build coli_db -s update -o coli_build/
     ```
 
 `design` detects the existing layout file at `coli_db/compose/coli/layout.yaml`, skips the `profile` step, and composes only the new samples. `build` then merges the new samples into the existing index automatically, without recounting the samples already indexed.

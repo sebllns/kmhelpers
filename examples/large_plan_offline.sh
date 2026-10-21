@@ -40,7 +40,7 @@ kmhelpers test create-list \
 kmhelpers design db/list/bact.jsonl \
     -o db/ \
     -n bact \
-    -S initial \
+    -s initial \
     -k 25 \
     -g "$NB_GROUPS" \
     ${SHARD_SIZE:+-si "$SHARD_SIZE"}

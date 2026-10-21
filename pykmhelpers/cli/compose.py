@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     "--session",
-    "-S",
+    "-s",
     "session_id",
     required=False,
     default=lambda: datetime.datetime.now().strftime("%Y%m%d_%H%M%S"),
@@ -131,7 +131,7 @@ def compose(
             samples.jsonl unless --no-copy-list, summary.csv, shards/)
 
     Pass COMPOSE_DIR (or COMPOSE_DIR/NAME, or SESSION/index.yaml) to `plan`,
-    `build` or `apply` to build the index, with -S SESSION to pick a session
+    `build` or `apply` to build the index, with -s SESSION to pick a session
     (default: the last one). SESSION is set by --session.
 
     Use --profiles-file to build a new index. To update an existing index, omit

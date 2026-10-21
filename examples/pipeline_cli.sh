@@ -60,7 +60,7 @@ PY
 kmhelpers test create-fasta -o data -n 5 -a 3000 -m 2500
 
 # 2. Design (list -> profile -> compose), scanning the data/ directory.
-kmhelpers design data -o db -n idx -S initial -k "$KMER_SIZE" -b 1.1 -g 1
+kmhelpers design data -o db -n idx -s initial -k "$KMER_SIZE" -b 1.1 -g 1
 
 # 3. Build (plan -> apply).
 kmhelpers build db -o build
@@ -74,8 +74,8 @@ check_hit results data_0
 kmhelpers test create-fasta -o update -n 1 -a 2000 -m 1800
 mkdir -p db/list
 kmhelpers list update -o db/list/upd.jsonl -k "$KMER_SIZE"
-kmhelpers compose db/list/upd.jsonl -o db/compose -n idx -S upd
-kmhelpers build db -S upd -o build
+kmhelpers compose db/list/upd.jsonl -o db/compose -n idx -s upd
+kmhelpers build db -s upd -o build
 
 # 6. The new sample is queryable, and the original still matches.
 kmhelpers query update/update_0.fasta -r build -o results_upd -f json

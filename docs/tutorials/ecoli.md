@@ -73,7 +73,7 @@ EOF
 kmhelpers design coli_10.txt \
     -o coli_db/ \
     -n coli \
-    -S initial \
+    -s initial \
     -k 25 \
     -b 1.1 \
     -g 2
@@ -138,7 +138,7 @@ kmhelpers query -r coli_build/ -o results/ query.fa
     ```
 
     Each value is the fraction of query k-mers found in that sample. Samples
-    scoring below the threshold (`-R`, default 0.05) are omitted. Use `-f` to
+    scoring below the threshold (`--thr`, default 0.05) are omitted. Use `-f` to
     select another output format (`json`, `yaml`, `md`, `html`).
     `GCA_000780515` scores **1.0** -- a perfect match, as expected since `query.fa` was
     extracted from that assembly.

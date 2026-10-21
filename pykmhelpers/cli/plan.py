@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 @shared.fail_fast_option
 @click.option(
     "--offline",
-    "-O",
+    "--off",
     is_flag=True,
     help="🚩  Skip local path validation (useful when exporting scripts for another machine).",
 )

@@ -12,11 +12,11 @@ Validate paths and preview the build plan from an index definition file, then wr
     | Argument | Description |
     |----------|-------------|
     | `INPUT` | The design directory (`DESIGN_DIR` of `design`), a compose directory or one of its indexes (`COMPOSE_DIR/NAME`), a session (`COMPOSE_DIR/NAME/SESSION` or its `index.yaml`), or one shard file (`SESSION/shards/<shard>.yaml`, built without merge) (required) |
-    | `-S, --session SESSION` | Session to use when INPUT is a directory (default: the last one composed) |
+    | `-s, --session SESSION` | Session to use when INPUT is a directory (default: the last one composed) |
     | `-o, --output-dir BUILD_DIR` | Index directory the plan targets, same as for [`build`](build.md) and [`apply`](apply.md) (required) |
 
 !!! abstract "I/O"
-    **Input:** `DESIGN_DIR` of `design` (or `COMPOSE_DIR` of `compose`), with `-S` to pick a session; it resolves to `compose/NAME/SESSION/index.yaml` (see [design - Next Step](design.md#next-step))  
+    **Input:** `DESIGN_DIR` of `design` (or `COMPOSE_DIR` of `compose`), with `-s` to pick a session; it resolves to `compose/NAME/SESSION/index.yaml` (see [design - Next Step](design.md#next-step))  
     **Output:** shell scripts in `BUILD_DIR/assets/`, validation report in `BUILD_DIR/logs/`
 
 See [build - Paths](build.md#paths) for the directory layout.
@@ -29,14 +29,14 @@ See [build - Paths](build.md#paths) for the directory layout.
 | `--sh, --shard TEXT` | Shards to preview, as names or glob patterns (repeatable or comma-separated, e.g. `idx_g0_p1`, `'idx_g0_*'`); a part name (`<shard>_<session>`) previews that part only, without merging |
 | `--run TEXT` | Build only the kmtricks runs matching these names or glob patterns (`<part>` or `<part>_chunk<N>`), without merging; see [Building chunks separately](apply.md#building-chunks-separately) |
 | `--threads INT` | Hidden. Force the number of kmtricks threads instead of sizing them from `--limits` |
-| `--NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
+| `--ncp, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
 | `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Builds and merges](build.md#builds-and-merges) |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use (default: 0.9) |
 | `--max-chunks INT` | Max number of kmtricks chunks a shard is built in; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 64) |
 | `--cb, --chunk-budget INT` | K-mer budget of one kmtricks chunk: a chunk of span `s` holds at most `ceil8(budget / base^s)` samples. 0 for no limit (default: `2**37`), see [build - Shards and chunks](build.md#shards-and-chunks) |
-| `-X, --fail-fast` | Abort on first failure instead of continuing |
+| `-x, --fail-fast` | Abort on first failure instead of continuing |
 | `--keep-previous` | Keep the replaced version of an updated index in `BUILD_DIR/work/SESSION/previous/` instead of deleting it |
-| `-O, --offline` | Skip local path validation (useful when exporting scripts for another machine) |
+| `--off, --offline` | Skip local path validation (useful when exporting scripts for another machine) |
 
 ## Description
 
@@ -62,7 +62,7 @@ kmhelpers plan coli_db -o coli_build/ --sh coli_g0
 kmhelpers plan coli_db -o coli_build/ --offline
 
 # Abort on first error
-kmhelpers plan coli_db -o coli_build/ -X
+kmhelpers plan coli_db -o coli_build/ -x
 ```
 
 ## See Also
