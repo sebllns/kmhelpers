@@ -31,8 +31,6 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 | `-sb, --shard-budget INT` | Shard budget: a shard of span `s` holds at most `ceil8(budget / base^s)` samples (e.g. `2**43`); 0 for no limit (default: `2**43` for a new index, the layout's rule on an update) |
 | `--shard-budget-bytes SIZE` | Hidden. Cap a shard by its size on disk (e.g. `256GB`, `500000MB`) rather than by `--shard-budget`: when set, `--shard-budget` is not used. Cannot be combined with `--shard-budget` |
 | `-ab, --abundance-bits INT` | Build an abundance index with `N` bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0) |
-| `-m, --partition-min-size SIZE` | Minimum partition file size (e.g. `500MB`, `1GB`) |
-| `-P, --partition-count-limit INT` | Upper bound on auto partition count (default: 256) |
 
 ## Description
 
@@ -140,11 +138,8 @@ kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --profile 
 # Fix the partition count of every shard (inherited by later sessions)
 kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --partition-count 4
 
-# Set minimum partition size
-kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --partition-min-size 500MB
-
-# Split large spans across multiple sub-indices
-kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --split-size 10GB
+# Split spans into smaller shards
+kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --shard-budget 2**40
 
 # Update an existing index (auto-detects ./db/my_index/layout.yaml)
 kmhelpers compose samples.jsonl -o ./db -n my_index

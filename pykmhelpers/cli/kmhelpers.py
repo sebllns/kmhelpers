@@ -27,7 +27,6 @@ from pykmhelpers.cli.design import design
 from pykmhelpers.cli.experimental import experimental
 from pykmhelpers.cli.fof import fof
 from pykmhelpers.cli.install_deps import install_deps
-from pykmhelpers.cli.kmindex import kmindex
 from pykmhelpers.cli.list import list_samples
 from pykmhelpers.cli.pipeline import pipeline
 from pykmhelpers.cli.plan import plan
@@ -387,8 +386,6 @@ cli.add_command(kmindex_compress)
 # cli.add_command(fof)
 registry.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(registry)
-# kmindex.section = "Utilities"  # type: ignore[assignment]
-# cli.add_command(kmindex)
 pipeline.section = "Utilities"  # type: ignore[assignment]
 cli.add_command(pipeline)
 install_deps.section = "Utilities"  # type: ignore[assignment]

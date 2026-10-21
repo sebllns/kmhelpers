@@ -55,7 +55,6 @@ All notable changes to this project will be documented in this file.
 - **`plan`/`apply --run PATTERN`**: builds only the matching kmtricks runs (`<part>`, `<part>_chunk<N>`) without merging, e.g. one chunk per SLURM array task; a later `apply --shard` merges them
 - **`design`/`compose -P, --partition-count`** is hidden: the partition count is sized at plan from `--limits` unless fixed
 - **`KmtricksWrapper.pipeline`, `KmindexWrapper.build`**: `bloom_size` is required and `bitw` optional; with `bitw` set, the index is an abundance index of `bloom_size` cells, otherwise presence/absence (`nb_cell` removed)
-  - `kmhelpers kmindex build`: `--bloom-size` is required, `--bitw` replaces `--nb-cell`
   - Its size estimate counts `bloom_size` in bits (it was read as bytes)
 - **Index layout**: every index lives in place in `BUILD_DIR/<name>/` (a directory of the registry, not a symlink), and keeps that folder across updates
   - Everything temporary to a session (kmtricks runs, merges, previous version) is in `BUILD_DIR/work/SESSION/`, deleted when the session is done; `BUILD_DIR/kmindex_data/` is no longer used
@@ -87,6 +86,8 @@ All notable changes to this project will be documented in this file.
 
 ### Removed
 
+- **`cli/kmindex.py`**: the `kmhelpers kmindex` group, no longer registered; and the unused diagram sources `docs/diagrams/pipeline_diagram_v1.drawio`, `pipeline_diagram_v2.drawio`
+- **`compose` docs** of options removed earlier (`--partition-min-size`, `--partition-count-limit`, `--split-size`)
 - **`-r/--registry` and `-bl/--bloom-dir`** (`plan`, `apply`): the registry is `BUILD_DIR`, where indices live in place
 - **`--on-conflict`** (`plan`, `apply`): builds are never registered, an existing run is kept when complete and rebuilt otherwise
 

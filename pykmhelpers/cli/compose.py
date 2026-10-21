@@ -146,10 +146,7 @@ def compose(
       kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --partition-count 4
 
       \b
-      kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --partition-min-size 500MB
-
-      \b
-      kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --split-size 10GB
+      kmhelpers compose samples.jsonl -o ./db -n my_index -pf profiles.yaml --shard-budget 2**40
 
       \b
       kmhelpers compose samples.jsonl -o ./db -n my_index
