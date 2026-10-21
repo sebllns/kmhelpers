@@ -260,6 +260,21 @@ def unmatched_patterns(names, patterns) -> list:
     return [p for p in patterns if not any(fnmatch.fnmatchcase(n, p) for n in names)]
 
 
+def select_matching(names, patterns, what: str = "shard") -> list:
+    """The ``names`` matching one of the glob ``patterns``, in their order.
+
+    A pattern that matches nothing is logged as a warning (likely a typo);
+    ValueError only when no name matches any pattern.
+    """
+    names = list(names)
+    selected = [n for n in names if matches_any(n, patterns)]
+    if not selected:
+        raise ValueError(f"No {what} matches {', '.join(patterns)}")
+    for pattern in unmatched_patterns(names, patterns):
+        logger.warning(f"No {what} matches {pattern}")
+    return selected
+
+
 def summarize_names(names, max_groups: int = 4) -> str:
     """Render a list of index names short enough to log.
 

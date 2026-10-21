@@ -6,8 +6,7 @@ import time
 import click
 
 from pykmhelpers import KmindexRegistry, QueryRunner, QueryRunnerConfig
-from pykmhelpers.cli.shared import split_names
-from pykmhelpers.core.utils import matches_any, unmatched_patterns
+from pykmhelpers.cli.shared import select_shards
 
 logger = logging.getLogger(__name__)
 
@@ -235,12 +234,8 @@ def query(
     registry = KmindexRegistry(registry_path)
 
     # --shard a --shard b, or --shard a,b, names or glob patterns (as plan/apply)
-    patterns = split_names(index_ids) or []
-    names = registry.list_indices()
-    missing = unmatched_patterns(names, patterns)
-    if missing:
-        raise click.BadParameter(f"No shard of the registry matches {', '.join(missing)}")
-    index_ids = [n for n in names if matches_any(n, patterns)] if patterns else []
+    # empty means all shards downstream
+    index_ids = select_shards(registry, index_ids) if index_ids else []
 
     force = (ctx.obj or {}).get("yes", False)
 

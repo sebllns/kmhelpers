@@ -39,7 +39,7 @@ from pykmhelpers.core.kmindex_paths import (
     get_options_path,
     get_path_inside_index,
 )
-from pykmhelpers.core.utils import Bin, Toolbox
+from pykmhelpers.core.utils import Bin, Toolbox, select_matching
 
 logger = logging.getLogger(__name__)
 
@@ -733,6 +733,26 @@ class KmindexRegistry:
             List[str]: List of index IDs
         """
         return list(self._json_data["index"].keys())
+
+    def select_indices(self, patterns: List[str] | None) -> List[str]:
+        """
+        Index IDs matching names or glob patterns, in registry order.
+
+        Args:
+            patterns: Names or glob patterns; None or empty selects all.
+
+        Returns:
+            List[str]: Matching index IDs
+
+        A pattern that matches no index is only logged as a warning.
+
+        Raises:
+            ValueError: If no index matches any pattern.
+        """
+        names = self.list_indices()
+        if not patterns:
+            return names
+        return select_matching(names, patterns, "shard of the registry")
 
     def get_index_properties(self, _index_id: str) -> Dict[str, Any]:
         """

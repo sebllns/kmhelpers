@@ -241,9 +241,14 @@ class TestIndexDefinitionSource(unittest.TestCase):
         self.assertEqual(self.names(filter_names=["b"]), ["b"])
         self.assertEqual(self.names(filter_names=["*"]), ["a", "b"])
 
-    def test_unmatched_pattern_is_refused(self):
-        with self.assertRaisesRegex(ValueError, "No shard matches c"):
-            self.names(filter_names=["a", "c"])
+    def test_unmatched_pattern_warns(self):
+        with self.assertLogs("pykmhelpers.core.utils", "WARNING") as logs:
+            self.assertEqual(self.names(filter_names=["a", "c"]), ["a"])
+        self.assertIn("No shard matches c", logs.output[0])
+
+    def test_no_match_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "No shard matches c, d"):
+            self.names(filter_names=["c", "d"])
 
 
 class ShardCache:
@@ -307,9 +312,15 @@ class TestIndexSessionSource(unittest.TestCase):
         self.assertEqual(plan.merges, {})
         self.assertEqual([i.name for i in plan.definitions], ["p1", "p2"])
 
-    def test_unmatched_pattern_is_refused(self):
+    def test_unmatched_pattern_warns(self):
+        with self.assertLogs("pykmhelpers.core.utils", "WARNING") as logs:
+            plan, _ = self.load(filter_names=["t1", "t3"])
+        self.assertEqual(plan.merges, {"t1": ["p1", "p2"]})
+        self.assertIn("No shard matches t3", logs.output[0])
+
+    def test_no_match_is_refused(self):
         with self.assertRaisesRegex(ValueError, "No shard matches t3"):
-            self.load(filter_names=["t1", "t3"])
+            self.load(filter_names=["t3"])
 
     def test_filter_shard_name(self):
         plan, _ = self.load(filter_names=["t1"])

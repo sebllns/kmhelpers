@@ -9,7 +9,7 @@
 | [`design`](design.md) | Discover samples, profile them, and compose index definitions (steps: `list` → `profile` → `compose`) |
 | [`build`](build.md) | Validate paths and build indices (steps: `plan` → `apply`) |
 | [`query`](query.md) | Query indices with FASTA/FASTQ sequences |
-| [`compress`](compress.md) | Compress an index managed in a registry *(under development)* |
+| [`compress`](compress.md) | Compress the shards of a registry *(under development)* |
 
 ## Design (manual steps)
 

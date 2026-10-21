@@ -44,7 +44,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 
 **Offline mode** - use `--offline` to skip local path validation when generating scripts destined for another machine.
 
-**Filtering** - `--shard` selects shards (all by default) by name or glob pattern: `--shard 'idx_g0_*'` selects every shard of group 0. A pattern that matches no shard is an error. `--run` goes one level down, to the kmtricks runs of a shard, and previews them without merging.
+**Filtering** - `--shard` selects shards (all by default) by name or glob pattern: `--shard 'idx_g0_*'` selects every shard of group 0. A pattern that matches no shard is a warning; only no match at all is an error (same for `--run`). `--run` goes one level down, to the kmtricks runs of a shard, and previews them without merging.
 
 ## Examples
 

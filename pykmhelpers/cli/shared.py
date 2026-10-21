@@ -111,6 +111,14 @@ def split_names(values) -> list[str] | None:
     return names or None
 
 
+def select_shards(registry, values) -> list[str]:
+    """Registry shards matching --shard names or glob patterns; all when not given."""
+    try:
+        return registry.select_indices(split_names(values))
+    except ValueError as e:
+        raise click.BadParameter(str(e), param_hint="--shard")
+
+
 output_dir_option = click.option(
     "--output-dir",
     "-o",

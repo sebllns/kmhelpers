@@ -3,6 +3,7 @@ import logging
 import click
 
 from pykmhelpers import KmindexRegistry
+from pykmhelpers.cli.shared import select_shards
 from pykmhelpers.core.log import Log
 
 logger = logging.getLogger(__name__)
@@ -20,9 +21,11 @@ logger = logging.getLogger(__name__)
 @click.option(
     "--sh",
     "--shard",
-    "index_name",
-    required=True,
-    help="🏷️   Shard to compress.",
+    "index_ids",
+    multiple=True,
+    required=False,
+    help="🏷️   Shards to compress, as names or glob patterns (repeatable or "
+    "comma-separated: --shard idx_g0_p1, --shard 'idx_g0_*'; default: all).",
 )
 @click.option(
     "--block-size",
@@ -85,7 +88,7 @@ logger = logging.getLogger(__name__)
 def kmindex_compress(
     ctx,
     registry_path,
-    index_name,
+    index_ids,
     block_size,
     sampling,
     column_per_block,
@@ -95,62 +98,71 @@ def kmindex_compress(
     delete,
     check,
 ):
-    """Compress an index.
+    """Compress shards of a registry.
 
     \b
-    Input:  kmindex registry (-r), index name (-n)
-    Output: compressed index in place within the registry
+    Input:  kmindex registry (-r), shards (--shard, default: all)
+    Output: compressed shards in place within the registry
 
-    Registry-based compression using the KmindexWrapper. Simpler interface
-    for compressing indices managed in a registry.
+    Shards are compressed one after the other. A failed shard does not stop
+    the others; the command fails at the end if any did.
 
     Examples:
-      # Basic compression
-      kmhelpers kmindex-compress -r ./registry -n my_index
 
-      # Compression with column reordering
-      kmhelpers kmindex-compress -r ./registry -n my_index --reorder -s 50000
+      \b
+      # Compress every shard of the registry
+      kmhelpers compress -r ./registry
 
+      \b
+      # Compress the shards of one group, with column reordering
+      kmhelpers compress -r ./registry --shard 'my_index_g0_*' --reorder -s 50000
+
+      \b
       # Custom compression level with multiple threads
-      kmhelpers kmindex-compress -r ./registry -n my_index --cpr-level 6 -t 16
+      kmhelpers compress -r ./registry --shard my_index_g0_p1 --cpr-level 6 -t 16
     """
+    registry = KmindexRegistry(registry_path)
+    index_ids = select_shards(registry, index_ids)
+    if not index_ids:
+        raise click.UsageError(f"No shard in registry {registry_path}")
+
     if delete and not (ctx.obj or {}).get("yes", False):
         if not click.confirm(
-            f"Delete uncompressed index '{index_name}' after compression?",
+            f"Delete the uncompressed matrices of {len(index_ids)} shard(s) "
+            f"({', '.join(index_ids)}) after compression?",
             default=False,
         ):
             raise click.Abort()
 
-    try:
-        registry = KmindexRegistry(registry_path)
+    logger.info(f"Compressing {len(index_ids)} shard(s) of {registry_path}")
+    logger.info(f"  Compression level: {cpr_level}")
+    if reorder:
+        logger.info(f"  Column reordering: enabled")
 
-        logger.info(f"Preparing to compress index: {index_name}")
-        logger.info(f"  Registry: {registry_path}")
-        logger.info(f"  Compression level: {cpr_level}")
+    failed = []
+    for index_name in index_ids:
+        try:
+            logger.info(f"Compressing shard: {index_name}")
+            registry.compress(
+                index_name=index_name,
+                block_size=block_size,
+                sampling=sampling,
+                column_per_block=column_per_block,
+                cpr_level=cpr_level,
+                threads=threads,
+                reorder=reorder,
+                delete_uncompressed=delete,
+                check_results=check,
+                verbose="debug" if logger.isEnabledFor(logging.DEBUG) else "info",
+            )
+            logger.info(f"✓ Compressed {index_name}")
+        except Exception as e:
+            Log.handle_exception(logger, e, f"Compression of {index_name} failed")
+            failed.append(index_name)
 
-        if reorder:
-            logger.info(f"  Column reordering: enabled")
-
-        registry.compress(
-            index_name=index_name,
-            block_size=block_size,
-            sampling=sampling,
-            column_per_block=column_per_block,
-            cpr_level=cpr_level,
-            threads=threads,
-            reorder=reorder,
-            delete_uncompressed=delete,
-            check_results=check,
-            verbose="debug" if logger.isEnabledFor(logging.DEBUG) else "info",
+    if failed:
+        raise click.ClickException(
+            f"FAILED ('compress'): {len(failed)} of {len(index_ids)} shard(s): "
+            f"{', '.join(failed)}"
         )
-
-        logger.info(f"✓ Compression completed successfully")
-        logger.info(f"  Index: {index_name}")
-        logger.info(f"  Block size: {block_size} MB")
-        if reorder:
-            logger.info(f"  Column reordered")
-        if delete:
-            logger.info(f"  Uncompressed index deleted")
-
-    except Exception as e:
-        Log.handle_exception(logger, e, "Compression failed")
+    logger.info(f"SUCCESS ('compress'): {len(index_ids)} shard(s)")

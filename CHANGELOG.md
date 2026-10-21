@@ -52,7 +52,8 @@ All notable changes to this project will be documented in this file.
 - **`--max-chunks`** (`plan`, `apply`, `build`): caps the chunks of a shard, default 64 (was 200)
 - **Multi-letter short flags take two dashes**: `-dt`, `-lg`, `-ntt`, `-nc`, `-fp`, `-ab`, `-pf`, `-pr`, `-NC`, `-SP`, `-NF` (and `test` `-mu`, `-sd`) become `--dt`, `--lg`, `--ntt`, `--nc`, `--fp`, `--ab`, `--pf`, `--pr`, `--NC`, `--SP`, `--NF` (`--mu`, `--sd`); single-letter flags keep one dash
 - **`--threads`** (`plan`, `apply`, `build`) is hidden and loses `-t`: threads are sized from `--limits` (e.g. `--limits '{"threads": 8}'`)
-- **Shard selection by glob pattern**: `plan`, `apply` and `query` `--sh, --shard` take glob patterns (`'idx_g0_*'`); a name without wildcard matches exactly, and a pattern matching nothing is an error. `plan`/`apply -s, --span` is removed: `--shard 'NAME_g<i>*'` selects a group
+- **Shard selection by glob pattern**: `plan`, `apply`, `query` and `compress` `--sh, --shard` take glob patterns (`'idx_g0_*'`); a name without wildcard matches exactly. A pattern matching nothing is a warning; only no match at all is an error (also for `--run`). `plan`/`apply -s, --span` is removed: `--shard 'NAME_g<i>*'` selects a group
+- **`compress` without `--shard` compresses every shard of the registry**, one after the other; a failed shard does not stop the others, the command fails at the end
 - **`plan`/`apply --run PATTERN`**: builds only the matching kmtricks runs (`<part>`, `<part>_chunk<N>`) without merging, e.g. one chunk per SLURM array task; a later `apply --shard` merges them
 - **`design`/`compose -P, --partition-count`** is hidden: the partition count is sized at plan from `--limits` unless fixed
 - **`KmtricksWrapper.pipeline`, `KmindexWrapper.build`**: `bloom_size` is required and `bitw` optional; with `bitw` set, the index is an abundance index of `bloom_size` cells, otherwise presence/absence (`nb_cell` removed)

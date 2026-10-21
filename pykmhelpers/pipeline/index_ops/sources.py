@@ -3,7 +3,7 @@ import os
 from dataclasses import dataclass, field
 
 from pykmhelpers.core.log import Log
-from pykmhelpers.core.utils import matches_any, unmatched_patterns
+from pykmhelpers.core.utils import matches_any, select_matching
 from pykmhelpers.pipeline.composer import (
     LAYOUT_FILE,
     SESSION_FILE,
@@ -87,13 +87,6 @@ def _named(dbs: list[IndexDB]) -> list[IndexDefinition]:
     return [i for db in dbs for i in db.index_table.values() if i.name]
 
 
-def _check_matched(patterns: list[str], names: list) -> None:
-    """Refuse a --shard pattern that matches no shard: likely a typo."""
-    missing = unmatched_patterns(names, patterns)
-    if missing:
-        raise ValueError(f"No shard matches {', '.join(missing)}")
-
-
 class IndexDefinitionSource:
     """Index definition file: build every selected definition, no merge."""
 
@@ -106,8 +99,8 @@ class IndexDefinitionSource:
         patterns = self._config.filter_names
         if not patterns:
             return WorkPlan(definitions=named)
-        _check_matched(patterns, [i.name for i in named])
-        return WorkPlan(definitions=[i for i in named if matches_any(i.name, patterns)])
+        selected = select_matching([i.name for i in named], patterns)
+        return WorkPlan(definitions=[i for i in named if i.name in selected])
 
 
 class IndexSessionSource:
@@ -143,7 +136,7 @@ class IndexSessionSource:
                     i for i in parts if i.name and matches_any(i.name, patterns)
                 )
         if patterns:
-            _check_matched(patterns, seen)
+            select_matching(seen, patterns)
 
         scripts = {part: shard for shard, parts in merges.items() for part in parts}
         return WorkPlan(definitions=definitions, merges=merges, scripts=scripts)

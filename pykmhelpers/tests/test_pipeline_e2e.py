@@ -723,6 +723,18 @@ class TestShardedBuild(PipelineE2EBase):
         self.run_cli("query", q0, "-r", "build", "-o", "results", "-f", "json")
         self.assert_query_hit("results", q0_header, "sample_0")
 
+        # compress without --shard compresses every shard; a pattern matching
+        # no shard fails before compressing any
+        self.run_cli("compress", "-r", "build", "--sh", "nope_*", expect_success=False)
+        self.run_cli("compress", "-r", "build", "-t", "1")
+        for shard in shards:
+            matrices = self.tmp / "build" / shard / "matrices"
+            self.assertTrue(list(matrices.glob("blocks*.ef")), f"{shard} not compressed")
+        self.run_cli(
+            "query", q0, "-r", "build", "-o", "results_cpr", "-f", "json", "--compressed"
+        )
+        self.assert_query_hit("results_cpr", q0_header, "sample_0")
+
 
 class TestChunkedBuild(PipelineE2EBase):
     """A too-low --limits open-files ceiling splits a build into chunks.

@@ -451,6 +451,19 @@ class TestKmindexRegistry(TestKmtricksIndexBase):
         indices = registry.list_indices()
         self.assertEqual(len(indices), 0)
 
+    def test_select_indices(self):
+        """Names and glob patterns select indices; none selects all."""
+        registry = KmindexRegistry(str(self.registry_path))
+        registry._json_data["index"] = {"a_g0_p1": {}, "a_g0_p2": {}, "a_g1_p1": {}}
+        self.assertEqual(registry.select_indices(None), ["a_g0_p1", "a_g0_p2", "a_g1_p1"])
+        self.assertEqual(registry.select_indices(["a_g0_*"]), ["a_g0_p1", "a_g0_p2"])
+        self.assertEqual(registry.select_indices(["a_g1_p1", "a_g0_p2"]), ["a_g0_p2", "a_g1_p1"])
+        with self.assertLogs("pykmhelpers.core.utils", "WARNING") as logs:
+            self.assertEqual(registry.select_indices(["a_g1_*", "b_*"]), ["a_g1_p1"])
+        self.assertIn("matches b_*", logs.output[0])
+        with self.assertRaisesRegex(ValueError, "matches b_\\*, c"):
+            registry.select_indices(["b_*", "c"])
+
     def test_add_index(self):
         """Test adding an index to the registry."""
         registry = KmindexRegistry(str(self.registry_path))
