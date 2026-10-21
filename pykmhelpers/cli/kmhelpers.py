@@ -411,7 +411,7 @@ def _full_help(ctx: click.Context, _param, value) -> None:
     try:
         for p in hidden:
             p.hidden = False
-            p.help = f"[hidden] {p.help or ''}"
+            p.help = f"{p.help or ''} [hidden]".lstrip()
         click.echo(ctx.get_help(), color=ctx.color)
     finally:
         for p, help_text in saved:
