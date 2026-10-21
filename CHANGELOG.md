@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **`compose`/`design --ncl, --no-copy-list`**: the session points to the input sample list instead of copying it to `SESSION/samples.jsonl`; `design` never copies the list it writes (`list/samples_<SESSION>.jsonl`), so its sessions have no `samples.jsonl`
 - **Automatic group count** (`profile -g 0`, `design -g 0`): starts from one group per 1000 samples, then adds one while it saves at least 20% of the storage, up to 20 groups
   - Tuned with `profile --auto-group-samples`, `--auto-group-max` and `--auto-group-min-gain` (env: `KMHELPERS_AUTO_GROUP_*`), recorded under `auto_group` in `profile.yaml`; `design` reads only the environment variables
 - **Abundance indexes**: `design --ab N` / `compose --ab N` (`--abundance-bits`) compose an index storing `N` bits per sample and k-mer (2^N abundance classes), built by kmtricks with `--mode hash:bfc:bin --bitw N`

@@ -199,6 +199,8 @@ class TestDesignBuildQueryUpdateQuery(PipelineE2EBase):
         session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
         self.assertTrue(layout.is_file(), f"missing layout: {layout}")
         self.assertTrue(session_file.is_file(), f"missing session file: {session_file}")
+        # design points the shards to its own list, without a copy
+        self.assertFalse((session_file.parent / "samples.jsonl").exists())
 
         # 2. build (plan -> apply) the design directory: its only session
         self.run_cli("build", "db", "-o", "build")
@@ -512,9 +514,12 @@ class TestStepByStepDesignAndBuild(PipelineE2EBase):
             "initial",
             "--pf",
             "db/profile/profile.yaml",
+            "--ncl",
         )
         session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
         self.assertTrue(session_file.is_file(), f"missing session file: {session_file}")
+        # --ncl: the shards point to the list in db/list/, not to a copy
+        self.assertFalse((session_file.parent / "samples.jsonl").exists())
 
         # build, decomposed
         self.run_cli("plan", session_file, "-o", "build2")

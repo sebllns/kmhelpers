@@ -23,7 +23,7 @@ Scan a directory or import a sample list, then run the full [`list`](list.md) �
     **Output (pass to `build`, `plan` or `apply`):** `DESIGN_DIR` itself, with `-S SESSION` (default: the last session); the session is `DESIGN_DIR/compose/NAME/SESSION/index.yaml`  
     **Intermediate files (reused by later runs, not passed to `build`):**
 
-    - `DESIGN_DIR/list/samples_SESSION.jsonl` - sample manifest
+    - `DESIGN_DIR/list/samples_SESSION.jsonl` - sample manifest, read by the session's shards (not copied)
     - `DESIGN_DIR/profile/` - span profile (`profile.yaml`, `baseline.csv`, `groups.png`)
     - `DESIGN_DIR/compose/NAME/layout.yaml` - layout reused by updates
 
@@ -32,7 +32,7 @@ Scan a directory or import a sample list, then run the full [`list`](list.md) �
 ```
 DESIGN_DIR/                            -> INPUT of build/plan/apply (-S SESSION)
 ├── list/
-│   └── samples_SESSION.jsonl          intermediate: sample manifest (omitted if INPUT is already a JSONL index)
+│   └── samples_SESSION.jsonl          sample manifest, read by the session (omitted if INPUT is already a JSONL index)
 ├── profile/
 │   ├── profile.yaml                   intermediate: span profile (input for compose)
 │   ├── baseline.csv                   intermediate: natural distribution
@@ -42,7 +42,6 @@ DESIGN_DIR/                            -> INPUT of build/plan/apply (-S SESSION)
         ├── layout.yaml                state of the index: groups, shard budget, shards, partitions, bitw, sessions
         └── SESSION/
             ├── index.yaml             the session: parameters, size and shards (readable summary)
-            ├── samples.jsonl          the session's samples
             ├── summary.csv            one row per shard
             └── shards/
                 └── NAME_g<i>_p<k>.yaml  the samples this session adds to shard NAME_g<i>_p<k>
@@ -71,6 +70,7 @@ Set `-S` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 | `--minim-size INT` | Minimizer size (4-15), fixed for the life of the index (default: 10 for a new index, the layout's value on an update) |
 | `--ab, --abundance-bits INT` | Build an abundance index with `N` bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0), see [compose](compose.md) |
 | `--nc, --no-count` | Skip k-mer counting with ntcard |
+| `--ncl, --no-copy-list` | With a JSONL INPUT, point the index definition files to it instead of copying it into the compose output folder; the list must then stay in place and unchanged as it is used for building. A list written by `design` is never copied |
 | `--shard-budget-bytes SIZE` | Hidden. Cap a shard by its size on disk (e.g. `10GB`) rather than by `--shard-budget`: when set, `--shard-budget` is not used. Cannot be combined with `--shard-budget`, see [compose](compose.md) |
 | `--lg, --leaf-grouping` | Group files by leaf folder; each leaf directory becomes one sample |
 | `-p, --paired [REGEX]` | Group mate files (R1/R2) of a directory into one sample, see [list](list.md#description) |

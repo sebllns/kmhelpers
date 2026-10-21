@@ -119,6 +119,18 @@ def select_shards(registry, values) -> list[str]:
         raise click.BadParameter(str(e), param_hint="--shard")
 
 
+no_copy_list_option = click.option(
+    "--no-copy-list",
+    "--ncl",
+    "no_copy_list",
+    is_flag=True,
+    default=False,
+    help="🚩  Point the index definition files to the input sample list instead "
+    "of copying it into the compose output folder. The list must then stay in "
+    "place and unchanged as it is used for building.",
+)
+
+
 output_dir_option = click.option(
     "--output-dir",
     "-o",

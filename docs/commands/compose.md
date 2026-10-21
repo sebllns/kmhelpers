@@ -19,7 +19,7 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 
 !!! abstract "I/O"
     **Input:** JSONL sample list (from [`list`](list.md)), profiles YAML required only for new index creation (from [`profile`](profile.md))  
-    **Output:** the session in `COMPOSE_DIR/NAME/SESSION/` (`index.yaml`, `samples.jsonl`, `summary.csv`, `shards/`), and the layout `COMPOSE_DIR/NAME/layout.yaml`. Pass `COMPOSE_DIR` (with `-S SESSION`) to `plan`, `build` or `apply`
+    **Output:** the session in `COMPOSE_DIR/NAME/SESSION/` (`index.yaml`, `samples.jsonl` unless `--no-copy-list`, `summary.csv`, `shards/`), and the layout `COMPOSE_DIR/NAME/layout.yaml`. Pass `COMPOSE_DIR` (with `-S SESSION`) to `plan`, `build` or `apply`
 
 ## Advanced Options
 
@@ -29,6 +29,7 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 | `-P, --partition-count INT` | Hidden. Fix the partition count of every shard for the life of the index: inherited by every later session, no longer adapted to the system limits of `plan`/`build`. 0 (default) lets the first `plan` of each shard size it, see Partitioning below |
 | `--minim-size INT` | Minimizer size (4-15), fixed for the life of the index (default: 10 for a new index, the layout's value on an update) |
 | `--sb, --shard-budget INT` | Shard budget: a shard of span `s` holds at most `ceil8(budget / base^s)` samples (e.g. `2**43`); 0 for no limit (default: `2**43` for a new index, the layout's rule on an update) |
+| `--ncl, --no-copy-list` | Point the index definition files to the input sample list instead of copying it into the compose output folder; the list must then stay in place and unchanged as it is used for building |
 | `--shard-budget-bytes SIZE` | Hidden. Cap a shard by its size on disk (e.g. `256GB`, `500000MB`) rather than by `--shard-budget`: when set, `--shard-budget` is not used. Cannot be combined with `--shard-budget` |
 | `--ab, --abundance-bits INT` | Build an abundance index with `N` bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0) |
 
@@ -42,6 +43,8 @@ current timestamp if `--session` is not provided:
 
 - `index.yaml` describes the session: parameters, size, and the shards it adds samples to;
 - `shards/<shard>.yaml` lists the samples of each shard, and `samples.jsonl` their files;
+  with `--no-copy-list`, the shards point to the input list instead (`sample_file`), relative
+  when it lies in the parent of `COMPOSE_DIR` (e.g. a design's `list/`), absolute otherwise;
 - `summary.csv` has one row per shard.
 
 Pass `COMPOSE_DIR` (or `COMPOSE_DIR/NAME`, or the session's `index.yaml`) to `plan`,

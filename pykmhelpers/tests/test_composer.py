@@ -3,6 +3,7 @@
 The full compose flow is covered by ``test_pipeline_e2e.py``.
 """
 
+import os
 import shutil
 import tempfile
 import unittest
@@ -203,6 +204,43 @@ class TestComposeSharding(unittest.TestCase):
         self.compose("initial", shard_size=10**9)
         data = self.compose("upd", profile=False)
         self.assertEqual((data["shard_budget"], data["shard_size"]), (0, 10**9))
+
+
+class TestSessionSampleList(TestComposeSharding):
+    """The session copies its sample list, or points to it (copy_list=False)."""
+
+    def shard_sample_file(self, session="initial"):
+        session_dir = Path(self.out) / "idx" / session
+        shard = yaml.safe_load((session_dir / "shards" / "idx_g0_p0.yaml").read_text())
+        sample_file = shard["data"]["idx_g0_p0_" + session]["sample_file"]
+        return session_dir, sample_file
+
+    def test_copy_by_default(self):
+        self.compose("initial")
+        session_dir, sample_file = self.shard_sample_file()
+        self.assertEqual(sample_file, "../samples.jsonl")
+        self.assertTrue((session_dir / "samples.jsonl").is_file())
+
+    def test_list_in_the_design_dir_is_relative(self):
+        self.compose("initial", copy_list=False)
+        session_dir, sample_file = self.shard_sample_file()
+        # shards/ -> initial/ -> idx/ -> compose/ -> the design dir
+        self.assertEqual(sample_file, "../../../../samples.jsonl")
+        self.assertFalse((session_dir / "samples.jsonl").exists())
+
+    def test_list_outside_is_absolute(self):
+        elsewhere = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, elsewhere, ignore_errors=True)
+        self.samples = shutil.copy(self.samples, elsewhere / "list.jsonl")
+        self.compose("initial", copy_list=False)
+        _, sample_file = self.shard_sample_file()
+        self.assertEqual(sample_file, os.path.realpath(self.samples))
+
+    def test_rerun_without_copy_removes_the_old_copy(self):
+        self.compose("initial")
+        self.compose("initial", copy_list=False)
+        session_dir, _ = self.shard_sample_file()
+        self.assertFalse((session_dir / "samples.jsonl").exists())
 
 
 class TestCurrentShard(unittest.TestCase):

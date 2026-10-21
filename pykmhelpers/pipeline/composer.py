@@ -55,6 +55,7 @@ class IndexComposer:
         false_positive_rate: Optional[float] = None,
         format="yaml",
         db_tools: Optional[db.IndexDefinitionTools] = None,
+        copy_list: bool = True,
     ):
         self.profiles_file = profiles_file
         self.layout_file = layout_file
@@ -78,6 +79,37 @@ class IndexComposer:
         self.false_positive_rate = false_positive_rate
         self.format = format
         self.db_tools = db_tools or db.IndexDefinitionTools()
+        # False: the shards point to the input sample list instead of a copy
+        # in the session, so the list must stay in place and unchanged
+        self.copy_list = copy_list
+
+    def _session_sample_file(
+        self, input_file: str, output_dir: str, run_dir: str
+    ) -> str:
+        """The sample list of the session, as ``sample_file`` of its shards.
+
+        Copied to SESSION/samples.jsonl by default. Without the copy, the input
+        list itself: relative to SESSION/shards/ when it lies in the parent of
+        ``output_dir`` (the design directory, which can then move as a whole),
+        absolute otherwise.
+        """
+        session_copy = os.path.join(run_dir, SESSION_SAMPLES)
+        if self.copy_list:
+            try:
+                shutil.copy(input_file, session_copy)
+            except shutil.SameFileError:
+                pass
+            # shards/<shard>.yaml -> SESSION/samples.jsonl
+            return f"../{SESSION_SAMPLES}"
+
+        input_file = os.path.realpath(input_file)
+        if os.path.realpath(session_copy) != input_file and os.path.isfile(session_copy):
+            # left by an earlier run of the session: no longer used
+            os.remove(session_copy)
+        root = os.path.dirname(os.path.realpath(output_dir))
+        if os.path.commonpath([root, input_file]) == root:
+            return os.path.relpath(input_file, os.path.join(run_dir, SHARDS_DIR))
+        return input_file
 
     def run(
         self,
@@ -106,10 +138,7 @@ class IndexComposer:
         run_dir = os.path.realpath(os.path.join(output_dir, self.name, run_id))
         os.makedirs(run_dir, exist_ok=True)
 
-        try:
-            shutil.copy(input_file, os.path.join(run_dir, SESSION_SAMPLES))
-        except shutil.SameFileError:
-            pass
+        sample_file = self._session_sample_file(input_file, output_dir, run_dir)
 
         shard_size = 0
         minim_size = 0
@@ -259,8 +288,7 @@ class IndexComposer:
                         abundance_min=abundance_min,
                         bitw=self.bitw,
                         minim_size=minim_size,
-                        # shards/<shard>.yaml -> SESSION/samples.jsonl
-                        sample_file=f"../{SESSION_SAMPLES}",
+                        sample_file=sample_file,
                         samples={},
                         partition_count=props.get("partition_count") or 0,
                     )

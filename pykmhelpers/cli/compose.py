@@ -7,6 +7,7 @@ import os
 import click
 
 from pykmhelpers.cli.shared import (
+    no_copy_list_option,
     parse_shard_rule,
     sharding_options,
 )
@@ -103,6 +104,7 @@ logger = logging.getLogger(__name__)
     "[default: 0 for a new index]",
 )
 @sharding_options
+@no_copy_list_option
 @click.pass_context
 def compose(
     ctx,
@@ -119,13 +121,14 @@ def compose(
     bitw,
     shard_budget,
     shard_budget_bytes,
+    no_copy_list,
 ):
     """Compose index definition file(s) from a sample list.
 
     \b
     Input:  JSONL sample list (from `list`), profiles YAML for new index (from `profile`)
     Output: COMPOSE_DIR/NAME/layout.yaml and COMPOSE_DIR/NAME/SESSION/ (index.yaml,
-            samples.jsonl, summary.csv, shards/)
+            samples.jsonl unless --no-copy-list, summary.csv, shards/)
 
     Pass COMPOSE_DIR (or COMPOSE_DIR/NAME, or SESSION/index.yaml) to `plan`,
     `build` or `apply` to build the index, with -S SESSION to pick a session
@@ -206,6 +209,7 @@ def compose(
             minim_size=minim_size,
             bitw=bitw,
             shard_budget=shard_budget,
+            copy_list=not no_copy_list,
             # bf_max_size=bf_max_size,
             # partition_min_size=partition_min_size,
             # exact_partition_count=False,
