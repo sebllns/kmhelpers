@@ -6,6 +6,8 @@ import time
 import click
 
 from pykmhelpers import KmindexRegistry, QueryRunner, QueryRunnerConfig
+from pykmhelpers.cli.shared import split_names
+from pykmhelpers.core.utils import matches_any, unmatched_patterns
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +27,8 @@ logger = logging.getLogger(__name__)
     "index_ids",
     multiple=True,
     required=False,
-    help="⚙   Shard(s) to query (repeatable or comma-separated; default: all).",
+    help="⚙   Shards to query, as names or glob patterns (repeatable or "
+    "comma-separated: --shard idx_g0_p1, --shard 'idx_g0_*'; default: all).",
 )
 @click.option(
     "--output-dir",
@@ -231,12 +234,13 @@ def query(
 
     registry = KmindexRegistry(registry_path)
 
-    # --shard a --shard b, or --shard a,b (as plan/apply)
-    index_ids = [i for entry in index_ids for i in entry.split(",") if i]
-    if index_ids:
-        for idx_id in index_ids:
-            if idx_id not in registry:
-                raise click.BadParameter(f"Index {idx_id} not found in registry")
+    # --shard a --shard b, or --shard a,b, names or glob patterns (as plan/apply)
+    patterns = split_names(index_ids) or []
+    names = registry.list_indices()
+    missing = unmatched_patterns(names, patterns)
+    if missing:
+        raise click.BadParameter(f"No shard of the registry matches {', '.join(missing)}")
+    index_ids = [n for n in names if matches_any(n, patterns)] if patterns else []
 
     force = (ctx.obj or {}).get("yes", False)
 

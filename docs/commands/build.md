@@ -80,7 +80,7 @@ Building a session again resumes it: complete kmtricks runs are kept, incomplete
 
 **Step 2 - apply:** executes the build and registers all completed indices in `BUILD_DIR/index.json`.
 
-**Filtering** - `build` always processes every shard of the session. Use [`plan`](plan.md) and [`apply`](apply.md) with `--name` or `--span` to build a subset.
+**Filtering** - `build` always processes every shard of the session. Use [`plan`](plan.md) and [`apply`](apply.md) with `--shard` (names or glob patterns) or `--run` to build a subset.
 
 **Notifications** - use `--notify` to receive an email when the build exits (requires `sendmail`). The notification is sent on both success and failure, including on `SIGTERM`.
 

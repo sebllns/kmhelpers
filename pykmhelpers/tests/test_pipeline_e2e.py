@@ -807,6 +807,44 @@ class TestChunkedBuild(PipelineE2EBase):
         self.chunked_apply('{"files": 5}')
         self.assert_merged_and_clean()
 
+    def test_run_builds_one_chunk_then_shard_merges(self):
+        """apply --run builds one chunk without merging; --shard merges later."""
+        limits = '{"files": 5}'
+        self.run_cli(
+            "design", self.samples_txt, "-o", "db", "-n", "idx", "-S", "initial",
+            "-k", KMER_SIZE, "-b", "4", "-g", "1",
+        )
+        session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
+        self.run_cli("plan", session_file, "-o", "planned", "--limits", limits)
+        self.run_cli(
+            "apply", session_file, "-o", "build", "--limits", limits,
+            "--run", "*_chunk0",
+        )
+        runs = sorted(p.name for p in (self.tmp / "build" / "work").rglob("*_chunk*"))
+        self.assertEqual(len(runs), 1, f"unexpected runs: {runs}")
+        self.assertTrue(runs[0].endswith("_chunk0"))
+        self.assertFalse((self.tmp / "build" / "idx_g0").exists(), "merged too early")
+
+        result = self.run_cli(
+            "apply", session_file, "-o", "build", "--limits", limits,
+            "--shard", "idx_g0*",
+        )
+        self.assertIn("Reusing complete run", result.stdout + result.stderr)
+        self.assert_merged_and_clean()
+
+    def test_unmatched_run_pattern_fails(self):
+        self.run_cli(
+            "design", self.samples_txt, "-o", "db", "-n", "idx", "-S", "initial",
+            "-k", KMER_SIZE, "-b", "4", "-g", "1",
+        )
+        session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
+        result = self.run_cli(
+            "apply", session_file, "-o", "build", "--run", "nope*",
+            expect_success=False,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("No kmtricks run matches nope*", result.stdout + result.stderr)
+
     def test_merge_split_into_sub_shards_by_max_map_count(self):
         # 2 mmaps above the reserved 1000: 2 inputs per merge, so the chunks
         # are merged in a tree of several levels.

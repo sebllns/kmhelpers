@@ -1,4 +1,5 @@
 import bz2
+import fnmatch
 import gzip
 import logging
 import lzma
@@ -243,8 +244,22 @@ class Toolbox:
 
 
 #########################################################
-# name formatting
+# name selection and formatting
 ########################################################
+def matches_any(name: str, patterns) -> bool:
+    """True when ``name`` matches one of the glob ``patterns`` (case-sensitive).
+
+    A pattern without wildcard matches the name exactly.
+    """
+    return any(fnmatch.fnmatchcase(name, p) for p in patterns)
+
+
+def unmatched_patterns(names, patterns) -> list:
+    """The glob ``patterns`` that match none of ``names``."""
+    names = list(names)
+    return [p for p in patterns if not any(fnmatch.fnmatchcase(n, p) for n in names)]
+
+
 def summarize_names(names, max_groups: int = 4) -> str:
     """Render a list of index names short enough to log.
 

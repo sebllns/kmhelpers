@@ -3,6 +3,7 @@ import os
 from dataclasses import dataclass, field
 
 from pykmhelpers.core.log import Log
+from pykmhelpers.core.utils import matches_any, unmatched_patterns
 from pykmhelpers.pipeline.composer import (
     LAYOUT_FILE,
     SESSION_FILE,
@@ -43,7 +44,7 @@ class DbCache:
 class WorkPlan:
     """What a run has to do: definitions to build, then merges to perform.
 
-    ``definitions`` is already filtered by name and span. ``scripts`` maps an
+    ``definitions`` is already filtered by name. ``scripts`` maps an
     index name to the script it belongs to: parts go with the shard they are
     merged into, so one script builds one shard.
     """
@@ -86,6 +87,13 @@ def _named(dbs: list[IndexDB]) -> list[IndexDefinition]:
     return [i for db in dbs for i in db.index_table.values() if i.name]
 
 
+def _check_matched(patterns: list[str], names: list) -> None:
+    """Refuse a --shard pattern that matches no shard: likely a typo."""
+    missing = unmatched_patterns(names, patterns)
+    if missing:
+        raise ValueError(f"No shard matches {', '.join(missing)}")
+
+
 class IndexDefinitionSource:
     """Index definition file: build every selected definition, no merge."""
 
@@ -94,15 +102,12 @@ class IndexDefinitionSource:
         self._cache = cache
 
     def load(self, path: str, idt: IndexDefinitionTools, data: dict) -> WorkPlan:
-        return WorkPlan(
-            definitions=[
-                i for i in _named(self._cache.load(path, idt)) if self._selected(i)
-            ]
-        )
-
-    def _selected(self, i: IndexDefinition) -> bool:
-        names, spans = self._config.filter_names, self._config.filter_spans
-        return (names is None or i.name in names) and (spans is None or i.span in spans)
+        named = _named(self._cache.load(path, idt))
+        patterns = self._config.filter_names
+        if not patterns:
+            return WorkPlan(definitions=named)
+        _check_matched(patterns, [i.name for i in named])
+        return WorkPlan(definitions=[i for i in named if matches_any(i.name, patterns)])
 
 
 class IndexSessionSource:
@@ -118,24 +123,27 @@ class IndexSessionSource:
         self._cache = cache
 
     def load(self, path: str, idt: IndexDefinitionTools, data: dict) -> WorkPlan:
-        names = self._config.filter_names
-        spans = self._config.filter_spans
+        patterns = self._config.filter_names
         shards = data.get("shards")
         if not shards:
             raise ValueError(f"Session file has no 'shards': {path}")
 
         definitions: list[IndexDefinition] = []
         merges: dict[str, list[str]] = {}
+        seen: list[str] = []
         for shard, entry in dict[str, dict](shards).items():
-            if spans and entry.get("span") not in spans:
-                continue
             parts = _named(self._cache.load(self._shard_path(path, entry), idt))
+            seen += [shard] + [i.name for i in parts if i.name]
             # A shard is merged when selected; a part selected alone is only built
-            if not names or shard in names:
+            if not patterns or matches_any(shard, patterns):
                 merges[shard] = [i.name for i in parts if i.name]
                 definitions.extend(parts)
             else:
-                definitions.extend(i for i in parts if i.name in names)
+                definitions.extend(
+                    i for i in parts if i.name and matches_any(i.name, patterns)
+                )
+        if patterns:
+            _check_matched(patterns, seen)
 
         scripts = {part: shard for shard, parts in merges.items() for part in parts}
         return WorkPlan(definitions=definitions, merges=merges, scripts=scripts)

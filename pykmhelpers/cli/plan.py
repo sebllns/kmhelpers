@@ -38,8 +38,8 @@ def plan(
     session,
     work_dir,
     base_path,
-    span,
     index_ids,
+    run_ids,
     threads,
     limits,
     safety_margin,
@@ -57,8 +57,8 @@ def plan(
     Output: shell scripts in BUILD_DIR/assets/SESSION/, validation report in BUILD_DIR/logs/
 
     BUILD_DIR (-o) is the index directory later passed to `apply` or `build`.
-    Only shards matching --shard or --span are processed; if neither is
-    specified, all declared indices are previewed.
+    Only shards matching --shard are processed (all by default); --run
+    previews only the matching kmtricks runs, without merging.
 
     Use --offline to skip local path validation when generating scripts for
     another machine.
@@ -70,9 +70,9 @@ def plan(
     kmhelpers plan coli_db -o coli_build
 
     \b
-    # Preview only selected shards or spans
+    # Preview only selected shards (names or glob patterns)
     kmhelpers plan coli_db -o coli_build --shard coli_g0,coli_g1
-    kmhelpers plan coli_db -o coli_build -s 27-30
+    kmhelpers plan coli_db -o coli_build --shard 'coli_g0_*'
 
     \b
     # Skip path validation (for exporting scripts to another machine)
@@ -84,12 +84,8 @@ def plan(
         abort_msg = "FAILED ('plan')"
 
         try:
-            selected_ids = (
-                [id for entry in index_ids for id in entry.split(",") if id]
-                if index_ids
-                else None
-            )
-            selected_spans = shared.parse_multiple_ranges(span) if span else None
+            selected_ids = shared.split_names(index_ids)
+            selected_runs = shared.split_names(run_ids)
 
             assert work_dir, "Required parameter 'work_dir' was not provided."
 
@@ -122,7 +118,7 @@ def plan(
                 kmindex_skip_compression=skip_compression,
                 kmindex_build_from=None,
                 filter_names=selected_ids,
-                filter_spans=selected_spans,
+                filter_runs=selected_runs,
                 keep_previous=keep_previous,
                 limits=limits,
                 safety_margin=safety_margin,

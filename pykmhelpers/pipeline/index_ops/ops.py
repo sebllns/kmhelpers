@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Optional
 
 from pykmhelpers.core.log import Log
-from pykmhelpers.core.utils import summarize_names
+from pykmhelpers.core.utils import summarize_names, unmatched_patterns
 from pykmhelpers.operations.builder import IndexBuilder
 from pykmhelpers.pipeline.index_db import IndexDefinition, IndexDefinitionTools
 from pykmhelpers.pipeline.index_ops.executor import IndexExecutor, validate_definition
@@ -202,6 +202,16 @@ class IndexOps:
                 msg = f"   Failed to build index '{i.name}'"
                 if report.fail(e, msg, i.name, fail_on_error):
                     return report.result
+
+        if self.config.filter_runs:
+            # --run builds runs only: a later run with --shard alone merges them
+            missing = unmatched_patterns(executor.run_names, self.config.filter_runs)
+            if missing:
+                e = ValueError(f"No kmtricks run matches {', '.join(missing)}")
+                report.fail(e, "Invalid --run", None, True)
+                return report.result
+            logger.info("Runs built, nothing merged (--run)")
+            return report.finish()
 
         for target, parts in targets.items():
             try:

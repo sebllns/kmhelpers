@@ -17,31 +17,6 @@ import pykmhelpers.pipeline.mail_notifier
 logger = logging.getLogger(__name__)
 
 
-def _parse_spans(spans):
-    """Parse span arguments supporting multiple formats:
-    - Single values: --span 28
-    - Comma-separated: --span 27,28,29
-    - Range notation: --span [27-30] or --span 27-30
-    """
-    result = []
-    for item in spans:
-        # Handle range notation [27-30] or 27-30
-        item = item.strip(" []-")
-        if "-" in item:
-            # Range notation: 27-30
-            try:
-                start, end = item.split("-")
-                result.extend(
-                    i for i in range(int(start.strip()), int(end.strip()) + 1)
-                )
-            except ValueError:
-                result.append(item)
-        else:
-            # Comma-separated or single value
-            result.extend(int(s.strip()) for s in item.split(","))
-    return result
-
-
 @click.command(name="apply")
 @click.argument("input_file", nargs=1, required=True, type=click.Path(exists=True))
 @shared.index_build_options
@@ -57,8 +32,8 @@ def apply(
     session,
     work_dir,
     base_path,
-    span,
     index_ids,
+    run_ids,
     threads,
     limits,
     safety_margin,
@@ -78,8 +53,8 @@ def apply(
 
     BUILD_DIR (-o) is the index directory, reused across builds and passed to
     `query -r`. Parent indices are built automatically when required. Only
-    shards matching --shard or --span are processed; if neither is specified,
-    all declared indices are built.
+    shards matching --shard are processed (all by default); --run builds only
+    the matching kmtricks runs, without merging.
 
     Examples:
 
@@ -88,13 +63,18 @@ def apply(
     kmhelpers apply coli_db -o coli_build
 
     \b
-    # Build only selected shards or spans
+    # Build only selected shards (names or glob patterns)
     kmhelpers apply coli_db -o coli_build --shard coli_g0,coli_g1
-    kmhelpers apply coli_db -o coli_build -s 27-30
+    kmhelpers apply coli_db -o coli_build --shard 'coli_g0_*'
 
     \b
-    # Set threads and show progress
-    kmhelpers apply coli_db -o coli_build -t 8 --show-progress
+    # Build one chunk (e.g. a SLURM array task), then merge the shard
+    kmhelpers apply coli_db -o coli_build --run coli_g0_p1_initial_chunk3
+    kmhelpers apply coli_db -o coli_build --shard coli_g0_p1
+
+    \b
+    # Show progress
+    kmhelpers apply coli_db -o coli_build --show-progress
     """
 
     input_file = shared.resolve_definition(input_file, session)
@@ -152,8 +132,8 @@ def apply(
         signal.signal(signal.SIGTERM, _handle_sigterm)
 
     try:
-        selected_ids = [id for entry in index_ids for id in entry.split(",") if id]
-        selected_spans = _parse_spans(span)
+        selected_ids = shared.split_names(index_ids)
+        selected_runs = shared.split_names(run_ids)
     except Exception as e:
         pykmhelpers.core.log.Log.handle_exception(logger, e, f"Invalid argument.")
         raise click.ClickException(abort_msg)
@@ -198,7 +178,7 @@ def apply(
                     kmindex_skip_compression=skip_compression,
                     kmindex_build_from=None,
                     filter_names=selected_ids,
-                    filter_spans=selected_spans,
+                    filter_runs=selected_runs,
                     keep_previous=keep_previous,
                     limits=limits,
                     safety_margin=safety_margin,

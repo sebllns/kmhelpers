@@ -84,10 +84,11 @@ class IndexOpsConfig:
             compressed during the build.  Defaults to ``False``.
         kmindex_build_from: Override the parent index for all build operations,
             replacing the value declared in each index definition.
-        filter_spans: If set, only process index definitions whose span value is
-            in this list.
-        filter_names: If set, only process index definitions whose name is in
-            this list.
+        filter_names: If set, only process the shards (or parts) whose name
+            matches one of these glob patterns.
+        filter_runs: If set, only build the kmtricks runs (``<part>`` or
+            ``<part>_chunk<N>``) matching one of these glob patterns, and
+            publish nothing.
         limits: JSON line of resource limits (``ram``, ``files``, ``threads``,
             ``focus``) forwarded to ``auto_params`` when
             ``kmindex_threads`` is unset. Any key omitted is auto-detected
@@ -111,8 +112,8 @@ class IndexOpsConfig:
     kmindex_threads: Optional[int] = None
     kmindex_skip_compression: bool = False
     kmindex_build_from: Optional[str] = None
-    filter_spans: Optional[list[int]] = None
     filter_names: Optional[list[str]] = None
+    filter_runs: Optional[list[str]] = None
     limits: Optional[str] = None
     safety_margin: float = 0.9
     max_chunks: int = MAX_CHUNKS

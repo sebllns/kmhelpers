@@ -142,7 +142,7 @@ Review `coli_build/assets/` and `coli_build/logs/`, then:
     bash coli_build/assets/kmhelpers_apply.sh
     ```
 
-`apply` itself remains as an useful alternative, including on distributed systems - it can be launched independently on each node (e.g. one `--span` or `--name` subset per node) just like the bash script, lets you filter or rerun specific builds by name/span, and can email a notification on completion:
+`apply` itself remains as an useful alternative, including on distributed systems - it can be launched independently on each node (e.g. one `--shard` subset per node, or one chunk per task with `--run`) just like the bash script, lets you filter or rerun specific builds by shard or run, and can email a notification on completion:
 
 ??? example "Commands"
     ```bash

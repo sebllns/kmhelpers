@@ -13,6 +13,7 @@ from types import SimpleNamespace
 
 import yaml
 
+from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.pipeline.index_ops import ApplyStatus, IndexOpsConfig
 from pykmhelpers.pipeline.index_ops.executor import IndexExecutor
 from pykmhelpers.pipeline.index_ops.layout import LayoutStore
@@ -238,8 +239,11 @@ class TestIndexDefinitionSource(unittest.TestCase):
 
     def test_filters(self):
         self.assertEqual(self.names(filter_names=["b"]), ["b"])
-        self.assertEqual(self.names(filter_spans=[1]), ["a"])
-        self.assertEqual(self.names(filter_names=["a"], filter_spans=[2]), [])
+        self.assertEqual(self.names(filter_names=["*"]), ["a", "b"])
+
+    def test_unmatched_pattern_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "No shard matches c"):
+            self.names(filter_names=["a", "c"])
 
 
 class ShardCache:
@@ -292,9 +296,20 @@ class TestIndexSessionSource(unittest.TestCase):
         self.assertEqual([i.name for i in plan.definitions], ["p1", "p2", "p3"])
         self.assertEqual(loaded, ["t1", "t2"])
 
-    def test_filter_span(self):
-        plan, loaded = self.load(filter_spans=[2])
-        self.assertEqual((plan.merges, loaded), ({"t2": ["p3"]}, ["t2"]))
+    def test_filter_shard_glob(self):
+        plan, _ = self.load(filter_names=["t*"])
+        self.assertEqual(plan.merges, {"t1": ["p1", "p2"], "t2": ["p3"]})
+        plan, _ = self.load(filter_names=["*2"])
+        self.assertEqual(plan.merges, {"t2": ["p3"]})
+
+    def test_filter_part_glob_builds_without_merge(self):
+        plan, _ = self.load(filter_names=["p[12]"])
+        self.assertEqual(plan.merges, {})
+        self.assertEqual([i.name for i in plan.definitions], ["p1", "p2"])
+
+    def test_unmatched_pattern_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "No shard matches t3"):
+            self.load(filter_names=["t1", "t3"])
 
     def test_filter_shard_name(self):
         plan, _ = self.load(filter_names=["t1"])
@@ -424,6 +439,37 @@ class TestAlignWithStartedRuns(unittest.TestCase):
         self.start_run("t_s1_chunk0", 8)
         aligned = self.executor.align_with("t", BuildParams(4, 32, None, 10), "t_s1")
         self.assertEqual(aligned.partitions, 8)
+
+
+class TestRunFilter(unittest.TestCase):
+    """--run builds only the matching runs of a part."""
+
+    def build(self, chunk_size, **filters):
+        executor = IndexExecutor.__new__(IndexExecutor)
+        executor._config = make_config(**filters)
+        executor.run_names = []
+        built = []
+        executor._build_run = lambda name, fof, i, params: built.append(name)
+        fof = FofManager(samples={f"s{n}": [f"s{n}.fa"] for n in range(5)})
+        runs = executor.build(
+            make_definition("t_s1"), fof, BuildParams(4, 8, chunk_size, 10)
+        )
+        return built, runs, executor.run_names
+
+    def test_without_filter_every_chunk_is_built(self):
+        built, runs, names = self.build(2)
+        self.assertEqual(built, ["t_s1_chunk0", "t_s1_chunk1", "t_s1_chunk2"])
+        self.assertEqual(runs, {"t_s1_chunk0": 2, "t_s1_chunk1": 2, "t_s1_chunk2": 1})
+        self.assertEqual(names, built)
+
+    def test_only_matching_chunks_are_built(self):
+        built, runs, names = self.build(2, filter_runs=["*_chunk1"])
+        self.assertEqual((built, runs), (["t_s1_chunk1"], {"t_s1_chunk1": 2}))
+        self.assertEqual(len(names), 3)
+
+    def test_a_part_in_one_run(self):
+        self.assertEqual(self.build(None, filter_runs=["t_s1"])[0], ["t_s1"])
+        self.assertEqual(self.build(None, filter_runs=["other"])[0], [])
 
 
 class TestBuildPaths(unittest.TestCase):

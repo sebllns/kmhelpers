@@ -102,33 +102,13 @@ def force_verbose_mode():
                 handler.setLevel(logging.INFO)
 
 
-def parse_range(value: str):
-    """Parse interval arguments supporting multiple formats:
-    - Single values: '28'
-    - Comma-separated: '27,28,29'
-    - Range notation: '[27-30]' or '27-30'
+def split_names(values) -> list[str] | None:
+    """Names or patterns of a repeatable option: --shard a --shard b, or --shard a,b.
+
+    None when the option is not given.
     """
-    result = []
-    # Handle range notation [27-30] or 27-30
-    item = value.strip(" []-")
-    if "-" in item:
-        # Range notation: 27-30
-        try:
-            start, end = item.split("-")
-            result.extend(i for i in range(int(start.strip()), int(end.strip()) + 1))
-        except ValueError:
-            result.append(item)
-    else:
-        # Comma-separated or single value
-        result.extend(int(s.strip()) for s in item.split(","))
-    return result
-
-
-def parse_multiple_ranges(values: tuple[str]):
-    result = []
-    for item in values:
-        result.extend(parse_range(item))
-    return result
+    names = [n for entry in values or () for n in entry.split(",") if n]
+    return names or None
 
 
 output_dir_option = click.option(
@@ -157,20 +137,24 @@ _base_path_option = click.option(
     "paths are resolved from the run directory; use this option if you "
     "need to resolve them from a different location.",
 )
-_span_option = click.option(
-    "--span",
-    "-s",
-    multiple=True,
-    required=False,
-    help="⚙   Build only selected span (e.g., --span 28, --span 27,28,29, --span 27-30, --span [27-30]).",
-)
 _index_ids_option = click.option(
     "--sh",
     "--shard",
     "index_ids",
     multiple=True,
     required=False,
-    help="⚙   Shard(s) to build (repeatable or comma-separated: --shard g0 --shard g1, --shard g0,g1).",
+    help="⚙   Shards to build, as names or glob patterns (repeatable or "
+    "comma-separated: --shard idx_g0_p1, --shard 'idx_g0_*'). A part name "
+    "(<shard>_<session>) builds that part only, without merging it.",
+)
+_run_option = click.option(
+    "--run",
+    "run_ids",
+    multiple=True,
+    required=False,
+    help="⚙   Build only the kmtricks runs matching these names or glob patterns "
+    "(e.g. 'idx_g0_p1_initial_chunk*'), without merging; a later run with "
+    "--shard alone merges them.",
 )
 _threads_option = click.option(
     "--threads",
@@ -266,10 +250,10 @@ _INDEX_BUILD_OPTIONS = [
 
 # Only meaningful for commands that operate on an already-composed
 # definition/registry file (plan, apply); `build` always processes the
-# whole input file, so filtering by name/span doesn't apply there.
+# whole input file, so filtering by shard or run doesn't apply there.
 _INDEX_FILTER_OPTIONS = [
-    _span_option,
     _index_ids_option,
+    _run_option,
 ]
 
 # Only meaningful for commands that actually execute a build (apply, build);

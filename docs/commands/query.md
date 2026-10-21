@@ -22,7 +22,7 @@ Query indices with FASTA/FASTQ sequences.
 ## Advanced Options
 | Option | Description |
 |--------|-------------|
-| `--sh, --shard TEXT` | Shard(s) to query (repeatable or comma-separated, default: all) |
+| `--sh, --shard TEXT` | Shards to query, as names or glob patterns (repeatable or comma-separated, e.g. `'idx_g0_*'`; default: all) |
 | `-t, --threads INT` | Number of threads (default: 1) |
 | `-z, --zvalue INT` | Z-value for findere algorithm to filter false positives (default: 6) |
 | `-R, --threshold FLOAT` | Score threshold for filtering results (default: 0.05) |

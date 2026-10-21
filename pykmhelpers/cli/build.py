@@ -150,7 +150,6 @@ def build(
             kmindex_skip_compression=skip_compression,
             kmindex_build_from=None,
             filter_names=None,
-            filter_spans=None,
             keep_previous=keep_previous,
             limits=limits,
             safety_margin=safety_margin,

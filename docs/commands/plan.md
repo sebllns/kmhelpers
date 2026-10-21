@@ -26,8 +26,8 @@ See [build - Paths](build.md#paths) for the directory layout.
 | Option | Description |
 |--------|-------------|
 | `--bp, --base-path DIR` | Base path to resolve relative sample paths |
-| `-s, --span TEXT` | Span(s) to preview: single value, comma-separated, or range (e.g. `27-30`) |
-| `--sh, --shard TEXT` | Shard(s) to preview (repeatable or comma-separated) |
+| `--sh, --shard TEXT` | Shards to preview, as names or glob patterns (repeatable or comma-separated, e.g. `idx_g0_p1`, `'idx_g0_*'`); a part name (`<shard>_<session>`) previews that part only, without merging |
+| `--run TEXT` | Build only the kmtricks runs matching these names or glob patterns (`<part>` or `<part>_chunk<N>`), without merging; see [Building chunks separately](apply.md#building-chunks-separately) |
 | `--threads INT` | Hidden. Force the number of kmtricks threads instead of sizing them from `--limits` |
 | `-NC, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
 | `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Builds and merges](build.md#builds-and-merges) |
@@ -44,7 +44,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 
 **Offline mode** - use `--offline` to skip local path validation when generating scripts destined for another machine.
 
-**Filtering** - use `--name` or `--span` to preview only a subset of the declared indices.
+**Filtering** - `--shard` selects shards (all by default) by name or glob pattern: `--shard 'idx_g0_*'` selects every shard of group 0. A pattern that matches no shard is an error. `--run` goes one level down, to the kmtricks runs of a shard, and previews them without merging.
 
 ## Examples
 
@@ -52,8 +52,8 @@ See [build - Paths](build.md#paths) for the directory layout.
 # Preview build plan for a definition file
 kmhelpers plan coli_db -o coli_build/
 
-# Preview with specific spans
-kmhelpers plan coli_db -o coli_build/ -s 28,31
+# Preview every shard of group 0 (glob pattern)
+kmhelpers plan coli_db -o coli_build/ --sh 'coli_g0_*'
 
 # Preview for specific index names
 kmhelpers plan coli_db -o coli_build/ --sh coli_g0

@@ -51,6 +51,8 @@ All notable changes to this project will be documented in this file.
 - **`compose`/`design --shard-size` (`-si`) is now the hidden `--shard-budget-bytes`**: it caps a shard by bytes on disk instead of the shard budget, not on top of it, and cannot be combined with `--shard-budget`
 - **`--max-chunks`** (`plan`, `apply`, `build`): caps the chunks of a shard, default 64 (was 200)
 - **`--threads`** (`plan`, `apply`, `build`) is hidden and loses `-t`: threads are sized from `--limits` (e.g. `--limits '{"threads": 8}'`)
+- **Shard selection by glob pattern**: `plan`, `apply` and `query` `--sh, --shard` take glob patterns (`'idx_g0_*'`); a name without wildcard matches exactly, and a pattern matching nothing is an error. `plan`/`apply -s, --span` is removed: `--shard 'NAME_g<i>*'` selects a group
+- **`plan`/`apply --run PATTERN`**: builds only the matching kmtricks runs (`<part>`, `<part>_chunk<N>`) without merging, e.g. one chunk per SLURM array task; a later `apply --shard` merges them
 - **`design`/`compose -P, --partition-count`** is hidden: the partition count is sized at plan from `--limits` unless fixed
 - **`KmtricksWrapper.pipeline`, `KmindexWrapper.build`**: `bloom_size` is required and `bitw` optional; with `bitw` set, the index is an abundance index of `bloom_size` cells, otherwise presence/absence (`nb_cell` removed)
   - `kmhelpers kmindex build`: `--bloom-size` is required, `--bitw` replaces `--nb-cell`

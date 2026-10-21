@@ -12,7 +12,7 @@ from typing import Optional
 from pykmhelpers.core.byte import ByteCounter, SizeFormat
 from pykmhelpers.core.kmindex_layout import load_options_file
 from pykmhelpers.core.kmindex_paths import chunk_problems
-from pykmhelpers.core.utils import summarize_names
+from pykmhelpers.core.utils import matches_any, summarize_names
 from pykmhelpers.operations.builder import IndexBuilder, backup_name
 from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.pipeline.index_db import IndexDefinition
@@ -75,6 +75,8 @@ class IndexExecutor:
         self._paths = paths
         self._claimed = set[str]()
         self._prepared: set[str] = set()
+        # Every run name planned, selected by --run or not
+        self.run_names: list[str] = []
 
     @property
     def executes(self) -> bool:
@@ -184,25 +186,33 @@ class IndexExecutor:
         """Build ``i`` as unregistered runs; return their sample count by run name.
 
         One run named after ``i``, or ``{name}_chunk{n}`` runs when ``params``
-        requires chunks.
+        requires chunks. With ``config.filter_runs``, only the matching runs
+        are built and returned.
         """
         assert i.name
         if params.chunk_size is None:
-            self._build_run(i.name, fof, i, params)
-            return {i.name: fof.get_sample_count()}
+            planned = {i.name: fof}
+        else:
+            size = params.chunk_size
+            items = list(fof.samples.items())
+            chunks = [items[n : n + size] for n in range(0, len(items), size)]
+            logger.info(
+                f"  └── Splitting '{i.name}' into {len(chunks)} chunks of up to "
+                f"{size} samples"
+            )
+            planned = {
+                f"{i.name}_chunk{n}": FofManager(samples=dict(chunk_items))
+                for n, chunk_items in enumerate(chunks)
+            }
+        self.run_names.extend(planned)
 
-        size = params.chunk_size
-        items = list(fof.samples.items())
-        chunks = [items[n : n + size] for n in range(0, len(items), size)]
-        logger.info(
-            f"  └── Splitting '{i.name}' into {len(chunks)} chunks of up to "
-            f"{size} samples"
-        )
+        patterns = self._config.filter_runs
         runs: dict[str, int] = {}
-        for n, chunk_items in enumerate(chunks):
-            name = f"{i.name}_chunk{n}"
-            self._build_run(name, FofManager(samples=dict(chunk_items)), i, params)
-            runs[name] = len(chunk_items)
+        for name, run_fof in planned.items():
+            if patterns and not matches_any(name, patterns):
+                continue
+            self._build_run(name, run_fof, i, params)
+            runs[name] = run_fof.get_sample_count()
         return runs
 
     def _build_run(

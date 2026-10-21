@@ -25,8 +25,8 @@ See [build - Paths](build.md#paths) for the directory layout.
 | Option | Description |
 |--------|-------------|
 | `--bp, --base-path DIR` | Base path to resolve relative sample paths |
-| `-s, --span TEXT` | Span(s) to build: single value, comma-separated, or range (e.g. `27-30`) |
-| `--sh, --shard TEXT` | Shard(s) to build (repeatable or comma-separated) |
+| `--sh, --shard TEXT` | Shards to build, as names or glob patterns (repeatable or comma-separated, e.g. `idx_g0_p1`, `'idx_g0_*'`); a part name (`<shard>_<session>`) builds that part only, without merging |
+| `--run TEXT` | Build only the kmtricks runs matching these names or glob patterns (`<part>` or `<part>_chunk<N>`), without merging; see [Building chunks separately](apply.md#building-chunks-separately) |
 | `--threads INT` | Hidden. Force the number of kmtricks threads instead of sizing them from `--limits` |
 | `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Builds and merges](build.md#builds-and-merges) |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use (default: 0.9) |
@@ -44,7 +44,18 @@ See [build - Paths](build.md#paths) for the directory layout.
 
 **Parent indices** - built automatically when required.
 
-**Filtering** - use `--name` or `--span` to build only a subset of the declared indices.
+**Filtering** - `--shard` selects shards (all by default) by name or glob pattern: `--shard 'idx_g0_*'` selects every shard of group 0. A pattern that matches no shard is an error. `--run` goes one level down, to the kmtricks runs of a shard, and builds them without merging.
+
+### Building chunks separately
+
+A shard whose new samples don't fit one kmtricks build is built in chunks, `<part>_chunk<N>` (see [build - Shards and chunks](build.md#shards-and-chunks)). `--run` builds only the matching runs and merges nothing, e.g. one chunk per task of a SLURM array; a final `apply --shard` reuses the complete runs and merges them. Every task must use the same `--limits`, `--chunk-budget` and `--max-chunks` as the final apply, so the chunks are cut the same way: `plan` with these options lists the run names.
+
+```bash
+# one task per chunk
+kmhelpers apply coli_db -o coli_build/ --limits "$LIMITS" --run "coli_g0_p0_initial_chunk${SLURM_ARRAY_TASK_ID}"
+# then, once all are done
+kmhelpers apply coli_db -o coli_build/ --limits "$LIMITS" --shard coli_g0_p0
+```
 
 ## Examples
 
@@ -56,9 +67,8 @@ kmhelpers apply coli_db -o coli_build/
 kmhelpers apply coli_db -o coli_build/ --sh coli_g0,coli_g1
 kmhelpers apply coli_db -o coli_build/ --sh coli_g0 --sh coli_g1
 
-# Build only specific spans
-kmhelpers apply coli_db -o coli_build/ -s 28
-kmhelpers apply coli_db -o coli_build/ -s 27-30
+# Build every shard of group 0 (glob pattern)
+kmhelpers apply coli_db -o coli_build/ --sh 'coli_g0_*'
 
 # Resolve sample paths from a base directory
 kmhelpers apply coli_db -o coli_build/ --bp /data/samples
