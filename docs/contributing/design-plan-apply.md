@@ -205,16 +205,25 @@ jobs:                           # resources per kind of job
   build: {cpus: 24, mem: 120G}
   merge: {cpus: 24, mem: 120G}
   check: {cpus: 1, mem: 4G, time: "1:00:00"}
-limits: {files: 4096, maps: 65530}   # node limits plan cannot detect
+limits: {files: 131072, maps: 65530}  # optional: compute-node limits, see below
 ```
 
 - Keys under `jobs.<kind>` override the top-level ones (`partition`,
   `time`, ...) for that kind. Unknown keys are an error.
 - **The cluster file is the source of the limits**: `plan` sizes chunks from
   `jobs.build` (`threads = cpus`, `ram = mem`) and merges from `jobs.merge`,
-  plus `limits:` for what the allocation does not tell. The node you plan
-  on does not matter, and the allocation cannot differ from the plan.
-  `--limits` with `--cluster` is an error.
+  plus `limits:` for what the allocation does not tell. The allocation
+  cannot differ from the plan. `--limits` with `--cluster` is an error.
+- **`limits.files` and `limits.maps`** are node settings, not part of an
+  allocation. Without `limits:`, `plan` detects them on the node it runs on;
+  set them only when the compute nodes differ from it:
+  - `files`: the **hard** open-files limit (`ulimit -Hn`): kmhelpers and its
+    scripts raise the soft limit to it (`ulimit -Sn "$(ulimit -Hn)"` in every
+    generated script);
+  - `maps`: `vm.max_map_count` (`cat /proc/sys/vm/max_map_count`), per node,
+    not propagated by SLURM;
+  - read them on a compute node with
+    `srun -p long -c 1 --mem=1G -t 5 bash -c 'ulimit -Hn; cat /proc/sys/vm/max_map_count'`.
 - The resolved file is copied into `plan.yaml` (`cluster:`) and hashed in the
   fingerprint.
 - The same file can be given in the `-C` config (`plan: {cluster: ...}`).
@@ -236,6 +245,7 @@ submit.sh         submits what `apply --pending` lists (safe to run again):
 - With `--chunks-per-job 0` there is no merge job: one array task per shard,
   no dependency; the check job waits for the whole array.
 - An array longer than the cluster `MaxArraySize` is split by `submit.sh`.
+
 ## Removed
 
 - `apply` sizing options, `--run`, and planning inside `apply`.
