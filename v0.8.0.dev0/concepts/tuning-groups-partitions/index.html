@@ -962,24 +962,6 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Choosing groups and partitions
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -996,91 +978,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#two-independent-settings" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Two independent settings
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#summary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Summary
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#query-time" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Query time
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#build-ram" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Build RAM
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#storage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Storage
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#practical-trade-off" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Practical trade-off
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -2641,80 +2538,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#two-independent-settings" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Two independent settings
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#summary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Summary
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#query-time" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Query time
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#build-ram" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Build RAM
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#storage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Storage
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#practical-trade-off" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Practical trade-off
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -2782,70 +2605,50 @@
 
 
 <h1 id="choosing-groups-and-partitions">Choosing groups and partitions</h1>
-<h2 id="two-independent-settings">Two independent settings</h2>
 <p>The layout of an index rests on two settings (see the <a href="../terms/">Glossary</a>):</p>
 <ul>
 <li><strong>groups</strong> (<code>-g</code>, <a href="../../commands/design/"><code>design</code></a>, <a href="../../commands/profile/"><code>profile</code></a>):
   how many sets of samples of similar sizes. Each group gets the Bloom filter size of its
-  largest samples, and is stored as one shard (or several, with a shard budget).</li>
-<li><strong>partitions</strong> (<code>-P, --partition-count</code>, hidden option of <a href="../../commands/design/"><code>design</code></a>
-  and <a href="../../commands/compose/"><code>compose</code></a>): how many files the k-mers of each shard are
-  spread over. Usually left unset: the first <a href="../../commands/plan/"><code>plan</code></a> or
-  <a href="../../commands/build/"><code>build</code></a> sizes it from the resources, then it is fixed for the life
-  of the index (see <a href="../../commands/compose/#description">compose - Partitioning</a>).</li>
+  largest samples, and is stored as one shard (or several, with a shard budget).
+  By default (<code>-g 0</code>) the number is chosen: groups are added while each saves at least 20%
+  of the storage; with <code>design</code>, an index of at most 4 GB keeps one group
+  (see <a href="../../commands/profile/#description">profile - Grouping</a>).</li>
+<li><strong>partitions</strong> (<code>-P</code>, hidden option of <code>design</code> and <code>compose</code>): how many files the k-mers
+  of each shard are spread over. Best left unset: the first <a href="../../commands/plan/"><code>plan</code></a>
+  sizes it from the resources, then it is fixed for the life of the index.</li>
 </ul>
-<pre class="mermaid"><code>flowchart LR
-    S["samples"] --&gt;|"-g: groups"| G["coli_g0, coli_g1&lt;br/&gt;(shards)"]
-    G --&gt;|"-P: partitions, in each shard"| P["matrix_0.cmbf ... matrix_P-1.cmbf"]</code></pre>
-<p>By default (<code>-g 0</code>), the number of groups is chosen: groups are added while each one saves
-at least 20% of the storage; with <code>design</code>, an index of at most 4 GB keeps one group (see
-<a href="../../commands/profile/#description">profile - Grouping</a>).</p>
-<h2 id="summary">Summary</h2>
-<p>Direction to move each setting for a given goal:</p>
 <table>
 <thead>
 <tr>
 <th>Goal</th>
 <th style="text-align: center;">Groups (<code>-g</code>)</th>
 <th style="text-align: center;">Partitions (<code>-P</code>)</th>
+<th>Why</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Faster queries</td>
-<td style="text-align: center;">-</td>
-<td style="text-align: center;">-</td>
-</tr>
-<tr>
-<td>Lower build RAM</td>
-<td style="text-align: center;">+</td>
-<td style="text-align: center;">+</td>
+<td style="text-align: center;">fewer</td>
+<td style="text-align: center;">fewer</td>
+<td>each shard is read in turn; fewer files per query</td>
 </tr>
 <tr>
 <td>Less storage</td>
-<td style="text-align: center;">+</td>
+<td style="text-align: center;">more</td>
 <td style="text-align: center;"></td>
+<td>Bloom filter sizes fit the samples more tightly: a small sample in a group of large ones gets their large filter</td>
+</tr>
+<tr>
+<td>Lower build RAM</td>
+<td style="text-align: center;">more</td>
+<td style="text-align: center;">more</td>
+<td>less held at once by one build; usually handled by <code>plan</code> (partitions, threads, chunks)</td>
 </tr>
 </tbody>
 </table>
-<p><code>+</code> increase, <code>-</code> decrease, blank: not a practical lever.</p>
-<p>For example, to speed up queries, lower <code>-g</code> first, then <code>-P</code>. If build RAM is
-constrained, raise <code>-P</code> first, then <code>-g</code>.</p>
-<h2 id="query-time">Query time</h2>
-<p>Fewer groups and fewer partitions both mean fewer files read per query: each shard is read
-in turn.</p>
-<h2 id="build-ram">Build RAM</h2>
-<p>More partitions and more groups both shrink what one build holds at once, lowering its peak
-RAM.</p>
-<h2 id="storage">Storage</h2>
-<p>More groups fit the Bloom filter sizes to the samples more tightly, wasting less space: a
-small sample in the group of large ones gets their large filter. The number of partitions
-has no meaningful effect on storage. <code>profile</code> writes the storage of each choice of groups
-to <code>profile.yaml</code>, and plots it in <code>groups.png</code>.</p>
-<h2 id="practical-trade-off">Practical trade-off</h2>
-<p>Fewer groups and partitions favor query speed but raise build RAM; more favor build RAM and
-storage but raise the files read per query. Check <code>groups.png</code> (from <code>profile</code>) before
-deciding, and set <code>-g</code> explicitly when the automatic choice does not fit your use.</p>
+<p>Check the storage of each choice of groups in <code>profile.yaml</code> and <code>groups.png</code> (from
+<code>profile</code>), and set <code>-g</code> explicitly when the automatic choice does not fit your use.</p>
 
 
 

@@ -2813,25 +2813,23 @@ jobs run the plan: chunks on several nodes at once, then one merge per shard. Se
 <a href="../../commands/build/#on-a-cluster">build - On a cluster</a>.</p>
 <pre class="mermaid"><code>sequenceDiagram
     actor U as you
-    participant B as build --hpc
+    participant B as build
     participant SL as SLURM
-    participant A as build jobs (array)
-    participant M as merge job, per shard
-    participant F as finish job
-    U-&gt;&gt;B: coli_db -o coli_build/ --hpc cluster.yaml
-    B-&gt;&gt;B: plan: chunks, jobs, SLURM files
-    B-&gt;&gt;SL: submit the array, the merges, the finish job
-    B--&gt;&gt;U: submitted (build exits)
-    par on several nodes
-        SL-&gt;&gt;A: one task per job: its chunks (kmtricks)
-    end
-    A--&gt;&gt;SL: done
-    SL-&gt;&gt;M: once the jobs of its shard are done
-    M-&gt;&gt;M: merge the chunks, publish the shard
-    SL-&gt;&gt;F: once every job has ended
-    F-&gt;&gt;F: check the index, write progress.yaml
-    F--&gt;&gt;U: mail (with --notify)
-    Note over U,F: follow it at any time: kmhelpers apply ... --status --sp</code></pre>
+    participant A as array
+    participant M as merge
+    participant F as finish
+    U-&gt;&gt;B: --hpc cluster.yaml
+    B-&gt;&gt;B: plan:&lt;br/&gt;chunks, jobs
+    B-&gt;&gt;SL: submit
+    B--&gt;&gt;U: submitted
+    SL-&gt;&gt;A: one task per job&lt;br/&gt;(several nodes)
+    A-&gt;&gt;A: build chunks&lt;br/&gt;(kmtricks)
+    SL-&gt;&gt;M: once its shard's&lt;br/&gt;jobs are done
+    M-&gt;&gt;M: merge,&lt;br/&gt;publish shard
+    SL-&gt;&gt;F: once every&lt;br/&gt;job has ended
+    F-&gt;&gt;F: check index,&lt;br/&gt;progress.yaml
+    F--&gt;&gt;U: mail (--notify)
+    Note over U,F: follow it: apply --status --sp</code></pre>
 <p>A failed job cancels the jobs waiting on it, and the finish job reports it; running the same
 <code>build</code> command again submits only what is not done.</p>
 <h2 id="updating-an-index">Updating an index</h2>
@@ -2839,17 +2837,17 @@ jobs run the plan: chunks on several nodes at once, then one merge per shard. Se
 that the index keeps its groups, Bloom filter sizes and partitions.</p>
 <pre class="mermaid"><code>sequenceDiagram
     actor U as you
-    participant D as design -s update
-    participant B as build -s update
-    participant S as shard coli_g0 (in the index)
-    U-&gt;&gt;D: new sample files
-    D-&gt;&gt;D: assign each sample to its group and shard (layout)
-    U-&gt;&gt;B: build the session
-    B-&gt;&gt;B: build the new samples (one run, or chunks)
-    B-&gt;&gt;B: merge them with the current coli_g0
-    Note over S: coli_g0 stays queryable
-    B-&gt;&gt;S: swap: the merged version replaces coli_g0
-    B-&gt;&gt;B: check it, then delete the previous version</code></pre>
+    participant D as design
+    participant B as build
+    participant S as coli_g0
+    U-&gt;&gt;D: new samples&lt;br/&gt;-s update
+    D-&gt;&gt;D: each sample to its&lt;br/&gt;shard (layout)
+    U-&gt;&gt;B: -s update
+    B-&gt;&gt;B: build the new&lt;br/&gt;samples
+    B-&gt;&gt;B: merge with the&lt;br/&gt;current coli_g0
+    Note over S: still queryable
+    B-&gt;&gt;S: swap in the&lt;br/&gt;merged version
+    B-&gt;&gt;B: check, delete the&lt;br/&gt;previous version</code></pre>
 <p>The swap takes a second or so; until then, queries see the previous version. An
 interrupted update is finished by running the same command again. See
 <a href="../../commands/build/#updating-an-index">build - Updating an index</a> and the
