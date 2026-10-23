@@ -4,7 +4,6 @@ import logging
 import os
 
 import click
-import yaml
 
 import pykmhelpers.cli.shared as shared
 import pykmhelpers.core.log
@@ -135,21 +134,17 @@ def plan(
         for input_file in input_files:
             try:
                 logger.info(f"Plan {input_file}...")
+                details_path = os.path.join(
+                    log_dir, f"kmhelpers_plan_{iops.timestamp}_{i}.yaml"
+                )
                 result = iops.run(
                     input_file,
                     mode=(ops.ApplyMode.DRY_RUN if offline else ops.ApplyMode.PLAN),
                     fail_on_error=fail_on_error,
+                    report_path=details_path,
                 )
-                if result.details:
-                    details_path = os.path.join(
-                        log_dir, f"kmhelpers_plan_{iops.timestamp}_{i}.yaml"
-                    )
-                    with open(details_path, "w") as f:
-                        yaml.dump(
-                            result.details, f, default_flow_style=False, sort_keys=False
-                        )
-                    logger.info(f"Result details written to {details_path}")
-                    i += 1
+                logger.info(f"Result details written to {details_path}")
+                i += 1
                 if result.status in (ops.ApplyStatus.PARTIAL, ops.ApplyStatus.FAILED):
                     failed = True
                     logger.error(f"FAILED to plan {os.path.basename(input_file)}")

@@ -42,6 +42,12 @@ See [build - Paths](build.md#paths) for the directory layout.
 
 `plan` validates all sample paths of the session upfront and previews the commands that would be executed by [`apply`](apply.md), without running them or touching the registry. It writes the equivalent shell scripts to `BUILD_DIR/assets/SESSION/` (one per sub-index, `<shard>.sh` with its builds and `<shard>_merge.sh` with its publication, plus `kmhelpers_apply.sh` running them in order; see [build - Builds and merges](build.md#builds-and-merges)) and a validation report to `BUILD_DIR/logs/`.
 
+**Report** - `BUILD_DIR/logs/kmhelpers_plan_<timestamp>_<n>.yaml`, written once the plan is done:
+
+- `summary`: command, status (`SUCCESS`, `PARTIAL`, `FAILED` or `NONE`), start, end and duration, result counts, totals (shards, samples, kmtricks runs, estimated size) and the same per span
+- `kmindex`, `kmhelpers` (version, path, and `git_commit` when `$GIT_COMMIT` is set), `system` (host, kernel, CPUs, and the SLURM job when there is one), `limits` (the RAM, open files, threads and `vm.max_map_count` the sizing used)
+- `shards`: one entry per shard, with its parts: span, samples, build parameters (threads, partitions and where the count comes from: `design`, `auto`, `registered` or `run`, minimizer size, chunk size, Bloom filter size, k-mer ratio), estimated size, scripts, and its kmtricks runs (`planned`); how the shard is published (`move`, `merge` with its merge steps and their estimated memory, or `register`)
+
 **Offline mode** - use `--offline` to skip local path validation when generating scripts destined for another machine.
 
 **Filtering** - `--shard` selects shards (all by default) by name or glob pattern: `--shard 'idx_g0_*'` selects every shard of group 0. A pattern that matches no shard is a warning; only no match at all is an error (same for `--run`). `--run` goes one level down, to the kmtricks runs of a shard, and previews them without merging.

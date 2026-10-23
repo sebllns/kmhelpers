@@ -7,7 +7,6 @@ import signal
 import sys
 
 import click
-import yaml
 from click.core import ParameterSource
 
 import pykmhelpers.cli.shared as shared
@@ -163,14 +162,14 @@ def build(
     # --- Step 1: plan ---
     try:
         pykmhelpers.core.log.Log.step(logger, f"STEP 1: Plan {input_file}")
-        result = iops.run(input_file, mode=ops.ApplyMode.PLAN, fail_on_error=False)
-        if result.details:
-            details_path = os.path.join(
-                log_dir, f"kmhelpers_plan_{iops.timestamp}.yaml"
-            )
-            with open(details_path, "w") as f:
-                yaml.dump(result.details, f, default_flow_style=False, sort_keys=False)
-            logger.info(f"Plan details written to {details_path}")
+        details_path = os.path.join(log_dir, f"kmhelpers_plan_{iops.timestamp}.yaml")
+        result = iops.run(
+            input_file,
+            mode=ops.ApplyMode.PLAN,
+            fail_on_error=False,
+            report_path=details_path,
+        )
+        logger.info(f"Plan details written to {details_path}")
     except Exception as e:
         pykmhelpers.core.log.Log.handle_exception(
             logger, e, f"Could not plan {os.path.basename(input_file)}"
@@ -201,16 +200,14 @@ def build(
         pykmhelpers.core.log.Log.step(logger, f"STEP 2: Apply {input_file}")
         # 'build' is the high-level command: always fail loudly rather than
         # skipping a failed index and exiting 0.
-        result = iops.run(input_file, apply_mode, fail_on_error=True)
+        details_path = os.path.join(log_dir, f"kmhelpers_apply_{iops.timestamp}.yaml")
+        # attached before the run: a killed run still mails its report so far
+        attachments.append(details_path)
+        result = iops.run(
+            input_file, apply_mode, fail_on_error=True, report_path=details_path
+        )
         _notify_state["status"] = result.status.value
-        if result.details:
-            details_path = os.path.join(
-                log_dir, f"kmhelpers_apply_{iops.timestamp}.yaml"
-            )
-            with open(details_path, "w") as f:
-                yaml.dump(result.details, f, default_flow_style=False, sort_keys=False)
-            attachments.append(details_path)
-            logger.info(f"Apply details written to {details_path}")
+        logger.info(f"Apply details written to {details_path}")
         if result.status is ops.ApplyStatus.FAILED:
             logger.error("FAILED ('apply')")
             raise click.ClickException("FAILED ('apply')")

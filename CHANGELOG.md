@@ -21,6 +21,9 @@ All notable changes to this project will be documented in this file.
 - **`query --export` (`-x`)**: writes a Markdown or HTML report beside the data results
 - **`query -f none`**: keeps only the raw kmindex results
 - **Query statistics**: `sequence_stats.tsv` (one row per query sequence) and `sample_stats.tsv` (one row per matched sample), with match count, perfect matches and mean and median scores; `--no-stats` skips them. The overall rows are also in the md and html reports
+- **Plan/apply report** (`BUILD_DIR/logs/kmhelpers_{plan,apply}_*.yaml`): organised by shard (`run` renamed `shards`, the span table moved to `summary.spans`), with a `summary` (status, times, counts, totals), the host, kernel, CPUs and SLURM job, the resolved limits, `kmhelpers.git_commit` from `$GIT_COMMIT`, each part's build parameters (with `partitions_source`: `design`, `auto`, `registered` or `run`), scripts and kmtricks runs, and how each shard is published (merge steps and their estimated memory)
+  - `apply` adds per run the duration, peak RSS, max CPU, CPU efficiency and share of the RAM limit read from `logs/<run>/kmtricks.log`, and per shard the publish duration and size on disk
+  - Written as the run goes: a running or killed `apply` leaves its report so far (`summary.status: RUNNING`), also attached to the `--notify` mail
 - **`--keep-previous`** (`plan`, `apply`, `build`): keeps the replaced version of an updated index in `BUILD_DIR/work/SESSION/previous/`
 - **`manage check -n`**: checks only the given indices, and fails if one is not registered
 - **`manage move-dir`** (internal, hidden): renames a folder for the generated scripts, failing instead of copying across filesystems

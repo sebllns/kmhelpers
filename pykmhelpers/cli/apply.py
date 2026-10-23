@@ -7,7 +7,6 @@ import signal
 import sys
 
 import click
-import yaml
 
 import pykmhelpers.cli.shared as shared
 import pykmhelpers.core.log
@@ -189,19 +188,20 @@ def apply(
             log_dir = iops.log_dir
 
             logger.info(f"Apply {input_file}...")
-            result = iops.run(input_file, apply_mode, fail_on_error=fail_on_error)
+            details_path = os.path.join(
+                log_dir, f"kmhelpers_apply_{iops.timestamp}_{i}.yaml"
+            )
+            # attached before the run: a killed run still mails its report so far
+            attachements.append(details_path)
+            result = iops.run(
+                input_file,
+                apply_mode,
+                fail_on_error=fail_on_error,
+                report_path=details_path,
+            )
             _notify_state["status"] = result.status.value
-            if result.details:
-                details_path = os.path.join(
-                    log_dir, f"kmhelpers_apply_{iops.timestamp}_{i}.yaml"
-                )
-                with open(details_path, "w") as f:
-                    yaml.dump(
-                        result.details, f, default_flow_style=False, sort_keys=False
-                    )
-                attachements.append(details_path)
-                logger.info(f"Result details written to {details_path}")
-                i += 1
+            logger.info(f"Result details written to {details_path}")
+            i += 1
             if result.status is ops.ApplyStatus.FAILED:
                 failed = True
                 logger.error("FAILED ('apply')")

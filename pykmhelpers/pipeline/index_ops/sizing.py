@@ -1,6 +1,6 @@
 import logging
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 from pykmhelpers.core.bloom_filter import bf_max_kmers
@@ -31,12 +31,18 @@ class BuildParams:
     of the shard (see ``resolve_partitions``). ``chunk_size`` is set when the open-files ceiling can't fit
     every sample in one kmtricks build; the build is then split into chunks
     of at most that many samples, which are merged.
+
+    ``partitions_source`` tells where the partition count comes from, for the
+    report: ``design`` (``compose -P``), ``auto`` (sized from the limits),
+    ``registered`` (the shard already built) or ``run`` (a run of the session
+    already started). It does not take part in comparisons.
     """
 
     threads: int
     partitions: int
     chunk_size: Optional[int] = None
     minim_size: int = 10
+    partitions_source: str = field(default="auto", compare=False)
 
 
 def resolve_minim_size(i: IndexDefinition, layout: LayoutStore) -> int:
@@ -72,6 +78,12 @@ def build_kmers(i: IndexDefinition) -> int:
     shard's k-mer ratio.
     """
     return math.ceil(bf_max_kmers(i.bf_size, i.fp_rate) * i.kmer_ratio)
+
+
+def partitions_source(i: IndexDefinition, layout: LayoutStore) -> str:
+    """``design`` when the partition count of ``i`` is fixed, else ``auto``
+    (the test of ``resolve_partitions``)."""
+    return "design" if i.partition_count or layout.partition_count(i.span) else "auto"
 
 
 def resolve_partitions(
@@ -123,6 +135,7 @@ def resolve_build_params(
     ceiling, ``config.max_chunks`` and ``config.chunk_budget``.
     """
     minim_size = resolve_minim_size(i, layout)
+    source = partitions_source(i, layout)
     partitions = resolve_partitions(i, sample_count, config, layout)
 
     max_chunk_samples = chunk_samples(i, config, layout)
@@ -133,7 +146,9 @@ def resolve_build_params(
             if max_chunk_samples and max_chunk_samples < sample_count
             else None
         )
-        return BuildParams(config.kmindex_threads, partitions, chunk_size, minim_size)
+        return BuildParams(
+            config.kmindex_threads, partitions, chunk_size, minim_size, source
+        )
 
     params = params_for_partitions(
         kmers=build_kmers(i),
@@ -159,4 +174,4 @@ def resolve_build_params(
         )
 
     logger.info(f"  └── Auto-sized: threads={params.threads}, partitions={partitions}")
-    return BuildParams(params.threads, partitions, chunk_size, minim_size)
+    return BuildParams(params.threads, partitions, chunk_size, minim_size, source)

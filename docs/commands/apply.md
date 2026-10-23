@@ -42,6 +42,12 @@ See [build - Paths](build.md#paths) for the directory layout.
 
 `apply` builds the indices of the session and registers them in `BUILD_DIR/index.json` on completion.
 
+**Report** - `BUILD_DIR/logs/kmhelpers_apply_<timestamp>_<n>.yaml`, updated after each part and each publish, so a running or killed apply leaves its report so far (status `RUNNING`):
+
+- `summary`: command, status (`RUNNING` until the end), start, end and duration, result counts, totals (shards, samples, kmtricks runs, estimated size, size on disk) and the same per span
+- `kmindex`, `kmhelpers` (version, path, and `git_commit` when `$GIT_COMMIT` is set), `system` (host, kernel, CPUs, and the SLURM job when there is one), `limits` (the RAM, open files, threads and `vm.max_map_count` the sizing used)
+- `shards`: one entry per shard, with its parts: span, samples, build parameters (threads, partitions and where the count comes from: `design`, `auto`, `registered` or `run`, minimizer size, chunk size, Bloom filter size, k-mer ratio), estimated size, scripts, and its kmtricks runs (`built`, `rebuilt` or `reused`, with the duration, peak RSS, max CPU, CPU efficiency and share of the RAM limit read from their `logs/<run>/kmtricks.log`); how the shard is published (`move`, `merge` with its merge steps and their estimated memory, or `register`), with its duration and size on disk
+
 **Parent indices** - built automatically when required.
 
 **Filtering** - `--shard` selects shards (all by default) by name or glob pattern: `--shard 'idx_g0_*'` selects every shard of group 0. A pattern that matches no shard is a warning; only no match at all is an error (same for `--run`). `--run` goes one level down, to the kmtricks runs of a shard, and builds them without merging.

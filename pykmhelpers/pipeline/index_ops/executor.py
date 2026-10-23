@@ -6,6 +6,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import time
 from dataclasses import replace
 from typing import Optional
 
@@ -25,6 +26,8 @@ from pykmhelpers.pipeline.index_ops.merging import (
 )
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths
 from pykmhelpers.pipeline.index_ops.progress import progress_for
+from pykmhelpers.pipeline.index_ops.report import dir_bytes
+from pykmhelpers.pipeline.index_ops.run_log import parse_kmtricks_log, run_log_path
 from pykmhelpers.pipeline.index_ops.script import ScriptRecorder
 from pykmhelpers.pipeline.index_ops.sizing import BuildParams
 from pykmhelpers.pipeline.index_ops.types import ApplyMode, IndexOpsConfig
@@ -77,6 +80,9 @@ class IndexExecutor:
         self._prepared: set[str] = set()
         # Every run name planned, selected by --run or not
         self.run_names: list[str] = []
+        # For the report: each run built (or reused), each target published
+        self.run_details: dict[str, dict] = {}
+        self.publish_details: dict[str, dict] = {}
 
     @property
     def executes(self) -> bool:
@@ -114,6 +120,7 @@ class IndexExecutor:
         """
         group = self._script.current or target
         self._script.select(ScriptRecorder.merge_group(group))
+        self.publish_details[target] = {"publish": {"mode": "register"}}
         self._locked(self._register(target), f"register {target}")
         runs = [self._paths.run(p) for p in parts]
         self._check_and_clean(target, runs, [])
@@ -147,7 +154,7 @@ class IndexExecutor:
                     f"Runs of '{part}' are already built with {started} partitions, "
                     f"not {params.partitions}: building with {started}"
                 )
-                return replace(params, partitions=started)
+                return replace(params, partitions=started, partitions_source="run")
             return params
 
         registered = self._builder.index.get_index(target)
@@ -158,7 +165,11 @@ class IndexExecutor:
                 f"not {params.partitions}: building with {registered.nb_partitions} "
                 f"(a merge needs the same count)"
             )
-            aligned = replace(aligned, partitions=registered.nb_partitions)
+            aligned = replace(
+                aligned,
+                partitions=registered.nb_partitions,
+                partitions_source="registered",
+            )
         if registered.minim_size and registered.minim_size != params.minim_size:
             logger.warning(
                 f"'{target}' is registered with minimizer size "
@@ -224,14 +235,23 @@ class IndexExecutor:
         is deleted and rebuilt.
         """
         run_dir = self._paths.run(name)
+        log = run_log_path(self._paths.logs, name)
+        details: dict = {
+            "samples": fof.get_sample_count(),
+            "action": "built" if self.executes else "planned",
+        }
+        self.run_details[name] = details
         if self.executes and os.path.exists(run_dir):
             problems = chunk_problems(run_dir, params.partitions)
             if not problems:
                 logger.info(f"  └── Reusing complete run '{name}'")
+                details["action"] = "reused"
+                self._add_log(details, log)
                 return
             logger.info(
                 f"  └── Rebuilding incomplete run '{name}': {', '.join(problems)}"
             )
+            details["action"] = "rebuilt"
             shutil.rmtree(run_dir)
         if self._mode is ApplyMode.APPLY:
             logger.info(f"  └── Building '{name}'...")
@@ -261,6 +281,17 @@ class IndexExecutor:
             )
             if result and "command" in result:
                 self._script.add(result["command"], f"build {name}")
+        if self.executes:
+            self._add_log(details, log)
+
+    @staticmethod
+    def _add_log(details: dict, log: str) -> None:
+        """Add what the ``kmtricks.log`` of a run tells, when there is one."""
+        info = parse_kmtricks_log(log)
+        if info:
+            details["log"] = log
+            info.pop("samples", None)  # already in details
+            details.update(info)
 
     def publish(
         self,
@@ -295,6 +326,7 @@ class IndexExecutor:
         not registered at all. Moves are renames (``kmhelpers manage move-dir``):
         they fail instead of copying across filesystems.
         """
+        start = time.monotonic()
         paths = self._paths
         partitions = params.partitions
         names = list(runs)
@@ -329,6 +361,13 @@ class IndexExecutor:
             f"check {summarize_names(names)}",
         )
 
+        details: dict = {"mode": "move" if single else "merge"}
+        if absorbed:
+            details["absorbed"] = list(absorbed)
+        if existing:
+            details["updates"] = target
+        self.publish_details[target] = {"publish": details}
+
         if single:
             # 2. nothing to merge
             self._locked(
@@ -347,7 +386,7 @@ class IndexExecutor:
             for name in absorbed:
                 inputs[name] = paths.shard(name)
                 samples[name] = len(self.index_samples(name))
-            out = self._merge(i, target, inputs, samples, params)
+            out = self._merge(i, target, inputs, samples, params, details)
 
             previous = paths.previous(target)
             unregister = shlex.join(
@@ -367,6 +406,9 @@ class IndexExecutor:
 
         self._check_and_clean(target, list(run_dirs.values()), absorbed)
         self._script.select(group)
+        if self.executes:
+            details["duration_s"] = round(time.monotonic() - start, 1)
+            self.publish_details[target]["disk_bytes"] = dir_bytes(paths.shard(target))
 
     def _check_and_clean(
         self, target: str, run_dirs: list[str], absorbed: list[str]
@@ -376,7 +418,15 @@ class IndexExecutor:
         # 4. a broken index must not cost its inputs
         self._sh(
             shlex.join(
-                ["kmhelpers", "manage", "-r", paths.registry, "check", "--shard", target]
+                [
+                    "kmhelpers",
+                    "manage",
+                    "-r",
+                    paths.registry,
+                    "check",
+                    "--shard",
+                    target,
+                ]
             ),
             f"check {target}",
         )
@@ -430,12 +480,13 @@ class IndexExecutor:
         inputs: dict[str, str],
         samples: dict[str, int],
         params: BuildParams,
+        details: Optional[dict] = None,
     ) -> str:
         """Merge ``inputs`` (name -> index path) into ``target``; return the result path.
 
         Steps of at most ``k`` inputs, ``k`` set by the resource limits. Each
         step runs in ``merges/<target>/<step>/``: ``registry/`` holds its
-        inputs, ``out/`` its result.
+        inputs, ``out/`` its result. The steps are added to ``details``.
         """
         paths = self._paths
         partitions = params.partitions
@@ -443,6 +494,10 @@ class IndexExecutor:
         limits = MergeLimits.resolve(self._config.limits, self._config.safety_margin)
         k, binding = max_inputs(limits, partitions, params.minim_size, threads)
         steps = merge_tree(target, list(inputs), k)
+        step_details: list[dict] = []
+        if details is not None:
+            details.update({"threads": threads, "max_inputs": k, "bound_by": binding})
+            details["steps"] = step_details
         logger.info(
             f"  └── Merging {len(inputs)} inputs into '{target}': "
             f"{len(steps)} merge(s), at most {k} inputs each ({binding} limit), "
@@ -469,6 +524,15 @@ class IndexExecutor:
                 ", more than the RAM limit: relies on page-cache reclaim"
                 if fp["mapped"] > limits.ram
                 else ""
+            )
+            step_details.append(
+                {
+                    "name": step.name,
+                    "level": step.level,
+                    "inputs": list(step.inputs),
+                    "est_anon": _size(fp["anon"]),
+                    "est_mapped": _size(fp["mapped"]),
+                }
             )
             logger.info(
                 f"      {step.name}: {len(step.inputs)} inputs, "

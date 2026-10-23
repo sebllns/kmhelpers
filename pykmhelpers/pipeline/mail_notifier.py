@@ -29,6 +29,8 @@ class MailNotifier(Wrapper):
         msg.attach(MIMEText(body))
 
         for path in attachments or []:
+            if not os.path.isfile(path):
+                continue  # e.g. a report a failed run never wrote
             part = MIMEBase("application", "octet-stream")
             with open(path, "rb") as f:
                 part.set_payload(f.read())

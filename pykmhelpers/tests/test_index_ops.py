@@ -119,6 +119,7 @@ class TestResolveBuildParams(unittest.TestCase):
             i, 10, make_config(kmindex_threads=3), self.layout()
         )
         self.assertEqual(params, BuildParams(3, 8, None, 10))
+        self.assertEqual(params.partitions_source, "design")
         self.assertEqual(i.partition_count, 8)
 
     def test_design_partitions_from_the_layout(self):
@@ -126,6 +127,7 @@ class TestResolveBuildParams(unittest.TestCase):
             make_definition(), 10, make_config(kmindex_threads=3), self.layout(partition_count=16)
         )
         self.assertEqual(params.partitions, 16)
+        self.assertEqual(params.partitions_source, "design")
 
     def test_minim_size_from_the_definition_then_the_layout(self):
         config = make_config(kmindex_threads=3)
@@ -156,6 +158,7 @@ class TestResolveBuildParams(unittest.TestCase):
 
         params = resolve_build_params(make_definition(), 7, config, layout)
         self.assertGreaterEqual(params.partitions, 4)
+        self.assertEqual(params.partitions_source, "auto")
         self.assertEqual(Path(self.path).read_bytes(), before)
         self.assertIsNone(layout.partition_count(1))
 
@@ -465,12 +468,25 @@ class TestAlignWithStartedRuns(unittest.TestCase):
 
     def test_no_run_keeps_the_params(self):
         params = BuildParams(4, 32, None, 10)
-        self.assertEqual(self.executor.align_with("t", params, "t_s1"), params)
+        aligned = self.executor.align_with("t", params, "t_s1")
+        self.assertEqual(aligned, params)
+        self.assertEqual(aligned.partitions_source, "auto")
 
     def test_a_started_run_wins(self):
         self.start_run("t_s1", 16)
         aligned = self.executor.align_with("t", BuildParams(4, 32, None, 10), "t_s1")
         self.assertEqual(aligned.partitions, 16)
+        self.assertEqual(aligned.partitions_source, "run")
+
+    def test_the_registered_shard_wins(self):
+        registered = SimpleNamespace(nb_partitions=16, minim_size=10)
+        self.executor.has_index = lambda name: True
+        self.executor._builder = SimpleNamespace(
+            index=SimpleNamespace(get_index=lambda name: registered)
+        )
+        aligned = self.executor.align_with("t", BuildParams(4, 32, None, 10), "t_s1")
+        self.assertEqual(aligned.partitions, 16)
+        self.assertEqual(aligned.partitions_source, "registered")
 
     def test_a_started_chunk_wins(self):
         self.start_run("t_s1_chunk0", 8)

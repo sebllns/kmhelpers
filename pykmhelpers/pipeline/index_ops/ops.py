@@ -1,6 +1,6 @@
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Optional
 
@@ -126,7 +126,11 @@ class IndexOps:
         self._script.write(self._paths.assets)
 
     def run(
-        self, path: str, mode: ApplyMode, fail_on_error: bool = False
+        self,
+        path: str,
+        mode: ApplyMode,
+        fail_on_error: bool = False,
+        report_path: Optional[str] = None,
     ) -> ApplyResult:
         """Apply an index definition or span registry file to the kmindex registry.
 
@@ -136,6 +140,8 @@ class IndexOps:
             path: Path to a YAML or JSON file containing either an
                 ``IndexDefinition`` or a span registry.
             mode: Execution mode - controls whether to dry-run, plan, or apply.
+            report_path: Where to write the YAML report, updated as the run
+                goes (after each definition and each publish) and at the end.
             fail_on_error: Abort this run on the first build or merge error
                 instead of continuing and returning ``PARTIAL``.
 
@@ -148,11 +154,26 @@ class IndexOps:
         path = os.path.realpath(path)
         self._script = ScriptRecorder(self.work_dir)
         self._paths = paths = BuildPaths.for_input(self.work_dir, path)
-        report = RunReport(path, mode)
+        report = RunReport(path, mode, self.config, report_path)
+        report.set_build_dir(self.work_dir, paths.assets)
+        try:
+            self._run(report, path, mode, fail_on_error)
+        finally:
+            report.close()
+        return report.result
+
+    # ---
+    # PRIVATE METHODS
+
+    def _run(
+        self, report: RunReport, path: str, mode: ApplyMode, fail_on_error: bool
+    ) -> ApplyResult:
+        paths = self._paths
+        assert paths is not None
         idt = IndexDefinitionTools()
 
         input_type, data = detect_input(path, idt)
-        report.result.input_type = input_type
+        report.set_input_type(input_type)
         if data is None or input_type is ApplyInputType.UNKNOWN:
             logger.error("Could not retrieve data type.")
             report.result.status = ApplyStatus.FAILED
@@ -202,6 +223,7 @@ class IndexOps:
                 msg = f"   Failed to build index '{i.name}'"
                 if report.fail(e, msg, i.name, fail_on_error):
                     return report.result
+            report.dump()
 
         if self.config.filter_runs:
             # --run builds runs only: a later run with --shard alone merges them
@@ -220,13 +242,13 @@ class IndexOps:
                 self._publish(report, executor, plan, target, parts, built)
             except Exception as e:
                 msg = f"Failed to publish index '{target}'"
+                if target in executor.publish_details:
+                    report.record_merge(target, executor.publish_details[target])
                 if report.fail(e, msg, target, fail_on_error):
                     return report.result
+            report.dump()
 
         return report.finish()
-
-    # ---
-    # PRIVATE METHODS
 
     @staticmethod
     def _targets(plan: WorkPlan) -> dict[str, list[str]]:
@@ -307,10 +329,27 @@ class IndexOps:
 
         # Samples may have been skipped since the estimate: resolve for the actual count
         if sample_count != i.sample_count:
+            # i.partition_count now holds the first count: keep its source
+            source = params.partitions_source
             params = self._resolve_params(i, sample_count, layout)
+            params = replace(params, partitions_source=source)
         params = executor.align_with(target, params, i.name)
         self._store_params(i, params)
-        runs = executor.build(i, fof, params)
+        report.record_params(i.name, i, params, sample_count)
+        assert self._paths is not None
+        report.record_script(i.name, os.path.join(self._paths.assets, f"{target}.sh"))
+        try:
+            runs = executor.build(i, fof, params)
+        finally:
+            report.record_runs(
+                i.name,
+                {
+                    r: executor.run_details[r]
+                    for r in executor.run_names
+                    if r in executor.run_details
+                    and (r == i.name or r.startswith(f"{i.name}_chunk"))
+                },
+            )
         report.record(i.name, ApplyStatus.SUCCESS, issues=issues)
         return _Built(i, params, runs)
 
@@ -355,13 +394,28 @@ class IndexOps:
                 logger.info(f"► Registering '{target}' (publish interrupted)...")
                 self._script.select(plan.script_of(parts[0]))
                 executor.register_folder(target, parts)
-            if parts != [target]:
-                report.fold_merge(target, parts)
+            self._record_publish(report, executor, plan, target, parts)
             return
 
         logger.info(f"► Publishing '{target}'...")
         runs = {name: n for b in new for name, n in b.runs.items()}
         self._script.select(plan.script_of(parts[0]))
         executor.publish(new[0].definition, target, runs, new[0].params, absorbed)
+        self._record_publish(report, executor, plan, target, parts)
+
+    def _record_publish(
+        self,
+        report: RunReport,
+        executor: IndexExecutor,
+        plan: WorkPlan,
+        target: str,
+        parts: list[str],
+    ) -> None:
+        assert self._paths is not None
+        details = dict(executor.publish_details.get(target, {}))
+        if details:
+            group = ScriptRecorder.merge_group(plan.script_of(parts[0]))
+            details["merge_script"] = os.path.join(self._paths.assets, f"{group}.sh")
+            report.record_merge(target, details)
         if parts != [target]:
             report.fold_merge(target, parts)
