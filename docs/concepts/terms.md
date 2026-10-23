@@ -42,7 +42,7 @@ flowchart TB
 |------|---------|-----------------|--------|
 | **design directory** | what `design` writes: the sample list, the profile, and the index definition | `coli_db/` | `design -o` |
 | **layout** | the fixed choices of an index (groups, shards, Bloom sizes, partitions), reused by every update | `coli_db/compose/coli/layout.yaml` | the first `design` |
-| **session** | one set of samples added to an index: the first one, then each update | `initial`, `update` | `-s` |
+| **session** | one set of samples added to an index: the first one, then each update, each under a name of your choice | `initial`, `update` (any names) | `-s` |
 | **part** (task) | the samples a session adds to one shard | `coli_g0_initial`, `coli_g0_update` | `compose` |
 | **chunk** | one kmtricks run building some samples of a part; a part too large for one run is built in chunks, then merged | `coli_g0_initial_chunk3` | `--cb`, the open-files limit (see [build](../commands/build.md#shards-and-chunks)) |
 | **plan** | every build decision, and the scripts running them, written before anything is built | `coli_build/assets/initial/plan.yaml` | [`plan`](../commands/plan.md) |

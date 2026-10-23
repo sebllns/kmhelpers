@@ -85,7 +85,8 @@ A failed job cancels the jobs waiting on it, and the finish job reports it; runn
 
 ## Updating an index
 
-An update is a new session: its samples are added to the shards of the existing layout, so
+An update is a new session, under a name of your choice (`-s 2026_10`, `-s batch2`...; the
+tutorial uses `update`): its samples are added to the shards of the existing layout, so
 that the index keeps its groups, Bloom filter sizes and partitions.
 
 ```mermaid
@@ -94,9 +95,9 @@ sequenceDiagram
     participant D as design
     participant B as build
     participant S as coli_g0
-    U->>D: new samples<br/>-s update
+    U->>D: new samples<br/>-s 2026_10
     D->>D: each sample to its<br/>shard (layout)
-    U->>B: -s update
+    U->>B: -s 2026_10
     B->>B: build the new<br/>samples
     B->>B: merge with the<br/>current coli_g0
     Note over S: still queryable

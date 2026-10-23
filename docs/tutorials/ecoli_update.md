@@ -57,7 +57,7 @@ kmhelpers design coli_update.txt -o coli_db/ -n coli -s update
     |--------|---------|
     | `coli_update.txt` | INPUT: the new sample files |
     | `-o coli_db/`, `-n coli` | the design directory and index of the first session |
-    | `-s update` | a new session: its samples are added to the existing sub-indexes |
+    | `-s update` | a new session, under a name of your choice (`update` here, a date or a batch name as well): its samples are added to the existing sub-indexes |
 
     Not set here, and not to be: `-k`, `-b`, `-g` and `--sb` come from the layout of the index (`coli_db/compose/coli/layout.yaml`), so the update fits the existing sub-indexes.
 
