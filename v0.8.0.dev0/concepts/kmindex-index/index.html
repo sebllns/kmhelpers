@@ -2827,20 +2827,24 @@ index: an update replaces its content, not its path.</p>
 sample and k-mer (1 for presence/absence, N for <code>--ab N</code>).</p>
 </details>
 <h2 id="a-query">A query</h2>
+<p><code>kmhelpers query</code> wraps <code>kmindex query</code>: it prepares the query files, runs kmindex on the
+index, then gathers its results into tables.</p>
 <pre class="mermaid"><code>sequenceDiagram
     actor U as you
     participant Q as kmhelpers query
+    participant K as kmindex query
     participant S as each shard, in turn
-    participant P as its partitions
     U-&gt;&gt;Q: query.fa, -r coli_build/
-    Q-&gt;&gt;Q: split each sequence into k-mers (and (k+z)-mers)
+    Q-&gt;&gt;Q: find the FASTA/FASTQ files, decompress bz2, xz, zst (kmindex reads gzip only)
+    Q-&gt;&gt;K: the sequences, the index, -z, --threshold
+    K-&gt;&gt;K: split each sequence into k-mers (and (k+z)-mers)
     loop every shard
-        Q-&gt;&gt;S: look up the k-mers
-        S-&gt;&gt;P: read only the partitions of their minimizers
-        P--&gt;&gt;S: bits of every sample of the shard
-        S--&gt;&gt;Q: score per sample
+        K-&gt;&gt;S: look up the k-mers
+        S--&gt;&gt;K: bits of every sample, read from the partitions of their minimizers only
+        K-&gt;&gt;K: score per sample
     end
-    Q--&gt;&gt;U: results/: one row per sequence, one column per sample</code></pre>
+    K--&gt;&gt;Q: one result file per shard
+    Q--&gt;&gt;U: results/: one table per query (one row per sequence, one column per sample), statistics</code></pre>
 <p>Query time grows with the number of shards (each is read in turn), with the number of
 query k-mers, and with the samples of each shard (a row holds a bit for every sample). See
 <a href="../../commands/query/">query</a> for the options (<code>-z</code>, <code>--threshold</code>, formats).</p>

@@ -2811,6 +2811,29 @@ run one by one (see the <a href="../../tutorials/ecoli_steps/">step-by-step tuto
 <p>With <code>--hpc cluster.yaml</code>, <code>plan</code> sizes the build for the jobs of a SLURM cluster, and the
 jobs run the plan: chunks on several nodes at once, then one merge per shard. See
 <a href="../../commands/build/#on-a-cluster">build - On a cluster</a>.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    actor U as you
+    participant B as build --hpc
+    participant SL as SLURM
+    participant A as build jobs (array)
+    participant M as merge job, per shard
+    participant F as finish job
+    U-&gt;&gt;B: coli_db -o coli_build/ --hpc cluster.yaml
+    B-&gt;&gt;B: plan: chunks, jobs, SLURM files
+    B-&gt;&gt;SL: submit the array, the merges, the finish job
+    B--&gt;&gt;U: submitted (build exits)
+    par on several nodes
+        SL-&gt;&gt;A: one task per job: its chunks (kmtricks)
+    end
+    A--&gt;&gt;SL: done
+    SL-&gt;&gt;M: once the jobs of its shard are done
+    M-&gt;&gt;M: merge the chunks, publish the shard
+    SL-&gt;&gt;F: once every job has ended
+    F-&gt;&gt;F: check the index, write progress.yaml
+    F--&gt;&gt;U: mail (with --notify)
+    Note over U,F: follow it at any time: kmhelpers apply ... --status --sp</code></pre>
+<p>A failed job cancels the jobs waiting on it, and the finish job reports it; running the same
+<code>build</code> command again submits only what is not done.</p>
 <h2 id="updating-an-index">Updating an index</h2>
 <p>An update is a new session: its samples are added to the shards of the existing layout, so
 that the index keeps its groups, Bloom filter sizes and partitions.</p>

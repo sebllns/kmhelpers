@@ -2806,7 +2806,7 @@ its <strong>k-mers</strong> are spread over partitions.</p>
 </tr>
 </tbody>
 </table>
-<pre class="mermaid"><code>flowchart LR
+<pre class="mermaid"><code>flowchart TB
     S["samples"] --&gt;|"by k-mer count (-b)"| SP["spans"]
     SP --&gt;|"consecutive spans (-g)"| G["groups"]
     G --&gt;|"split if large (--sb)"| SH["shards"]
