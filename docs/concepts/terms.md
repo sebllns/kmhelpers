@@ -29,7 +29,7 @@ its **k-mers** are spread over partitions.
 | **index** | the directory holding every shard of an index, and `index.json` listing them: the registry (`BUILD_DIR`) | `coli_build/` | `build -o`, read by `query -r` |
 
 ```mermaid
-flowchart LR
+flowchart TB
     S["samples"] -->|"by k-mer count (-b)"| SP["spans"]
     SP -->|"consecutive spans (-g)"| G["groups"]
     G -->|"split if large (--sb)"| SH["shards"]
