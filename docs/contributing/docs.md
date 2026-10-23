@@ -43,6 +43,10 @@ The `site/` directory is git-ignored and should not be committed.
 2. If it's a new page, add it to the `nav:` section in `mkdocs.yml`.
 3. Run `mkdocs serve` to preview.
 
+## Release banner
+
+The home page shows a dismissible banner announcing the current release, set in the `announce` block of `overrides/main.html`. Update its text at each release (or empty the block to remove it); a reader who closed it sees it again once the text changes.
+
 ## Deploying to GitHub Pages
 
 Docs are versioned with [mike](https://github.com/jimporter/mike). Do **not** use `mkdocs gh-deploy` - it overwrites the entire `gh-pages` branch and destroys version history.

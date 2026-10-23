@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{# Release banner, on the home page only: update or empty it at each release.
+   The whitespace control (-) keeps the block empty on other pages, where
+   Material would otherwise show an empty bar. #}
+{% block announce -%}
+  {%- if page and page.is_homepage -%}
+    kmhelpers <strong>0.8.0</strong> is out: abundance indexes, shard budget,
+    paired reads and build reports.
+    <a href="{{ 'changelog/' | url }}">What's new →</a>
+  {%- endif -%}
+{%- endblock %}
