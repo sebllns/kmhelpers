@@ -4,6 +4,18 @@ set -euo pipefail
 
 DOC=https://sebllns.github.io/kmhelpers
 
+# Download URL to the current directory, unless the file is already there; through a
+# .part file, so an interrupted download is never taken for a complete one
+fetch() {
+    local file
+    file=$(basename "$1")
+    if [ -s "$file" ]; then
+        echo "$file: already downloaded"
+        return
+    fi
+    wget -O "$file.part" "$1" && mv "$file.part" "$file"
+}
+
 # Working directory: first argument, or a fresh temporary directory
 workdir="${1:-$(mktemp -d)}"
 mkdir -p "$workdir" && cd "$workdir"
@@ -11,16 +23,16 @@ echo "Working directory: $PWD"
 
 echo "== Step 1: download the dataset =="
 mkdir -p coli_dataset && cd coli_dataset
-wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/780/515/GCA_000780515.1_ASM78051v1/GCA_000780515.1_ASM78051v1_genomic.fna.gz"
-wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/001/076/125/GCA_001076125.1_ASM107612v1/GCA_001076125.1_ASM107612v1_genomic.fna.gz"
-wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/001/417/575/GCA_001417575.1_ASM141757v1/GCA_001417575.1_ASM141757v1_genomic.fna.gz"
-wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/944/435/GCA_000944435.1_Ec57A_E8C1_MIRA_assembly/GCA_000944435.1_Ec57A_E8C1_MIRA_assembly_genomic.fna.gz"
-wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/001/075/925/GCA_001075925.1_ASM107592v1/GCA_001075925.1_ASM107592v1_genomic.fna.gz"
-wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/936/715/GCA_000936715.1_E8C1_assembly/GCA_000936715.1_E8C1_assembly_genomic.fna.gz"
-wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/939/215/GCA_000939215.1_Ec57A_A7_MIRA_assembly/GCA_000939215.1_Ec57A_A7_MIRA_assembly_genomic.fna.gz"
-wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/001/413/795/GCA_001413795.1_ASM141379v1/GCA_001413795.1_ASM141379v1_genomic.fna.gz"
-wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/001/373/195/GCA_001373195.1_57A_A7_assembly/GCA_001373195.1_57A_A7_assembly_genomic.fna.gz"
-wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/938/575/GCA_000938575.1_D1C4_assembly/GCA_000938575.1_D1C4_assembly_genomic.fna.gz"
+fetch "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/780/515/GCA_000780515.1_ASM78051v1/GCA_000780515.1_ASM78051v1_genomic.fna.gz"
+fetch "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/001/076/125/GCA_001076125.1_ASM107612v1/GCA_001076125.1_ASM107612v1_genomic.fna.gz"
+fetch "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/001/417/575/GCA_001417575.1_ASM141757v1/GCA_001417575.1_ASM141757v1_genomic.fna.gz"
+fetch "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/944/435/GCA_000944435.1_Ec57A_E8C1_MIRA_assembly/GCA_000944435.1_Ec57A_E8C1_MIRA_assembly_genomic.fna.gz"
+fetch "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/001/075/925/GCA_001075925.1_ASM107592v1/GCA_001075925.1_ASM107592v1_genomic.fna.gz"
+fetch "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/936/715/GCA_000936715.1_E8C1_assembly/GCA_000936715.1_E8C1_assembly_genomic.fna.gz"
+fetch "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/939/215/GCA_000939215.1_Ec57A_A7_MIRA_assembly/GCA_000939215.1_Ec57A_A7_MIRA_assembly_genomic.fna.gz"
+fetch "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/001/413/795/GCA_001413795.1_ASM141379v1/GCA_001413795.1_ASM141379v1_genomic.fna.gz"
+fetch "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/001/373/195/GCA_001373195.1_57A_A7_assembly/GCA_001373195.1_57A_A7_assembly_genomic.fna.gz"
+fetch "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/938/575/GCA_000938575.1_D1C4_assembly/GCA_000938575.1_D1C4_assembly_genomic.fna.gz"
 cd ..
 
 echo "== Step 2: design the index =="
@@ -58,7 +70,7 @@ kmhelpers query -r coli_build/ -o results/ query.fa
 
 echo "== Update step 1: download a new sample =="
 cd coli_dataset
-wget "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/005/845/GCA_000005845.2_ASM584v2/GCA_000005845.2_ASM584v2_genomic.fna.gz"
+fetch "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/005/845/GCA_000005845.2_ASM584v2/GCA_000005845.2_ASM584v2_genomic.fna.gz"
 cd ..
 
 echo "== Update step 2: create the file list for the new samples =="
