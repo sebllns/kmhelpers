@@ -201,26 +201,30 @@ kmhelpers plan coli_db -o coli_build/
 
 ??? abstract "I/O"
     **Input:** `coli_db/compose/coli/initial/index.yaml`  
-    **Output:** build scripts in `coli_build/assets/` + validation report in `coli_build/logs/`
+    **Output:** build scripts in `coli_build/assets/initial/` + report in `coli_build/logs/`
 
 ??? info "INFO"
     Before committing to a potentially long build, validate paths and preview the commands that will be executed: `plan` checks that every sample file exists, reports any missing paths, and
-    prints the equivalent `kmindex` commands - without running them. Fix any path
+    writes the equivalent `kmtricks` and `kmindex` commands - without running them. Fix any path
     errors now rather than discovering them mid-build.
 
 ??? success "RESULT"
-    ??? tip "Validation report in `coli_build/logs/`"
-        - **`input_file`** -- path to the `index.yaml` the input resolved to
-        - **`kmindex` / `kmhelpers`** -- tool versions detected at runtime
-        - **`span`** -- one entry per sub-index: sample count and estimated disk size
-        - **`run`** -- validation result (`SUCCESS` / `FAILURE`) per sub-index
+    ??? tip "Report in `coli_build/logs/kmhelpers_plan_<timestamp>_0.yaml`"
+        - **`summary`** -- status (`SUCCESS`, `PARTIAL`, `FAILED`), counts, and totals: shards, samples, kmtricks runs, estimated size, also per span
+        - **`kmindex` / `kmhelpers` / `system`** -- tool versions, host, and the SLURM job if any
+        - **`limits`** -- the RAM, open files and threads the build is sized for
+        - **`shards`** -- one entry per sub-index (`coli_g0`, `coli_g1`) and its part of this session: sample count, build parameters (threads, partitions), estimated size, scripts, the kmtricks runs to build, and how it will be published
 
-    ??? tip "Build scripts in `coli_build/assets/`"
-        - **`coli_g<span>_initial.sh`** -- one script per sub-index (`coli_g0`, `coli_g1`):
-          one `kmindex build` call per part, with Bloom-filter size, k-mer size, and output
-          paths pre-filled from the profile, then the merge into the sub-index and the
-          deletion of the merged parts. Each script stops at the first failing command.
-        - **`kmhelpers_apply.sh`** -- runs every sub-index script in order.
+        `apply` writes the same report, completed with what happened (run durations, peak memory, size on disk); see [build - Report](../commands/build.md#report).
+
+    ??? tip "Build scripts in `coli_build/assets/initial/`"
+        - **`coli_g<span>.sh`** -- one script per sub-index (`coli_g0`, `coli_g1`): one
+          `kmtricks pipeline` call per part (or chunk), with Bloom-filter size, k-mer size,
+          partitions and threads pre-filled.
+        - **`coli_g<span>_merge.sh`** -- checks the runs, publishes them as the sub-index
+          (moved in place, or merged), checks it, then deletes the runs.
+        - **`kmhelpers_apply.sh`** -- runs every script in order. Each script stops at the
+          first failing command; see [build - Builds and merges](../commands/build.md#builds-and-merges).
 
 ---
 
@@ -239,11 +243,11 @@ kmhelpers plan coli_db -o coli_build/
 === "bash"
 
     ```bash
-    bash coli_build/assets/kmhelpers_apply.sh
+    bash coli_build/assets/initial/kmhelpers_apply.sh
     ```
 
     ??? abstract "I/O"
-        **Input:** `coli_build/assets/kmhelpers_apply.sh`   
+        **Input:** `coli_build/assets/initial/kmhelpers_apply.sh`   
         **Output:** `coli_build/index.json` + one folder per sub-index, `coli_build/coli_g0/` and `coli_build/coli_g1/` - ready-to-query index 
 
 

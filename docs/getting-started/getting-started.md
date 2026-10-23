@@ -116,7 +116,7 @@ See [`query`](../commands/query.md) for batching, output formats, and threshold 
     **Output:** the same built index, produced manually step-by-step for more flexibility.
 
 
-For large sample counts, prefer running [`plan`](../commands/plan.md) and [`apply`](../commands/apply.md) separately instead of `build` (which chains them). `plan` validates all sample paths and writes a ready-to-run shell script to `OUTPUT_DIR/assets/` up front, so path errors surface before any CPU/I/O-intensive building starts:
+For large sample counts, prefer running [`plan`](../commands/plan.md) and [`apply`](../commands/apply.md) separately instead of `build` (which chains them). `plan` validates all sample paths and writes ready-to-run shell scripts to `OUTPUT_DIR/assets/SESSION/` up front, so path errors surface before any CPU/I/O-intensive building starts:
 
 ??? example "Commands"
     ```bash
@@ -125,7 +125,7 @@ For large sample counts, prefer running [`plan`](../commands/plan.md) and [`appl
 
 **Automatic build**
 
-Review `coli_build/assets/` and `coli_build/logs/`, then:
+Review the scripts in `coli_build/assets/initial/` and the plan report in `coli_build/logs/` (see [build - Report](../commands/build.md#report)), then:
 
 ??? example "Commands"
     ```bash
@@ -134,12 +134,12 @@ Review `coli_build/assets/` and `coli_build/logs/`, then:
 
 **Manual build**
 
-`plan` also writes plain bash scripts equivalent to running `apply` in `OUTPUT_DIR/assets/`: one self-contained script per sub-index (`<name>_g<span>_<session>.sh`: builds, merge, cleanup), and `kmhelpers_apply.sh`, which runs them all in order. They can be run manually for a fully hands-on build, and since each sub-index script is independent, they are easy to dispatch for distributed computing - e.g. one job per script in a cluster job scheduler:
+`plan` also writes plain bash scripts equivalent to running `apply` in `OUTPUT_DIR/assets/SESSION/`: two per sub-index (`<shard>.sh`: its kmtricks builds; `<shard>_merge.sh`: check, publish, cleanup), and `kmhelpers_apply.sh`, which runs them all in order. They can be run manually for a fully hands-on build, and since each sub-index script is independent, they are easy to dispatch for distributed computing - e.g. one job per script in a cluster job scheduler:
 
 ??? example "Commands"
     ```bash
     kmhelpers plan coli_db -o coli_build/
-    bash coli_build/assets/kmhelpers_apply.sh
+    bash coli_build/assets/initial/kmhelpers_apply.sh
     ```
 
 `apply` itself remains as an useful alternative, including on distributed systems - it can be launched independently on each node (e.g. one `--shard` subset per node, or one chunk per task with `--run`) just like the bash script, lets you filter or rerun specific builds by shard or run, and can email a notification on completion:

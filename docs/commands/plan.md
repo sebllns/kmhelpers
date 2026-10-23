@@ -17,7 +17,7 @@ Validate paths and preview the build plan from an index definition file, then wr
 
 !!! abstract "I/O"
     **Input:** `DESIGN_DIR` of `design` (or `COMPOSE_DIR` of `compose`), with `-s` to pick a session; it resolves to `compose/NAME/SESSION/index.yaml` (see [design - Next Step](design.md#next-step))  
-    **Output:** shell scripts in `BUILD_DIR/assets/`, validation report in `BUILD_DIR/logs/`
+    **Output:** shell scripts in `BUILD_DIR/assets/`, report in `BUILD_DIR/logs/` (see [build - Report](build.md#report))
 
 See [build - Paths](build.md#paths) for the directory layout.
 
@@ -40,13 +40,9 @@ See [build - Paths](build.md#paths) for the directory layout.
 
 ## Description
 
-`plan` validates all sample paths of the session upfront and previews the commands that would be executed by [`apply`](apply.md), without running them or touching the registry. It writes the equivalent shell scripts to `BUILD_DIR/assets/SESSION/` (one per sub-index, `<shard>.sh` with its builds and `<shard>_merge.sh` with its publication, plus `kmhelpers_apply.sh` running them in order; see [build - Builds and merges](build.md#builds-and-merges)) and a validation report to `BUILD_DIR/logs/`.
+`plan` validates all sample paths of the session upfront and previews the commands that would be executed by [`apply`](apply.md), without running them or touching the registry. It writes the equivalent shell scripts to `BUILD_DIR/assets/SESSION/` (one per sub-index, `<shard>.sh` with its builds and `<shard>_merge.sh` with its publication, plus `kmhelpers_apply.sh` running them in order; see [build - Builds and merges](build.md#builds-and-merges)) and a report to `BUILD_DIR/logs/`.
 
-**Report** - `BUILD_DIR/logs/kmhelpers_plan_<timestamp>_<n>.yaml`, written once the plan is done:
-
-- `summary`: command, status (`SUCCESS`, `PARTIAL`, `FAILED` or `NONE`), start, end and duration, result counts, totals (shards, samples, kmtricks runs, estimated size) and the same per span
-- `kmindex`, `kmhelpers` (version, path, and `git_commit` when `$GIT_COMMIT` is set), `system` (host, kernel, CPUs, and the SLURM job when there is one), `limits` (the RAM, open files, threads and `vm.max_map_count` the sizing used)
-- `shards`: one entry per shard, with its parts: span, samples, build parameters (threads, partitions and where the count comes from: `design`, `auto`, `registered` or `run`, minimizer size, chunk size, Bloom filter size, k-mer ratio), estimated size, scripts, and its kmtricks runs (`planned`); how the shard is published (`move`, `merge` with its merge steps and their estimated memory, or `register`)
+**Report** - `BUILD_DIR/logs/kmhelpers_plan_<timestamp>_<n>.yaml`, written once the plan is done: per shard and part, the build parameters (with where the partition count comes from), the kmtricks runs and chunks that `apply` will build (`planned`), the merge steps and their expected memory, and the scripts; plus the limits the sizing used, the host and the SLURM job. See [build - Report](build.md#report).
 
 **Offline mode** - use `--offline` to skip local path validation when generating scripts destined for another machine.
 

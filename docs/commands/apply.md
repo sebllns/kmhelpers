@@ -36,17 +36,13 @@ See [build - Paths](build.md#paths) for the directory layout.
 | `--ncp, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
 | `--sp, --show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
 | `-x, --fail-fast` | Abort on first failure instead of continuing |
-| `--notify EMAIL` | Send email notification on exit (requires sendmail) |
+| `--notify EMAIL` | Send email notification on exit (requires sendmail), with the log and the apply report attached |
 
 ## Description
 
 `apply` builds the indices of the session and registers them in `BUILD_DIR/index.json` on completion.
 
-**Report** - `BUILD_DIR/logs/kmhelpers_apply_<timestamp>_<n>.yaml`, updated after each part and each publish, so a running or killed apply leaves its report so far (status `RUNNING`):
-
-- `summary`: command, status (`RUNNING` until the end), start, end and duration, result counts, totals (shards, samples, kmtricks runs, estimated size, size on disk) and the same per span
-- `kmindex`, `kmhelpers` (version, path, and `git_commit` when `$GIT_COMMIT` is set), `system` (host, kernel, CPUs, and the SLURM job when there is one), `limits` (the RAM, open files, threads and `vm.max_map_count` the sizing used)
-- `shards`: one entry per shard, with its parts: span, samples, build parameters (threads, partitions and where the count comes from: `design`, `auto`, `registered` or `run`, minimizer size, chunk size, Bloom filter size, k-mer ratio), estimated size, scripts, and its kmtricks runs (`built`, `rebuilt` or `reused`, with the duration, peak RSS, max CPU, CPU efficiency and share of the RAM limit read from their `logs/<run>/kmtricks.log`); how the shard is published (`move`, `merge` with its merge steps and their estimated memory, or `register`), with its duration and size on disk
+**Report** - `BUILD_DIR/logs/kmhelpers_apply_<timestamp>_<n>.yaml`, the [plan report](build.md#report) completed with what happened: per kmtricks run, whether it was built, rebuilt or reused, its duration, peak RSS, CPU efficiency and share of the RAM limit (from `logs/<run>/kmtricks.log`); per shard, the publish duration and size on disk. It is written after each part and each publish, with status `RUNNING` until the end, so a running or killed apply leaves its report so far. See [build - Report](build.md#report).
 
 **Parent indices** - built automatically when required.
 
