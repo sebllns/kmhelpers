@@ -9,11 +9,14 @@ import click
 import pykmhelpers.cli.shared as shared
 import pykmhelpers.core.log
 import pykmhelpers.pipeline.index_ops as ops
-from pykmhelpers.cli.apply import run_plan
+from pykmhelpers.cli.apply import run_plan, watch
 from pykmhelpers.cli.notify import ExitNotifier
 from pykmhelpers.cli.plan import make_plan
 
 logger = logging.getLogger(__name__)
+
+# seconds between two reads of a cluster build (build --hpc --sp)
+WATCH_INTERVAL = 30
 
 
 class PartialError(click.ClickException):
@@ -97,6 +100,8 @@ def build(
             max_chunks, chunk_budget, chunks_per_job, skip_compression,
             keep_previous, cluster_file, notify, notify_level,
         )
+        if show_progress:
+            ctx.exit(watch(input_file, work_dir, WATCH_INTERVAL))
         return
     notifier = ExitNotifier("build", notify, notify_level, final=notify_final)
 

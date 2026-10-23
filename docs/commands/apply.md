@@ -27,7 +27,8 @@ See [build - Paths](build.md#paths) for the directory layout.
 | `--task TEXT` | Run only what matches these names or glob patterns (repeatable or comma-separated): a shard (`idx_g0`) or its task (`idx_g0_initial`) runs all its jobs; a job runs alone, `<shard>_j<k>` (some of its chunks) or `<shard>_merge` (see [plan - Jobs](plan.md#jobs) and [Selecting what runs](#selecting-what-runs)) |
 | `--pending` | Print the jobs not done yet, one per line, and run nothing |
 | `--status` | Print the status of every step, per shard, write it to `progress.yaml`, and run nothing; with `--notify`, mail it (see [Progress](#progress)) |
-| `--sp, --show-progress` | Show the run being built (use in an interactive shell) |
+| `--sp, --show-progress` | One line per shard: progress bar of its steps, steps running, colored end status (see [Following a build](#following-a-build)); with `--status`, follow a cluster build until it ends |
+| `--interval SECONDS` | With `--status --sp`: seconds between two reads of a cluster build (default: 30) |
 | `-x, --fail-fast` | Abort on first failure instead of going on with the other shards |
 | `--notify EMAIL` | Send email notifications (requires sendmail), with the progress, the log and the apply report attached |
 | `--notify-level global\|shard` | `global` (default): one mail at the end; `shard`: also one mail per shard when it ends (see [build - Notifications](build.md#notifications)) |
@@ -45,6 +46,34 @@ Then it runs the selected jobs (all by default), in order. Each step is checked 
 - a **merge** needs every chunk of its shard complete; it checks that the registry is as `plan` saw it (`expects`), or as an interrupted run of this same merge leaves it, and refuses otherwise.
 
 A failed step stops its shard; the other shards go on, unless `--fail-fast`. Logs are in `BUILD_DIR/logs/<shard>/` (`<run>.log` with the `kmtricks` output and its resource use, `merge.log`).
+
+### Following a build
+
+`--sp, --show-progress` draws one line per shard, once its first step has started:
+
+```
+⣾ idx_g0  [■■■■■■      ] 6/11 (8m3s)   8 running: chunk2 (4m10s), chunk5 (3m12s), chunk8 (52s), ...
+⣽ idx_g1  [■■■■■■■■■■■ ] 10/11 (12m40s) merge (3m4s)
+✔ idx_g2  [■■■■■■■■■■■■] 8/8  (25m14s) SUCCESS
+✘ idx_g3  [■■■         ] 3/9  (6m2s)   FAILED chunk3 (log: logs/idx_g3/idx_g3_initial_chunk3.log), 2 still running
+```
+
+- the bar and the count are the steps of the shard done: its kmtricks runs (`chunk<N>`, or
+  `run` when it is built in one run) and its `merge`; the time is the shard's, since its
+  first step started;
+- several chunks of a shard run at once on a cluster with `plan --chunks-per-job N` (one
+  per array task): the line shows how many, and the 3 oldest with their time;
+- an ended shard keeps its line: `SUCCESS` (green), `FAILED` (red), `LOST` or `CANCELLED`
+  (yellow), with the failed step and its log.
+
+In a terminal, the lines are redrawn in place (log lines print above them); otherwise
+(redirected to a file, a SLURM job), a shard's line is printed each time one of its steps
+ends.
+
+For a cluster build, `apply --status --sp` (or `build --hpc --sp` right after the
+submission) draws the same lines, read again every `--interval` seconds, until no shard is
+running or waiting on a job: it exits 0 when every shard is `SUCCESS`, 1 otherwise. Ctrl-C
+stops watching; the jobs go on.
 
 ### Progress
 
@@ -106,6 +135,9 @@ kmhelpers apply coli_db -o coli_build/ --notify user@example.com
 
 # Where every shard and step stands
 kmhelpers apply coli_db -o coli_build/ --status
+
+# Follow a cluster build, one line per shard, until it ends
+kmhelpers apply coli_db -o coli_build/ --status --sp
 ```
 
 ## See Also

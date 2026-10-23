@@ -291,7 +291,9 @@ _show_progress_option = click.option(
     is_flag=True,
     default=False,
     show_default=True,
-    help="🚩  Enable animation that shows the current subindex being built (use in an interactive shell).",
+    help="🚩  One line per shard: progress bar of its steps, steps running, colored "
+    "end status (redrawn in a terminal). With apply --status or build --hpc: "
+    "follow a cluster build until it ends.",
 )
 # Not part of _INDEX_BUILD_OPTIONS: `build` hardcodes fail-on-error, while
 # `plan`/`apply` expose this flag individually via @shared.fail_fast_option.

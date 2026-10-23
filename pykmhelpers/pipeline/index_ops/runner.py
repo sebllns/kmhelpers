@@ -27,7 +27,7 @@ from pykmhelpers.core.utils import matches_any, select_matching
 from pykmhelpers.core.wrapper import Wrapper
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths
 from pykmhelpers.pipeline.index_ops.plan_file import MERGE, check_fresh, load_plan
-from pykmhelpers.pipeline.index_ops.progress import ProgressDisplay
+from pykmhelpers.pipeline.index_ops.progress import ShardDisplay
 from pykmhelpers.pipeline.index_ops.report import RunReport, dir_bytes
 from pykmhelpers.pipeline.index_ops.run_log import parse_kmtricks_log
 from pykmhelpers.pipeline.index_ops.status import (
@@ -62,6 +62,7 @@ class PlanRunner:
         self.state = BuildState(self.plan, self._paths)
         self._shell = Wrapper("bash")
         self._current: Optional[tuple[dict, str]] = None  # step running now
+        self._display: Optional[ShardDisplay] = None
         # kmhelpers, kmindex and kmtricks of this installation come first
         bin_dir = os.path.dirname(sys.executable)
         if bin_dir not in os.environ.get("PATH", "").split(os.pathsep):
@@ -132,6 +133,9 @@ class PlanRunner:
         report.result.details["plan"] = self.plan_path
         failed_tasks: set[str] = set()
         previous = self._on_sigterm()
+        if show_progress:
+            tasks = list(dict.fromkeys(j.task for j in jobs))
+            self._display = ShardDisplay(self.state, tasks).start()
         try:
             for job in jobs:
                 if job.task in failed_tasks:
@@ -157,6 +161,9 @@ class PlanRunner:
                     report.result.status = ApplyStatus.PARTIAL
         finally:
             signal.signal(signal.SIGTERM, previous)
+            if self._display:
+                self._display.close()
+                self._display = None
             report.close()
         return report.result
 
@@ -188,6 +195,8 @@ class PlanRunner:
             self.state.write_progress()
         except Exception as e:
             logger.warning(f"Could not record the state of '{step}': {e}")
+        if self._display:
+            self._display.update()
 
     def _step(self, task: dict, step: str, log: str, run) -> None:
         """Run ``run()`` as step ``step`` of ``task``, recording its state."""
@@ -296,17 +305,7 @@ class PlanRunner:
     ) -> None:
         path = os.path.join(self._paths.task(task["dir"].rstrip("/")), script)
         os.makedirs(os.path.dirname(log), exist_ok=True)
-        display = ProgressDisplay(name) if show_progress else None
-        if display:
-            display.__enter__()
-        try:
-            result = self._shell._monitor_cmd(
-                ["bash", path], log_file=log, log_errors_only=False
-            )
-        finally:
-            if display:
-                display.__exit__(None, None, None)
-                print()
+        result = self._shell._monitor_cmd(["bash", path], log_file=log, log_errors_only=False)
         code = (result or {}).get("return_code", -1)
         if code != 0:
             stderr = [ln for ln in str((result or {}).get("stderr") or "").splitlines() if ln.strip()]

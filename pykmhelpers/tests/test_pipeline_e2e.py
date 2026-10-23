@@ -987,6 +987,36 @@ class TestChunkedBuild(PipelineE2EBase):
         proc = subprocess.run(cmd, cwd=self.tmp, capture_output=True, text=True, env=env)
         self.assertNotEqual(proc.returncode, 0)
 
+    def test_show_progress_lines(self):
+        """--sp prints one line per shard as its steps end, chunked or not;
+        --status --sp returns at once on an ended build: 0 on SUCCESS, else 1."""
+        session_file = self.design()
+        for name, extra in (("chunked", ["--limits", '{"files": 5}', "--cpj", "2"]), ("whole", [])):
+            with self.subTest(name):
+                self.run_cli("plan", session_file, "-o", name, *extra)
+                out = self.run_cli("apply", session_file, "-o", name, "--sp").stdout
+                lines = [ln for ln in out.splitlines() if " [" in ln]
+                self.assertTrue(lines[-1].startswith("✔ "), out)
+                self.assertTrue(lines[-1].rstrip().endswith("SUCCESS"), out)
+                done, total = lines[-1].split("] ")[1].split()[0].split("/")
+                self.assertEqual(done, total)
+                if name == "whole":
+                    self.assertEqual(total, "2")  # one run, one merge
+                watch = self.run_cli(
+                    "apply", session_file, "-o", name, "--status", "--sp", "--interval", "1"
+                )
+                self.assertIn("SUCCESS:", watch.stdout)
+
+        self.run_cli("plan", session_file, "-o", "bad")
+        script = next((self.tmp / "bad" / "assets" / "initial").glob("*/*_initial.sh"))
+        script.write_text(script.read_text().replace("kmtricks pipeline", "exit 2; kmtricks", 1))
+        self.run_cli("apply", session_file, "-o", "bad", expect_success=False)
+        watch = self.run_cli(
+            "apply", session_file, "-o", "bad", "--status", "--sp", "--interval", "1",
+            expect_success=False,
+        )
+        self.assertIn("FAILED run", watch.stdout)
+
     def test_unmatched_task_pattern_fails(self):
         session_file = self.design()
         self.run_cli("plan", session_file, "-o", "build")

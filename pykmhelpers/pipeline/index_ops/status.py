@@ -16,9 +16,11 @@ the submissions of ``submit.sh`` (``slurm/submitted.tsv``):
 import json
 import logging
 import os
+import re
 import shutil
 import socket
 import subprocess
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
@@ -265,3 +267,134 @@ def squeue_alive(job: str) -> Optional[bool]:
         # an unknown (finished, purged) job id is an error for squeue
         return False if "Invalid job id" in r.stderr else None
     return bool(r.stdout.strip())
+
+
+# ---
+# ONE LINE PER SHARD (--show-progress)
+
+BAR_LEN = 12
+MAX_RUNNING_SHOWN = 3
+_CHUNK = re.compile(r"chunk\d+$")
+_COLORS = {SUCCESS: "32", FAILED: "31", LOST: "33", CANCELLED: "33"}
+_ICONS = {SUCCESS: "✔", FAILED: "✘", LOST: "✘", CANCELLED: "✘"}
+
+
+@dataclass
+class ShardProgress:
+    """Where one shard stands: its steps done, running, failed, and its time."""
+
+    shard: str
+    state: str  # SUCCESS, FAILED, LOST, CANCELLED, RUNNING, PENDING
+    done: int
+    total: int
+    running: list[tuple[str, datetime]] = field(default_factory=list)  # oldest first
+    failed: Optional[tuple[str, str, str]] = None  # status, step, detail
+    waiting: int = 0  # steps pending on a submitted job
+    started: Optional[datetime] = None
+    finished: Optional[datetime] = None
+
+    @property
+    def shown(self) -> bool:
+        """Started, or ended: a shard not started yet is not shown."""
+        return self.started is not None or self.state != PENDING or self.done > 0
+
+    def key(self) -> tuple:
+        """What a printed (not redrawn) line follows: steps done, failure, end."""
+        ended = self.state if self.state in (SUCCESS, FAILED, LOST, CANCELLED) else None
+        return (self.done, self.failed, ended)
+
+
+def _when(value: Optional[str]) -> Optional[datetime]:
+    try:
+        return datetime.fromisoformat(value) if value else None
+    except ValueError:
+        return None
+
+
+def shard_progress(state: "BuildState", task: dict, alive=None, submitted=None) -> ShardProgress:
+    """Summarize the steps of ``task`` (see ``BuildState.step_status``)."""
+    submitted = state.submitted() if submitted is None else submitted
+    job_of = {
+        step: submitted.get(job)
+        for job, steps in (task.get("jobs") or {}).items()
+        for step in steps
+    }
+    steps = list(task["chunks"]) + ([MERGE] if task.get("merge") else [])
+    p = ShardProgress(task["shard"], PENDING, 0, len(steps))
+    starts, ends = [], []
+    for step in steps:
+        status, detail = state.step_status(task, step, job_of.get(step), alive)
+        recorded = state.read_state(task, step)
+        if _when(recorded.get("started")):
+            starts.append(_when(recorded["started"]))
+        if _when(recorded.get("finished")):
+            ends.append(_when(recorded["finished"]))
+        if status == SUCCESS:
+            p.done += 1
+        elif status == RUNNING:
+            p.running.append((step, _when(recorded.get("started")) or datetime.now()))
+        elif status in (FAILED, LOST, CANCELLED):
+            p.failed = p.failed or (status, step, detail)
+        elif job_of.get(step) and "ended without" not in detail:
+            p.waiting += 1
+    p.running.sort(key=lambda r: r[1])
+    p.started = min(starts) if starts else None
+    if p.done == p.total:
+        p.state = SUCCESS
+    elif p.failed:
+        p.state = p.failed[0]
+    elif p.running:
+        p.state = RUNNING
+    if p.state != RUNNING and ends and not p.running:
+        p.finished = max(ends)
+    return p
+
+
+def short_step(step: str) -> str:
+    """``chunk5``, ``merge``, or ``run`` for a part built in one run."""
+    if step == MERGE:
+        return MERGE
+    m = _CHUNK.search(step)
+    return m.group(0) if m else "run"
+
+
+def duration(seconds: float) -> str:
+    seconds = max(int(seconds), 0)
+    h, rest = divmod(seconds, 3600)
+    m, s = divmod(rest, 60)
+    if h:
+        return f"{h}h{m:02d}m"
+    return f"{m}m{s}s" if m else f"{s}s"
+
+
+def shard_line(
+    p: ShardProgress, width: int, now: datetime, spinner: str = "⣾", color: bool = False
+) -> str:
+    """``⣾ idx_g0  [■■■■■■      ] 6/11 (8m3s)  chunk5 (3m12s)``; ``width`` pads the name."""
+    filled = round(BAR_LEN * p.done / p.total) if p.total else BAR_LEN
+    bar = "■" * filled + " " * (BAR_LEN - filled)
+    count = f"{p.done}/{p.total}"
+    elapsed = ""
+    if p.started:
+        elapsed = f"({duration(((p.finished or now) - p.started).total_seconds())})"
+    if p.failed:
+        status, step, detail = p.failed
+        tail = f"{status} {short_step(step)}" + (f" ({detail})" if detail else "")
+        if p.running:
+            tail += f", {len(p.running)} still running"
+    elif p.state == SUCCESS:
+        tail = SUCCESS
+    elif p.running:
+        shown = [f"{short_step(s)} ({duration((now - t).total_seconds())})" for s, t in p.running]
+        if len(shown) == 1:
+            tail = shown[0]
+        else:
+            tail = f"{len(shown)} running: " + ", ".join(shown[:MAX_RUNNING_SHOWN])
+            tail += ", ..." if len(shown) > MAX_RUNNING_SHOWN else ""
+    else:
+        tail = "waiting" if spinner else ""
+    icon = _ICONS.get(p.state, spinner or "-")
+    if color and p.state in _COLORS:
+        code = _COLORS[p.state]
+        icon, tail = f"\033[{code}m{icon}\033[0m", f"\033[{code}m{tail}\033[0m"
+    return f"{icon} {p.shard:<{width}}  [{bar}] {count:<{5}} {elapsed:<9} {tail}".rstrip()

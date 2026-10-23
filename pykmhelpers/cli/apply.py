@@ -2,6 +2,8 @@
 
 import logging
 import os
+import shutil
+import time
 from datetime import datetime
 
 import click
@@ -11,7 +13,15 @@ import pykmhelpers.core.log
 import pykmhelpers.pipeline.index_ops as ops
 from pykmhelpers.cli.notify import ExitNotifier, mail
 from pykmhelpers.pipeline.index_ops.runner import PlanRunner, describe
-from pykmhelpers.pipeline.index_ops.status import PROGRESS_FILE, overall, render
+from pykmhelpers.pipeline.index_ops.progress import ShardDisplay
+from pykmhelpers.pipeline.index_ops.status import (
+    PROGRESS_FILE,
+    RUNNING,
+    SUCCESS,
+    overall,
+    render,
+    squeue_alive,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -68,12 +78,40 @@ def show_status(input_file: str, work_dir: str, notify: str | None = None) -> st
     return result
 
 
+def watch(input_file: str, work_dir: str, interval: float) -> int:
+    """Draw one line per shard of a cluster build, read again every ``interval``
+    seconds, until no shard is running or waiting on a job; 0 when every
+    shard is SUCCESS, else 1. Ctrl-C only stops watching."""
+    runner = PlanRunner(work_dir, input_file)
+    alive = squeue_alive if shutil.which("squeue") else None
+    display = ShardDisplay(runner.state, alive=alive)
+    try:
+        display.start()
+        while any(p.state == RUNNING or p.waiting for p in display.shards):
+            time.sleep(interval)
+            display.update()
+    except KeyboardInterrupt:
+        logger.info("Stopped watching: the jobs go on")
+    finally:
+        display.close()
+    tree = runner.state.write_progress(check_jobs=True)
+    click.echo(render(tree).splitlines()[0])
+    return 0 if overall(tree) == SUCCESS else 1
+
+
 @click.command(name="apply")
 @click.argument("input_file", nargs=1, required=True, type=click.Path(exists=True))
 @shared.index_target_options
 @shared.task_option
 @shared.pending_option
 @shared.status_option
+@click.option(
+    "--interval",
+    type=click.FloatRange(min=0.1),
+    default=30,
+    show_default=True,
+    help="⚙   With --status --show-progress: seconds between two reads of a cluster build.",
+)
 @shared.index_apply_options
 @shared.fail_fast_option
 @click.pass_context
@@ -85,6 +123,7 @@ def apply(
     task_ids,
     pending,
     status,
+    interval,
     show_progress,
     notify,
     notify_level,
@@ -119,10 +158,16 @@ def apply(
     # List the jobs not done yet, or where every shard and step stands
     kmhelpers apply coli_db -o coli_build --pending
     kmhelpers apply coli_db -o coli_build --status
+
+    \b
+    # Follow a cluster build: one line per shard, until it ends
+    kmhelpers apply coli_db -o coli_build --status --sp
     """
     input_file = shared.resolve_definition(input_file, session)
     if status:
         try:
+            if show_progress:
+                ctx.exit(watch(input_file, work_dir, interval))
             show_status(input_file, work_dir, notify)
         except (ValueError, FileNotFoundError) as e:
             raise click.ClickException(str(e))

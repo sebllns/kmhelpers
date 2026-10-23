@@ -1,10 +1,12 @@
 """Unit tests for the step states and the progress tree of a build (no kmindex run)."""
 
+import io
 import json
 import os
 import shutil
 import tempfile
 import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -13,6 +15,7 @@ import yaml
 from pykmhelpers.cli.notify import ExitNotifier
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths
 from pykmhelpers.pipeline.index_ops.plan_file import MERGE
+from pykmhelpers.pipeline.index_ops.progress import ShardDisplay
 from pykmhelpers.pipeline.index_ops.status import (
     CANCELLED,
     FAILED,
@@ -21,8 +24,13 @@ from pykmhelpers.pipeline.index_ops.status import (
     RUNNING,
     SUCCESS,
     BuildState,
+    ShardProgress,
+    duration,
     overall,
     render,
+    shard_line,
+    shard_progress,
+    short_step,
 )
 
 PARTITIONS = 2
@@ -137,6 +145,80 @@ class TestProgress(StatusCase):
     def test_done(self):
         self.publish(["s0", "s1"])
         self.assertEqual(overall(self.state.progress()), SUCCESS)
+
+
+class TestShardLine(StatusCase):
+    def running(self, step, minutes):
+        started = (datetime.now() - timedelta(minutes=minutes)).isoformat(timespec="seconds")
+        path = Path(self.state.state_path(self.task, step))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"status": RUNNING, "job": "1_0", "started": started}))
+
+    def test_shard_progress(self):
+        self.complete_run("idx_g0_s1_chunk0")
+        self.running("idx_g0_s1_chunk1", 3)
+        p = shard_progress(self.state, self.task)
+        self.assertEqual((p.state, p.done, p.total), (RUNNING, 1, 3))
+        self.assertEqual([s for s, _ in p.running], ["idx_g0_s1_chunk1"])
+        self.assertTrue(p.shown)
+
+    def test_not_started_is_not_shown(self):
+        self.assertFalse(shard_progress(self.state, self.task).shown)
+
+    def test_line_shows_three_running_oldest_first(self):
+        now = datetime(2026, 1, 1, 12, 0, 0)
+        running = [(f"idx_g0_s1_chunk{n}", now - timedelta(minutes=m)) for n, m in
+                   [(5, 2), (2, 9), (8, 1), (1, 5), (3, 4)]]
+        running.sort(key=lambda r: r[1])
+        p = ShardProgress("idx_g0", RUNNING, 6, 11, running, started=now - timedelta(minutes=10))
+        line = shard_line(p, 6, now, "⣾")
+        self.assertIn("[■■■■■■■     ] 6/11", line)
+        self.assertIn("(10m0s)", line)
+        self.assertIn("5 running: chunk2 (9m0s), chunk1 (5m0s), chunk3 (4m0s), ...", line)
+
+    def test_line_merge_success_failure(self):
+        now = datetime(2026, 1, 1, 12, 0, 0)
+        merging = ShardProgress("g", RUNNING, 10, 11, [("merge", now - timedelta(seconds=184))])
+        self.assertTrue(shard_line(merging, 1, now).endswith("merge (3m4s)"))
+        done = ShardProgress("g", SUCCESS, 2, 2, started=now - timedelta(hours=1, minutes=2),
+                             finished=now)
+        self.assertIn("✔ g  [■■■■■■■■■■■■] 2/2", shard_line(done, 1, now))
+        self.assertIn("(1h02m)", shard_line(done, 1, now))
+        self.assertIn("\033[32mSUCCESS", shard_line(done, 1, now, color=True))
+        failed = ShardProgress("g", FAILED, 3, 9, [("idx_g_s1_chunk4", now)],
+                               failed=(FAILED, "idx_g_s1_chunk3", "log: x.log"))
+        line = shard_line(failed, 1, now)
+        self.assertIn("✘ g", line)
+        self.assertIn("FAILED chunk3 (log: x.log), 1 still running", line)
+        self.assertNotIn("\033", line)
+
+    def test_short_step(self):
+        self.assertEqual(short_step("idx_g0_s1_chunk12"), "chunk12")
+        self.assertEqual(short_step("merge"), "merge")
+        self.assertEqual(short_step("idx_g0_s1"), "run")
+        self.assertEqual((duration(52), duration(483), duration(3725)), ("52s", "8m3s", "1h02m"))
+
+    def test_display_not_live_prints_changes(self):
+        out = io.StringIO()
+        display = ShardDisplay(self.state, live=False, stream=out).start()
+        self.assertEqual(out.getvalue(), "")  # not started: not shown
+        self.running("idx_g0_s1_chunk0", 1)
+        display.update()
+        display.update()  # nothing changed: nothing printed
+        self.complete_run("idx_g0_s1_chunk0")
+        display.update()
+        lines = out.getvalue().splitlines()
+        self.assertEqual(len(lines), 2, lines)
+        self.assertIn("1/3", lines[1])
+        self.assertNotIn("\033", out.getvalue())
+
+    def test_display_live_redraws(self):
+        out = io.StringIO()
+        self.running("idx_g0_s1_chunk0", 1)
+        display = ShardDisplay(self.state, live=True, stream=out)
+        display.update()
+        display.update()
+        self.assertIn("\033[1F\033[J", out.getvalue())
 
 
 class TestNotifier(unittest.TestCase):

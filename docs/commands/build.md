@@ -31,7 +31,7 @@ Validate paths then build k-mer indices from an index definition file in a singl
 | `--cb, --chunk-budget INT` | K-mer budget of one kmtricks chunk: a chunk of span `s` holds at most `ceil8(budget / base^s)` samples. 0 for no limit (default: `2**37`), see [build - Shards and chunks](build.md#shards-and-chunks) |
 | `--ncp, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
 | `--keep-previous` | Keep the replaced version of an updated index in `BUILD_DIR/work/SESSION/previous/` instead of deleting it |
-| `--sp, --show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
+| `--sp, --show-progress` | One line per shard: progress bar of its steps, steps running, colored end status (see [apply - Following a build](apply.md#following-a-build)); with `--hpc`, follow the cluster build after the submission |
 | `--cpj, --chunks-per-job INT` | Chunks of a shard one job builds (see [plan - Jobs](plan.md#jobs)) |
 | `--hpc, --cluster FILE` | Build on a cluster: plan for the jobs of `FILE`, submit them, and exit (see [On a cluster](#on-a-cluster)) |
 | `--notify EMAIL` | Send email notifications (requires sendmail), see [Notifications](#notifications) |
@@ -96,6 +96,7 @@ Building a session again resumes it: complete kmtricks runs are kept, incomplete
 ```bash
 kmhelpers build coli_db -o coli_build/ --hpc cluster.yaml [--chunks-per-job 4] [--notify you@example.com]
 kmhelpers apply coli_db -o coli_build/ --status          # where it stands, any time
+kmhelpers apply coli_db -o coli_build/ --status --sp     # one line per shard, until it ends
 ```
 
 With `--hpc FILE` (see [plan - Cluster](plan.md#cluster)), `build` plans for the jobs of `FILE`, runs the generated `slurm/submit.sh`, and exits: the SLURM jobs build the indices. Nothing is submitted when the plan is `FAILED` or `PARTIAL`. The jobs are:
