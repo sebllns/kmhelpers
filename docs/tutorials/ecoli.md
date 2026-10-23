@@ -85,6 +85,20 @@ kmhelpers design coli_10.txt \
     **Output:** `coli_db/list/` (JSONL), `coli_db/profile/` (profile.yaml, groups.png),
     `coli_db/compose/` (index definitions)
 
+??? note "Options"
+    | Option | Meaning |
+    |--------|---------|
+    | `coli_10.txt` | INPUT: the sample files, one path per line |
+    | `-o coli_db/` | design directory: receives `list/`, `profile/` and `compose/` |
+    | `-n coli` | index name: its sub-indexes are `coli_g0`, `coli_g1` |
+    | `-s initial` | session: this first set of samples; an update adds a session (see [Update the index](ecoli_update.md)) |
+    | `-k 25` | k-mer size (default: 25) |
+    | `-b 1.1` | span base: samples are bucketed by k-mer count, in steps of x1.1 (see [profile](../commands/profile.md#description)) |
+    | `-g 2` | 2 storage-balanced groups, one sub-index each (`-g 0`, the default, chooses the number) |
+    | `--sb 0` | no sharding: each group is one index. A shard budget splits a large group into independent shards (`coli_g0_p0`, ...), see [compose - Sharding](../commands/compose.md#description) |
+
+    Not set here: the data type, assembled by default (`--dt u` for raw reads), and the false-positive rate `--fp 0.25`.
+
 ??? info "INFO"
     `design` runs [`list`](../commands/list.md) → [`profile`](../commands/profile.md) → [`compose`](../commands/compose.md) in a single command.  
     For a detailed walkthrough of each sub-command, see
@@ -101,6 +115,16 @@ kmhelpers build coli_db -o coli_build/ --cb 0 --show-progress
 ??? abstract "I/O"
     **Input:** `coli_db/compose/coli/initial/index.yaml`  
     **Output:** `coli_build/index.json` + one folder per sub-index, `coli_build/coli_g0/` and `coli_build/coli_g1/` - ready-to-query index
+
+??? note "Options"
+    | Option | Meaning |
+    |--------|---------|
+    | `coli_db` | INPUT: the design directory; its last session is built (`-s` picks another) |
+    | `-o coli_build/` | index directory (BUILD_DIR): receives the indices, reused by updates, passed to `query -r` |
+    | `--cb 0` | no chunk budget: each shard is built by one kmtricks run. Otherwise a large shard is built in chunks, then merged (see [build - Shards and chunks](../commands/build.md#shards-and-chunks)) |
+    | `--show-progress` | one line per shard: progress bar, step running, end status (see [apply - Following a build](../commands/apply.md#following-a-build)) |
+
+    Not set here: the resources, detected on this machine (`--limits` to set them). On a cluster, `--hpc cluster.yaml` plans the build for SLURM jobs and submits them (see [build - On a cluster](../commands/build.md#on-a-cluster)).
 
 ??? info "INFO"
     `build` runs [`plan`](../commands/plan.md) → [`apply`](../commands/apply.md) in a single command, validating all paths before
@@ -128,6 +152,15 @@ kmhelpers query -r coli_build/ -o results/ query.fa
 ??? abstract "I/O"
     **Input:** `coli_build/` (index root), `query.fa` (first contig of `GCA_000780515`)  
     **Output:** `results/` 
+
+??? note "Options"
+    | Option | Meaning |
+    |--------|---------|
+    | `-r coli_build/` | the index directory to query (BUILD_DIR of `build`) |
+    | `-o results/` | output directory: one folder per query file |
+    | `query.fa` | the query file(s), FASTA or FASTQ, gzipped or not |
+
+    Not set here: `-z 6` (findere: (k+z)-mers, which lowers the false-positive rate), `--thr 0.05` (minimum score reported), `-f tsv` (results format). See [query](../commands/query.md).
 
 ??? success "RESULT"
     `query` merges the results of all sub-indices into `results/query/results.tsv`,

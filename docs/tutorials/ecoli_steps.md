@@ -24,6 +24,15 @@ kmhelpers list coli_10.txt -o coli_db/list/coli.jsonl -k 25
     **Input:** `coli_10.txt`  
     **Output:** `coli_db/list/coli.jsonl`
 
+??? note "Options"
+    | Option | Meaning |
+    |--------|---------|
+    | `coli_10.txt` | INPUT: the sample files, one path per line |
+    | `-o coli_db/list/coli.jsonl` | the sample list written (JSONL) |
+    | `-k 25` | k-mer size counted by ntcard (default: 25) |
+
+    Not set here: the data type, assembled by default (`--dt u` for raw reads).
+
 ??? info "INFO"
     `list` reads each path, counts k-mers with ntcard (k = 25), and writes one
     JSONL record per sample to `coli_db/list/coli.jsonl`.
@@ -50,6 +59,16 @@ kmhelpers profile coli_db/list/coli.jsonl -o coli_db/profile/ -b 1.1 -g 2
 ??? abstract "I/O"
     **Input:** `coli_db/list/coli.jsonl`  
     **Output:** `coli_db/profile/profile.yaml`, `coli_db/profile/groups.png`
+
+??? note "Options"
+    | Option | Meaning |
+    |--------|---------|
+    | `coli_db/list/coli.jsonl` | INPUT: the sample list of `list` |
+    | `-o coli_db/profile/` | output directory: `profile.yaml`, `groups.png` |
+    | `-b 1.1` | span base: samples are bucketed by k-mer count, in steps of x1.1 |
+    | `-g 2` | 2 storage-balanced groups, one sub-index each (`-g 0`, the default, chooses the number) |
+
+    Not set here: the false-positive rate `--fp 0.25`.
 
 ??? info "INFO"
     A *span* is an integer bucket that summarises a sample's k-mer count:
@@ -179,6 +198,15 @@ kmhelpers compose coli_db/list/coli.jsonl \
     **Input:** `coli_db/list/coli.jsonl`, `coli_db/profile/profile.yaml`  
     **Output:** `coli_db/compose/coli/initial/` (`index.yaml` and `shards/`), and the layout `coli_db/compose/coli/layout.yaml`
 
+??? note "Options"
+    | Option | Meaning |
+    |--------|---------|
+    | `coli_db/list/coli.jsonl` | INPUT: the sample list |
+    | `-o coli_db/compose/` | compose directory: one folder per index |
+    | `-n coli`, `-s initial` | index name, and session |
+    | `--pf coli_db/profile/profile.yaml` | the profile of `profile`: its groups become the sub-indexes |
+    | `--sb 0` | no sharding: each group is one index. A shard budget splits a large group into independent shards (`coli_g0_p0`, ...), see [compose - Sharding](../commands/compose.md#description) |
+
 ??? info "INFO"
     `compose` reads the sample list and the profile, then writes index definition
     files into `coli_db/compose/coli/initial/`: `index.yaml` summarises the session and
@@ -203,6 +231,15 @@ kmhelpers plan coli_db -o coli_build/ --cb 0
 ??? abstract "I/O"
     **Input:** `coli_db/compose/coli/initial/index.yaml`  
     **Output:** build scripts in `coli_build/assets/initial/` + report in `coli_build/logs/`
+
+??? note "Options"
+    | Option | Meaning |
+    |--------|---------|
+    | `coli_db` | INPUT: the design directory; its last session is planned (`-s` picks another) |
+    | `-o coli_build/` | index directory: the plan is written to `coli_build/assets/initial/` |
+    | `--cb 0` | no chunk budget: each shard is built by one kmtricks run. Otherwise a large shard is built in chunks, then merged (see [build - Shards and chunks](../commands/build.md#shards-and-chunks)) |
+
+    Every build decision is taken here (partitions, threads, chunks, merges), from the resources of this machine (`--limits` to set them): `apply` takes no such option. `--hpc cluster.yaml` plans for SLURM jobs instead (see [plan - Cluster](../commands/plan.md#cluster)).
 
 ??? info "INFO"
     Before committing to a potentially long build, validate paths and preview the commands that will be executed: `plan` checks that every sample file exists, reports any missing paths, and
@@ -242,6 +279,14 @@ kmhelpers plan coli_db -o coli_build/ --cb 0
     ??? abstract "I/O"
         **Input:** `coli_db/compose/coli/initial/index.yaml`  
         **Output:** `coli_build/index.json` + one folder per sub-index, `coli_build/coli_g0/` and `coli_build/coli_g1/` - ready-to-query index  
+
+    ??? note "Options"
+        | Option | Meaning |
+        |--------|---------|
+        | `coli_db` | the INPUT given to `plan` |
+        | `-o coli_build/` | the index directory given to `plan`: `apply` runs its plan |
+
+        `--status` shows where the build stands, `--task` runs part of it, `--show-progress` draws one line per shard (see [apply](../commands/apply.md)).
 
 === "bash"
 

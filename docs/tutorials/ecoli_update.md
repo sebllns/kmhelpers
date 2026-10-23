@@ -52,6 +52,15 @@ kmhelpers design coli_update.txt -o coli_db/ -n coli -s update
     **Input:** `coli_update.txt`, existing layout `coli_db/compose/coli/layout.yaml`  
     **Output:** `coli_db/compose/coli/update/index.yaml`
 
+??? note "Options"
+    | Option | Meaning |
+    |--------|---------|
+    | `coli_update.txt` | INPUT: the new sample files |
+    | `-o coli_db/`, `-n coli` | the design directory and index of the first session |
+    | `-s update` | a new session: its samples are added to the existing sub-indexes |
+
+    Not set here, and not to be: `-k`, `-b`, `-g` and `--sb` come from the layout of the index (`coli_db/compose/coli/layout.yaml`), so the update fits the existing sub-indexes.
+
 ??? info "INFO"
     `design` detects the existing layout file at `coli_db/compose/coli/layout.yaml`,
     skips the [`profile`](../commands/profile.md) step, and composes only the new
@@ -73,6 +82,14 @@ kmhelpers build coli_db -s update -o coli_build/ --cb 0 --show-progress
     **Input:** `coli_db/compose/coli/update/index.yaml`  
     **Output:** updated `coli_g0` in `coli_build/coli_g0/`, updated
     `coli_build/index.json`
+
+??? note "Options"
+    | Option | Meaning |
+    |--------|---------|
+    | `coli_db`, `-s update` | the design directory, and the session to build |
+    | `-o coli_build/` | the same index directory as the first build: the new samples are merged into its sub-indexes |
+    | `--cb 0` | no chunk budget: one kmtricks run per shard (see [build - Shards and chunks](../commands/build.md#shards-and-chunks)) |
+    | `--show-progress` | one line per shard: progress bar, step running, end status |
 
 ??? info "INFO"
     Each index keeps its folder, `coli_build/<name>/`. While the session is
@@ -102,6 +119,13 @@ kmhelpers build coli_db -s update -o coli_build/ --cb 0 --show-progress
 kmhelpers query -r coli_build/ -o results_update/ query.fa
 ```
 
+??? note "Options"
+    | Option | Meaning |
+    |--------|---------|
+    | `-r coli_build/` | the updated index directory |
+    | `-o results_update/` | another output directory, to compare with `results/` |
+    | `query.fa` | the same query as before |
+
 ??? success "RESULT"
     `coli_g0` now holds 6 samples, the 5 initial ones plus `GCA_000005845`.
     `query.fa` comes from `GCA_000780515`, indexed in `coli_g1`, which still
@@ -122,3 +146,11 @@ kmhelpers manage -r coli_build/ list
 kmhelpers manage -r coli_build/ info --sh coli_g0
 kmhelpers manage -r coli_build/ check
 ```
+
+??? note "Options"
+    | Option | Meaning |
+    |--------|---------|
+    | `-r coli_build/` | the index directory (registry) |
+    | `list` | the registered sub-indexes and their sample counts |
+    | `info --sh coli_g0` | details of one sub-index: samples, partitions, size |
+    | `check` | checks every sub-index on disk against the registry |
