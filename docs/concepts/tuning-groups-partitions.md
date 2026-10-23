@@ -1,62 +1,62 @@
-# Choosing Groups and Partitions
+# Choosing groups and partitions
 
-## Two independent knobs
+## Two independent settings
 
-Index layout is controlled by two separate settings:
+The layout of an index rests on two settings (see the [Glossary](terms.md)):
 
-- `-g, --group` ([`profile`](../commands/profile.md), [`design`](../commands/design.md))
-splits samples into `G` storage-balanced sub-indices.
-- `-P, --partition-count`
-([`compose`](../commands/compose.md), [`design`](../commands/design.md))
-splits each sub-index's Bloom-filter matrix into `P` partition files. Without it, the first
-[`plan`](../commands/plan.md) or [`build`](../commands/build.md) of each shard sizes `P` from
-the resource limits (see [compose - Partitioning](../commands/compose.md#description)).
+- **groups** (`-g`, [`design`](../commands/design.md), [`profile`](../commands/profile.md)):
+  how many sets of samples of similar sizes. Each group gets the Bloom filter size of its
+  largest samples, and is stored as one shard (or several, with a shard budget).
+- **partitions** (`-P, --partition-count`, hidden option of [`design`](../commands/design.md)
+  and [`compose`](../commands/compose.md)): how many files the k-mers of each shard are
+  spread over. Usually left unset: the first [`plan`](../commands/plan.md) or
+  [`build`](../commands/build.md) sizes it from the resources, then it is fixed for the life
+  of the index (see [compose - Partitioning](../commands/compose.md#description)).
 
 ```mermaid
-graph TD
-    A["-g groups"] --> B1["sub-index 0"]
-    A --> B2["sub-index 1"]
-    A --> B3["sub-index G"]
-    B1 --> C["-p partitions each"]
-    B2 --> C
-    B3 --> C
-    C -->|sub-index 0| D["matrix_0.cmbf ... matrix_P.cmbf per sub-index"]
-    C -->|sub-index 1| D
-    C -->|sub-index G| D
+flowchart LR
+    S["samples"] -->|"-g: groups"| G["coli_g0, coli_g1<br/>(shards)"]
+    G -->|"-P: partitions, in each shard"| P["matrix_0.cmbf ... matrix_P-1.cmbf"]
 ```
+
+By default (`-g 0`), the number of groups is chosen: groups are added while each one saves
+at least 20% of the storage; with `design`, an index of at most 4 GB keeps one group (see
+[profile - Grouping](../commands/profile.md#description)).
 
 ## Summary
 
-Direction to move each knob to optimize for a given goal:
+Direction to move each setting for a given goal:
 
-| Goal            | Groups (`-g`)  | Partitions (`-p`)  |
+| Goal            | Groups (`-g`)  | Partitions (`-P`)  |
 |-----------------|:--------------:|:------------------:|
-| Faster queries  | -              | -                  | 
+| Faster queries  | -              | -                  |
 | Lower build RAM | +              | +                  |
 | Less storage    | +              |                    |
 
-`+` increase, `-` decrease, blank = not a practical lever. 
+`+` increase, `-` decrease, blank: not a practical lever.
 
-For example, to speed up queries, lower `-g` first, then `-p`. If build RAM is
-constrained, raise `-p` first, then `-g`.
+For example, to speed up queries, lower `-g` first, then `-P`. If build RAM is
+constrained, raise `-P` first, then `-g`.
 
 ## Query time
 
-Fewer groups and fewer partitions both mean fewer files opened per query.
+Fewer groups and fewer partitions both mean fewer files read per query: each shard is read
+in turn.
 
 ## Build RAM
 
-More partitions and more groups both shrink the Bloom-filter matrix built at once,
-lowering peak build RAM.
+More partitions and more groups both shrink what one build holds at once, lowering its peak
+RAM.
 
 ## Storage
 
-More groups balances Bloom-filter size across samples more tightly, reducing
-wasted space. Partition count has no meaningful effect on storage.
+More groups fit the Bloom filter sizes to the samples more tightly, wasting less space: a
+small sample in the group of large ones gets their large filter. The number of partitions
+has no meaningful effect on storage. `profile` writes the storage of each choice of groups
+to `profile.yaml`, and plots it in `groups.png`.
 
 ## Practical trade-off
 
-Fewer groups/partitions favor query speed but raise build RAM; more groups/partitions
-favor build RAM and storage but raise files touched per query. Tune with `-g`
-(`profile`/`design`) and `-p` (`compose`/`design`), and check `groups.png` (from
-`profile`) before deciding.
+Fewer groups and partitions favor query speed but raise build RAM; more favor build RAM and
+storage but raise the files read per query. Check `groups.png` (from `profile`) before
+deciding, and set `-g` explicitly when the automatic choice does not fit your use.

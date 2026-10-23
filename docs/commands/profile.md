@@ -41,7 +41,8 @@ Analyse a JSONL sample manifest produced by `list` and produce a Bloom-filter sp
 ## Description
 
 A *span* is an integer `s = floor(log_base(n))`, where `n` is the number of distinct
-$k$-mers in a sample and `base` controls bucket granularity (default: 2). It identifies
+$k$-mers in a sample and `base` controls bucket granularity (`-b`, default: 1.1; the
+figure below uses base 2). It identifies
 the Bloom-filter size class required to index that sample at the target false-positive
 rate.
 

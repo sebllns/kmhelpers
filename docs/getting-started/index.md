@@ -6,6 +6,7 @@
 1. **[Installation](installation.md)**: set up `kmhelpers` and its dependencies (`kmindex`, `kmtricks`, `ntCard`) via Conda
 2. **[Quick Start](getting-started.md)**: learn the `design` → `build` → `query` pipeline and common use cases
 3. **[Tutorial](../tutorials/ecoli.md)**: Once you're set up, walk through a full, real-data example end to end.
+4. **[Concepts](../concepts/terms.md)**: the words used in this documentation (shard, partition, session, chunk...), and how an index is structured and built.
 
 
 

@@ -1,50 +1,38 @@
-# K-mer Counting
+# K-mer counting
 
 ## What is a k-mer
 
-A k-mer is a substring of length `k` extracted from a sequence. K-mer counting reduces
-a sequence file to a single number: how many solid k-mers it contains.
+A k-mer is a substring of length `k` of a sequence (`-k`, default 25). K-mer counting
+reduces a sample to one number: how many different k-mers it holds.
 
-## Why kmhelpers counts solid k-mers
+## Why kmhelpers counts k-mers
 
-Each sample's k-mer count drives its Bloom-filter size: more k-mers need a larger
-filter to hold a target false-positive rate. [`list`](../commands/list.md) counts
-k-mers per sample into the JSONL manifest; [`profile`](../commands/profile.md) uses
-those counts to assign each sample a size class (span) and group samples into
-storage-balanced sub-indices.
+A sample's k-mer count sets the size of its Bloom filter: more k-mers need a larger filter
+to keep the same false-positive rate. [`list`](../commands/list.md) counts the k-mers of
+each sample into the sample list; [`profile`](../commands/profile.md) uses these counts to
+sort samples into spans and groups (see [How an index is built](building.md)).
 
-## Counting modes
+## How they are counted
 
-kmhelpers wraps [ntCard](https://github.com/BirolLab/ntCard), a streaming cardinality
-estimator, to avoid loading full k-mer sets in memory. ntCard reports two base
-statistics per file:
+kmhelpers uses [ntCard](https://github.com/BirolLab/ntCard), which estimates the counts
+while reading the files once, without holding the k-mers in memory. It gives two numbers
+per sample:
 
-- **F0**, number of distinct k-mers
-- **F1**, total k-mer occurrences, counted with multiplicity
+- **distinct k-mers**: how many different k-mers;
+- **k-mer occurrences**: every k-mer, counted as often as it appears.
 
 !!! note "Solid k-mer"
-    A k-mer is **solid** if it occurs at least twice in the dataset; singletons
-    are likely sequencing errors. Assemblies are already curated, so
-    every distinct k-mer is already solid: DISTINCT and SOLID coincide.
+    A k-mer is **solid** when it appears at least twice. In raw reads, a k-mer seen once
+    is most likely a sequencing error; in assemblies, every k-mer is genuine.
 
-From these, `KmerCounter` (`pykmhelpers/core/kmer.py`) derives three modes:
+The data type (`--dt`, [`list`](../commands/list.md), [`design`](../commands/design.md))
+chooses what is counted:
 
-| Mode | Value | Use case |
-|------|-------|----------|
-| `DISTINCT` | F0 | Assembled sequences, where every k-mer is expected to appear at least once |
-| `SOLID` | F0 - freq[1] | Raw reads, where k-mers occurring exactly once (`freq[1]`) are likely sequencing errors |
-| `TOTAL` | F1 | Total k-mer occurrences across all reads |
+| `--dt` | Counted | Why |
+|--------|---------|-----|
+| `assembled` (default) | distinct k-mers | assemblies are already corrected: every k-mer is solid |
+| `unassembled` (raw reads) | solid k-mers: distinct k-mers minus those seen once | drops the k-mers of sequencing errors, which would inflate the count |
 
-The `list` and `design` commands expose this choice through `--dt, --data-type`:
-`assembled` maps to `DISTINCT`, `unassembled` maps to `SOLID`.
-
-**Assembled sequences** have already been through the assembler's own error
-correction and consensus step, so nearly every k-mer they contain is genuine.
-There is no singleton noise to filter, DISTINCT and SOLID coincide, so counting
-simply uses `DISTINCT` (F0).
-
-**Raw reads** still carry uncorrected sequencing errors. A true k-mer is expected
-to recur across the reads that overlap its genome position, while an error
-almost always produces a k-mer seen only once. `SOLID` counting (F0 - freq[1])
-drops those singletons, keeping only the recurring, solid k-mers as a cleaner
-estimate of the sample's real k-mer content.
+The k-mer occurrences are kept too (`kmer_total` in the sample list): building raw reads
+needs memory for every occurrence before the singletons are dropped, so they size the
+build (the *k-mer ratio*, see [compose](../commands/compose.md#description)).

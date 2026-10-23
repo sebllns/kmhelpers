@@ -1,6 +1,6 @@
 # Command Reference
 
-**kmhelpers** commands cover the full k-mer index lifecycle: build indices from raw sequences, then query them. Most workflows **only need three top-level commands** - **`design`**, **`build`**, and **`query`**. Click on any command below to see its full options, inputs/outputs, examples, and additional information.
+**kmhelpers** commands cover the full k-mer index lifecycle: build indices from raw sequences, then query them. The terms used here (shard, partition, session, chunk...) are defined in the [Glossary](../concepts/terms.md). Most workflows **only need three top-level commands** - **`design`**, **`build`**, and **`query`**. Click on any command below to see its full options, inputs/outputs, examples, and additional information.
 
 ## Main Pipeline
 
