@@ -58,6 +58,33 @@ With `--hpc cluster.yaml`, `plan` sizes the build for the jobs of a SLURM cluste
 jobs run the plan: chunks on several nodes at once, then one merge per shard. See
 [build - On a cluster](../commands/build.md#on-a-cluster).
 
+```mermaid
+sequenceDiagram
+    actor U as you
+    participant B as build --hpc
+    participant SL as SLURM
+    participant A as build jobs (array)
+    participant M as merge job, per shard
+    participant F as finish job
+    U->>B: coli_db -o coli_build/ --hpc cluster.yaml
+    B->>B: plan: chunks, jobs, SLURM files
+    B->>SL: submit the array, the merges, the finish job
+    B-->>U: submitted (build exits)
+    par on several nodes
+        SL->>A: one task per job: its chunks (kmtricks)
+    end
+    A-->>SL: done
+    SL->>M: once the jobs of its shard are done
+    M->>M: merge the chunks, publish the shard
+    SL->>F: once every job has ended
+    F->>F: check the index, write progress.yaml
+    F-->>U: mail (with --notify)
+    U->>B: apply --status --sp, at any time
+```
+
+A failed job cancels the jobs waiting on it, and the finish job reports it; running the same
+`build` command again submits only what is not done.
+
 ## Updating an index
 
 An update is a new session: its samples are added to the shards of the existing layout, so
