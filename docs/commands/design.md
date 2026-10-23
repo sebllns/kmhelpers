@@ -62,7 +62,8 @@ Set `-s` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 
 | Option | Description |
 |--------|-------------|
-| `-g, --group N` | Partition Bloom Filters into `N` storage-balanced groups and overlay on plot; 0 chooses `N` (default: 0), tuned by the `KMHELPERS_AUTO_GROUP_*` environment variables, see [profile - Grouping](profile.md#description) |
+| `-g, --group N` | Partition Bloom Filters into `N` storage-balanced groups and overlay on plot; 0 chooses `N` (default: 0): one group when the built index takes at most 4 GB, else as `profile -g 0`. Tuned by the `KMHELPERS_AUTO_GROUP_*` environment variables, see [profile - Grouping](profile.md#description) |
+| `--ngp, --no-grouping` | One group, no grouping strategy: every sample gets the Bloom filter of the largest one; not with `-g N` |
 | `-b, --base FLOAT` | Base for span bucket boundaries (default: 1.1) |
 | `--sb, --shard-budget INT` | Shard budget: a shard of span `s` holds at most `ceil8(budget / base^s)` samples (default: `2**43` for a new index); 0 for no limit, see [compose](compose.md) |
 | `--fp, --false-positive-rate FLOAT` | Target Bloom-filter false-positive rate (default: 0.25) |
@@ -85,6 +86,8 @@ Set `-s` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 **Step 1 - list:** scans `INPUT` recursively for sequence files (or imports a sample list), counts k-mers with ntcard, and writes a JSONL manifest to `DESIGN_DIR/list/`. This step is **skipped** if `INPUT` is already a JSONL sample index (`.jsonl`); it is used directly as the manifest for the remaining steps.
 
 **Step 2 - profile:** reads k-mer counts from the manifest, assigns each sample to a Bloom-filter span, computes a storage-balanced grouping, and writes `profile.yaml`, `baseline.csv`, and `groups.png` to `DESIGN_DIR/profile/`. This step is **skipped automatically** if a layout file already exists at `DESIGN_DIR/compose/NAME/layout.yaml` (re-run scenario).
+
+**Groups** - with `-g 0`, `design` keeps one group when the built index takes at most 4 GB: `profile` compares its presence/absence sizes with 4 GB / bitw (1.33 GB with `--ab 3`). Larger indexes are grouped as [`profile -g 0`](profile.md#description) does. `KMHELPERS_AUTO_GROUP_SINGLE_MAX` changes the 4 GB (`0` turns the rule off), `-g N` forces `N` groups, and `--no-grouping` keeps one group whatever the size.
 
 **Step 3 - compose:** reads the manifest and the profile to generate the index definition file `DESIGN_DIR/compose/NAME/SESSION/index.yaml`.
 

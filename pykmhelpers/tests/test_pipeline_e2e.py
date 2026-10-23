@@ -249,6 +249,38 @@ class TestDesignBuildQueryUpdateQuery(PipelineE2EBase):
         self.assert_in_place("build")
 
 
+class TestDesignAutoGroups(PipelineE2EBase):
+    """design -g 0 keeps one group when the built index takes at most 4GB."""
+
+    def design(self, out, *args, env=None):
+        cmd = [sys.executable, "-m", CLI_MODULE, "design", self.samples_txt, "-o", out,
+               "-n", "idx", "-s", "initial", "-k", KMER_SIZE, "-b", "1.1", *args]
+        proc = subprocess.run(
+            [str(a) for a in cmd], cwd=self.tmp, capture_output=True, text=True,
+            env={**os.environ, **(env or {})},
+        )
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        return yaml.safe_load((self.tmp / out / "profile" / "profile.yaml").read_text())
+
+    def test_size_is_of_the_built_index(self):
+        profile = self.design("db", "--ab", "3")
+        self.assertEqual(profile["auto_group"]["single_max"], 4 * 10**9 // 3)
+        self.assertEqual(profile["auto_group"]["groups"], 1)
+        self.assertEqual(profile["default_profile"], "1_groups")
+
+    def test_size_can_be_turned_off(self):
+        profile = self.design("db0", env={"KMHELPERS_AUTO_GROUP_SINGLE_MAX": "0"})
+        self.assertIsNone(profile["auto_group"]["single_max"])
+
+    def test_no_grouping(self):
+        self.assertEqual(self.design("dbn", "--ngp")["grouping"], "none")
+        proc = self.run_cli(
+            "design", self.samples_txt, "-o", "dbx", "-n", "idx", "-s", "initial",
+            "-k", KMER_SIZE, "--ngp", "-g", "2", expect_success=False,
+        )
+        self.assertIn("--no-grouping and -g N", proc.stdout + proc.stderr)
+
+
 class TestAbundanceDesignBuildQuery(PipelineE2EBase):
     """design --ab 2 -> build -> query: the index stores 2 bits per sample."""
 

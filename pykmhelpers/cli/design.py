@@ -10,11 +10,12 @@ from pykmhelpers.cli.shared import (
     auto_group_options,
     kmer_ratio_option,
     no_copy_list_option,
+    no_grouping_option,
     parse_shard_rule,
     sharding_options,
 )
 from pykmhelpers.core.byte import ByteCounter
-from pykmhelpers.core.constants import DEFAULT_PAIR_REGEX
+from pykmhelpers.core.constants import AUTO_GROUP_SINGLE_MAX, DEFAULT_PAIR_REGEX
 from pykmhelpers.core.log import Log
 from pykmhelpers.core.utils import Toolbox
 from pykmhelpers.pipeline.composer import (
@@ -83,9 +84,10 @@ logger = logging.getLogger(__name__)
     type=click.IntRange(min=0),
     show_default=True,
     help="⚙   Partition index into N storage-balanced groups and overlay the result on the plot. "
-    "0 = auto: one group per 1000 samples, plus one while it saves at least 20% "
-    "of the storage (at most 20; tuned with the KMHELPERS_AUTO_GROUP_* "
-    "environment variables, see `profile --help`).",
+    "0 = auto: one group when the built index takes at most 4GB; else one group "
+    "per 1000 samples, plus one while it saves at least 20% of the storage (at "
+    "most 20; tuned with the KMHELPERS_AUTO_GROUP_* environment variables, see "
+    "`profile --help`). See also --no-grouping.",
 )
 @click.option(
     "--base",
@@ -188,6 +190,7 @@ logger = logging.getLogger(__name__)
     "[default: 0 for a new index]",
 )
 @auto_group_options(hidden=True)
+@no_grouping_option
 @sharding_options
 @no_copy_list_option
 @kmer_ratio_option
@@ -218,6 +221,8 @@ def design(
     auto_group_samples,
     auto_group_max,
     auto_group_min_gain,
+    auto_group_single_max,
+    no_grouping,
 ):
     """Scan a directory, profile k-mer spans, and compose index definition files.
 
@@ -254,6 +259,8 @@ def design(
     """
 
     is_assembled = data_type.lower() in ("a", "assembled")
+    if no_grouping and n_groups:
+        raise click.UsageError("--no-grouping and -g N both set the groups: use one")
     shard_budget, shard_size = parse_shard_rule(shard_budget, shard_budget_bytes)
     input_dir = input if os.path.isdir(input) else None
     input_list = input if os.path.isfile(input) else None
@@ -320,6 +327,11 @@ def design(
         profiles_file = None
         logger.info("Found existing layout file, updating existing index")
     else:
+        # The size is of the built index: profile compares presence/absence sizes
+        single_max = (
+            AUTO_GROUP_SINGLE_MAX if auto_group_single_max is None else auto_group_single_max
+        )
+        single_max = single_max // max(bitw or 1, 1) if single_max else None
         try:
             SpanProfiler(
                 input_file=Toolbox.get_canonical_path(jsonl_path),
@@ -330,6 +342,8 @@ def design(
                 auto_group_samples=auto_group_samples,
                 auto_group_max=auto_group_max,
                 auto_group_min_gain=auto_group_min_gain,
+                auto_group_single_max=single_max,
+                no_grouping=no_grouping,
             ).run()
             logger.info("SUCCESS ('profile')")
         except (FileNotFoundError, ValueError) as e:

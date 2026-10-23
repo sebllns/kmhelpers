@@ -8,6 +8,7 @@ import yaml
 
 import pykmhelpers.pipeline.span_analyzer
 from pykmhelpers.core.bloom_filter import SpanManager
+from pykmhelpers.core.byte import ByteCounter, SizeFormat
 from pykmhelpers.core.constants import (
     AUTO_GROUP_MAX,
     AUTO_GROUP_MIN_GAIN,
@@ -38,6 +39,10 @@ class SpanProfiler:
         auto_group_max:      With ``n_groups=0``, the most groups chosen.
         auto_group_min_gain: With ``n_groups=0``, the storage fraction a group
                              must save to be added.
+        auto_group_single_max: With ``n_groups=0``, one group when it takes at
+                             most this many bytes (presence/absence); None or
+                             0: no such size.
+        no_grouping:         One group, no grouping strategy (``--no-grouping``).
     """
 
     def __init__(
@@ -50,7 +55,11 @@ class SpanProfiler:
         auto_group_samples: int = AUTO_GROUP_SAMPLES,
         auto_group_max: int = AUTO_GROUP_MAX,
         auto_group_min_gain: float = AUTO_GROUP_MIN_GAIN,
+        auto_group_single_max: int | None = None,
+        no_grouping: bool = False,
     ):
+        if no_grouping and n_groups:
+            raise ValueError("--no-grouping and -g N both set the groups: use one")
         self.input_file = input_file
         self.output_dir = output_dir
         self.false_positive_rate = false_positive_rate
@@ -60,7 +69,9 @@ class SpanProfiler:
             "samples": auto_group_samples,
             "max": auto_group_max,
             "min_gain": auto_group_min_gain,
+            "single_max": auto_group_single_max or None,
         }
+        self.no_grouping = no_grouping
 
     def run(self) -> None:
         with open(self.input_file) as f:
@@ -128,16 +139,28 @@ class SpanProfiler:
         sa = pykmhelpers.pipeline.span_analyzer.SpanAnalyzer(distribution_file)
 
         auto_group = None
-        if self.n_groups == 0:
+        if self.no_grouping:
+            n_groups = 1
+            logger.info("No grouping: one group")
+        elif self.n_groups == 0:
             g = self.auto_group
-            n_groups = sa.auto_groups(g["samples"], g["max"], g["min_gain"])
-            # Recorded in profile.yaml, so the grouping can be reproduced
-            auto_group = dict(g, groups=n_groups)
-            logger.info(
-                f"Auto groups: {n_groups} ({sample_count} samples, "
-                f"start {sa.auto_group_start(g['samples'], g['max'])}, "
-                f"max {sa.auto_group_limit(g['max'])}, min gain {g['min_gain']:.0%})"
+            single = sa.single_group_size()
+            n_groups = sa.auto_groups(
+                g["samples"], g["max"], g["min_gain"], g["single_max"]
             )
+            # Recorded in profile.yaml, so the grouping can be reproduced
+            auto_group = dict(g, single_size=single, groups=n_groups)
+            if g["single_max"] and single <= g["single_max"]:
+                logger.info(
+                    f"Auto groups: 1 (one group takes {_size(single)}, "
+                    f"at most {_size(g['single_max'])})"
+                )
+            else:
+                logger.info(
+                    f"Auto groups: {n_groups} ({sample_count} samples, "
+                    f"start {sa.auto_group_start(g['samples'], g['max'])}, "
+                    f"max {sa.auto_group_limit(g['max'])}, min gain {g['min_gain']:.0%})"
+                )
         else:
             n_groups = min(self.n_groups, len(spans))
 
@@ -152,6 +175,7 @@ class SpanProfiler:
                     "biggest_sample": str(biggest_sample),
                     "max_kmer_count": sm.max_kmer_count(baseline[-1]),
                     **({"auto_group": auto_group} if auto_group else {}),
+                    **({"grouping": "none"} if self.no_grouping else {}),
                     "default_profile": sa.default_profile or "baseline",
                     "profiles": sa.serialize_profiles(),
                 },
@@ -159,3 +183,7 @@ class SpanProfiler:
                 default_flow_style=False,
                 sort_keys=False,
             )
+
+
+def _size(n_bytes: int) -> str:
+    return str(ByteCounter.auto(int(n_bytes), SizeFormat.BYTE))

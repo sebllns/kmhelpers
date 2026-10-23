@@ -175,15 +175,27 @@ class SpanAnalyzer:
         start = math.ceil(self.get_total_sample_count() / max(samples_per_group, 1))
         return max(1, min(start, self.auto_group_limit(max_groups)))
 
+    def single_group_size(self) -> int:
+        """Storage of one group holding every span: every sample gets the Bloom
+        filter of the largest span (presence/absence, 1 bit per cell)."""
+        largest = self.spans[-1]
+        return BloomFilterSpecs(
+            self.bf[largest], self.get_total_sample_count(), 256
+        ).total_storage_size()
+
     def auto_groups(
         self,
         samples_per_group: int = AUTO_GROUP_SAMPLES,
         max_groups: int = AUTO_GROUP_MAX,
         min_gain: float = AUTO_GROUP_MIN_GAIN,
+        single_max: int | None = None,
     ) -> int:
         """Number of groups worth their cost.
 
-        Starts from ``auto_group_start`` (so a group holds at most about
+        With ``single_max`` (bytes), one group when it takes at most that
+        (``single_group_size``, presence/absence): a small index is not worth
+        several sub-indexes, whatever they save in proportion. Otherwise,
+        starts from ``auto_group_start`` (so a group holds at most about
         ``samples_per_group`` samples), then adds one group at a time while it
         saves at least ``min_gain`` of the total storage, up to
         ``auto_group_limit``: each group is one more sub-index to build, query
@@ -191,6 +203,8 @@ class SpanAnalyzer:
         is not monotonic: the search stops at the first group that does not
         pay off.
         """
+        if single_max and self.single_group_size() <= single_max:
+            return 1
         limit = self.auto_group_limit(max_groups)
         n_groups = self.auto_group_start(samples_per_group, max_groups)
         total = sum(self.compute_groups(n_groups)[2])

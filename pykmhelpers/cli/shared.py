@@ -18,6 +18,16 @@ from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.pipeline.index_ops.sources import resolve_input
 
 
+def parse_size(value: str, what: str) -> int:
+    """Parse a size such as '4GB' or '0' into bytes."""
+    if str(value).strip() == "0":
+        return 0
+    try:
+        return int(ByteCounter.from_str(value).byte_count)
+    except ValueError:
+        raise click.BadParameter(f"Invalid size for {what}: {value} (e.g. '4GB', '500MB')")
+
+
 def parse_shard_size(value: str | None) -> int:
     """Parse a shard size such as '10GB' into bytes; 0 when not set."""
     if not value:
@@ -357,7 +367,31 @@ _AUTO_GROUP_OPTIONS = [
             help="⚙   With -g 0: storage fraction a further group must save to be added.",
         ),
     ),
+    (
+        "--auto-group-single-max",
+        dict(
+            metavar="SIZE",
+            default=None,
+            envvar="KMHELPERS_AUTO_GROUP_SINGLE_MAX",
+            callback=lambda ctx, param, value: (
+                None if value is None else parse_size(value, "--auto-group-single-max")
+            ),
+            help="⚙   With -g 0: keep one group when it takes at most SIZE (e.g. 4GB); "
+            "0 for no such size. profile: no size by default, compared with its "
+            "presence/absence sizes. design: 4GB of built index by default, i.e. "
+            "4GB / bitw of profile size.",
+        ),
+    ),
 ]
+
+no_grouping_option = click.option(
+    "--no-grouping",
+    "--ngp",
+    "no_grouping",
+    is_flag=True,
+    help="🚩  One group, no grouping strategy: every sample gets the Bloom filter "
+    "of the largest one. Not with -g N.",
+)
 
 
 def auto_group_options(f=None, *, hidden: bool = False):

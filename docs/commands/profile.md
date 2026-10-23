@@ -28,6 +28,8 @@ Analyse a JSONL sample manifest produced by `list` and produce a Bloom-filter sp
 | `--auto-group-samples N` | With `-g 0`: start from one group per `N` samples (default: 1000, env: `KMHELPERS_AUTO_GROUP_SAMPLES`) |
 | `--auto-group-max N` | With `-g 0`: at most `N` groups (default: 20, env: `KMHELPERS_AUTO_GROUP_MAX`) |
 | `--auto-group-min-gain F` | With `-g 0`: storage fraction a further group must save to be added (default: 0.2, env: `KMHELPERS_AUTO_GROUP_MIN_GAIN`) |
+| `--auto-group-single-max SIZE` | With `-g 0`: keep one group when it takes at most `SIZE` (e.g. `4GB`), compared with the presence/absence sizes of the profile; `0` for no such size (default: none, env: `KMHELPERS_AUTO_GROUP_SINGLE_MAX`) |
+| `--ngp, --no-grouping` | One group, no grouping strategy: every sample gets the Bloom filter of the largest one; not with `-g N` |
 
 ## Output Files
 
@@ -70,6 +72,9 @@ overlaid on the distribution plot for visual inspection.
 
 With `-g 0` (default), `profile` chooses `N`:
 
+0. with `--auto-group-single-max SIZE`, it keeps one group when one group takes at most
+   `SIZE`: a small index is not worth several sub-indexes, whatever they save in
+   proportion (no such size by default; `design` sets 4 GB of built index);
 1. it starts from one group per 1000 samples (at least 1), so a group holds at most about
    1000 samples;
 2. it then adds one group at a time while the new group reduces the total storage by at
@@ -87,10 +92,17 @@ index (`design`/`compose --ab N`) stores N bits per cell: multiply them by N, e.
 becomes 624 MB with `--ab 3`. The factor is the same for every group, so it does not change
 the grouping chosen; `compose` counts it in its own estimates.
 
-`--auto-group-samples`, `--auto-group-max` and `--auto-group-min-gain` (or their
-`KMHELPERS_AUTO_GROUP_*` environment variables) change these values. The chosen count is
-logged (`Auto groups: N (… start …, max …, min gain …)`), and recorded with the values used
-under `auto_group` in `profile.yaml`.
+`--auto-group-samples`, `--auto-group-max`, `--auto-group-min-gain` and
+`--auto-group-single-max` (or their `KMHELPERS_AUTO_GROUP_*` environment variables) change
+these values. The chosen count is logged (`Auto groups: N (… start …, max …, min gain …)`,
+or `Auto groups: 1 (one group takes 760MB, at most 1.33GB)`), and recorded with the values
+used under `auto_group` in `profile.yaml`, with `single_size`, the size of one group.
+
+A single group is a valid choice on its own: queries read one row per k-mer and per
+sub-index, whose length does not depend on the Bloom filter size, so one sub-index is not
+slower to query; it only takes more space. `-g N` forces `N` groups, and `--no-grouping`
+skips the grouping strategy altogether: one group, sized for the largest sample
+(`grouping: none` in `profile.yaml`).
 
 ## Examples
 

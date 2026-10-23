@@ -81,6 +81,9 @@ DEFAULT_PAIR_REGEX = r"[._][Rr]?[12](?=[._]|$)"
 AUTO_GROUP_SAMPLES = 1000
 AUTO_GROUP_MAX = 20
 AUTO_GROUP_MIN_GAIN = 0.20
+# `design -g 0` keeps one group when the built index fits in this size (bytes);
+# compared with the presence/absence size of profile, divided by bitw
+AUTO_GROUP_SINGLE_MAX = 4 * 10**9
 
 # Budgets from Logan, in samples * base**span: a shard of span s holds at most
 # SHARD_BUDGET / base**s samples (`design`/`compose`), one kmtricks chunk at

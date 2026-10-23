@@ -4,7 +4,7 @@ import logging
 
 import click
 
-from pykmhelpers.cli.shared import auto_group_options
+from pykmhelpers.cli.shared import auto_group_options, no_grouping_option
 from pykmhelpers.core.log import Log
 from pykmhelpers.core.utils import Toolbox
 from pykmhelpers.pipeline.span_profiler import SpanProfiler
@@ -38,7 +38,8 @@ logger = logging.getLogger(__name__)
     show_default=True,
     help="⚙   Partition index into N storage-balanced groups and overlay the result on the plot. "
     "0 = auto: one group per 1000 samples, plus one while it saves at least 20% "
-    "of the storage (at most 20).",
+    "of the storage (at most 20); one group when it takes at most "
+    "--auto-group-single-max. See also --no-grouping.",
 )
 @click.option(
     "--false-positive-rate",
@@ -61,6 +62,7 @@ logger = logging.getLogger(__name__)
     "Use values like 1.1 or 2 to widen or narrow bucket granularity.",
 )
 @auto_group_options
+@no_grouping_option
 def profile(
     list_output,
     output_dir,
@@ -70,6 +72,8 @@ def profile(
     auto_group_samples,
     auto_group_max,
     auto_group_min_gain,
+    auto_group_single_max,
+    no_grouping,
 ):
     """Analyse a JSONL sample index and output a Bloom-filter profile.
 
@@ -104,6 +108,8 @@ def profile(
       {"name": "sample_name", "files": [...], "kmer_count": 1234567}
     """
 
+    if no_grouping and n_groups:
+        raise click.UsageError("--no-grouping and -g N both set the groups: use one")
     try:
         SpanProfiler(
             input_file=Toolbox.get_canonical_path(list_output),
@@ -114,6 +120,8 @@ def profile(
             auto_group_samples=auto_group_samples,
             auto_group_max=auto_group_max,
             auto_group_min_gain=auto_group_min_gain,
+            auto_group_single_max=auto_group_single_max,
+            no_grouping=no_grouping,
         ).run()
         logger.info("SUCCESS ('profile')")
     except Exception as e:
