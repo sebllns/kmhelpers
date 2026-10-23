@@ -61,25 +61,23 @@ jobs run the plan: chunks on several nodes at once, then one merge per shard. Se
 ```mermaid
 sequenceDiagram
     actor U as you
-    participant B as build --hpc
+    participant B as build
     participant SL as SLURM
-    participant A as build jobs (array)
-    participant M as merge job, per shard
-    participant F as finish job
-    U->>B: coli_db -o coli_build/ --hpc cluster.yaml
-    B->>B: plan: chunks, jobs, SLURM files
-    B->>SL: submit the array, the merges, the finish job
-    B-->>U: submitted (build exits)
-    par on several nodes
-        SL->>A: one task per job: its chunks (kmtricks)
-    end
-    A-->>SL: done
-    SL->>M: once the jobs of its shard are done
-    M->>M: merge the chunks, publish the shard
-    SL->>F: once every job has ended
-    F->>F: check the index, write progress.yaml
-    F-->>U: mail (with --notify)
-    Note over U,F: follow it at any time: kmhelpers apply ... --status --sp
+    participant A as array
+    participant M as merge
+    participant F as finish
+    U->>B: --hpc cluster.yaml
+    B->>B: plan:<br/>chunks, jobs
+    B->>SL: submit
+    B-->>U: submitted
+    SL->>A: one task per job<br/>(several nodes)
+    A->>A: build chunks<br/>(kmtricks)
+    SL->>M: once its shard's<br/>jobs are done
+    M->>M: merge,<br/>publish shard
+    SL->>F: once every<br/>job has ended
+    F->>F: check index,<br/>progress.yaml
+    F-->>U: mail (--notify)
+    Note over U,F: follow it: apply --status --sp
 ```
 
 A failed job cancels the jobs waiting on it, and the finish job reports it; running the same
@@ -93,17 +91,17 @@ that the index keeps its groups, Bloom filter sizes and partitions.
 ```mermaid
 sequenceDiagram
     actor U as you
-    participant D as design -s update
-    participant B as build -s update
-    participant S as shard coli_g0 (in the index)
-    U->>D: new sample files
-    D->>D: assign each sample to its group and shard (layout)
-    U->>B: build the session
-    B->>B: build the new samples (one run, or chunks)
-    B->>B: merge them with the current coli_g0
-    Note over S: coli_g0 stays queryable
-    B->>S: swap: the merged version replaces coli_g0
-    B->>B: check it, then delete the previous version
+    participant D as design
+    participant B as build
+    participant S as coli_g0
+    U->>D: new samples<br/>-s update
+    D->>D: each sample to its<br/>shard (layout)
+    U->>B: -s update
+    B->>B: build the new<br/>samples
+    B->>B: merge with the<br/>current coli_g0
+    Note over S: still queryable
+    B->>S: swap in the<br/>merged version
+    B->>B: check, delete the<br/>previous version
 ```
 
 The swap takes a second or so; until then, queries see the previous version. An

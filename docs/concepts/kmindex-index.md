@@ -88,20 +88,20 @@ index, then gathers its results into tables.
 ```mermaid
 sequenceDiagram
     actor U as you
-    participant Q as kmhelpers query
-    participant K as kmindex query
-    participant S as each shard, in turn
-    U->>Q: query.fa, -r coli_build/
-    Q->>Q: find the FASTA/FASTQ files, decompress bz2, xz, zst (kmindex reads gzip only)
-    Q->>K: the sequences, the index, -z, --threshold
-    K->>K: split each sequence into k-mers (and (k+z)-mers)
-    loop every shard
+    participant Q as kmhelpers
+    participant K as kmindex
+    participant S as shards
+    U->>Q: query.fa<br/>-r coli_build/
+    Q->>Q: find the files,<br/>decompress if needed
+    Q->>K: kmindex query
+    K->>K: k-mers of<br/>each sequence
+    loop each shard, in turn
         K->>S: look up the k-mers
-        S-->>K: bits of every sample, read from the partitions of their minimizers only
-        K->>K: score per sample
+        S-->>K: bits of every sample<br/>(only the partitions hit)
+        K->>K: score<br/>per sample
     end
-    K-->>Q: one result file per shard
-    Q-->>U: results/: one table per query (one row per sequence, one column per sample), statistics
+    K-->>Q: one result file<br/>per shard
+    Q-->>U: results/: tables<br/>and statistics
 ```
 
 Query time grows with the number of shards (each is read in turn), with the number of
