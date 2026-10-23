@@ -66,7 +66,7 @@ Build into the **same** `BUILD_DIR` as
 [Step 4](ecoli.md#step-4-build-the-index-build) of the tutorial:
 
 ```bash
-kmhelpers build coli_db -s update -o coli_build/ --show-progress
+kmhelpers build coli_db -s update -o coli_build/ --cb 0 --show-progress
 ```
 
 ??? abstract "I/O"

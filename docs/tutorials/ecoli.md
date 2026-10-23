@@ -76,7 +76,8 @@ kmhelpers design coli_10.txt \
     -s initial \
     -k 25 \
     -b 1.1 \
-    -g 2
+    -g 2 \
+    --sb 0
 ```
 
 ??? abstract "I/O"
@@ -94,7 +95,7 @@ kmhelpers design coli_10.txt \
 ## Step 4 - Build the index ([`build`](../commands/build.md))
 
 ```bash
-kmhelpers build coli_db -o coli_build/ --show-progress
+kmhelpers build coli_db -o coli_build/ --cb 0 --show-progress
 ```
 
 ??? abstract "I/O"

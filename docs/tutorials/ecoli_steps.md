@@ -171,7 +171,8 @@ kmhelpers compose coli_db/list/coli.jsonl \
     -o coli_db/compose/ \
     -n coli \
     -s initial \
-    --pf coli_db/profile/profile.yaml
+    --pf coli_db/profile/profile.yaml \
+    --sb 0
 ```
 
 ??? abstract "I/O"
@@ -196,7 +197,7 @@ The two steps below are equivalent to [Step 4](ecoli.md#step-4-build-the-index-b
 ### Step 4.1 - Preview the build plan ([`plan`](../commands/plan.md))
 
 ```bash
-kmhelpers plan coli_db -o coli_build/
+kmhelpers plan coli_db -o coli_build/ --cb 0
 ```
 
 ??? abstract "I/O"
