@@ -16,7 +16,7 @@ on:
       latest:
         description: "Set the 'latest' alias on this version (ignored for 'main')"
         type: boolean
-        default: true
+        default: false
       delete_version:
         description: "Docs version to delete after deploy (optional, e.g. 0.6.3)"
         required: false
