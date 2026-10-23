@@ -2833,16 +2833,17 @@ jobs run the plan: chunks on several nodes at once, then one merge per shard. Se
 <p>A failed job cancels the jobs waiting on it, and the finish job reports it; running the same
 <code>build</code> command again submits only what is not done.</p>
 <h2 id="updating-an-index">Updating an index</h2>
-<p>An update is a new session: its samples are added to the shards of the existing layout, so
+<p>An update is a new session, under a name of your choice (<code>-s 2026_10</code>, <code>-s batch2</code>...; the
+tutorial uses <code>update</code>): its samples are added to the shards of the existing layout, so
 that the index keeps its groups, Bloom filter sizes and partitions.</p>
 <pre class="mermaid"><code>sequenceDiagram
     actor U as you
     participant D as design
     participant B as build
     participant S as coli_g0
-    U-&gt;&gt;D: new samples&lt;br/&gt;-s update
+    U-&gt;&gt;D: new samples&lt;br/&gt;-s 2026_10
     D-&gt;&gt;D: each sample to its&lt;br/&gt;shard (layout)
-    U-&gt;&gt;B: -s update
+    U-&gt;&gt;B: -s 2026_10
     B-&gt;&gt;B: build the new&lt;br/&gt;samples
     B-&gt;&gt;B: merge with the&lt;br/&gt;current coli_g0
     Note over S: still queryable
