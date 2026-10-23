@@ -12,6 +12,7 @@ import yaml
 import pykmhelpers
 from pykmhelpers.core.build_params import _resolve_limits
 from pykmhelpers.core.byte import ByteCounter
+from pykmhelpers.core.constants import KMHELPERS_COMMIT
 from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
 from pykmhelpers.core.log import Log
 from pykmhelpers.core.resources import get_ulimit
@@ -118,13 +119,12 @@ def _system() -> dict:
 def _kmhelpers() -> dict:
     # The kmhelpers of this installation, as the executor puts it first in PATH
     path = os.path.join(os.path.dirname(sys.executable), "kmhelpers")
-    info: dict = {
+    return {
         "version": pykmhelpers.__version__,
+        # git commit of the installed source tree, UNKNOWN outside git
+        "commit": KMHELPERS_COMMIT,
         "path": path if os.path.exists(path) else sys.argv[0],
     }
-    if os.environ.get("GIT_COMMIT"):
-        info["git_commit"] = os.environ["GIT_COMMIT"]
-    return info
 
 
 def _limits(config: IndexOpsConfig) -> dict:

@@ -9,6 +9,9 @@ All notable changes to this project will be documented in this file.
 - **`plan --cluster FILE`**: a YAML file (`type: slurm`) of the partition, time, excluded nodes, setup lines and the resources of each kind of job (`jobs.build`, `jobs.merge`, `jobs.check`); the plan is sized from these resources (`--limits` with `--cluster` is refused), and `BUILD_DIR/assets/SESSION/slurm/` gets `build.sbatch` (an array task per build job), `merge.sbatch`, `check.sbatch` and `submit.sh`
   - `submit.sh` submits what `apply --pending` lists: the build array (`max_parallel`, split at `MaxArraySize`), each merge job after the array tasks of its own shard, then `manage check` after everything; safe to run again
 - **`plan --chunks-per-job N`**: the chunks of a shard are split into jobs `<shard>_j<k>` of up to N chunks, then a job `<shard>_merge`; 0 (default) keeps one job per shard
+- **One group for small indexes**: `-g 0` keeps one group when one group takes at most a size, whatever a 2nd one would save in proportion: `design` uses 4 GB of built index (4 GB / bitw of profile size), `profile` no size by default (`--auto-group-single-max SIZE`, env `KMHELPERS_AUTO_GROUP_SINGLE_MAX`, `0` turns it off); recorded as `single_max` and `single_size` under `auto_group` in `profile.yaml`
+- **`profile`/`design --no-grouping, --ngp`**: one group, no grouping strategy (`grouping: none` in `profile.yaml`); refused with `-g N`
+- `profile.md`: the sizes of `profile.yaml` are for presence/absence, times bitw for an abundance index
 - **`apply --task PATTERN`** runs part of the plan: a shard or its task (`<shard>_<session>`) runs all its jobs, a job (`<shard>_j<k>`, `<shard>_merge`) runs alone; **`apply --pending`** lists the jobs not done yet
 
 ### Changed
@@ -20,6 +23,8 @@ All notable changes to this project will be documented in this file.
   - Before a merge, `apply` checks the registry is as `plan` saw it (`expects`), or as an interrupted run of the same merge leaves it
   - Each run script skips samples already published and complete runs, and deletes and rebuilds an incomplete run, so every script can be run again
   - Logs per shard: `BUILD_DIR/logs/<shard>/<run>.log` and `merge.log`
+- The plan/apply report records `kmhelpers.commit`, the git commit of the installed kmhelpers (`UNKNOWN` outside git), instead of `git_commit` from `$GIT_COMMIT`, which is no longer read
+- Docs: `commands/index.md` lists every environment variable, and explains the configuration file (`-C`) and the precedence of command line, environment, configuration file and defaults
 - The command duration (`Done in ...`) is printed to stderr, so stdout carries only a command's output (e.g. `apply --pending`)
 
 - **Open-files limit**: chunks and merges are sized from the hard limit (`ulimit -Hn`) instead of the soft one, so a low soft limit no longer cuts needless chunks

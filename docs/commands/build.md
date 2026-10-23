@@ -144,7 +144,7 @@ Every sub-index is built as unregistered `kmtricks` runs, then published:
     input_file: .../compose/idx/initial/index.yaml
     build_dir: {path: .../idx, logs: .../idx/logs, assets: .../idx/assets/initial}
     kmindex: {version: 0.7.1, path: .../bin/kmindex}
-    kmhelpers: {version: 0.8.0, path: .../bin/kmhelpers, git_commit: bcc3f5c}
+    kmhelpers: {version: 0.8.0, commit: bcc3f5c, path: .../bin/kmhelpers}
     system:
       host: node58
       os: Linux
@@ -206,12 +206,12 @@ Every sub-index is built as unregistered `kmtricks` runs, then published:
 | Field | Content |
 |-------|---------|
 | `summary` | `command` (`plan`, `dry-run`, `apply`), `status` (`SUCCESS`, `PARTIAL`, `FAILED`, `NONE`, or `RUNNING` while an apply goes on), times, result counts per shard, totals (shards, samples, kmtricks runs, estimated size, size on disk after an apply) and the same per span |
-| `kmhelpers` | version, path, and `git_commit` when the environment variable `GIT_COMMIT` is set |
+| `kmhelpers` | version, `commit` (git commit of the installed kmhelpers, `UNKNOWN` outside git), path |
 | `system` | host, kernel, CPUs, and `slurm` (job id, array task, name, partition, node, CPUs, memory) when run in a SLURM job |
 | `limits` | what threads, partitions, chunks and merges were sized with: `source` (`auto`, `--limits`, `--threads`), RAM, open files (`files`, plus the `files_soft` and `files_hard` limits of the process), threads, `vm.max_map_count`, `--safety-margin`, `--max-chunks`, `--chunk-budget` |
-| `shards.<shard>` | `result`, its parts, and how it is published: `publish.mode` (`move` a single new run, `merge`, or `register` a folder left by an interrupted publish), `absorbed`, `updates` (the shard was already built), the merge `threads`, `max_inputs` and `bound_by`, `steps` (each merge, its inputs and its expected anonymous and mapped memory, `est_anon`, `est_mapped`); after an apply, `publish.duration_s` and `disk_size` |
+| `shards.<shard>` | `result`, its parts, and how it is published: `publish.mode` (`move` a single new run, `merge`, or `register` a folder left by an interrupted publish), `updates` (the shard was already built), the merge `threads`, `max_inputs` and `bound_by`, `steps` (each merge, its inputs and its expected anonymous and mapped memory, `est_anon`, `est_mapped`); after an apply, `publish.duration_s` and `disk_size` |
 | `shards.<shard>.<part>` | `result`, `span`, `samples` (`planned_samples` if some were skipped), `issues`, `error`, `params` (threads, partitions and `partitions_source`, minimizer size, chunk size, k-mer size, abundance min, Bloom filter size, `bitw`, k-mer ratio), `est_size`, `script` |
-| `...<part>.runs.<run>` | one per kmtricks run (the part, or its chunks): `samples`, `action` (`planned`, `built`, `rebuilt` an incomplete run, `reused` a complete one), and from its `kmtricks.log`: `duration_s`, `started`, `finished`, `peak_rss` (reported by kmtricks, else sampled), `max_cpu_pct`, `cpu_efficiency` (`max_cpu_pct / (100 x threads)`), `ram_limit_use` (`peak_rss / limits.ram`), `read_files`, `partitions`, `return_code` |
+| `...<part>.runs.<run>` | one per kmtricks run (the part, or its chunks): `samples`, `action` (`planned`, `built`, `reused` a complete run, `published` its samples already in the shard), and from its log (`logs/<shard>/<run>.log`): `duration_s`, `started`, `finished`, `peak_rss` (reported by kmtricks, else sampled), `max_cpu_pct`, `cpu_efficiency` (`max_cpu_pct / (100 x threads)`), `ram_limit_use` (`peak_rss / limits.ram`), `read_files`, `partitions`, `return_code` |
 
 `partitions_source` tells where the partition count comes from: `design` (`compose -P`), `auto` (sized from the limits for a full shard), `registered` (the shard is already built with another count) or `run` (a run of the session was already started with another count). The last two override the planned count, since only indexes with the same count can be merged.
 
@@ -219,15 +219,8 @@ Every sub-index is built as unregistered `kmtricks` runs, then published:
 
 - **A slow run**: a `cpu_efficiency` well below 1 means kmtricks waits on its inputs (slow storage, or a node with a bad mount or network). Compare `duration_s` and `system.host` with other runs of similar size.
 - **Memory headroom**: `ram_limit_use` is the share of the RAM limit the run used at its peak. Close to 1, lower `--safety-margin` or `--limits ram`; far below it on every run, the limit can be raised for more threads.
-- **A killed job**: a report still `RUNNING` after the job ended was cut off; it lists the parts and runs done so far. Run `apply` again: complete runs are `reused`.
-- **Builds run by the scripts**: the exported `.sh` scripts run kmtricks without writing `kmtricks.log`, so their runs have no metrics, also when a later `apply` reuses them.
-
-To record the kmhelpers commit in the report, set `GIT_COMMIT`, e.g. in a SLURM script:
-
-```bash
-export GIT_COMMIT=$(git -C /path/to/kmhelpers rev-parse --short HEAD)
-kmhelpers apply coli_db -o coli_build/
-```
+- **A killed job**: a report still `RUNNING` after the job ended was cut off; it lists the runs done so far. Run `apply` again: complete runs are `reused`.
+- **Scripts run by hand**: a run script run without `apply` writes no log, so its run has no metrics, also when a later `apply` reuses it.
 
 ### Updating an index
 

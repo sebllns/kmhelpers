@@ -10,6 +10,8 @@ from unittest import mock
 
 import yaml
 
+from pykmhelpers.core.constants import KMHELPERS_COMMIT
+
 from pykmhelpers.pipeline.index_ops import ApplyMode, ApplyStatus, IndexOpsConfig
 from pykmhelpers.pipeline.index_ops.report import RunReport
 from pykmhelpers.pipeline.index_ops.run_log import parse_kmtricks_log
@@ -176,17 +178,9 @@ class TestRunReport(unittest.TestCase):
         report.close()
         self.assertEqual(self.load()["summary"]["command"], "plan")
 
-    def test_git_commit_only_when_set(self):
-        with mock.patch.dict(os.environ, {"GIT_COMMIT": "abc123"}):
-            details = self.report(dump=False).result.details
-        self.assertEqual(details["kmhelpers"]["git_commit"], "abc123")
-        with mock.patch.dict(os.environ, {"GIT_COMMIT": ""}):
-            details = self.report(dump=False).result.details
-        self.assertNotIn("git_commit", details["kmhelpers"])
-        with mock.patch.dict(os.environ):
-            os.environ.pop("GIT_COMMIT", None)
-            details = self.report(dump=False).result.details
-        self.assertNotIn("git_commit", details["kmhelpers"])
+    def test_commit_of_the_installed_tree(self):
+        details = self.report(dump=False).result.details
+        self.assertEqual(details["kmhelpers"]["commit"], KMHELPERS_COMMIT)
 
     def test_slurm_job(self):
         env = {"SLURM_JOB_ID": "179697", "SLURMD_NODENAME": "node58"}
