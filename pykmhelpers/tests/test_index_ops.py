@@ -624,6 +624,7 @@ class TestScriptRecorder(unittest.TestCase):
         header = [
             "#!/usr/bin/env bash",
             "set -euo pipefail",
+            'ulimit -Sn "$(ulimit -Hn)" 2>/dev/null || true',
             f"export WORKDIR='{self.tmp}'",
             "cd ${WORKDIR}",
         ]

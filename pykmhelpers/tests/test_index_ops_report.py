@@ -159,6 +159,9 @@ class TestRunReport(unittest.TestCase):
         self.assertEqual(run["cpu_efficiency"], 0.5)
         self.assertEqual(run["ram_limit_use"], 0.5)
         self.assertEqual(data["limits"]["source"], "--limits")
+        self.assertEqual(data["limits"]["files"], 1024)
+        self.assertIn("files_soft", data["limits"])
+        self.assertIn("files_hard", data["limits"])
 
     def test_record_keeps_the_details(self):
         report = self.report(dump=False)

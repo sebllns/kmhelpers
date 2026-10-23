@@ -1,9 +1,15 @@
 """Helpers for inspecting and adjusting process resource limits (ulimits)."""
 
+import logging
 import os
 import resource
 
 import psutil
+
+logger = logging.getLogger(__name__)
+
+# Open-files ceiling used for sizing when the hard limit is unlimited
+NOFILE_CEILING = 1_048_576
 
 
 def get_ulimit(resource_type=resource.RLIMIT_NOFILE):
@@ -32,13 +38,24 @@ def get_available_threads(safety_margin: float = 1.0) -> int:
 
 
 def get_max_open_files(safety_margin: float = 1.0) -> int:
-    """Return a safe open-files ceiling: the soft RLIMIT_NOFILE scaled down by `safety_margin`."""
-    soft, _ = get_ulimit(resource.RLIMIT_NOFILE)
-    return max(1, int(soft * safety_margin))
+    """Return a safe open-files ceiling: the hard RLIMIT_NOFILE scaled down by `safety_margin`.
+
+    The hard limit, not the soft one: ``maximize_nofile`` raises the soft limit
+    to it before anything is run (CLI start, kmtricks and kmindex calls, and
+    the generated scripts). An unlimited hard limit counts as ``NOFILE_CEILING``.
+    """
+    _, hard = get_ulimit(resource.RLIMIT_NOFILE)
+    if hard == resource.RLIM_INFINITY:
+        hard = NOFILE_CEILING
+    return max(1, int(hard * safety_margin))
 
 
-def maximize_nofile():
-    """Raise the open-files (RLIMIT_NOFILE) limit to the highest allowed value."""
+def maximize_nofile() -> int:
+    """Raise the open-files (RLIMIT_NOFILE) limit to the highest allowed value.
+
+    Returns the soft limit in effect afterwards. A failure is logged, not
+    raised: the process keeps its current limit.
+    """
     soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
     try:
         resource.setrlimit(
@@ -46,7 +63,20 @@ def maximize_nofile():
         )
     except ValueError:
         # Not root: raise soft to hard limit only
-        resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
+        try:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
+        except (ValueError, OSError) as e:
+            logger.warning(
+                f"Could not raise the open-files limit from {soft} to {hard}: {e}; "
+                f"sizing assumes {hard}"
+            )
+            return soft
+    new_soft, new_hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    if new_soft == soft:
+        logger.debug(f"open files: soft already at hard ({soft})")
+    else:
+        logger.debug(f"open files: soft {soft} -> {new_soft} (hard {new_hard})")
+    return new_soft
 
 
 if __name__ == "__main__":

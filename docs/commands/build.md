@@ -93,7 +93,7 @@ A shard is fixed at design: a span is split into shards of at most `ceil8(shard_
 samples, see [compose - Sharding](compose.md#description). Each build then splits the new
 samples of a shard into kmtricks runs (chunks), `<part>_chunk<N>`. A chunk holds the smallest of:
 
-1. **Open files**: `files / threads - 1`, from `--limits files` (or the system limit x `--safety-margin`);
+1. **Open files**: `files / threads - 1`, from `--limits files` (or the hard open-files limit, `ulimit -Hn`, x `--safety-margin`: kmhelpers and its generated scripts raise the soft limit to the hard one before running anything);
 2. **Chunk budget**: `ceil8(chunk_budget / base^s)` samples (`--chunk-budget`, default `2**37`, 0 for no limit);
 3. the samples of the part.
 
@@ -206,7 +206,7 @@ Every sub-index is built as unregistered `kmtricks` runs, then published:
 | `summary` | `command` (`plan`, `dry-run`, `apply`), `status` (`SUCCESS`, `PARTIAL`, `FAILED`, `NONE`, or `RUNNING` while an apply goes on), times, result counts per shard, totals (shards, samples, kmtricks runs, estimated size, size on disk after an apply) and the same per span |
 | `kmhelpers` | version, path, and `git_commit` when the environment variable `GIT_COMMIT` is set |
 | `system` | host, kernel, CPUs, and `slurm` (job id, array task, name, partition, node, CPUs, memory) when run in a SLURM job |
-| `limits` | what threads, partitions, chunks and merges were sized with: `source` (`auto`, `--limits`, `--threads`), RAM, open files, threads, `vm.max_map_count`, `--safety-margin`, `--max-chunks`, `--chunk-budget` |
+| `limits` | what threads, partitions, chunks and merges were sized with: `source` (`auto`, `--limits`, `--threads`), RAM, open files (`files`, plus the `files_soft` and `files_hard` limits of the process), threads, `vm.max_map_count`, `--safety-margin`, `--max-chunks`, `--chunk-budget` |
 | `shards.<shard>` | `result`, its parts, and how it is published: `publish.mode` (`move` a single new run, `merge`, or `register` a folder left by an interrupted publish), `absorbed`, `updates` (the shard was already built), the merge `threads`, `max_inputs` and `bound_by`, `steps` (each merge, its inputs and its expected anonymous and mapped memory, `est_anon`, `est_mapped`); after an apply, `publish.duration_s` and `disk_size` |
 | `shards.<shard>.<part>` | `result`, `span`, `samples` (`planned_samples` if some were skipped), `issues`, `error`, `params` (threads, partitions and `partitions_source`, minimizer size, chunk size, k-mer size, abundance min, Bloom filter size, `bitw`, k-mer ratio), `est_size`, `script` |
 | `...<part>.runs.<run>` | one per kmtricks run (the part, or its chunks): `samples`, `action` (`planned`, `built`, `rebuilt` an incomplete run, `reused` a complete one), and from its `kmtricks.log`: `duration_s`, `started`, `finished`, `peak_rss` (reported by kmtricks, else sampled), `max_cpu_pct`, `cpu_efficiency` (`max_cpu_pct / (100 x threads)`), `ram_limit_use` (`peak_rss / limits.ram`), `read_files`, `partitions`, `return_code` |

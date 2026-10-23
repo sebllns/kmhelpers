@@ -14,6 +14,7 @@ from pykmhelpers.core.build_params import _resolve_limits
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
 from pykmhelpers.core.log import Log
+from pykmhelpers.core.resources import get_ulimit
 from pykmhelpers.pipeline.index_ops.merging import MergeLimits
 from pykmhelpers.pipeline.index_ops.types import (
     ApplyInputType,
@@ -133,6 +134,7 @@ def _limits(config: IndexOpsConfig) -> dict:
             config.limits or "{}", config.safety_margin
         )
         maps = MergeLimits.resolve(config.limits, config.safety_margin).maps
+        soft, hard = get_ulimit()
     except Exception as e:
         logger.debug(f"Could not resolve limits for the report: {e}")
         return {}
@@ -145,6 +147,8 @@ def _limits(config: IndexOpsConfig) -> dict:
         "ram": _size(ram),
         "ram_bytes": int(ram),
         "files": int(files),
+        "files_soft": soft,
+        "files_hard": hard,
         "threads": int(config.kmindex_threads or threads),
         "max_map_count": maps,
         "safety_margin": config.safety_margin,

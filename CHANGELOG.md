@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- **Open-files limit**: chunks and merges are sized from the hard limit (`ulimit -Hn`) instead of the soft one, so a low soft limit no longer cuts needless chunks
+  - Every command raises the soft limit to the hard one at start (logged with `-V`, a warning if it fails), inherited by kmtricks, kmindex and the merge steps
+  - The scripts in `BUILD_DIR/assets/SESSION/` raise it too (`ulimit -Sn "$(ulimit -Hn)"`), when run by hand or in a SLURM job
+  - The plan/apply report records `files_soft` and `files_hard` under `limits`
+
 ## [0.8.0] - 2026-10-19
 
 ### Added

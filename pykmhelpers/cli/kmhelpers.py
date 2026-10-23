@@ -36,6 +36,7 @@ from pykmhelpers.cli.registry import registry
 from pykmhelpers.cli.test import test
 from pykmhelpers.core.constants import KMHELPERS_COMMIT
 from pykmhelpers.core.log import Log
+from pykmhelpers.core.resources import maximize_nofile
 from pykmhelpers.core.utils import Toolbox
 
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
@@ -334,6 +335,10 @@ def cli(
             Log.log_file = Toolbox.get_canonical_path(log_file)
         except Exception as e:
             root_logger.warning(f"Could not open log file '{log_file}': {e}")
+
+    # Sizing assumes the hard open-files limit: raise the soft one to it once,
+    # inherited by every command run from here (kmtricks, kmindex, scripts)
+    maximize_nofile()
 
     if chdir:
         try:
