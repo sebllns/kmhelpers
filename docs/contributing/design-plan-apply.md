@@ -20,7 +20,8 @@ Status: **draft, for approval**. No backward compatibility is kept.
 | `--chunks-per-job N` (new) | ✔ | | |
 | `--base-path`, `--skip-compression`, `--keep-previous` | ✔ | | ✔ |
 | `--offline` | ✔ | | |
-| `--slurm`, `--slurm-opts` (new) | ✔ | | |
+| `--cluster FILE` (new) | ✔ | | |
+| `--pending` (new: list jobs not done) | | ✔ | |
 | `--shard` (filter what is planned) | ✔ | | |
 | `--shard`, `--job` (select what is run) | | ✔ | |
 | `--show-progress`, `--notify`, `--fail-fast` | | ✔ | ✔ |
@@ -68,7 +69,7 @@ Written to `BUILD_DIR/assets/SESSION/`, one directory per shard:
 ```
 assets/initial/
   plan.yaml                       # session manifest (below)
-  slurm/                          # with --slurm only (see SLURM)
+  slurm/                          # with --cluster only (see Cluster)
     jobs.txt  build.sbatch  submit.sh
   16SV4V5_g0/
     16SV4V5_g0_initial.sh         # one script per chunk
@@ -177,30 +178,64 @@ The fingerprint hashes:
 
 - the definition file and `COMPOSE_DIR/NAME/layout.yaml`;
 - the resolved sample list (names and paths) of every planned definition;
-- the effective plan options (resolved limits, budgets, flags);
+- the effective plan options (resolved limits, budgets, flags) and the
+  `--cluster` file;
 - the kmhelpers version.
 
 The registry is not hashed: it changes while jobs publish. It is checked
 per task merge through `expects` instead.
 
-## SLURM (`plan --slurm`)
+## Cluster (`plan --cluster FILE`)
+
+`--cluster` takes a YAML file describing the scheduler and the resources of
+each kind of job. `plan` then writes the submission files next to the plan.
+
+```yaml
+type: slurm                     # only slurm for now
+partition: long
+time: 10-00:00:00
+exclude: [node59]
+account: null                   # optional: account, qos, constraint
+max_parallel: 8                 # build array tasks running at once (%8)
+output: logs/slurm/%x_%A_%a.out # relative to BUILD_DIR
+setup: |                        # run before kmhelpers in every job
+  export PATH=/home/external/sbellenous/shared/kmhelpers/.env/bin:$PATH
+extra: []                       # other sbatch options, as is
+jobs:                           # resources per kind of job
+  build: {cpus: 24, mem: 120G}
+  merge: {cpus: 24, mem: 120G}
+  check: {cpus: 1, mem: 4G, time: "1:00:00"}
+limits: {files: 4096, maps: 65530}   # node limits plan cannot detect
+```
+
+- Keys under `jobs.<kind>` override the top-level ones (`partition`,
+  `time`, ...) for that kind. Unknown keys are an error.
+- **The cluster file is the source of the limits**: `plan` sizes chunks from
+  `jobs.build` (`threads = cpus`, `ram = mem`) and merges from `jobs.merge`,
+  plus `limits:` for what the allocation does not tell. The node you plan
+  on does not matter, and the allocation cannot differ from the plan.
+  `--limits` with `--cluster` is an error.
+- The resolved file is copied into `plan.yaml` (`cluster:`) and hashed in the
+  fingerprint.
+- The same file can be given in the `-C` config (`plan: {cluster: ...}`).
 
 Writes `slurm/`:
 
 ```
-jobs.txt          one job name per line (array index = line number - 1)
+jobs.txt          build jobs, one per line
 build.sbatch      array: array task i runs `kmhelpers apply --job <line i>`
-submit.sh         submits the array, then each merge job with
-                  --dependency=afterok:<array>_<array task ids of its shard>
+merge.sbatch      `kmhelpers apply --job <shard>_merge`
+check.sbatch      `kmhelpers manage -r BUILD_DIR check`
+submit.sh         submits what `apply --pending` lists (safe to run again):
+                  1. the build array, %max_parallel
+                  2. each merge job, --dependency=afterok:<array>_<array task
+                     ids of its shard>
+                  3. the check job, after every merge
 ```
 
 - With `--chunks-per-job 0` there is no merge job: one array task per shard,
-  no dependency.
-- `-c` and `--mem` come from the resolved `--limits` (threads, ram), so the
-  allocation cannot differ from what was planned.
-- `--slurm-opts` is passed as is: partition, time, exclusions, output path,
-  e.g. `--slurm-opts "-p long -t 10-00:00:00 --exclude=node59"`.
-
+  no dependency; the check job waits for the whole array.
+- An array longer than the cluster `MaxArraySize` is split by `submit.sh`.
 ## Removed
 
 - `apply` sizing options, `--run`, and planning inside `apply`.
@@ -220,10 +255,12 @@ submit.sh         submits the array, then each merge job with
    rebuild), as merges are guarded.
 3. New executor for `apply`: load, check fingerprint, select, check
    `needs`/`expects`, run scripts, report, progress from logs.
-4. CLI: move options, add `--chunks-per-job`, `--job`, `--slurm`,
-   `--slurm-opts`; `build` = plan + apply.
-5. `--slurm` writer.
+4. CLI: move options, add `--chunks-per-job`, `--job`, `--pending`,
+   `--cluster`; `build` = plan + apply.
+5. `--cluster`: schema and validation, limits from the job resources,
+   SLURM writer.
 6. Tests: e2e plan/apply/resume, stale plan, `expects` mismatch, job grouping
-   (N = 0, N >= c, N < c), SLURM files.
+   (N = 0, N >= c, N < c), cluster file validation, SLURM files.
 7. Docs: `commands/plan.md`, `apply.md`, `build.md`;
-   `bioswot/scripts/build.sbatch` becomes `plan --slurm` + `submit.sh`.
+   `bioswot/scripts/build.sbatch` becomes `bioswot/cluster.yaml` +
+   `plan --cluster` + `submit.sh`.
