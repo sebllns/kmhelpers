@@ -546,6 +546,28 @@ def load_layout_sessions(path: str) -> list[str]:
     return [str(s) for s in data.get("data", {}).get("sessions") or []]
 
 
+def describe_layout(path: str) -> str:
+    """``3 groups, 3 shards, sessions: initial``: what a layout fixes."""
+    with open(path) as f:
+        data = (yaml.safe_load(f) or {}).get("data", {})
+    groups = data.get("map") or {}
+    shards = sum(len(g.get("shards") or []) for g in groups.values())
+    sessions = ", ".join(str(s) for s in data.get("sessions") or []) or "none"
+    return f"{len(groups)} groups, {shards} shards, sessions: {sessions}"
+
+
+def check_new_session(path: str, session: str) -> None:
+    """Refuse to compose ``session`` again into a layout that already holds it:
+    its samples would be counted twice."""
+    sessions = load_layout_sessions(path)
+    if session in sessions:
+        raise ValueError(
+            f"Session '{session}' is already in the layout {path} "
+            f"(sessions: {', '.join(sessions)}): an update needs a new session "
+            "name (-s), or design the index again (design --redesign)"
+        )
+
+
 def load_layout_bitw(path: str) -> int:
     """Bits per abundance cell stored in a layout, 0 for presence/absence.
 

@@ -93,6 +93,8 @@ class ExitNotifier:
         )
 
     def _send(self) -> None:
+        if not self.recipient:
+            return
         status = "CANCELLED" if self.status == ApplyStatus.NONE.value else self.status
         body = f"kmhelpers {self.command} exited with status: {status}\n"
         progress = self._body()

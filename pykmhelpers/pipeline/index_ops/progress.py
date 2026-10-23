@@ -102,11 +102,17 @@ class ShardDisplay:
     def lines(self, now: Optional[datetime] = None) -> list[str]:
         now = now or datetime.now()
         spinner = SPINNER[self._frame % len(SPINNER)]
-        return [
+        lines = [
             shard_line(p, self.width, now, spinner, color=self.live)
             for p in self.shards
             if p.shown
         ]
+        return lines or [f"{spinner} {self.waiting_message()}"]
+
+    def waiting_message(self) -> str:
+        """Shown while no shard has started (jobs queued, or about to run)."""
+        n = len(self.shards)
+        return f"waiting for the first step to start ({n} shard{'s' if n != 1 else ''} pending)"
 
     def _tick(self) -> None:
         while not self._stop.wait(TICK):
@@ -130,6 +136,10 @@ class ShardDisplay:
 
     def _print_changes(self) -> None:
         now = datetime.now()
+        if self.shards and not any(p.shown for p in self.shards) and not self._printed:
+            # once, not redrawn
+            self._printed[""] = ()
+            self.stream.write(f"- {self.waiting_message()}\n")
         for p in self.shards:
             if p.shown and self._printed.get(p.shard) != p.key():
                 self._printed[p.shard] = p.key()

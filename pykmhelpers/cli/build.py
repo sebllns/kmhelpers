@@ -3,15 +3,21 @@
 import logging
 import os
 import subprocess
+import sys
+from typing import Optional
 
 import click
+from click.core import ParameterSource
 
 import pykmhelpers.cli.shared as shared
 import pykmhelpers.core.log
 import pykmhelpers.pipeline.index_ops as ops
-from pykmhelpers.cli.apply import run_plan, watch
+from pykmhelpers.cli.apply import run_plan, show_status, watch
 from pykmhelpers.cli.notify import ExitNotifier
-from pykmhelpers.cli.plan import make_plan
+from pykmhelpers.cli.plan import active_plan_jobs, make_plan, remove_session_plan, shown_jobs
+from pykmhelpers.pipeline.index_ops.paths import BuildPaths
+from pykmhelpers.pipeline.index_ops.plan_file import check_fresh, load_plan
+from pykmhelpers.pipeline.index_ops.runner import PlanRunner
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +44,7 @@ class PartialError(click.ClickException):
 @shared.index_limits_options
 @shared.chunk_budget_option
 @shared.cluster_option
+@shared.replan_option
 @click.pass_context
 def build(
     ctx,
@@ -58,6 +65,7 @@ def build(
     max_chunks,
     chunk_budget,
     cluster_file,
+    replan,
 ):
     """Plan then build indices from definition files.
 
@@ -94,6 +102,37 @@ def build(
     kmhelpers apply coli_db -o coli_build --status
     """
     input_file = shared.resolve_definition(input_file, session)
+    active = active_plan_jobs(input_file, work_dir)
+    if active and replan:
+        remove_session_plan(input_file, work_dir)  # refuses: jobs still active
+    if active:
+        # rerunning the build of running jobs: follow them, do not plan again
+        logger.warning(
+            f"{len(active)} job(s) of this plan still queued or running "
+            f"({shown_jobs(active)}): following them, nothing planned nor submitted; "
+            "cancel them (scancel) to plan again"
+        )
+        if sys.stdout.isatty():
+            ctx.exit(watch(input_file, work_dir, WATCH_INTERVAL))
+        show_status(input_file, work_dir)
+        return
+    plan_file = BuildPaths.for_input(os.path.realpath(work_dir), input_file).plan
+    if replan:
+        remove_session_plan(input_file, work_dir)
+    elif os.path.isfile(plan_file):
+        action = _existing_plan(ctx, input_file, work_dir, cluster_file)
+        if action == "done":
+            _already_built(input_file, work_dir)
+            return
+        if action == "submit":
+            _submit(input_file, work_dir, os.path.join(os.path.dirname(plan_file), "slurm", "submit.sh"))
+            if show_progress:
+                ctx.exit(watch(input_file, work_dir, WATCH_INTERVAL))
+            return
+        notifier = ExitNotifier("build", notify, notify_level, final=notify_final)
+        notifier.log_dir = os.path.join(os.path.realpath(work_dir), "logs")
+        _apply_locally(input_file, work_dir, notifier, show_progress)
+        return
     if cluster_file:
         _build_on_cluster(
             input_file, work_dir, base_path, threads, limits, safety_margin,
@@ -131,10 +170,15 @@ def build(
         pykmhelpers.core.log.Log.handle_exception(logger, e, "FAILED ('plan')")
         raise click.ClickException("FAILED ('plan')")
 
-    if result.status is ops.ApplyStatus.FAILED or plan_path is None:
+    if result.status is ops.ApplyStatus.FAILED:
         notifier.status = ops.ApplyStatus.FAILED.value
         logger.error("FAILED ('plan')")
         raise click.ClickException("FAILED ('plan')")
+    if plan_path is None and result.status is not ops.ApplyStatus.PARTIAL:
+        # nothing happened: no mail
+        notifier.recipient = None
+        _already_built(input_file, work_dir)
+        return
     if result.status is ops.ApplyStatus.PARTIAL:
         # Some operations were dropped: do not build what is known incomplete
         notifier.status = ops.ApplyStatus.PARTIAL.value
@@ -143,10 +187,13 @@ def build(
     logger.info("SUCCESS ('plan')")
 
     # --- Step 2: apply ---
+    _apply_locally(input_file, work_dir, notifier, show_progress)
+
+
+def _apply_locally(input_file: str, work_dir: str, notifier: ExitNotifier, show_progress: bool) -> None:
+    """Run the plan here; fail loudly (``build`` is the high-level command)."""
     try:
         pykmhelpers.core.log.Log.step(logger, f"STEP 2: Apply {input_file}")
-        # 'build' is the high-level command: always fail loudly rather than
-        # skipping a failed index and exiting 0.
         result = run_plan(
             input_file, work_dir, notifier, show_progress=show_progress, fail_on_error=True
         )
@@ -175,7 +222,7 @@ def _build_on_cluster(
     notify, notify_level,
 ) -> None:
     """Plan for the jobs of ``cluster_file``, then run its submit.sh and exit:
-    the jobs build the indices; ``apply --status`` follows them."""
+    the jobs build the indices; ``apply --status --sp`` follows them."""
     try:
         pykmhelpers.core.log.Log.step(logger, f"STEP 1: Plan {input_file}")
         result, plan_path, _ = make_plan(
@@ -203,18 +250,86 @@ def _build_on_cluster(
     except Exception as e:
         pykmhelpers.core.log.Log.handle_exception(logger, e, "FAILED ('plan')")
         raise click.ClickException("FAILED ('plan')")
-    if result.status is ops.ApplyStatus.FAILED or plan_path is None:
+    if result.status is ops.ApplyStatus.FAILED:
         raise click.ClickException("FAILED ('plan')")
     if result.status is ops.ApplyStatus.PARTIAL:
         # Some operations were dropped: do not submit what is known incomplete
         raise PartialError("PARTIAL ('plan'): nothing submitted")
+    if plan_path is None:
+        _already_built(input_file, work_dir)
+        return
     logger.info("SUCCESS ('plan')")
+    _submit(input_file, work_dir, os.path.join(os.path.dirname(plan_path), "slurm", "submit.sh"))
 
-    submit = os.path.join(os.path.dirname(plan_path), "slurm", "submit.sh")
+
+def _submit(input_file: str, work_dir: str, submit: str) -> None:
+    """Run the plan's submit.sh: it submits what is not done yet."""
     pykmhelpers.core.log.Log.step(logger, f"STEP 2: Submit {submit}")
     proc = subprocess.run(["bash", submit], capture_output=True, text=True)
     for line in (proc.stdout + proc.stderr).splitlines():
         logger.info(line)
     if proc.returncode != 0:
         raise click.ClickException(f"FAILED ('submit'): {submit} exited {proc.returncode}")
-    logger.info(f"Submitted. Follow it with: kmhelpers apply {input_file} -o {work_dir} --status")
+    logger.info(f"Submitted. Follow it with: kmhelpers apply {input_file} -o {work_dir} --status --sp")
+
+
+# options taking build decisions: not used when the existing plan is run
+_PLAN_OPTIONS = {
+    "base_path": "--base-path",
+    "threads": "--threads",
+    "skip_compression": "--skip-compression",
+    "keep_previous": "--keep-previous",
+    "chunks_per_job": "--chunks-per-job",
+    "limits": "--limits",
+    "safety_margin": "--safety-margin",
+    "max_chunks": "--max-chunks",
+    "chunk_budget": "--chunk-budget",
+    "notify": "--notify",
+    "notify_level": "--notify-level",
+}
+
+
+def _existing_plan(ctx, input_file: str, work_dir: str, cluster_file: Optional[str]) -> str:
+    """What to do with the existing plan of the session: ``done``, ``submit``
+    (a cluster plan) or ``local``; refuse a plan that cannot be used as it is."""
+    paths = BuildPaths.for_input(os.path.realpath(work_dir), input_file)
+    plan = load_plan(paths.plan)
+    replan = "pass --replan to plan again"
+    try:
+        check_fresh(plan, input_file)
+    except ValueError as e:
+        raise click.ClickException(f"{str(e).split(' Run ')[0]} {replan}")
+    on_cluster = bool(plan.get("cluster"))
+    if cluster_file and not on_cluster:
+        raise click.ClickException(f"The plan of session '{paths.session}' is not for a cluster: {replan}")
+    if on_cluster and not cluster_file:
+        raise click.ClickException(
+            f"The plan of session '{paths.session}' is for a cluster: pass --hpc to submit it, or {replan}"
+        )
+    logger.info(
+        f"Session '{paths.session}' already has a plan ({plan.get('created')}): it is used "
+        f"as it is, not planned again ({replan})"
+    )
+    unused = [
+        flag for name, flag in _PLAN_OPTIONS.items()
+        if ctx.get_parameter_source(name) is not ParameterSource.DEFAULT
+        and (name not in ("notify", "notify_level") or on_cluster)
+    ]
+    if on_cluster and cluster_file:
+        source = (plan.get("cluster") or {}).get("source")
+        if source and os.path.realpath(cluster_file) != source:
+            unused.append(f"--hpc {cluster_file} (the plan uses {source})")
+    if unused:
+        logger.warning(f"Not used, the plan is not made again: {', '.join(unused)}")
+    if not PlanRunner(work_dir, input_file).pending():
+        return "done"
+    return "submit" if on_cluster else "local"
+
+
+def _already_built(input_file: str, work_dir: str) -> None:
+    """A session already built: say so, and show the status of its last plan."""
+    logger.info("NOTHING TO DO ('build'): the session is already built, nothing submitted")
+    try:
+        show_status(input_file, work_dir)
+    except (ValueError, FileNotFoundError) as e:
+        logger.debug(f"No status to show: {e}")

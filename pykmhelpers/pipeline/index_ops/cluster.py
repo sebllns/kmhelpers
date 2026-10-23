@@ -298,12 +298,14 @@ MAX=$(scontrol show config 2>/dev/null | awk '/^MaxArraySize/ {{print $3}}')
 MAX=${{MAX:-1001}}
 N=$(wc -l < "$DIR/pending_build.txt")
 ALL=()
+NEW=0  # jobs submitted by this run
 for ((OFFSET = 0; OFFSET < N; OFFSET += MAX)); do
     COUNT=$(( N - OFFSET < MAX ? N - OFFSET : MAX ))
     ARRAY=$(sbatch --parsable --array=0-$((COUNT - 1)){pct} "$DIR/build.sbatch" \
         "$DIR/pending_build.txt" "$OFFSET")
     ARRAY=${{ARRAY%%;*}}
     ALL+=("$ARRAY")
+    NEW=$((NEW + COUNT))
     for ((i = 0; i < COUNT; i++)); do
         JOB=$(sed -n "$((OFFSET + i + 1))p" "$DIR/pending_build.txt")
         ID_OF[$JOB]="${{ARRAY}}_$i"
@@ -325,19 +327,29 @@ for SHARD in {shards}; do
         "$DIR/merge.sbatch" "$MERGE")
     ID=${{ID%%;*}}
     ALL+=("$ID")
+    NEW=$((NEW + 1))
     printf '%s\t%s\n' "$MERGE" "$ID" >> "$SUBMITTED"
     echo "merge $SHARD: job $ID ${{DEP:+after${{DEP//:/ }}}}"
 done
 for JOB in "${{!ID_OF[@]}}"; do ALL+=("${{ID_OF[$JOB]}}"); done
 
-# 3. Finish once every job has ended, successful or not
+# 3. Finish once every job has ended, successful or not: a single finish job
+PREVIOUS=$(active finish)
+if [ -n "$PREVIOUS" ] && [ "$NEW" -eq 0 ]; then
+    echo "finish: job $PREVIOUS still pending, kept (nothing new submitted)"
+    ALL=()
+elif [ -n "$PREVIOUS" ]; then
+    # it would run before the jobs submitted now
+    scancel "$PREVIOUS"
+    echo "finish: job $PREVIOUS cancelled, replaced"
+fi
 if [ ${{#ALL[@]}} -gt 0 ]; then
     DEPS=$(printf '%s\n' "${{ALL[@]}}" | sort -u | paste -sd: -)
     ID=$(sbatch --parsable --dependency="afterany:$DEPS" "$DIR/finish.sbatch")
     ID=${{ID%%;*}}
     printf '%s\t%s\n' finish "$ID" >> "$SUBMITTED"
     echo "finish: job $ID"
-else
+elif [ -z "$PREVIOUS" ]; then
     echo "nothing pending"
 fi
 """

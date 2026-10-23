@@ -229,6 +229,38 @@ class BuildState:
             return path
 
 
+def active_jobs(state: "BuildState") -> list[str]:
+    """Jobs of the plan still queued or running: the SLURM jobs ``submit.sh``
+    submitted that ``squeue`` still lists, and the local ``apply`` processes
+    (``pid N`` on this host) still alive with a step RUNNING."""
+    active: list[str] = []
+    if shutil.which("squeue"):
+        for job, jid in state.submitted().items():
+            if squeue_alive(jid):
+                active.append(jid)
+    host = socket.gethostname()
+    for task in state.tasks.values():
+        steps = list(task.get("chunks") or {}) + ([MERGE] if task.get("merge") else [])
+        for step in steps:
+            recorded = state.read_state(task, step)
+            job = recorded.get("job") or ""
+            if recorded.get("status") != RUNNING or not job.startswith("pid "):
+                continue
+            if recorded.get("node") == host and _pid_alive(job[4:]):
+                active.append(job)
+    return list(dict.fromkeys(active))
+
+
+def _pid_alive(pid: str) -> bool:
+    try:
+        os.kill(int(pid), 0)
+    except (ValueError, ProcessLookupError):
+        return False
+    except PermissionError:
+        return True  # alive, owned by someone else
+    return True
+
+
 def overall(tree: dict) -> str:
     """Overall status of a progress tree: SUCCESS, FAILED, RUNNING or PENDING."""
     s = tree["summary"]

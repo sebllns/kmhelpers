@@ -66,6 +66,8 @@ A failed step stops its shard; the other shards go on, unless `--fail-fast`. Log
 - an ended shard keeps its line: `SUCCESS` (green), `FAILED` (red), `LOST` or `CANCELLED`
   (yellow), with the failed step and its log.
 
+While no shard has started yet (jobs still queued), a spinner shows `waiting for the first step to start (N shards pending)`.
+
 In a terminal, the lines are redrawn in place (log lines print above them); otherwise
 (redirected to a file, a SLURM job), a shard's line is printed each time one of its steps
 ends.

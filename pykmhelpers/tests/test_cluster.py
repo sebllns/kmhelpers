@@ -1,6 +1,7 @@
 """Unit tests for the --cluster file and the SLURM files written from it."""
 
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -153,6 +154,47 @@ class TestWriteSlurm(ClusterCase):
         self.assertIn(shard, (out / "build.sbatch").read_text())
         self.assertIn(shard, (out / "merge.sbatch").read_text())
         self.assertIn("--status --notify me@example.com", (out / "finish.sbatch").read_text())
+
+    def run_submit(self, pending, alive):
+        """Run submit.sh with fake SLURM commands and a fake kmhelpers printing
+        ``pending``; ``alive``: the SLURM ids squeue still lists. Return the calls."""
+        out = self.write(3)
+        fake = self.tmp / "fake"
+        fake.mkdir(exist_ok=True)
+        calls = fake / "calls"
+        scripts = {
+            "sbatch": f'n=$(( $(cat {fake}/n 2>/dev/null || echo 500) + 1 )); echo $n > {fake}/n; '
+                      f'echo "sbatch $*" >> {calls}; echo $n',
+            "squeue": f'grep -qxF "$3" {fake}/alive && echo RUNNING; exit 0',
+            "scancel": f'echo "scancel $*" >> {calls}',
+            "scontrol": "echo 'MaxArraySize = 1001'",
+            "kmhelpers": f"cat {fake}/pending",
+        }
+        for name, body in scripts.items():
+            (fake / name).write_text(f"#!/usr/bin/env bash\n{body}\n")
+            (fake / name).chmod(0o755)
+        (fake / "pending").write_text("".join(f"{j}\n" for j in pending))
+        (fake / "alive").write_text("".join(f"{i}\n" for i in alive))
+        calls.write_text("")
+        env = dict(os.environ, PATH=f"{fake}{os.pathsep}{os.environ['PATH']}")
+        proc = subprocess.run(["bash", str(out / "submit.sh")], capture_output=True, text=True, env=env)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        return calls.read_text().splitlines(), out
+
+    def test_rerun_keeps_a_pending_finish_job(self):
+        _, out = self.run_submit(["idx_g0_j0", "idx_g0_merge"], [])
+        submitted = (out / "submitted.tsv").read_text()
+        finish = submitted.strip().splitlines()[-1].split("\t")[1]
+        ids = [ln.split("\t")[1] for ln in submitted.strip().splitlines()]
+        # everything still queued: nothing submitted, the finish job kept
+        calls, _ = self.run_submit(["idx_g0_j0", "idx_g0_merge"], ids)
+        self.assertEqual(calls, [])
+        # the build job ended without its chunks: resubmitted, finish replaced
+        alive = [i for i in ids if not i.endswith("_0")]
+        calls, _ = self.run_submit(["idx_g0_j0", "idx_g0_merge"], alive)
+        self.assertEqual(sum(c.startswith("sbatch") and "--array" in c for c in calls), 1)
+        self.assertIn(f"scancel {finish}", calls)
+        self.assertTrue(calls[-1].startswith("sbatch") and "finish.sbatch" in calls[-1])
 
     def test_submission_files_follow_the_type(self):
         cluster = self.load(CLUSTER)

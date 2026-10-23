@@ -14,7 +14,7 @@ from pykmhelpers.cli.shared import (
 )
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.log import Log
-from pykmhelpers.pipeline.composer import IndexComposer, layout_path
+from pykmhelpers.pipeline.composer import IndexComposer, check_new_session, layout_path
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +165,10 @@ def compose(
             auto_layout = layout_path(output_dir, name)
             if os.path.isfile(auto_layout):
                 layout_file = auto_layout
+                try:
+                    check_new_session(layout_file, session_id)
+                except ValueError as e:
+                    raise click.UsageError(str(e))
             else:
                 raise click.UsageError(
                     f"No layout file found at {auto_layout}. "

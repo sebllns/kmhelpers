@@ -34,6 +34,7 @@ Validate paths then build k-mer indices from an index definition file in a singl
 | `--sp, --show-progress` | One line per shard: progress bar of its steps, steps running, colored end status (see [apply - Following a build](apply.md#following-a-build)); with `--hpc`, follow the cluster build after the submission |
 | `--cpj, --chunks-per-job INT` | Chunks of a shard one job builds (see [plan - Jobs](plan.md#jobs)) |
 | `--hpc, --cluster FILE` | Build on a cluster: plan for the jobs of `FILE`, submit them, and exit (see [On a cluster](#on-a-cluster)) |
+| `--replan` | Plan again a session that already has a plan (see [Running build again](#running-build-again)) |
 | `--notify EMAIL` | Send email notifications (requires sendmail), see [Notifications](#notifications) |
 | `--notify-level global\|shard` | `global` (default): one mail at the end of the build; `shard`: also one mail per shard when it ends |
 
@@ -105,7 +106,7 @@ With `--hpc FILE` (see [plan - Cluster](plan.md#cluster)), `build` plans for the
 2. one **merge** job per shard, after the array tasks of that shard;
 3. a **finish** job, after every job, successful or not: it checks the registry when everything is built, writes `progress.yaml`, and sends the final mail.
 
-A failed job cancels the jobs waiting on it (`--kill-on-invalid-dep=yes`), so the finish job always runs. Run the same `build` command again (or `slurm/submit.sh`) to resubmit what is not done: finished work is kept, and a job still queued or running is not submitted twice.
+A failed job cancels the jobs waiting on it (`--kill-on-invalid-dep=yes`), so the finish job always runs. Once the jobs have ended, run the same `build` command again (or `slurm/submit.sh`) to resubmit what is not done, with the same plan: finished work is kept, and there is one finish job. While jobs are still queued or running, `build` follows them (see [Running build again](#running-build-again)). `slurm/submit.sh` can be run again at any time: it never submits a job still queued or running twice, keeps a finish job still pending when it submits nothing new, and replaces it otherwise.
 
 **Progress** - `apply --status` prints, per shard, the status of each kmtricks run and merge, and writes it to `BUILD_DIR/assets/SESSION/progress.yaml` (also rewritten by every job, after each step):
 
@@ -130,6 +131,21 @@ See [apply - Progress](apply.md#progress) for the statuses.
 | `shard` | also one per shard when it ends: published, or failed (the step and its log) |
 
 Locally, the mails are sent by the `build` process, with the log file and the apply [report](#report) attached. On a cluster, the jobs ending a shard send the shard mails, and the finish job the final one, with `progress.yaml` attached. SLURM's own mails remain available through `extra:` in the cluster file (`--mail-user`, `--mail-type`).
+
+### Running build again
+
+A session is planned once. Running `build` again on it does not plan it again:
+
+| The session's plan | `build` |
+|--------------------|---------|
+| none yet | plans it, then builds (or submits, with `--hpc`) |
+| jobs still queued or running | follows them, as `apply --status --sp` (prints their status once outside a terminal); nothing planned nor submitted |
+| everything built | `NOTHING TO DO`: shows the status |
+| something left to build | runs the existing plan: resumes it here, or submits what is not done with `--hpc` |
+
+Options that take build decisions (`--limits`, `--chunks-per-job`, `--hpc FILE`, `--notify` for a cluster plan...) are then not used: a warning lists them. A plan that is stale (its inputs changed), or not made for how it is run (`--hpc` or not), is refused.
+
+`--replan` plans the session again: its folder `BUILD_DIR/assets/SESSION/` (plan, scripts, SLURM files, progress) is removed first, then the session is planned as new. The indexes, the runs already built in `work/` (reused by the new plan) and the logs stay. It is refused while jobs of the plan are still queued or running: cancel them first.
 
 ### Shards and chunks
 

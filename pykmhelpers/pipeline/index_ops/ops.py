@@ -149,6 +149,13 @@ class IndexOps:
         if self._paths is None or self._input is None:
             logger.warning("Nothing planned: no plan written")
             return None
+        if not self._tasks:
+            # a finished session: its plan, scripts and states stay as they are
+            logger.info(
+                "Nothing to plan: every sample is already in its shard; "
+                f"the previous plan is kept ({self._paths.plan})"
+            )
+            return None
         if cluster:
             # before anything is written: a plan without its submission files is useless
             check_type(cluster.get("type"), cluster.get("source", "cluster file"))
@@ -231,13 +238,9 @@ class IndexOps:
             samples = self._run(report, path, mode, fail_on_error)
         finally:
             report.close()
-            layout = LayoutStore.next_to(path)
-            self._inputs = (
-                [path]
-                + self._dbs.paths
-                + ([layout.path] if layout.path else [])
-                + (samples.files_read if samples else [])
-            )
+            # not the layout: each new session rewrites it, which must not make
+            # the plans of the previous sessions stale
+            self._inputs = [path] + self._dbs.paths + (samples.files_read if samples else [])
         return report.result
 
     # ---
@@ -318,12 +321,16 @@ class IndexOps:
         return samples
 
     def _select_task(self, executor: IndexExecutor, task_dir: str, target: str) -> None:
-        """Record into ``assets/<session>/<task_dir>/``, emptied the first time."""
+        """Record into ``assets/<session>/<task_dir>/`` (see ``_reset_task_dir``)."""
+        executor.set_task(task_dir, target)
+
+    def _reset_task_dir(self, task_dir: str) -> None:
+        """Empty ``assets/<session>/<task_dir>/`` once, when something is planned
+        in it: a shard found already built keeps the files of its build."""
         assert self._paths is not None
         if task_dir not in self._task_dirs:
             self._task_dirs.add(task_dir)
             shutil.rmtree(self._paths.task(task_dir), ignore_errors=True)
-        executor.set_task(task_dir, target)
 
     @staticmethod
     def _targets(plan: WorkPlan) -> dict[str, list[str]]:
@@ -413,6 +420,7 @@ class IndexOps:
         report.record_params(i.name, i, params, sample_count)
         assert self._paths is not None
         report.record_script(i.name, self._paths.task(target))
+        self._reset_task_dir(target)
         try:
             runs = executor.build(i, fof, params)
         finally:
@@ -474,6 +482,7 @@ class IndexOps:
         if not new:
             if executor.has_folder(target) and not registered:
                 logger.info(f"► Registering '{target}' (publish interrupted)...")
+                self._reset_task_dir(executor.task_dir)
                 executor.register_folder(target, parts)
             self._record_publish(report, executor, target, parts, expects)
             return
@@ -484,6 +493,7 @@ class IndexOps:
                 f"({summarize_names([b.definition.name for b in new])}): one is expected"
             )
         logger.info(f"► Publishing '{target}'...")
+        self._reset_task_dir(executor.task_dir)
         executor.publish(new[0].definition, target, new[0].runs, new[0].params)
         self._record_publish(report, executor, target, parts, expects)
 

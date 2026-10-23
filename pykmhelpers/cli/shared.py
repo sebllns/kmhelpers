@@ -200,6 +200,14 @@ _task_option = click.option(
     "jobs; a job runs alone: '<shard>_j<k>' (some chunks, see `plan "
     "--chunks-per-job`) or '<shard>_merge'. E.g. 'idx_g0_*', '*_merge'.",
 )
+replan_option = click.option(
+    "--replan",
+    is_flag=True,
+    help="🚩  Plan again when the session already has a plan: its folder "
+    "BUILD_DIR/assets/SESSION/ (plan, scripts, SLURM files, progress) is removed "
+    "first; the indexes, the runs already built and the logs stay. Without it, "
+    "build runs the existing plan and plan refuses.",
+)
 status_option = click.option(
     "--status",
     is_flag=True,

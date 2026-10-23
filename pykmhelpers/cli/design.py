@@ -3,6 +3,7 @@
 import datetime
 import logging
 import os
+import shutil
 
 import click
 
@@ -19,6 +20,8 @@ from pykmhelpers.core.constants import AUTO_GROUP_SINGLE_MAX, DEFAULT_PAIR_REGEX
 from pykmhelpers.core.log import Log
 from pykmhelpers.core.utils import Toolbox
 from pykmhelpers.pipeline.composer import (
+    check_new_session,
+    describe_layout,
     SESSION_FILE,
     IndexComposer,
     layout_path,
@@ -191,6 +194,14 @@ logger = logging.getLogger(__name__)
 )
 @auto_group_options(hidden=True)
 @no_grouping_option
+@click.option(
+    "--redesign",
+    is_flag=True,
+    help="🚩  Design the index again: remove its previous design "
+    "(DESIGN_DIR/compose/NAME/ and DESIGN_DIR/profile/) first. Without it, an "
+    "existing layout is reused (an update). An index built from the previous "
+    "design cannot be updated with the new one: build into a new BUILD_DIR.",
+)
 @sharding_options
 @no_copy_list_option
 @kmer_ratio_option
@@ -223,6 +234,7 @@ def design(
     auto_group_min_gain,
     auto_group_single_max,
     no_grouping,
+    redesign,
 ):
     """Scan a directory, profile k-mer spans, and compose index definition files.
 
@@ -284,6 +296,28 @@ def design(
     )
     profiles_file = os.path.join(profile_dir, "profile.yaml")
     auto_layout = layout_path(compose_dir, name)
+
+    if redesign:
+        # the list stays: its counts are reused
+        for d in (os.path.join(compose_dir, name), profile_dir):
+            if os.path.isdir(d):
+                logger.info(f"--redesign: removing {d}")
+                shutil.rmtree(d)
+        os.makedirs(profile_dir, exist_ok=True)
+        logger.warning(
+            f"An index built from the previous design of '{name}' cannot be updated "
+            "with this one: build it into a new BUILD_DIR"
+        )
+    elif os.path.isfile(auto_layout):
+        try:
+            check_new_session(auto_layout, session_id)
+        except ValueError as e:
+            raise click.ClickException(str(e))
+        logger.warning(
+            f"Layout of '{name}' found ({describe_layout(auto_layout)}): session "
+            f"'{session_id}' is added to it, its groups and shards are kept (-g, -b, "
+            "--sb, --ab... not used). To design the index again: --redesign"
+        )
 
     session_file = os.path.join(compose_dir, name, session_id, f"{SESSION_FILE}.yaml")
 

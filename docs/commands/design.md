@@ -63,6 +63,7 @@ Set `-s` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 | Option | Description |
 |--------|-------------|
 | `-g, --group N` | Partition Bloom Filters into `N` storage-balanced groups and overlay on plot; 0 chooses `N` (default: 0): one group when the built index takes at most 4 GB, else as `profile -g 0`. Tuned by the `KMHELPERS_AUTO_GROUP_*` environment variables, see [profile - Grouping](profile.md#description) |
+| `--redesign` | Design the index again: remove its previous design (`DESIGN_DIR/compose/NAME/`, `DESIGN_DIR/profile/`) first; the sample list stays. An index built from the previous design cannot be updated with the new one: build into a new `BUILD_DIR` |
 | `--ngp, --no-grouping` | One group, no grouping strategy: every sample gets the Bloom filter of the largest one; not with `-g N` |
 | `-b, --base FLOAT` | Base for span bucket boundaries (default: 1.1) |
 | `--sb, --shard-budget INT` | Shard budget: a shard of span `s` holds at most `ceil8(budget / base^s)` samples (default: `2**43` for a new index); 0 for no limit, see [compose](compose.md) |
@@ -91,7 +92,7 @@ Set `-s` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 
 **Step 3 - compose:** reads the manifest and the profile to generate the index definition file `DESIGN_DIR/compose/NAME/SESSION/index.yaml`.
 
-**Updates** - if the compose layout file already exists from a previous run, the profile step is skipped and the existing layout is used directly. This allows re-running `design` with a new `-s` to add samples to an existing index without re-profiling, then building the new session into the same `BUILD_DIR`. The new session is merged with the existing index at build time, which keeps both versions on disk - see [`build` - Updating an index](build.md#updating-an-index).
+**Updates** - if the compose layout file already exists from a previous run, the profile step is skipped and the existing layout is used directly: a warning says so, with the groups and shards it keeps (`-g`, `-b`, `--sb`, `--ab` are not used). A session already in the layout is refused (its samples would be counted twice): an update needs a new session name. To design the index again instead, pass `--redesign`. This allows re-running `design` with a new `-s` to add samples to an existing index without re-profiling, then building the new session into the same `BUILD_DIR`. The new session is merged with the existing index at build time, which keeps both versions on disk - see [`build` - Updating an index](build.md#updating-an-index).
 
 **False-positive rate** - a higher rate reduces Bloom-filter size and disk footprint. At query time the [findere](https://doi.org/10.1007/978-3-030-86692-1_13) algorithm compensates by querying $(k+z)$-mers, reducing the effective FP rate to $p^z$. Recommended: build with `--fp 0.25` (default), query with `-z 6`, giving $0.25^6 \approx 0.024\,\%$ effective FP rate.
 

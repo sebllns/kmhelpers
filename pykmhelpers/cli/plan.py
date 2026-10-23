@@ -2,16 +2,61 @@
 
 import logging
 import os
+import shutil
 from typing import Optional
 
 import click
+import yaml
 
 import pykmhelpers.cli.shared as shared
 import pykmhelpers.core.log
 import pykmhelpers.pipeline.index_ops as ops
 from pykmhelpers.pipeline.index_ops.cluster import limits_for, load_cluster
+from pykmhelpers.pipeline.index_ops.paths import BuildPaths
+from pykmhelpers.pipeline.index_ops.status import BuildState, active_jobs
 
 logger = logging.getLogger(__name__)
+
+
+def active_plan_jobs(input_file: str, work_dir: str) -> list[str]:
+    """Jobs of the current plan of ``input_file`` still queued or running."""
+    paths = BuildPaths.for_input(os.path.realpath(work_dir), input_file)
+    plan = {"tasks": {}}
+    if os.path.isfile(paths.plan):
+        try:
+            with open(paths.plan) as f:
+                plan = yaml.safe_load(f) or plan
+        except (OSError, yaml.YAMLError):
+            pass
+    return active_jobs(BuildState(plan, paths))
+
+
+def shown_jobs(active: list[str]) -> str:
+    return ", ".join(active[:5]) + (", ..." if len(active) > 5 else "")
+
+
+def refuse_under_active_jobs(input_file: str, work_dir: str) -> None:
+    """Planning again rewrites the scripts and states of every shard: refuse it
+    while jobs of the current plan are still queued or running."""
+    active = active_plan_jobs(input_file, work_dir)
+    if active:
+        shown = shown_jobs(active)
+        raise click.ClickException(
+            f"{len(active)} job(s) of this plan still queued or running ({shown}): "
+            f"follow them with `kmhelpers apply {input_file} -o {work_dir} --status --sp`, "
+            "or cancel them (scancel) before planning again"
+        )
+
+
+def remove_session_plan(input_file: str, work_dir: str) -> None:
+    """``--replan``: remove the plan of the session (``BUILD_DIR/assets/SESSION/``:
+    plan.yaml, the folder of each shard, slurm/, progress.yaml) before planning
+    again. The indexes, the runs already built (``work/``) and the logs stay."""
+    refuse_under_active_jobs(input_file, work_dir)
+    assets = BuildPaths.for_input(os.path.realpath(work_dir), input_file).assets
+    if os.path.isdir(assets):
+        logger.info(f"--replan: removing the previous plan {assets}")
+        shutil.rmtree(assets)
 
 
 def make_plan(
@@ -36,6 +81,7 @@ def make_plan(
     """Plan ``input_file`` into ``work_dir``; return the result, the plan path
     (None when nothing was planned) and the log directory."""
     work_dir = os.path.realpath(work_dir)
+    refuse_under_active_jobs(input_file, work_dir)
     cluster = None
     merge_limits = None
     if cluster_file:
@@ -98,6 +144,7 @@ def make_plan(
 @shared.index_limits_options
 @shared.chunk_budget_option
 @shared.cluster_option
+@shared.replan_option
 @shared.fail_fast_option
 @click.option(
     "--offline",
@@ -122,6 +169,7 @@ def plan(
     max_chunks,
     chunk_budget,
     cluster_file,
+    replan,
     fail_on_error,
     offline,
 ):
@@ -160,6 +208,15 @@ def plan(
     bash coli_build/assets/initial/slurm/submit.sh
     """
     input_file = shared.resolve_definition(input_file, session)
+    paths = BuildPaths.for_input(os.path.realpath(work_dir), input_file)
+    refuse_under_active_jobs(input_file, work_dir)
+    if replan:
+        remove_session_plan(input_file, work_dir)
+    elif os.path.isfile(paths.plan):
+        raise click.ClickException(
+            f"Session '{paths.session}' already has a plan ({paths.plan}): run it with "
+            f"`kmhelpers apply {input_file} -o {work_dir}`, or pass --replan to plan again"
+        )
     try:
         result, plan_path, _ = make_plan(
             input_file,
@@ -188,5 +245,8 @@ def plan(
 
     if result.status in (ops.ApplyStatus.PARTIAL, ops.ApplyStatus.FAILED):
         raise click.ClickException("FAILED ('plan')")
+    if plan_path is None:
+        logger.info("NOTHING TO DO ('plan'): the session is already built")
+        return
     logger.info(f"Run it with: kmhelpers apply {input_file} -o {work_dir}")
     logger.info("SUCCESS ('plan')")

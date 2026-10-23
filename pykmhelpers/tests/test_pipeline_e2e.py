@@ -272,6 +272,32 @@ class TestDesignAutoGroups(PipelineE2EBase):
         profile = self.design("db0", env={"KMHELPERS_AUTO_GROUP_SINGLE_MAX": "0"})
         self.assertIsNone(profile["auto_group"]["single_max"])
 
+    def test_existing_layout(self):
+        """A layout is reused (warned), never for the same session twice;
+        --redesign designs the index again."""
+        cmd = [sys.executable, "-m", CLI_MODULE, "-Y", "design", str(self.samples_txt), "-o", "dbl",
+               "-n", "idx", "-k", str(KMER_SIZE), "-b", "1.1"]
+        run = lambda *a: subprocess.run(cmd + list(a), cwd=self.tmp, capture_output=True, text=True)
+        self.assertEqual(run("-s", "initial").returncode, 0)
+        layout = self.tmp / "dbl" / "compose" / "idx" / "layout.yaml"
+        before = layout.read_text()
+
+        again = run("-s", "initial")
+        self.assertNotEqual(again.returncode, 0)
+        self.assertIn("already in the layout", again.stdout + again.stderr)
+        self.assertEqual(layout.read_text(), before)
+
+        update = run("-s", "upd")
+        self.assertEqual(update.returncode, 0, update.stdout + update.stderr)
+        self.assertIn("its groups and shards are kept", update.stdout + update.stderr)
+
+        redo = run("-s", "initial", "--redesign", "--ngp")
+        self.assertEqual(redo.returncode, 0, redo.stdout + redo.stderr)
+        self.assertIn("--redesign: removing", redo.stdout + redo.stderr)
+        sessions = yaml.safe_load(layout.read_text())["data"]["sessions"]
+        self.assertEqual(sessions, ["initial"])
+        self.assertFalse((self.tmp / "dbl" / "compose" / "idx" / "upd").exists())
+
     def test_no_grouping(self):
         self.assertEqual(self.design("dbn", "--ngp")["grouping"], "none")
         proc = self.run_cli(
@@ -397,9 +423,29 @@ class TestRerunAndUpdate(UpdateSessionBase):
         build = self.tmp / "build"
         before = json.loads((build / "index.json").read_text())["index"]
 
-        # 1. rerunning the finished session changes nothing
+        # 1. rerunning the finished session changes nothing, not even its plan
+        assets = build / "assets" / "initial"
+        plan_before = (assets / "plan.yaml").read_text()
+        task_dirs = sorted(p.name for p in assets.iterdir() if p.is_dir())
+        self.assertTrue(task_dirs)
         log = self.run_cli("build", session_file, "-o", "build")
-        self.assertIn("already in", log.stdout + log.stderr)
+        self.assertIn("already has a plan", log.stdout + log.stderr)
+        self.assertIn("NOTHING TO DO", log.stdout + log.stderr)
+        self.assertEqual((assets / "plan.yaml").read_text(), plan_before)
+        self.assertEqual(sorted(p.name for p in assets.iterdir() if p.is_dir()), task_dirs)
+        refused = self.run_cli("plan", session_file, "-o", "build", expect_success=False)
+        self.assertIn("--replan", refused.stdout + refused.stderr)
+        (assets / "slurm").mkdir(exist_ok=True)
+        (assets / "slurm" / "submitted.tsv").write_text("old\t1\n")
+        replanned = self.run_cli("plan", session_file, "-o", "build", "--replan")
+        self.assertIn("removing the previous plan", replanned.stdout + replanned.stderr)
+        self.assertIn("NOTHING TO DO", replanned.stdout + replanned.stderr)
+        # the previous plan is gone, the index stays
+        self.assertFalse(assets.exists() and any(assets.iterdir()), list(assets.iterdir()) if assets.exists() else [])
+        self.assertEqual(
+            {n: e["nb_samples"] for n, e in json.loads((build / "index.json").read_text())["index"].items()},
+            {n: e["nb_samples"] for n, e in before.items()},
+        )
         after = json.loads((build / "index.json").read_text())["index"]
         self.assertEqual(
             {n: e["nb_samples"] for n, e in after.items()},
@@ -983,7 +1029,7 @@ class TestChunkedBuild(PipelineE2EBase):
         submitted = (self.tmp / "build" / "assets" / "initial" / "slurm" / "submitted.tsv")
         self.assertIn("finish\t", submitted.read_text())
         # --limits is a decision of the cluster file
-        cmd += ["--limits", "{}"]
+        cmd += ["--replan", "--limits", "{}"]
         proc = subprocess.run(cmd, cwd=self.tmp, capture_output=True, text=True, env=env)
         self.assertNotEqual(proc.returncode, 0)
 
@@ -1016,6 +1062,45 @@ class TestChunkedBuild(PipelineE2EBase):
             expect_success=False,
         )
         self.assertIn("FAILED run", watch.stdout)
+
+    def test_no_plan_under_active_jobs(self):
+        """plan is refused while a job submitted for the plan is still queued."""
+        session_file = self.design()
+        self.run_cli("plan", session_file, "-o", "build")
+        slurm = self.mkdirs("build", "assets", "initial", "slurm")
+        (slurm / "submitted.tsv").write_text("idx_g0_p0\t900_0\n")
+        fake = self.mkdirs("fakebin")
+        squeue = fake / "squeue"
+        squeue.write_text("#!/usr/bin/env bash\n[ -e " + str(fake / "alive") + " ] && echo RUNNING; exit 0\n")
+        squeue.chmod(0o755)
+        (fake / "alive").write_text("")
+        env = dict(os.environ, PATH=f"{fake}{os.pathsep}{os.environ['PATH']}")
+        cmd = [sys.executable, "-m", CLI_MODULE, "plan", str(session_file), "-o", "build"]
+        proc = subprocess.run(cmd, cwd=self.tmp, capture_output=True, text=True, env=env)
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("still queued or running (900_0)", proc.stdout + proc.stderr)
+        # --replan is refused too, before anything is removed
+        plan_file = self.tmp / "build" / "assets" / "initial" / "plan.yaml"
+        plan_before = plan_file.read_text()
+        proc = subprocess.run(cmd + ["--replan"], cwd=self.tmp, capture_output=True, text=True, env=env)
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("still queued or running (900_0)", proc.stdout + proc.stderr)
+        self.assertEqual(plan_file.read_text(), plan_before)
+        self.assertTrue((slurm / "submitted.tsv").is_file())
+        # build follows the jobs instead (not a terminal: the status, once)
+        build = [sys.executable, "-m", CLI_MODULE, "build", str(session_file), "-o", "build"]
+        proc = subprocess.run(build, cwd=self.tmp, capture_output=True, text=True, env=env)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("following them, nothing planned nor submitted", proc.stdout + proc.stderr)
+        self.assertIn("PENDING", proc.stdout)
+        self.assertFalse((self.tmp / "build" / "index.json").exists() and json.loads(
+            (self.tmp / "build" / "index.json").read_text())["index"], "built")
+        (fake / "alive").unlink()
+        proc = subprocess.run(cmd, cwd=self.tmp, capture_output=True, text=True, env=env)
+        self.assertNotEqual(proc.returncode, 0)  # a plan exists
+        self.assertIn("--replan", proc.stdout + proc.stderr)
+        proc = subprocess.run(cmd + ["--replan"], cwd=self.tmp, capture_output=True, text=True, env=env)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
 
     def test_unmatched_task_pattern_fails(self):
         session_file = self.design()

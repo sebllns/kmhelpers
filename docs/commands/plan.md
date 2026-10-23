@@ -28,6 +28,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 | `--bp, --base-path DIR` | Base path to resolve relative sample paths |
 | `--sh, --shard TEXT` | Shards to plan, as names or glob patterns (repeatable or comma-separated, e.g. `idx_g0_p1`, `'idx_g0_*'`); a part name (`<shard>_<session>`) plans that part as its own index |
 | `--cpj, --chunks-per-job INT` | Chunks of a shard one job builds: 0 (default) for one job per shard, its chunks then its merge; else jobs `<shard>_j<k>` of up to N chunks, then a job `<shard>_merge` (see [Jobs](#jobs)) |
+| `--replan` | Plan again a session that already has a plan: its folder `BUILD_DIR/assets/SESSION/` is removed first (the indexes, built runs and logs stay); refused while its jobs run |
 | `--hpc, --cluster FILE` | YAML file of the scheduler and the resources of each kind of job: sizes the plan from them (instead of `--limits`) and writes the SLURM files (see [Cluster](#cluster)) |
 | `--threads INT` | Hidden. Force the number of kmtricks threads instead of sizing them from `--limits` |
 | `--ncp, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
@@ -53,7 +54,7 @@ BUILD_DIR/assets/SESSION/
     merge/                      the run list and the inputs of each merge step
 ```
 
-A shard directory is emptied and rewritten each time it is planned. Every script can be run again after an interruption: a run script does nothing when its samples are already published or its run is complete, and deletes and rebuilds an incomplete run.
+A session is planned once: `plan` refuses a session that already has a plan (run it with `apply`), unless `--replan`, which removes `BUILD_DIR/assets/SESSION/` first and plans it as new. Both refuse while jobs of the current plan are still queued or running: follow them with `apply --status --sp`, or cancel them first. Every script can be run again after an interruption: a run script does nothing when its samples are already published or its run is complete, and deletes and rebuilds an incomplete run.
 
 **plan.yaml** - one **task** per part (`<shard>_<session>`): one session's samples added to one shard.
 
@@ -129,7 +130,7 @@ limits: {files: 131072, maps: 65530}   # optional, see below
 | `build.sbatch` | an array task: one build job (`apply --task`) |
 | `merge.sbatch` | one merge job (`apply --task <shard>_merge`) |
 | `finish.sbatch` | after every job (`afterany`): `manage check` of the registry when nothing is pending, then `apply --status` (writes `progress.yaml`, mails it with `build --notify`); fails when the build is not done |
-| `submit.sh` | submits the jobs `apply --pending` lists: the build array (`%max_parallel`, split at the cluster `MaxArraySize`), each merge job after the array tasks of its own shard, then the finish job. Safe to run again: only what is not done is submitted, never a job still queued or running |
+| `submit.sh` | submits the jobs `apply --pending` lists: the build array (`%max_parallel`, split at the cluster `MaxArraySize`), each merge job after the array tasks of its own shard, then the finish job. Safe to run again: only what is not done is submitted, never a job still queued or running; a finish job still pending is kept, or replaced when new jobs are submitted |
 | `submitted.tsv` | written by `submit.sh`: each job of the plan and its SLURM id, read by `apply --status` |
 
 Merge and finish jobs are cancelled when a job they wait on fails (`--kill-on-invalid-dep=yes`): nothing stays pending forever, and the finish job reports the failure. [`build --hpc`](build.md#on-a-cluster) plans and submits in one command, and takes `--notify`.

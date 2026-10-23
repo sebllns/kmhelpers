@@ -4,6 +4,7 @@ import io
 import json
 import os
 import shutil
+import socket
 import tempfile
 import unittest
 from datetime import datetime, timedelta
@@ -25,6 +26,7 @@ from pykmhelpers.pipeline.index_ops.status import (
     SUCCESS,
     BuildState,
     ShardProgress,
+    active_jobs,
     duration,
     overall,
     render,
@@ -201,16 +203,28 @@ class TestShardLine(StatusCase):
     def test_display_not_live_prints_changes(self):
         out = io.StringIO()
         display = ShardDisplay(self.state, live=False, stream=out).start()
-        self.assertEqual(out.getvalue(), "")  # not started: not shown
+        # not started: no shard line, the waiting message once
+        self.assertIn("waiting for the first step", out.getvalue())
         self.running("idx_g0_s1_chunk0", 1)
         display.update()
         display.update()  # nothing changed: nothing printed
         self.complete_run("idx_g0_s1_chunk0")
         display.update()
         lines = out.getvalue().splitlines()
-        self.assertEqual(len(lines), 2, lines)
-        self.assertIn("1/3", lines[1])
+        self.assertEqual(len(lines), 3, lines)
+        self.assertIn("1/3", lines[2])
         self.assertNotIn("\033", out.getvalue())
+
+    def test_display_waits_with_a_message(self):
+        out = io.StringIO()
+        display = ShardDisplay(self.state, live=True, stream=out)
+        display.update()
+        self.assertIn("waiting for the first step to start (1 shard pending)", out.getvalue())
+        out = io.StringIO()
+        display = ShardDisplay(self.state, live=False, stream=out)
+        display.update()
+        display.update()
+        self.assertEqual(out.getvalue().count("waiting for the first step"), 1)
 
     def test_display_live_redraws(self):
         out = io.StringIO()
@@ -219,6 +233,37 @@ class TestShardLine(StatusCase):
         display.update()
         display.update()
         self.assertIn("\033[1F\033[J", out.getvalue())
+
+
+class TestActiveJobs(StatusCase):
+    def submitted(self, *ids):
+        sub = Path(self.paths.assets) / "slurm"
+        sub.mkdir(parents=True, exist_ok=True)
+        (sub / "submitted.tsv").write_text("".join(f"job{n}\t{i}\n" for n, i in enumerate(ids)))
+
+    def test_slurm_jobs_still_in_squeue(self):
+        self.submitted("10_0", "11")
+        alive = {"10_0": True, "11": False}
+        with mock.patch("pykmhelpers.pipeline.index_ops.status.shutil.which", return_value="/x/squeue"), \
+                mock.patch("pykmhelpers.pipeline.index_ops.status.squeue_alive", side_effect=alive.get):
+            self.assertEqual(active_jobs(self.state), ["10_0"])
+
+    def test_no_squeue_no_slurm_check(self):
+        self.submitted("10_0")
+        with mock.patch("pykmhelpers.pipeline.index_ops.status.shutil.which", return_value=None):
+            self.assertEqual(active_jobs(self.state), [])
+
+    def test_local_apply_still_running(self):
+        path = Path(self.state.state_path(self.task, "idx_g0_s1_chunk0"))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        node = socket.gethostname()
+        with mock.patch("pykmhelpers.pipeline.index_ops.status.shutil.which", return_value=None):
+            path.write_text(json.dumps({"status": RUNNING, "job": f"pid {os.getpid()}", "node": node}))
+            self.assertEqual(active_jobs(self.state), [f"pid {os.getpid()}"])
+            path.write_text(json.dumps({"status": RUNNING, "job": "pid 999999999", "node": node}))
+            self.assertEqual(active_jobs(self.state), [])
+            path.write_text(json.dumps({"status": RUNNING, "job": f"pid {os.getpid()}", "node": "other"}))
+            self.assertEqual(active_jobs(self.state), [])
 
 
 class TestNotifier(unittest.TestCase):
