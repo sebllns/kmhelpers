@@ -605,10 +605,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -727,62 +723,6 @@
     
   
     Update an existing index
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorials/ecoli_api/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorials/ecoli_api_advanced/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API (advanced)
   
 
     
@@ -1090,10 +1030,32 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#shards-and-chunks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shards and chunks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#builds-and-merges" class="md-nav__link">
     <span class="md-ellipsis">
       
         Builds and merges
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Report
       
     </span>
   </a>
@@ -1999,8 +1961,6 @@
       
         
       
-        
-      
     
     
     
@@ -2175,34 +2135,6 @@
     
   
     query_report
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/pipeline/sample_lister/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    sample_lister
   
 
     
@@ -2588,10 +2520,32 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#shards-and-chunks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shards and chunks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#builds-and-merges" class="md-nav__link">
     <span class="md-ellipsis">
       
         Builds and merges
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Report
       
     </span>
   </a>
@@ -2727,7 +2681,7 @@
 <p>Validate paths then build k-mer indices from an index definition file in a single command.</p>
 <div class="admonition abstract">
 <p class="admonition-title">USAGE</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers build [OPTIONS] INPUT_FILE
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers build [OPTIONS] INPUT
 </code></pre></div>
 <table>
 <thead>
@@ -2738,8 +2692,12 @@
 </thead>
 <tbody>
 <tr>
-<td><code>INPUT_FILE</code></td>
-<td>Index definition file <code>COMPOSE_DIR/NAME/SESSION/NAME.yaml</code> written by <code>compose</code> or <code>design</code> (required)</td>
+<td><code>INPUT</code></td>
+<td>The design directory (<code>DESIGN_DIR</code> of <code>design</code>), a compose directory or one of its indexes (<code>COMPOSE_DIR/NAME</code>), a session (<code>COMPOSE_DIR/NAME/SESSION</code> or its <code>index.yaml</code>), or one shard file (<code>SESSION/shards/&lt;shard&gt;.yaml</code>, built without merge) (required)</td>
+</tr>
+<tr>
+<td><code>-s, --session SESSION</code></td>
+<td>Session to use when INPUT is a directory (default: the last one composed)</td>
 </tr>
 <tr>
 <td><code>-o, --output-dir BUILD_DIR</code></td>
@@ -2750,7 +2708,7 @@
 </div>
 <div class="admonition abstract">
 <p class="admonition-title">I/O</p>
-<p><strong>Input:</strong> <code>COMPOSE_DIR/NAME/SESSION/NAME.yaml</code> written by <code>compose</code>, or <code>DESIGN_DIR/compose/NAME/SESSION/NAME.yaml</code> when produced by <code>design</code> (see <a href="../design/#next-step">design - Next Step</a>)<br />
+<p><strong>Input:</strong> <code>DESIGN_DIR</code> of <code>design</code> (or <code>COMPOSE_DIR</code> of <code>compose</code>), with <code>-s</code> to pick a session; it resolves to <code>compose/NAME/SESSION/index.yaml</code> (see <a href="../design/#next-step">design - Next Step</a>)<br />
 <strong>Output:</strong> indices in <code>BUILD_DIR/&lt;name&gt;/</code>, registered in <code>BUILD_DIR/index.json</code></p>
 </div>
 <h2 id="advanced-options">Advanced Options</h2>
@@ -2763,20 +2721,12 @@
 </thead>
 <tbody>
 <tr>
-<td><code>-b, --base-path DIR</code></td>
+<td><code>--bp, --base-path DIR</code></td>
 <td>Base path to resolve relative sample paths</td>
 </tr>
 <tr>
-<td><code>--minim-size INT</code></td>
-<td>Minimizer size (default: 10)</td>
-</tr>
-<tr>
-<td><code>-t, --threads INT</code></td>
-<td>Number of threads</td>
-</tr>
-<tr>
-<td><code>-p, --partition-count INT</code></td>
-<td>Partitions per index; ignored when the layout already stores one</td>
+<td><code>--threads INT</code></td>
+<td>Hidden. Force the number of kmtricks threads instead of sizing them from <code>--limits</code></td>
 </tr>
 <tr>
 <td><code>--limits JSON</code></td>
@@ -2788,10 +2738,14 @@
 </tr>
 <tr>
 <td><code>--max-chunks INT</code></td>
-<td>Max number of chunks a single index is split into; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 200)</td>
+<td>Max number of kmtricks chunks a shard is built in; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 64)</td>
 </tr>
 <tr>
-<td><code>-NC, --skip-compression</code></td>
+<td><code>--cb, --chunk-budget INT</code></td>
+<td>K-mer budget of one kmtricks chunk: a chunk of span <code>s</code> holds at most <code>ceil8(budget / base^s)</code> samples. 0 for no limit (default: <code>2**37</code>), see <a href="./#shards-and-chunks">build - Shards and chunks</a></td>
+</tr>
+<tr>
+<td><code>--ncp, --skip-compression</code></td>
 <td>Skip compression of intermediate files during index building (useful on slow disks)</td>
 </tr>
 <tr>
@@ -2799,12 +2753,12 @@
 <td>Keep the replaced version of an updated index in <code>BUILD_DIR/work/SESSION/previous/</code> instead of deleting it</td>
 </tr>
 <tr>
-<td><code>-SP, --show-progress</code></td>
+<td><code>--sp, --show-progress</code></td>
 <td>Enable animation that shows the current subindex being built (use in an interactive shell)</td>
 </tr>
 <tr>
 <td><code>--notify EMAIL</code></td>
-<td>Send email notification on exit (requires sendmail)</td>
+<td>Send email notification on exit (requires sendmail), with the log and the apply report attached</td>
 </tr>
 </tbody>
 </table>
@@ -2814,49 +2768,201 @@
 <li><code>COMPOSE_DIR</code> holds the index definitions. It is the <code>-o</code> of <code>compose</code>, or <code>DESIGN_DIR/compose/</code> when using <code>design</code>.</li>
 <li><code>BUILD_DIR</code> holds the built index. It is the <code>-o</code> of <code>build</code>, and the <code>-r</code> of <code>query</code>.</li>
 </ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>coli_db/                          DESIGN_DIR (design -o)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>coli_db/                          DESIGN_DIR (design -o): INPUT of build
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>└── compose/                      COMPOSE_DIR
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    ├── coli_layout.yaml
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    └── coli/                     NAME
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>        ├── initial/              SESSION (design/compose -S)
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>        │   └── coli.yaml         INPUT_FILE for build
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>        └── update/
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>            └── coli.yaml
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>coli_build/                       BUILD_DIR (build -o, query -r): the kmindex registry
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>├── index.json                    registry of all built indices
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>├── coli_g0/                      an index, in place (a directory, not a symlink)
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>├── coli_g1/
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>├── work/                         only while a SESSION is being built
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>│   └── update/                   SESSION
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>│       ├── runs/                 kmtricks runs (parts, chunks)
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>│       ├── merges/               throwaway merge registries and their outputs
-<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>│       └── previous/             replaced version of an updated index
-<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>├── assets/
-<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>│   ├── initial/                  scripts (&lt;shard&gt;.sh, &lt;shard&gt;_merge.sh, kmhelpers_apply.sh) and fof files, one folder per SESSION
-<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>│   └── update/
-<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>└── logs/
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    └── coli/                     NAME: the index
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>        ├── layout.yaml           state of the index, shared by its sessions
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>        ├── initial/              SESSION (design/compose -s)
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>        │   ├── index.yaml        what INPUT resolves to (-s initial)
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>        │   └── shards/           one definition per shard (coli_g0_p0.yaml, ...)
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>        └── update/               the last session: built by default
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>            ├── index.yaml
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>            └── shards/
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>coli_build/                       BUILD_DIR (build -o, query -r): the kmindex registry
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>├── index.json                    registry of all built indices
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>├── coli_g0_p0/                   an index, in place (a directory, not a symlink)
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>├── coli_g1_p0/
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>├── work/                         only while a SESSION is being built
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>│   └── update/                   SESSION
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>│       ├── runs/                 kmtricks runs (parts, chunks)
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>│       ├── merges/               throwaway merge registries and their outputs
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>│       └── previous/             replaced version of an updated index
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>├── assets/
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>│   ├── initial/                  scripts (&lt;shard&gt;.sh, &lt;shard&gt;_merge.sh, kmhelpers_apply.sh) and fof files, one folder per SESSION
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>│   └── update/
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>└── logs/
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>    ├── kmhelpers_plan_&lt;timestamp&gt;.yaml    plan report, see Report below
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>    ├── kmhelpers_apply_&lt;timestamp&gt;.yaml   apply report
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>    └── coli_g0_p0_initial/kmtricks.log    one per kmtricks run built by apply
 </code></pre></div>
 <p>Reuse the same <code>BUILD_DIR</code> for every session of an index. Each index keeps one folder, <code>BUILD_DIR/&lt;name&gt;/</code>, for its whole life; a session only uses <code>BUILD_DIR/work/SESSION/</code> while it is built, and deletes it when it is done. Index names cannot be <code>work</code>, <code>assets</code>, <code>logs</code>, or start with <code>.</code>.</p>
 <p>Building a session again resumes it: complete kmtricks runs are kept, incomplete ones are rebuilt, finished merges are not redone, and parts whose samples are already in their index are skipped. A finished session built again changes nothing. A run of <code>&lt;shard&gt;_merge.sh</code> interrupted at any point is finished by running it again (or <code>apply</code>): until the new version of a sub-index is registered, the sub-index is either registered with its previous folder or not registered at all, never registered with other data.</p>
 <h2 id="description">Description</h2>
 <p><code>build</code> chains <a href="../plan/"><code>plan</code></a> and <a href="../apply/"><code>apply</code></a> into a single invocation. It is equivalent to running the two commands in sequence.</p>
-<p><strong>Step 1 - plan:</strong> validates all sample paths upfront and writes the equivalent shell scripts to <code>BUILD_DIR/assets/SESSION/</code> (<code>&lt;shard&gt;.sh</code> and <code>&lt;shard&gt;_merge.sh</code> per sub-index, plus <code>kmhelpers_apply.sh</code> running them in order) and a validation report to <code>BUILD_DIR/logs/</code>. Fix any path errors before the build starts rather than discovering them mid-run.</p>
-<p><strong>Step 2 - apply:</strong> executes the build and registers all completed indices in <code>BUILD_DIR/index.json</code>.</p>
-<p><strong>Filtering</strong> - <code>build</code> always processes every index declared in <code>INPUT_FILE</code>. Use <a href="../plan/"><code>plan</code></a> and <a href="../apply/"><code>apply</code></a> with <code>--name</code> or <code>--span</code> to build a subset.</p>
-<p><strong>Notifications</strong> - use <code>--notify</code> to receive an email when the build exits (requires <code>sendmail</code>). The notification is sent on both success and failure, including on <code>SIGTERM</code>.</p>
+<p><strong>Step 1 - plan:</strong> validates all sample paths upfront and writes the equivalent shell scripts to <code>BUILD_DIR/assets/SESSION/</code> (<code>&lt;shard&gt;.sh</code> and <code>&lt;shard&gt;_merge.sh</code> per sub-index, plus <code>kmhelpers_apply.sh</code> running them in order) and the plan <a href="#report">report</a> to <code>BUILD_DIR/logs/</code>. Fix any path errors before the build starts rather than discovering them mid-run.</p>
+<p><strong>Step 2 - apply:</strong> executes the build, registers all completed indices in <code>BUILD_DIR/index.json</code>, and writes the apply <a href="#report">report</a> as it goes.</p>
+<p><strong>Filtering</strong> - <code>build</code> always processes every shard of the session. Use <a href="../plan/"><code>plan</code></a> and <a href="../apply/"><code>apply</code></a> with <code>--shard</code> (names or glob patterns) or <code>--run</code> to build a subset.</p>
+<p><strong>Notifications</strong> - use <code>--notify</code> to receive an email when the build exits (requires <code>sendmail</code>). The notification is sent on both success and failure, including on <code>SIGTERM</code>, with the log file and the apply <a href="#report">report</a> attached (the report so far, when the job was stopped).</p>
+<h3 id="shards-and-chunks">Shards and chunks</h3>
+<p>A shard is fixed at design: a span is split into shards of at most <code>ceil8(shard_budget / base^s)</code>
+samples, see <a href="../compose/#description">compose - Sharding</a>. Each build then splits the new
+samples of a shard into kmtricks runs (chunks), <code>&lt;part&gt;_chunk&lt;N&gt;</code>. A chunk holds the smallest of:</p>
+<ol>
+<li><strong>Open files</strong>: <code>files / threads - 1</code>, from <code>--limits files</code> (or the system limit x <code>--safety-margin</code>);</li>
+<li><strong>Chunk budget</strong>: <code>ceil8(chunk_budget / base^s)</code> samples (<code>--chunk-budget</code>, default <code>2**37</code>, 0 for no limit);</li>
+<li>the samples of the part.</li>
+</ol>
+<p><code>--max-chunks</code> (default 64, 0 disables it) then raises the chunk to <code>ceil(samples / max_chunks)</code>,
+so a shard is built in at most that many runs, with fewer threads to stay within the open
+files. It never goes above bounds 1 and 2: when it would have to, <code>plan</code> warns and uses more
+chunks. With the default budgets, a full shard fits 64 chunks (<code>2**43 = 64 x 2**37</code>).</p>
 <h3 id="builds-and-merges">Builds and merges</h3>
 <p>Every sub-index is built as unregistered <code>kmtricks</code> runs, then published:</p>
 <ol>
-<li><strong>Build</strong> - each part of the sub-index (its samples of this session) is built with <code>kmtricks pipeline</code> into <code>BUILD_DIR/work/SESSION/runs/&lt;part&gt;/</code>, not registered. When one <code>kmtricks</code> build cannot hold all the samples of a part (open files, see <code>--limits</code> and <code>--max-chunks</code>), the part is built in chunks, <code>&lt;part&gt;_chunk&lt;N&gt;/</code>. These commands are in <code>assets/SESSION/&lt;shard&gt;.sh</code>, and can be run anywhere, e.g. as a SLURM array.</li>
+<li><strong>Build</strong> - each part of the sub-index (its samples of this session) is built with <code>kmtricks pipeline</code> into <code>BUILD_DIR/work/SESSION/runs/&lt;part&gt;/</code>, not registered. When one <code>kmtricks</code> build cannot hold all the samples of a part (open files, <code>--chunk-budget</code> and <code>--max-chunks</code>, see <a href="#shards-and-chunks">Shards and chunks</a>), the part is built in chunks, <code>&lt;part&gt;_chunk&lt;N&gt;/</code>. These commands are in <code>assets/SESSION/&lt;shard&gt;.sh</code>, and can be run anywhere, e.g. as a SLURM array.</li>
 <li><strong>Check</strong> - <code>assets/SESSION/&lt;shard&gt;_merge.sh</code> starts by checking every run: <code>run_infos.txt</code> (written by kmtricks only when it finishes), <code>kmtricks.fof</code>, <code>options.txt</code>, and all partition matrices present, non-empty and of equal size. If one run is incomplete, the script stops before registering or merging anything; rebuild that run and run the merge script again.</li>
 <li><strong>Publish a single run</strong> - a new sub-index built in one run is moved in place (<code>kmindex register --mode move</code>): no copy, no merge.</li>
 <li><strong>Merge</strong> - otherwise the runs, plus the current version of the sub-index when it is already registered (see <a href="#updating-an-index">Updating an index</a>), are merged. Each <code>kmindex merge</code> runs in a throwaway registry, <code>BUILD_DIR/work/SESSION/merges/&lt;name&gt;/&lt;step&gt;/</code>, holding only its inputs. <code>kmindex merge</code> loads the repartition table of every registered sub-index (2 MiB each at minimizer size 10), so a registry limited to the inputs keeps its memory proportional to what is merged. Merges get at most one thread per partition.</li>
 <li><strong>Sub-shards</strong> - one merge can take at most <code>k</code> inputs: <code>ram / (2 * 4^m)</code> (anonymous memory), <code>(maps - 1000) / threads</code> (<code>vm.max_map_count</code>) and <code>files / threads - 1</code> (open files), with the values of <code>--limits</code>. More inputs are merged in balanced groups of at most <code>k</code> (<code>&lt;name&gt;__sub1_&lt;i&gt;</code>), then these are merged, and so on. Each level reads and writes the data once more.</li>
 <li><strong>Swap</strong> - holding the lock <code>BUILD_DIR/.registry.lock</code> (several merge jobs may publish at once): the sub-index is unregistered, its current version is moved to <code>work/SESSION/previous/</code>, the merge result is moved to <code>BUILD_DIR/&lt;name&gt;/</code>, and registered. Queries see the previous version until the swap; during it (a second or so) the sub-index is not queryable. Moves are renames (an internal <code>kmhelpers manage move-dir</code>), so they take the same time whatever the size; they fail instead of copying if <code>work/</code> is on another filesystem.</li>
-<li><strong>Check, then clean up</strong> - <code>kmhelpers manage check -n &lt;name&gt;</code> checks the published sub-index; only then are the runs, merges and previous version deleted. A failed check stops the script with everything kept.</li>
+<li><strong>Check, then clean up</strong> - <code>kmhelpers manage check --shard &lt;name&gt;</code> checks the published sub-index; only then are the runs, merges and previous version deleted. A failed check stops the script with everything kept.</li>
 </ol>
-<p><code>kmhelpers_apply.sh</code> runs <code>&lt;shard&gt;.sh</code> then <code>&lt;shard&gt;_merge.sh</code>. The plan logs, for each merge, its number of inputs, the limit that sets <code>k</code>, and its expected memory: the anonymous part must fit in RAM, while the mapped inputs are page cache that the kernel reclaims when they exceed it.</p>
+<p><code>kmhelpers_apply.sh</code> runs <code>&lt;shard&gt;.sh</code> then <code>&lt;shard&gt;_merge.sh</code>. The plan logs, for each merge, its number of inputs, the limit that sets <code>k</code>, and its expected memory: the anonymous part must fit in RAM, while the mapped inputs are page cache that the kernel reclaims when they exceed it. The same merge plan is in the <a href="#report">report</a>, under <code>publish.steps</code>.</p>
+<h3 id="report">Report</h3>
+<p><code>plan</code> and <code>apply</code> each write a YAML report to <code>BUILD_DIR/logs/</code>: <code>kmhelpers_plan_&lt;timestamp&gt;_&lt;n&gt;.yaml</code> and <code>kmhelpers_apply_&lt;timestamp&gt;_&lt;n&gt;.yaml</code> (<code>build</code> writes both, without <code>_&lt;n&gt;</code>). Both have the same layout, organised by shard: <code>plan</code> fills in what will be built, <code>apply</code> adds what happened.</p>
+<ul>
+<li><code>plan</code> writes its report once done; every run is <code>planned</code>.</li>
+<li><code>apply</code> writes it after each part and each publish, with <code>summary.status: RUNNING</code> until the end: a running or killed apply leaves its report so far. The <code>--notify</code> mail attaches it.</li>
+<li>Each kmtricks run that <code>apply</code> runs writes <code>logs/&lt;run&gt;/kmtricks.log</code> (command, execution time, max CPU and memory, kmtricks output); the report reads its run metrics from there, also for a run reused from an earlier attempt.</li>
+</ul>
+<details class="example">
+<summary>An apply report (abridged)</summary>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">summary</span><span class="p">:</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apply</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">status</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SUCCESS</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">input_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">index session</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="nt">started</span><span class="p">:</span><span class="w"> </span><span class="s">'2026-10-19T20:39:57'</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">finished</span><span class="p">:</span><span class="w"> </span><span class="s">'2026-10-19T21:30:12'</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="nt">duration_s</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3015.2</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="nt">counts</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">SUCCESS</span><span class="p">:</span><span class="w"> </span><span class="nv">2</span><span class="p p-Indicator">,</span><span class="nt"> PARTIAL</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="nt"> FAILED</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="nt"> NONE</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">  </span><span class="nt">totals</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">shards</span><span class="p">:</span><span class="w"> </span><span class="nv">2</span><span class="p p-Indicator">,</span><span class="nt"> samples</span><span class="p">:</span><span class="w"> </span><span class="nv">169</span><span class="p p-Indicator">,</span><span class="nt"> runs</span><span class="p">:</span><span class="w"> </span><span class="nv">2</span><span class="p p-Indicator">,</span><span class="nt"> est_size</span><span class="p">:</span><span class="w"> </span><span class="nv">2.78GB</span><span class="p p-Indicator">,</span><span class="nt"> disk_size</span><span class="p">:</span><span class="w"> </span><span class="nv">2.71GB</span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">  </span><span class="nt">spans</span><span class="p">:</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">    </span><span class="nt">169</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">shards</span><span class="p">:</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="nt"> samples</span><span class="p">:</span><span class="w"> </span><span class="nv">121</span><span class="p p-Indicator">,</span><span class="nt"> est_size</span><span class="p">:</span><span class="w"> </span><span class="nv">1.44GB</span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">    </span><span class="nt">178</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">shards</span><span class="p">:</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="nt"> samples</span><span class="p">:</span><span class="w"> </span><span class="nv">48</span><span class="p p-Indicator">,</span><span class="nt"> est_size</span><span class="p">:</span><span class="w"> </span><span class="nv">1.33GB</span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="nt">input_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">.../compose/16SV4V5/initial/index.yaml</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="nt">build_dir</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="nv">.../16SV4V5</span><span class="p p-Indicator">,</span><span class="nt"> logs</span><span class="p">:</span><span class="w"> </span><span class="nv">.../16SV4V5/logs</span><span class="p p-Indicator">,</span><span class="nt"> assets</span><span class="p">:</span><span class="w"> </span><span class="nv">.../16SV4V5/assets/initial</span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="nt">kmindex</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="nv">0.7.1</span><span class="p p-Indicator">,</span><span class="nt"> path</span><span class="p">:</span><span class="w"> </span><span class="nv">.../bin/kmindex</span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="nt">kmhelpers</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="nv">0.8.0</span><span class="p p-Indicator">,</span><span class="nt"> path</span><span class="p">:</span><span class="w"> </span><span class="nv">.../bin/kmhelpers</span><span class="p p-Indicator">,</span><span class="nt"> git_commit</span><span class="p">:</span><span class="w"> </span><span class="nv">bcc3f5c</span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="nt">system</span><span class="p">:</span>
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="w">  </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">node58</span>
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="w">  </span><span class="nt">os</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Linux</span>
+<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="w">  </span><span class="nt">kernel</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4.18.0-477.27.1.el8_8.x86_64</span>
+<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="w">  </span><span class="nt">cpus</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">24</span>
+<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="w">  </span><span class="nt">slurm</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">job_id</span><span class="p">:</span><span class="w"> </span><span class="s">'179469'</span><span class="p p-Indicator">,</span><span class="nt"> job_name</span><span class="p">:</span><span class="w"> </span><span class="nv">build_16SV4V5</span><span class="p p-Indicator">,</span><span class="nt"> partition</span><span class="p">:</span><span class="w"> </span><span class="nv">long</span><span class="p p-Indicator">,</span><span class="nt"> node</span><span class="p">:</span><span class="w"> </span><span class="nv">node58</span><span class="p p-Indicator">,</span><span class="nt"> cpus_per_task</span><span class="p">:</span><span class="w"> </span><span class="s">'24'</span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="nt">limits</span><span class="p">:</span>
+<a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a><span class="w">  </span><span class="nt">source</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">auto</span>
+<a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a><span class="w">  </span><span class="nt">ram</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">103.9GB</span>
+<a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a><span class="w">  </span><span class="nt">ram_bytes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">103900000000</span>
+<a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a><span class="w">  </span><span class="nt">files</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">117964</span>
+<a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a><span class="w">  </span><span class="nt">threads</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">24</span>
+<a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a><span class="w">  </span><span class="nt">max_map_count</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">65530</span>
+<a id="__codelineno-2-30" name="__codelineno-2-30" href="#__codelineno-2-30"></a><span class="w">  </span><span class="nt">safety_margin</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.9</span>
+<a id="__codelineno-2-31" name="__codelineno-2-31" href="#__codelineno-2-31"></a><span class="w">  </span><span class="nt">max_chunks</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">64</span>
+<a id="__codelineno-2-32" name="__codelineno-2-32" href="#__codelineno-2-32"></a><span class="w">  </span><span class="nt">chunk_budget</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">137438953472</span>
+<a id="__codelineno-2-33" name="__codelineno-2-33" href="#__codelineno-2-33"></a><span class="nt">shards</span><span class="p">:</span>
+<a id="__codelineno-2-34" name="__codelineno-2-34" href="#__codelineno-2-34"></a><span class="w">  </span><span class="nt">16SV4V5_g0</span><span class="p">:</span><span class="w">                     </span><span class="c1"># a shard</span>
+<a id="__codelineno-2-35" name="__codelineno-2-35" href="#__codelineno-2-35"></a><span class="w">    </span><span class="nt">result</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SUCCESS</span>
+<a id="__codelineno-2-36" name="__codelineno-2-36" href="#__codelineno-2-36"></a><span class="w">    </span><span class="nt">16SV4V5_g0_initial</span><span class="p">:</span><span class="w">           </span><span class="c1"># its part of this session</span>
+<a id="__codelineno-2-37" name="__codelineno-2-37" href="#__codelineno-2-37"></a><span class="w">      </span><span class="nt">result</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SUCCESS</span>
+<a id="__codelineno-2-38" name="__codelineno-2-38" href="#__codelineno-2-38"></a><span class="w">      </span><span class="nt">span</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">169</span>
+<a id="__codelineno-2-39" name="__codelineno-2-39" href="#__codelineno-2-39"></a><span class="w">      </span><span class="nt">samples</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">121</span>
+<a id="__codelineno-2-40" name="__codelineno-2-40" href="#__codelineno-2-40"></a><span class="w">      </span><span class="nt">params</span><span class="p">:</span>
+<a id="__codelineno-2-41" name="__codelineno-2-41" href="#__codelineno-2-41"></a><span class="w">        </span><span class="nt">threads</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">24</span>
+<a id="__codelineno-2-42" name="__codelineno-2-42" href="#__codelineno-2-42"></a><span class="w">        </span><span class="nt">partitions</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">32</span>
+<a id="__codelineno-2-43" name="__codelineno-2-43" href="#__codelineno-2-43"></a><span class="w">        </span><span class="nt">partitions_source</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">auto</span>
+<a id="__codelineno-2-44" name="__codelineno-2-44" href="#__codelineno-2-44"></a><span class="w">        </span><span class="nt">minim_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+<a id="__codelineno-2-45" name="__codelineno-2-45" href="#__codelineno-2-45"></a><span class="w">        </span><span class="nt">chunk_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
+<a id="__codelineno-2-46" name="__codelineno-2-46" href="#__codelineno-2-46"></a><span class="w">        </span><span class="nt">kmer_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">25</span>
+<a id="__codelineno-2-47" name="__codelineno-2-47" href="#__codelineno-2-47"></a><span class="w">        </span><span class="nt">abundance_min</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<a id="__codelineno-2-48" name="__codelineno-2-48" href="#__codelineno-2-48"></a><span class="w">        </span><span class="nt">bf_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">31402272</span>
+<a id="__codelineno-2-49" name="__codelineno-2-49" href="#__codelineno-2-49"></a><span class="w">        </span><span class="nt">bitw</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<a id="__codelineno-2-50" name="__codelineno-2-50" href="#__codelineno-2-50"></a><span class="w">        </span><span class="nt">kmer_ratio</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">448.62</span>
+<a id="__codelineno-2-51" name="__codelineno-2-51" href="#__codelineno-2-51"></a><span class="w">      </span><span class="nt">est_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.44GB</span>
+<a id="__codelineno-2-52" name="__codelineno-2-52" href="#__codelineno-2-52"></a><span class="w">      </span><span class="nt">script</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">.../assets/initial/16SV4V5_g0.sh</span>
+<a id="__codelineno-2-53" name="__codelineno-2-53" href="#__codelineno-2-53"></a><span class="w">      </span><span class="nt">runs</span><span class="p">:</span>
+<a id="__codelineno-2-54" name="__codelineno-2-54" href="#__codelineno-2-54"></a><span class="w">        </span><span class="nt">16SV4V5_g0_initial</span><span class="p">:</span>
+<a id="__codelineno-2-55" name="__codelineno-2-55" href="#__codelineno-2-55"></a><span class="w">          </span><span class="nt">samples</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">121</span>
+<a id="__codelineno-2-56" name="__codelineno-2-56" href="#__codelineno-2-56"></a><span class="w">          </span><span class="nt">action</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">built</span>
+<a id="__codelineno-2-57" name="__codelineno-2-57" href="#__codelineno-2-57"></a><span class="w">          </span><span class="nt">log</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">.../logs/16SV4V5_g0_initial/kmtricks.log</span>
+<a id="__codelineno-2-58" name="__codelineno-2-58" href="#__codelineno-2-58"></a><span class="w">          </span><span class="nt">duration_s</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1334.79</span>
+<a id="__codelineno-2-59" name="__codelineno-2-59" href="#__codelineno-2-59"></a><span class="w">          </span><span class="nt">max_cpu_pct</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2404.1</span>
+<a id="__codelineno-2-60" name="__codelineno-2-60" href="#__codelineno-2-60"></a><span class="w">          </span><span class="nt">return_code</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<a id="__codelineno-2-61" name="__codelineno-2-61" href="#__codelineno-2-61"></a><span class="w">          </span><span class="nt">started</span><span class="p">:</span><span class="w"> </span><span class="s">'2026-10-19T20:39:58'</span>
+<a id="__codelineno-2-62" name="__codelineno-2-62" href="#__codelineno-2-62"></a><span class="w">          </span><span class="nt">finished</span><span class="p">:</span><span class="w"> </span><span class="s">'2026-10-19T21:02:05'</span>
+<a id="__codelineno-2-63" name="__codelineno-2-63" href="#__codelineno-2-63"></a><span class="w">          </span><span class="nt">read_files</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">242</span>
+<a id="__codelineno-2-64" name="__codelineno-2-64" href="#__codelineno-2-64"></a><span class="w">          </span><span class="nt">partitions</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">32</span>
+<a id="__codelineno-2-65" name="__codelineno-2-65" href="#__codelineno-2-65"></a><span class="w">          </span><span class="nt">peak_rss</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20.09GB</span>
+<a id="__codelineno-2-66" name="__codelineno-2-66" href="#__codelineno-2-66"></a><span class="w">          </span><span class="nt">ram_limit_use</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.193</span>
+<a id="__codelineno-2-67" name="__codelineno-2-67" href="#__codelineno-2-67"></a><span class="w">          </span><span class="nt">threads</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">24</span>
+<a id="__codelineno-2-68" name="__codelineno-2-68" href="#__codelineno-2-68"></a><span class="w">          </span><span class="nt">cpu_efficiency</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+<a id="__codelineno-2-69" name="__codelineno-2-69" href="#__codelineno-2-69"></a><span class="w">    </span><span class="nt">publish</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="nv">move</span><span class="p p-Indicator">,</span><span class="nt"> duration_s</span><span class="p">:</span><span class="w"> </span><span class="nv">4.1</span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-70" name="__codelineno-2-70" href="#__codelineno-2-70"></a><span class="w">    </span><span class="nt">disk_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.40GB</span>
+<a id="__codelineno-2-71" name="__codelineno-2-71" href="#__codelineno-2-71"></a><span class="w">    </span><span class="nt">merge_script</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">.../assets/initial/16SV4V5_g0_merge.sh</span>
+<a id="__codelineno-2-72" name="__codelineno-2-72" href="#__codelineno-2-72"></a><span class="w">  </span><span class="nt">16SV4V5_g1</span><span class="p">:</span>
+<a id="__codelineno-2-73" name="__codelineno-2-73" href="#__codelineno-2-73"></a><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+</code></pre></div>
+</details>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>summary</code></td>
+<td><code>command</code> (<code>plan</code>, <code>dry-run</code>, <code>apply</code>), <code>status</code> (<code>SUCCESS</code>, <code>PARTIAL</code>, <code>FAILED</code>, <code>NONE</code>, or <code>RUNNING</code> while an apply goes on), times, result counts per shard, totals (shards, samples, kmtricks runs, estimated size, size on disk after an apply) and the same per span</td>
+</tr>
+<tr>
+<td><code>kmhelpers</code></td>
+<td>version, path, and <code>git_commit</code> when the environment variable <code>GIT_COMMIT</code> is set</td>
+</tr>
+<tr>
+<td><code>system</code></td>
+<td>host, kernel, CPUs, and <code>slurm</code> (job id, array task, name, partition, node, CPUs, memory) when run in a SLURM job</td>
+</tr>
+<tr>
+<td><code>limits</code></td>
+<td>what threads, partitions, chunks and merges were sized with: <code>source</code> (<code>auto</code>, <code>--limits</code>, <code>--threads</code>), RAM, open files, threads, <code>vm.max_map_count</code>, <code>--safety-margin</code>, <code>--max-chunks</code>, <code>--chunk-budget</code></td>
+</tr>
+<tr>
+<td><code>shards.&lt;shard&gt;</code></td>
+<td><code>result</code>, its parts, and how it is published: <code>publish.mode</code> (<code>move</code> a single new run, <code>merge</code>, or <code>register</code> a folder left by an interrupted publish), <code>absorbed</code>, <code>updates</code> (the shard was already built), the merge <code>threads</code>, <code>max_inputs</code> and <code>bound_by</code>, <code>steps</code> (each merge, its inputs and its expected anonymous and mapped memory, <code>est_anon</code>, <code>est_mapped</code>); after an apply, <code>publish.duration_s</code> and <code>disk_size</code></td>
+</tr>
+<tr>
+<td><code>shards.&lt;shard&gt;.&lt;part&gt;</code></td>
+<td><code>result</code>, <code>span</code>, <code>samples</code> (<code>planned_samples</code> if some were skipped), <code>issues</code>, <code>error</code>, <code>params</code> (threads, partitions and <code>partitions_source</code>, minimizer size, chunk size, k-mer size, abundance min, Bloom filter size, <code>bitw</code>, k-mer ratio), <code>est_size</code>, <code>script</code></td>
+</tr>
+<tr>
+<td><code>...&lt;part&gt;.runs.&lt;run&gt;</code></td>
+<td>one per kmtricks run (the part, or its chunks): <code>samples</code>, <code>action</code> (<code>planned</code>, <code>built</code>, <code>rebuilt</code> an incomplete run, <code>reused</code> a complete one), and from its <code>kmtricks.log</code>: <code>duration_s</code>, <code>started</code>, <code>finished</code>, <code>peak_rss</code> (reported by kmtricks, else sampled), <code>max_cpu_pct</code>, <code>cpu_efficiency</code> (<code>max_cpu_pct / (100 x threads)</code>), <code>ram_limit_use</code> (<code>peak_rss / limits.ram</code>), <code>read_files</code>, <code>partitions</code>, <code>return_code</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>partitions_source</code> tells where the partition count comes from: <code>design</code> (<code>compose -P</code>), <code>auto</code> (sized from the limits for a full shard), <code>registered</code> (the shard is already built with another count) or <code>run</code> (a run of the session was already started with another count). The last two override the planned count, since only indexes with the same count can be merged.</p>
+<p><strong>Reading it</strong></p>
+<ul>
+<li><strong>A slow run</strong>: a <code>cpu_efficiency</code> well below 1 means kmtricks waits on its inputs (slow storage, or a node with a bad mount or network). Compare <code>duration_s</code> and <code>system.host</code> with other runs of similar size.</li>
+<li><strong>Memory headroom</strong>: <code>ram_limit_use</code> is the share of the RAM limit the run used at its peak. Close to 1, lower <code>--safety-margin</code> or <code>--limits ram</code>; far below it on every run, the limit can be raised for more threads.</li>
+<li><strong>A killed job</strong>: a report still <code>RUNNING</code> after the job ended was cut off; it lists the parts and runs done so far. Run <code>apply</code> again: complete runs are <code>reused</code>.</li>
+<li><strong>Builds run by the scripts</strong>: the exported <code>.sh</code> scripts run kmtricks without writing <code>kmtricks.log</code>, so their runs have no metrics, also when a later <code>apply</code> reuses them.</li>
+</ul>
+<p>To record the kmhelpers commit in the report, set <code>GIT_COMMIT</code>, e.g. in a SLURM script:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GIT_COMMIT</span><span class="o">=</span><span class="k">$(</span>git<span class="w"> </span>-C<span class="w"> </span>/path/to/kmhelpers<span class="w"> </span>rev-parse<span class="w"> </span>--short<span class="w"> </span>HEAD<span class="k">)</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/
+</code></pre></div>
 <h3 id="updating-an-index">Updating an index</h3>
 <p>Building a new <code>SESSION</code> into a <code>BUILD_DIR</code> that already holds the same index adds the new samples to it. <code>kmindex</code> cannot add samples to an existing index in place, so an update merges the current version and the new runs into a <strong>new</strong> index:</p>
 <ul>
@@ -2871,17 +2977,17 @@
 </div>
 <p>Indices built by older versions of kmhelpers (registered as symlinks to <code>BUILD_DIR/kmindex_data/SESSION/NAME_gN/</code>) keep working. Updating one moves it in place, and deletes its previous version in <code>kmindex_data/</code>.</p>
 <h2 id="examples">Examples</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Build the index defined by design/compose in session "initial"</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>kmhelpers<span class="w"> </span>build<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Add an update session to the same index directory</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>kmhelpers<span class="w"> </span>build<span class="w"> </span>coli_db/compose/coli/update/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="c1"># Set threads and show progress</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>kmhelpers<span class="w"> </span>build<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>-t<span class="w"> </span><span class="m">8</span><span class="w"> </span>-SP
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="c1"># Notify by email when done</span>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>kmhelpers<span class="w"> </span>build<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--notify<span class="w"> </span>user@example.com
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Build the index defined by design/compose in session "initial"</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>kmhelpers<span class="w"> </span>build<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Add an update session to the same index directory</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>kmhelpers<span class="w"> </span>build<span class="w"> </span>coli_db<span class="w"> </span>-s<span class="w"> </span>update<span class="w"> </span>-o<span class="w"> </span>coli_build/
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># Set threads and show progress</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>kmhelpers<span class="w"> </span>build<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--limits<span class="w"> </span><span class="s1">'{"threads": 8}'</span><span class="w"> </span>--sp
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="c1"># Notify by email when done</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>kmhelpers<span class="w"> </span>build<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--notify<span class="w"> </span>user@example.com
 </code></pre></div>
 <h2 id="see-also">See Also</h2>
 <ul>
@@ -2991,7 +3097,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>

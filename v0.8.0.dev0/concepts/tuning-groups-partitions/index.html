@@ -599,10 +599,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -721,62 +717,6 @@
     
   
     Update an existing index
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorials/ecoli_api/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorials/ecoli_api_advanced/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API (advanced)
   
 
     
@@ -1837,8 +1777,6 @@
       
         
       
-        
-      
     
     
     
@@ -2013,34 +1951,6 @@
     
   
     query_report
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/pipeline/sample_lister/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    sample_lister
   
 
     
@@ -2480,11 +2390,11 @@
 <ul>
 <li><code>-g, --group</code> (<a href="../../commands/profile/"><code>profile</code></a>, <a href="../../commands/design/"><code>design</code></a>)
 splits samples into <code>G</code> storage-balanced sub-indices.</li>
-<li><code>-p, --partition-count</code>
-(<a href="../../commands/compose/"><code>compose</code></a>, <a href="../../commands/design/"><code>design</code></a>,
-<a href="../../commands/plan/"><code>plan</code></a>, <a href="../../commands/build/"><code>build</code></a>,
-<a href="../../commands/apply/"><code>apply</code></a>) splits each sub-index's Bloom-filter matrix into <code>P</code>
-partition files.</li>
+<li><code>-P, --partition-count</code>
+(<a href="../../commands/compose/"><code>compose</code></a>, <a href="../../commands/design/"><code>design</code></a>)
+splits each sub-index's Bloom-filter matrix into <code>P</code> partition files. Without it, the first
+<a href="../../commands/plan/"><code>plan</code></a> or <a href="../../commands/build/"><code>build</code></a> of each shard sizes <code>P</code> from
+the resource limits (see <a href="../../commands/compose/#description">compose - Partitioning</a>).</li>
 </ul>
 <pre class="mermaid"><code>graph TD
     A["-g groups"] --&gt; B1["sub-index 0"]
@@ -2603,7 +2513,7 @@ favor build RAM and storage but raise files touched per query. Tune with <code>-
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>

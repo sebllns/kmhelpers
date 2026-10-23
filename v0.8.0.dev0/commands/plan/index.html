@@ -605,10 +605,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -727,62 +723,6 @@
     
   
     Update an existing index
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorials/ecoli_api/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorials/ecoli_api_advanced/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API (advanced)
   
 
     
@@ -1960,8 +1900,6 @@
       
         
       
-        
-      
     
     
     
@@ -2136,34 +2074,6 @@
     
   
     query_report
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/pipeline/sample_lister/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    sample_lister
   
 
     
@@ -2649,7 +2559,7 @@
 <p>Validate paths and preview the build plan from an index definition file, then write a ready-to-execute shell script.</p>
 <div class="admonition abstract">
 <p class="admonition-title">USAGE</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers plan [OPTIONS] INPUT_FILE
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers plan [OPTIONS] INPUT
 </code></pre></div>
 <table>
 <thead>
@@ -2660,8 +2570,12 @@
 </thead>
 <tbody>
 <tr>
-<td><code>INPUT_FILE</code></td>
-<td>Index definition file <code>COMPOSE_DIR/NAME/SESSION/NAME.yaml</code> written by <code>compose</code> or <code>design</code> (required)</td>
+<td><code>INPUT</code></td>
+<td>The design directory (<code>DESIGN_DIR</code> of <code>design</code>), a compose directory or one of its indexes (<code>COMPOSE_DIR/NAME</code>), a session (<code>COMPOSE_DIR/NAME/SESSION</code> or its <code>index.yaml</code>), or one shard file (<code>SESSION/shards/&lt;shard&gt;.yaml</code>, built without merge) (required)</td>
+</tr>
+<tr>
+<td><code>-s, --session SESSION</code></td>
+<td>Session to use when INPUT is a directory (default: the last one composed)</td>
 </tr>
 <tr>
 <td><code>-o, --output-dir BUILD_DIR</code></td>
@@ -2672,8 +2586,8 @@
 </div>
 <div class="admonition abstract">
 <p class="admonition-title">I/O</p>
-<p><strong>Input:</strong> <code>COMPOSE_DIR/NAME/SESSION/NAME.yaml</code> written by <code>compose</code>, or <code>DESIGN_DIR/compose/NAME/SESSION/NAME.yaml</code> when produced by <code>design</code> (see <a href="../design/#next-step">design - Next Step</a>)<br />
-<strong>Output:</strong> shell scripts in <code>BUILD_DIR/assets/</code>, validation report in <code>BUILD_DIR/logs/</code></p>
+<p><strong>Input:</strong> <code>DESIGN_DIR</code> of <code>design</code> (or <code>COMPOSE_DIR</code> of <code>compose</code>), with <code>-s</code> to pick a session; it resolves to <code>compose/NAME/SESSION/index.yaml</code> (see <a href="../design/#next-step">design - Next Step</a>)<br />
+<strong>Output:</strong> shell scripts in <code>BUILD_DIR/assets/</code>, report in <code>BUILD_DIR/logs/</code> (see <a href="../build/#report">build - Report</a>)</p>
 </div>
 <p>See <a href="../build/#paths">build - Paths</a> for the directory layout.</p>
 <h2 id="advanced-options">Advanced Options</h2>
@@ -2686,36 +2600,28 @@
 </thead>
 <tbody>
 <tr>
-<td><code>-b, --base-path DIR</code></td>
+<td><code>--bp, --base-path DIR</code></td>
 <td>Base path to resolve relative sample paths</td>
 </tr>
 <tr>
-<td><code>-s, --span TEXT</code></td>
-<td>Span(s) to preview: single value, comma-separated, or range (e.g. <code>27-30</code>)</td>
+<td><code>--sh, --shard TEXT</code></td>
+<td>Shards to preview, as names or glob patterns (repeatable or comma-separated, e.g. <code>idx_g0_p1</code>, <code>'idx_g0_*'</code>); a part name (<code>&lt;shard&gt;_&lt;session&gt;</code>) previews that part only, without merging</td>
 </tr>
 <tr>
-<td><code>-n, --name TEXT</code></td>
-<td>Index ID(s) to preview (repeatable or comma-separated)</td>
+<td><code>--run TEXT</code></td>
+<td>Build only the kmtricks runs matching these names or glob patterns (<code>&lt;part&gt;</code> or <code>&lt;part&gt;_chunk&lt;N&gt;</code>), without merging; see <a href="../apply/#building-chunks-separately">Building chunks separately</a></td>
 </tr>
 <tr>
-<td><code>--minim-size INT</code></td>
-<td>Minimizer size (default: 10)</td>
+<td><code>--threads INT</code></td>
+<td>Hidden. Force the number of kmtricks threads instead of sizing them from <code>--limits</code></td>
 </tr>
 <tr>
-<td><code>-t, --threads INT</code></td>
-<td>Number of threads</td>
-</tr>
-<tr>
-<td><code>-p, --partition-count INT</code></td>
-<td>Partitions per index; ignored when the layout already stores one (see <a href="../compose/">compose</a>)</td>
-</tr>
-<tr>
-<td><code>-NC, --skip-compression</code></td>
+<td><code>--ncp, --skip-compression</code></td>
 <td>Skip compression of intermediate files during index building (useful on slow disks)</td>
 </tr>
 <tr>
 <td><code>--limits JSON</code></td>
-<td>Resource limits used to auto-size threads/partitions when <code>--threads</code> is not set (<code>ram</code>, <code>files</code>, <code>threads</code>), and the inputs of one merge (<code>ram</code>, <code>files</code>, <code>maps</code> = <code>vm.max_map_count</code>); see <a href="../build/#builds-and-merges">build - Builds and merges</a></td>
+<td>Resource limits used to auto-size threads/partitions when <code>--threads</code> is not set, for the shard's k-mer occurrences (see <a href="../compose/#description">compose - Partitioning</a>) (<code>ram</code>, <code>files</code>, <code>threads</code>), and the inputs of one merge (<code>ram</code>, <code>files</code>, <code>maps</code> = <code>vm.max_map_count</code>); see <a href="../build/#builds-and-merges">build - Builds and merges</a></td>
 </tr>
 <tr>
 <td><code>--safety-margin FLOAT</code></td>
@@ -2723,10 +2629,14 @@
 </tr>
 <tr>
 <td><code>--max-chunks INT</code></td>
-<td>Max number of chunks a single index is split into; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 200)</td>
+<td>Max number of kmtricks chunks a shard is built in; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 64)</td>
 </tr>
 <tr>
-<td><code>-X, --fail-fast</code></td>
+<td><code>--cb, --chunk-budget INT</code></td>
+<td>K-mer budget of one kmtricks chunk: a chunk of span <code>s</code> holds at most <code>ceil8(budget / base^s)</code> samples. 0 for no limit (default: <code>2**37</code>), see <a href="../build/#shards-and-chunks">build - Shards and chunks</a></td>
+</tr>
+<tr>
+<td><code>-x, --fail-fast</code></td>
 <td>Abort on first failure instead of continuing</td>
 </tr>
 <tr>
@@ -2734,30 +2644,31 @@
 <td>Keep the replaced version of an updated index in <code>BUILD_DIR/work/SESSION/previous/</code> instead of deleting it</td>
 </tr>
 <tr>
-<td><code>-O, --offline</code></td>
+<td><code>--off, --offline</code></td>
 <td>Skip local path validation (useful when exporting scripts for another machine)</td>
 </tr>
 </tbody>
 </table>
 <h2 id="description">Description</h2>
-<p><code>plan</code> validates all sample paths of <code>INPUT_FILE</code> upfront and previews the commands that would be executed by <a href="../apply/"><code>apply</code></a>, without running them or touching the registry. It writes the equivalent shell scripts to <code>BUILD_DIR/assets/SESSION/</code> (one per sub-index, <code>&lt;shard&gt;.sh</code> with its builds and <code>&lt;shard&gt;_merge.sh</code> with its publication, plus <code>kmhelpers_apply.sh</code> running them in order; see <a href="../build/#builds-and-merges">build - Builds and merges</a>) and a validation report to <code>BUILD_DIR/logs/</code>.</p>
+<p><code>plan</code> validates all sample paths of the session upfront and previews the commands that would be executed by <a href="../apply/"><code>apply</code></a>, without running them or touching the registry. It writes the equivalent shell scripts to <code>BUILD_DIR/assets/SESSION/</code> (one per sub-index, <code>&lt;shard&gt;.sh</code> with its builds and <code>&lt;shard&gt;_merge.sh</code> with its publication, plus <code>kmhelpers_apply.sh</code> running them in order; see <a href="../build/#builds-and-merges">build - Builds and merges</a>) and a report to <code>BUILD_DIR/logs/</code>.</p>
+<p><strong>Report</strong> - <code>BUILD_DIR/logs/kmhelpers_plan_&lt;timestamp&gt;_&lt;n&gt;.yaml</code>, written once the plan is done: per shard and part, the build parameters (with where the partition count comes from), the kmtricks runs and chunks that <code>apply</code> will build (<code>planned</code>), the merge steps and their expected memory, and the scripts; plus the limits the sizing used, the host and the SLURM job. See <a href="../build/#report">build - Report</a>.</p>
 <p><strong>Offline mode</strong> - use <code>--offline</code> to skip local path validation when generating scripts destined for another machine.</p>
-<p><strong>Filtering</strong> - use <code>--name</code> or <code>--span</code> to preview only a subset of the declared indices.</p>
+<p><strong>Filtering</strong> - <code>--shard</code> selects shards (all by default) by name or glob pattern: <code>--shard 'idx_g0_*'</code> selects every shard of group 0. A pattern that matches no shard is a warning; only no match at all is an error (same for <code>--run</code>). <code>--run</code> goes one level down, to the kmtricks runs of a shard, and previews them without merging.</p>
 <h2 id="examples">Examples</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Preview build plan for a definition file</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>plan<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>plan<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Preview with specific spans</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>plan<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>-s<span class="w"> </span><span class="m">28</span>,31
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Preview every shard of group 0 (glob pattern)</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>plan<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--sh<span class="w"> </span><span class="s1">'coli_g0_*'</span>
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Preview for specific index names</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>plan<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>-n<span class="w"> </span>coli_g0
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>plan<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--sh<span class="w"> </span>coli_g0
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
 <a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Skip path validation (for exporting scripts)</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>kmhelpers<span class="w"> </span>plan<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--offline
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>kmhelpers<span class="w"> </span>plan<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--offline
 <a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
 <a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Abort on first error</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>kmhelpers<span class="w"> </span>plan<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>-X
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>kmhelpers<span class="w"> </span>plan<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>-x
 </code></pre></div>
 <h2 id="see-also">See Also</h2>
 <ul>
@@ -2866,7 +2777,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>

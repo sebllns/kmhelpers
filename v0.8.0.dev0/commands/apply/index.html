@@ -605,10 +605,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -727,62 +723,6 @@
     
   
     Update an existing index
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorials/ecoli_api/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorials/ecoli_api_advanced/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API (advanced)
   
 
     
@@ -1415,6 +1355,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Description">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#building-chunks-separately" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building chunks separately
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1960,8 +1917,6 @@
       
         
       
-        
-      
     
     
     
@@ -2136,34 +2091,6 @@
     
   
     query_report
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/pipeline/sample_lister/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    sample_lister
   
 
     
@@ -2534,6 +2461,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Description">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#building-chunks-separately" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building chunks separately
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2649,7 +2593,7 @@
 <p>Build k-mer indices from an index definition file.</p>
 <div class="admonition abstract">
 <p class="admonition-title">USAGE</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers apply [OPTIONS] INPUT_FILE
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers apply [OPTIONS] INPUT
 </code></pre></div>
 <table>
 <thead>
@@ -2660,8 +2604,12 @@
 </thead>
 <tbody>
 <tr>
-<td><code>INPUT_FILE</code></td>
-<td>Index definition file <code>COMPOSE_DIR/NAME/SESSION/NAME.yaml</code> written by <code>compose</code> or <code>design</code> (required)</td>
+<td><code>INPUT</code></td>
+<td>The design directory (<code>DESIGN_DIR</code> of <code>design</code>), a compose directory or one of its indexes (<code>COMPOSE_DIR/NAME</code>), a session (<code>COMPOSE_DIR/NAME/SESSION</code> or its <code>index.yaml</code>), or one shard file (<code>SESSION/shards/&lt;shard&gt;.yaml</code>, built without merge) (required)</td>
+</tr>
+<tr>
+<td><code>-s, --session SESSION</code></td>
+<td>Session to use when INPUT is a directory (default: the last one composed)</td>
 </tr>
 <tr>
 <td><code>-o, --output-dir BUILD_DIR</code></td>
@@ -2672,7 +2620,7 @@
 </div>
 <div class="admonition abstract">
 <p class="admonition-title">I/O</p>
-<p><strong>Input:</strong> <code>COMPOSE_DIR/NAME/SESSION/NAME.yaml</code> written by <code>compose</code>, or <code>DESIGN_DIR/compose/NAME/SESSION/NAME.yaml</code> when produced by <code>design</code> (see <a href="../design/#next-step">design - Next Step</a>)<br />
+<p><strong>Input:</strong> <code>DESIGN_DIR</code> of <code>design</code> (or <code>COMPOSE_DIR</code> of <code>compose</code>), with <code>-s</code> to pick a session; it resolves to <code>compose/NAME/SESSION/index.yaml</code> (see <a href="../design/#next-step">design - Next Step</a>)<br />
 <strong>Output:</strong> indices in <code>BUILD_DIR/&lt;name&gt;/</code>, registered in <code>BUILD_DIR/index.json</code></p>
 </div>
 <p>See <a href="../build/#paths">build - Paths</a> for the directory layout.</p>
@@ -2686,28 +2634,20 @@
 </thead>
 <tbody>
 <tr>
-<td><code>-b, --base-path DIR</code></td>
+<td><code>--bp, --base-path DIR</code></td>
 <td>Base path to resolve relative sample paths</td>
 </tr>
 <tr>
-<td><code>-s, --span TEXT</code></td>
-<td>Span(s) to build: single value, comma-separated, or range (e.g. <code>27-30</code>)</td>
+<td><code>--sh, --shard TEXT</code></td>
+<td>Shards to build, as names or glob patterns (repeatable or comma-separated, e.g. <code>idx_g0_p1</code>, <code>'idx_g0_*'</code>); a part name (<code>&lt;shard&gt;_&lt;session&gt;</code>) builds that part only, without merging</td>
 </tr>
 <tr>
-<td><code>-n, --name TEXT</code></td>
-<td>Index ID(s) to build (repeatable or comma-separated)</td>
+<td><code>--run TEXT</code></td>
+<td>Build only the kmtricks runs matching these names or glob patterns (<code>&lt;part&gt;</code> or <code>&lt;part&gt;_chunk&lt;N&gt;</code>), without merging; see <a href="./#building-chunks-separately">Building chunks separately</a></td>
 </tr>
 <tr>
-<td><code>--minim-size INT</code></td>
-<td>Minimizer size (default: 10)</td>
-</tr>
-<tr>
-<td><code>-t, --threads INT</code></td>
-<td>Number of threads</td>
-</tr>
-<tr>
-<td><code>-p, --partition-count INT</code></td>
-<td>Partitions per index; ignored when the layout already stores one (see <a href="../compose/">compose</a>)</td>
+<td><code>--threads INT</code></td>
+<td>Hidden. Force the number of kmtricks threads instead of sizing them from <code>--limits</code></td>
 </tr>
 <tr>
 <td><code>--limits JSON</code></td>
@@ -2719,54 +2659,65 @@
 </tr>
 <tr>
 <td><code>--max-chunks INT</code></td>
-<td>Max number of chunks a single index is split into; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 200)</td>
+<td>Max number of kmtricks chunks a shard is built in; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 64)</td>
+</tr>
+<tr>
+<td><code>--cb, --chunk-budget INT</code></td>
+<td>K-mer budget of one kmtricks chunk: a chunk of span <code>s</code> holds at most <code>ceil8(budget / base^s)</code> samples. 0 for no limit (default: <code>2**37</code>), see <a href="../build/#shards-and-chunks">build - Shards and chunks</a></td>
 </tr>
 <tr>
 <td><code>--keep-previous</code></td>
 <td>Keep the replaced version of an updated index in <code>BUILD_DIR/work/SESSION/previous/</code> instead of deleting it</td>
 </tr>
 <tr>
-<td><code>-NC, --skip-compression</code></td>
+<td><code>--ncp, --skip-compression</code></td>
 <td>Skip compression of intermediate files during index building (useful on slow disks)</td>
 </tr>
 <tr>
-<td><code>-SP, --show-progress</code></td>
+<td><code>--sp, --show-progress</code></td>
 <td>Enable animation that shows the current subindex being built (use in an interactive shell)</td>
 </tr>
 <tr>
-<td><code>-X, --fail-fast</code></td>
+<td><code>-x, --fail-fast</code></td>
 <td>Abort on first failure instead of continuing</td>
 </tr>
 <tr>
 <td><code>--notify EMAIL</code></td>
-<td>Send email notification on exit (requires sendmail)</td>
+<td>Send email notification on exit (requires sendmail), with the log and the apply report attached</td>
 </tr>
 </tbody>
 </table>
 <h2 id="description">Description</h2>
-<p><code>apply</code> builds the indices declared in <code>INPUT_FILE</code> and registers them in <code>BUILD_DIR/index.json</code> on completion.</p>
+<p><code>apply</code> builds the indices of the session and registers them in <code>BUILD_DIR/index.json</code> on completion.</p>
+<p><strong>Report</strong> - <code>BUILD_DIR/logs/kmhelpers_apply_&lt;timestamp&gt;_&lt;n&gt;.yaml</code>, the <a href="../build/#report">plan report</a> completed with what happened: per kmtricks run, whether it was built, rebuilt or reused, its duration, peak RSS, CPU efficiency and share of the RAM limit (from <code>logs/&lt;run&gt;/kmtricks.log</code>); per shard, the publish duration and size on disk. It is written after each part and each publish, with status <code>RUNNING</code> until the end, so a running or killed apply leaves its report so far. See <a href="../build/#report">build - Report</a>.</p>
 <p><strong>Parent indices</strong> - built automatically when required.</p>
-<p><strong>Filtering</strong> - use <code>--name</code> or <code>--span</code> to build only a subset of the declared indices.</p>
+<p><strong>Filtering</strong> - <code>--shard</code> selects shards (all by default) by name or glob pattern: <code>--shard 'idx_g0_*'</code> selects every shard of group 0. A pattern that matches no shard is a warning; only no match at all is an error (same for <code>--run</code>). <code>--run</code> goes one level down, to the kmtricks runs of a shard, and builds them without merging.</p>
+<h3 id="building-chunks-separately">Building chunks separately</h3>
+<p>A shard whose new samples don't fit one kmtricks build is built in chunks, <code>&lt;part&gt;_chunk&lt;N&gt;</code> (see <a href="../build/#shards-and-chunks">build - Shards and chunks</a>). <code>--run</code> builds only the matching runs and merges nothing, e.g. one chunk per task of a SLURM array; a final <code>apply --shard</code> reuses the complete runs and merges them. Every task must use the same <code>--limits</code>, <code>--chunk-budget</code> and <code>--max-chunks</code> as the final apply, so the chunks are cut the same way: <code>plan</code> with these options lists the run names.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># one task per chunk</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--limits<span class="w"> </span><span class="s2">"</span><span class="nv">$LIMITS</span><span class="s2">"</span><span class="w"> </span>--run<span class="w"> </span><span class="s2">"coli_g0_p0_initial_chunk</span><span class="si">${</span><span class="nv">SLURM_ARRAY_TASK_ID</span><span class="si">}</span><span class="s2">"</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># then, once all are done</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--limits<span class="w"> </span><span class="s2">"</span><span class="nv">$LIMITS</span><span class="s2">"</span><span class="w"> </span>--shard<span class="w"> </span>coli_g0_p0
+</code></pre></div>
 <h2 id="examples">Examples</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Build all indices in a definition file</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Build only selected indices by name (comma-separated or repeated flags)</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>-n<span class="w"> </span>coli_g0,coli_g1
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>-n<span class="w"> </span>coli_g0<span class="w"> </span>-n<span class="w"> </span>coli_g1
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="c1"># Build only specific spans</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>-s<span class="w"> </span><span class="m">28</span>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>-s<span class="w"> </span><span class="m">27</span>-30
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="c1"># Resolve sample paths from a base directory</span>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>-b<span class="w"> </span>/data/samples
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="c1"># Set threads, show progress, abort on first error</span>
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>-t<span class="w"> </span><span class="m">8</span><span class="w"> </span>-SP<span class="w"> </span>-X
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>
-<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="c1"># Notify by email when done</span>
-<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--notify<span class="w"> </span>user@example.com
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Build all indices in a definition file</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Build only selected indices by name (comma-separated or repeated flags)</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--sh<span class="w"> </span>coli_g0,coli_g1
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--sh<span class="w"> </span>coli_g0<span class="w"> </span>--sh<span class="w"> </span>coli_g1
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="c1"># Build every shard of group 0 (glob pattern)</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--sh<span class="w"> </span><span class="s1">'coli_g0_*'</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="c1"># Resolve sample paths from a base directory</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--bp<span class="w"> </span>/data/samples
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="c1"># Set threads, show progress, abort on first error</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--limits<span class="w"> </span><span class="s1">'{"threads": 8}'</span><span class="w"> </span>--sp<span class="w"> </span>-x
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="c1"># Notify by email when done</span>
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--notify<span class="w"> </span>user@example.com
 </code></pre></div>
 <h2 id="see-also">See Also</h2>
 <ul>
@@ -2876,7 +2827,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>

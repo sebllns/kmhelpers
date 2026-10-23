@@ -89,6 +89,23 @@
     </div>
     <div data-md-component="announce">
       
+        <aside class="md-banner">
+          <div class="md-banner__inner md-grid md-typeset">
+            
+              <button class="md-banner__button md-icon" aria-label="Don't show this again">
+                
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+              </button>
+            
+            kmhelpers <strong>0.8.0</strong> is out: abundance indexes, shard budget,
+    paired reads and build reports.
+    <a href="changelog/">What's new →</a>
+          </div>
+          
+            <script>var el=document.querySelector("[data-md-component=announce]");if(el){var content=el.querySelector(".md-typeset");__md_hash(content.innerHTML)===__md_get("__announce")&&(el.hidden=!0)}</script>
+          
+        </aside>
+      
     </div>
     
       <div data-md-color-scheme="default" data-md-component="outdated" hidden>
@@ -705,10 +722,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -827,62 +840,6 @@
     
   
     Update an existing index
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="tutorials/ecoli_api/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="tutorials/ecoli_api_advanced/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API (advanced)
   
 
     
@@ -1943,8 +1900,6 @@
       
         
       
-        
-      
     
     
     
@@ -2119,34 +2074,6 @@
     
   
     query_report
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="api/pipeline/sample_lister/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    sample_lister
   
 
     
@@ -2586,19 +2513,19 @@
 <div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">1 - DESIGN</label><label for="__tabbed_1_2">2 - BUILD</label><label for="__tabbed_1_3">3 - QUERY</label><label for="__tabbed_1_4">4 - UPDATE</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<p><div class="termy" data-termynal data-ty-macos data-ty-title="bash"><span data-ty="input" data-ty-prompt="$">kmhelpers design coli_dataset/ -o coli_db/ -n coli -S initial -k 25 -b 1.1 -g 2</span><span data-ty><br>Listed 10 samples -&gt; coli_db/list/coli_samples_20260706_173255.jsonl<br>SUCCESS ('list')<br>SUCCESS ('profile')<br>Composed 10 samples into 2 indices<br>  coli_g0: 5 samples → 14.7MB<br>  coli_g1: 5 samples → 34.6MB<br>SUCCESS ('compose')<br>Done in 25.97s<br></span></div></p>
+<p><div class="termy" data-termynal data-ty-macos data-ty-title="bash"><span data-ty="input" data-ty-prompt="$">kmhelpers design coli_10.txt -o coli_db/ -n coli -s initial -k 25 -b 1.1 -g 2</span><span data-ty><br>Listed 10 samples -&gt; coli_db/list/samples_20260706_173255.jsonl<br>SUCCESS ('list')<br>SUCCESS ('profile')<br>Composed 10 samples into 2 indices<br>  coli_g0: 5 samples → 14.7MB<br>  coli_g1: 5 samples → 34.6MB<br>SUCCESS ('compose')<br>Done in 25.97s<br></span></div></p>
 </div>
 <div class="tabbed-block">
-<p><div class="termy" data-termynal data-ty-macos data-ty-title="bash"><span data-ty="input" data-ty-prompt="$">kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build/ --show-progress</span><span data-ty><br>SUCCESS ('plan')<br>Building index 'coli_g161_initial_p0'...<br>Building index 'coli_g170_initial_p0'...<br>Merging ['coli_g161_initial_p0'] into 'coli_g0'<br>Merging ['coli_g170_initial_p0'] into 'coli_g1'<br>SUCCESS ('apply')<br>Done in 18.22s<br></span></div></p>
+<p><div class="termy" data-termynal data-ty-macos data-ty-title="bash"><span data-ty="input" data-ty-prompt="$">kmhelpers build coli_db -o coli_build/ --show-progress</span><span data-ty><br>SUCCESS ('plan')<br>Building index 'coli_g161_initial_p0'...<br>Building index 'coli_g170_initial_p0'...<br>Merging ['coli_g161_initial_p0'] into 'coli_g0'<br>Merging ['coli_g170_initial_p0'] into 'coli_g1'<br>SUCCESS ('apply')<br>Done in 18.22s<br></span></div></p>
 </div>
 <div class="tabbed-block">
 <p><div class="termy" data-termynal data-ty-macos data-ty-title="bash"><span data-ty="input" data-ty-prompt="$">kmhelpers query -r coli_build/ -o results/ query.fa</span><span data-ty><br>[1/1] Querying: query...<br>Time: 0.10s<br>Results: results/query/results.tsv<br>Completed all queries in 0.10s<br>Output directory: results/<br>Done in 0.11s<br></span></div></p>
 </div>
 <div class="tabbed-block">
 <p><strong>4.1 - Design</strong>  </p>
-<p><div class="termy" data-termynal data-ty-macos data-ty-title="bash"><span data-ty="input" data-ty-prompt="$">kmhelpers design coli_5_update.txt -o coli_db/ -n coli -S update</span><span data-ty><br>Listed 5 samples -&gt; coli_db/list/coli_samples_20260706_180519.jsonl<br>SUCCESS ('list')<br>Found existing layout file, skipping 'profile'<br>Composed 5 samples into 2 indices<br>  coli_g0: 4 samples → 14.7MB<br>  coli_g1: 1 samples → 34.6MB<br>SUCCESS ('compose')<br>Done in 12.04s<br></span></div></p>
+<p><div class="termy" data-termynal data-ty-macos data-ty-title="bash"><span data-ty="input" data-ty-prompt="$">kmhelpers design coli_5_update.txt -o coli_db/ -n coli -s update</span><span data-ty><br>Listed 5 samples -&gt; coli_db/list/samples_20260706_180519.jsonl<br>SUCCESS ('list')<br>Found existing layout file, skipping 'profile'<br>Composed 5 samples into 2 indices<br>  coli_g0: 4 samples → 14.7MB<br>  coli_g1: 1 samples → 34.6MB<br>SUCCESS ('compose')<br>Done in 12.04s<br></span></div></p>
 <p><strong>4.2 - Build</strong>  </p>
-<p><div class="termy" data-termynal data-ty-macos data-ty-title="bash"><span data-ty="input" data-ty-prompt="$">kmhelpers build coli_db/compose/coli/update/coli.yaml -o coli_build/ --show-progress</span><span data-ty><br>SUCCESS ('plan')<br>Building index 'coli_g161_update_p0'...<br>Building index 'coli_g170_update_p0'...<br>Found backup version of 'coli_g0': ['coli_g0_20260707_200039']<br>Merging ['coli_g161_update_p0', 'coli_g0_20260707_200039'] into 'coli_g0'<br>Found backup version of 'coli_g1': ['coli_g1_20260707_200039']<br>Merging ['coli_g170_update_p0', 'coli_g1_20260707_200039'] into 'coli_g1'<br>SUCCESS ('apply')<br>Done in 7.61s<br></span></div></p>
+<p><div class="termy" data-termynal data-ty-macos data-ty-title="bash"><span data-ty="input" data-ty-prompt="$">kmhelpers build coli_db -s update -o coli_build/ --show-progress</span><span data-ty><br>SUCCESS ('plan')<br>Building index 'coli_g161_update_p0'...<br>Building index 'coli_g170_update_p0'...<br>Found backup version of 'coli_g0': ['coli_g0_20260707_200039']<br>Merging ['coli_g161_update_p0', 'coli_g0_20260707_200039'] into 'coli_g0'<br>Found backup version of 'coli_g1': ['coli_g1_20260707_200039']<br>Merging ['coli_g170_update_p0', 'coli_g1_20260707_200039'] into 'coli_g1'<br>SUCCESS ('apply')<br>Done in 7.61s<br></span></div></p>
 </div>
 </div>
 </div>
@@ -2724,7 +2651,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
       <script src="assets/javascripts/bundle.d7400e89.min.js"></script>

@@ -605,10 +605,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -727,62 +723,6 @@
     
   
     Update an existing index
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorials/ecoli_api/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorials/ecoli_api_advanced/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API (advanced)
   
 
     
@@ -1217,17 +1157,6 @@
     <span class="md-ellipsis">
       
         Advanced Options
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#when-to-use-a-sample-list" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        When to use a sample list
       
     </span>
   </a>
@@ -2032,8 +1961,6 @@
       
         
       
-        
-      
     
     
     
@@ -2208,34 +2135,6 @@
     
   
     query_report
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/pipeline/sample_lister/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    sample_lister
   
 
     
@@ -2598,17 +2497,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#when-to-use-a-sample-list" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        When to use a sample list
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#input-formats" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2816,7 +2704,7 @@
 <td>K-mer size for counting (default: 25)</td>
 </tr>
 <tr>
-<td><code>-dt, --data-type TEXT</code></td>
+<td><code>--dt, --data-type TEXT</code></td>
 <td>Data type: <code>a</code>/<code>assembled</code> (default) or <code>u</code>/<code>unassembled</code> (raw reads) - see <a href="#description">K-mer counting</a></td>
 </tr>
 </tbody>
@@ -2837,11 +2725,11 @@
 </thead>
 <tbody>
 <tr>
-<td><code>-nc, --no-count</code></td>
+<td><code>--nc, --no-count</code></td>
 <td>Skip k-mer counting with ntcard</td>
 </tr>
 <tr>
-<td><code>-lg, --leaf-grouping</code></td>
+<td><code>--lg, --leaf-grouping</code></td>
 <td>Group files by leaf folder; each leaf directory becomes one sample</td>
 </tr>
 <tr>
@@ -2857,30 +2745,11 @@
 <td>Rename duplicate sample IDs by appending a numeric suffix instead of skipping</td>
 </tr>
 <tr>
-<td><code>-ntt, --ntcard-threads INT</code></td>
+<td><code>--ntt, --ntcard-threads INT</code></td>
 <td>Number of threads for ntcard k-mer counting (default: 8)</td>
 </tr>
 </tbody>
 </table>
-<h2 id="when-to-use-a-sample-list">When to use a sample list</h2>
-<p>Scanning a directory is the simplest input: every sequence file becomes a sample
-named after the file (or one sample per leaf folder with <code>--leaf-grouping</code>, or
-one per read pair with <code>--paired</code>), and k-mers are counted with ntcard. A sample
-list replaces this automatic listing when you need control over it:</p>
-<ul>
-<li><strong>Precomputed k-mer counts</strong> - give <code>kmer_count</code> and ntcard is skipped for that
-  sample, which saves hours on large collections already counted elsewhere.</li>
-<li><strong>Custom sample names</strong> - use your own IDs (accessions, patient IDs) instead of
-  names derived from file names.</li>
-<li><strong>Explicit multi-file samples</strong> - pairs, lanes or several assemblies per sample,
-  when neither <code>--paired</code> nor <code>--leaf-grouping</code> matches your layout.</li>
-<li><strong>Files from several locations</strong> - mix directories, absolute paths or shared
-  storage, or select a subset of a directory.</li>
-<li><strong>Any rule of your own</strong> - generate the list with a script, for example from a
-  metadata table.</li>
-</ul>
-<p>A YAML list also carries its top-level keys (other than <code>samples</code>) into the
-output header.</p>
 <h2 id="input-formats">Input formats</h2>
 <h3 id="plain-text-txt">Plain text (<code>.txt</code>)</h3>
 <p>One sample per line. Lines starting with <code>#</code> and empty lines are ignored.</p>
@@ -2909,25 +2778,26 @@ output header.</p>
 </code></pre></div>
 <h2 id="description">Description</h2>
 <p><code>INPUT</code> can be a directory (scanned recursively for sequence files) or a sample list file (plain text or YAML) - the type is detected automatically. K-mer counts are parsed or computed for each sample and written to the JSONL manifest.</p>
-<p><strong>Grouping</strong> - by default, each file is treated as its own sample. Use <code>--leaf-grouping</code> to group files by leaf folder, where each leaf directory becomes one sample whose ID is the folder name. For any other grouping or naming, use a sample list (see <a href="#when-to-use-a-sample-list">When to use a sample list</a>).</p>
+<p><strong>Grouping</strong> - by default, each file is treated as its own sample. Use <code>--leaf-grouping</code> to group files by leaf folder, where each leaf directory becomes one sample whose ID is the folder name.</p>
 <p><strong>Paired reads</strong> - use <code>--paired</code> to group mate files into one sample. The last match of a regex is removed from each file name (without extension), and files of the same directory with the same result form one sample named after it. The default regex <code>[._][Rr]?[12](?=[._]|$)</code> matches mate tokens such as <code>_R1</code>, <code>_R2</code>, <code>_1</code>, <code>.2</code>:</p>
 <ul>
 <li><code>S1_R1_clean.fastq.gz</code> + <code>S1_R2_clean.fastq.gz</code> -&gt; <code>S1_clean</code></li>
 <li><code>SRR123_1.fq.gz</code> + <code>SRR123_2.fq.gz</code> -&gt; <code>SRR123</code></li>
 </ul>
-<p>Files without a mate token stay single-file samples. Pass a custom regex as <code>--paired=REGEX</code> (the <code>=</code> is required when another argument follows). Without <code>--paired</code>, a warning is logged when unassembled files (<code>-dt u</code>) look like read pairs. <code>--paired</code> cannot be combined with <code>--leaf-grouping</code>.</p>
+<p>Files without a mate token stay single-file samples. Pass a custom regex as <code>--paired=REGEX</code> (the <code>=</code> is required when another argument follows). Without <code>--paired</code>, a warning is logged when unassembled files (<code>--dt u</code>) look like read pairs. <code>--paired</code> cannot be combined with <code>--leaf-grouping</code>.</p>
 <p><strong>K-mer counting</strong> - enabled by default. Counting is skipped for any sample that already has a <code>kmer_count</code> value. Use <code>--no-count</code> to skip counting entirely. The <code>--data-type</code> option controls what is counted:</p>
 <ul>
 <li><code>assembled</code> (default) - counts all distinct k-mers; suited for assemblies where every k-mer is expected at least once</li>
 <li><code>unassembled</code> - counts only k-mers appearing at least twice, filtering out likely sequencing errors; suited for raw reads</li>
 </ul>
+<p>The same ntcard run also records <code>kmer_total</code>, the k-mer occurrences of the sample, which sizes the build memory (see <a href="../compose/#description">compose - Partitioning</a>).</p>
 <p><strong>Resuming</strong> - if the output file already exists, it is backed up. Pass <code>--continue</code> to resume from that backup without reprocessing already-listed samples; otherwise the run starts fresh. Use <code>--autorename</code> to rename duplicate sample IDs instead of skipping them.</p>
 <p>Top-level keys other than <code>samples</code> are written as-is into the output header.</p>
 <h2 id="output-format">Output Format</h2>
 <p>The output is a JSONL file. The first line is a header and the remaining lines are one sample per line:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>{"k": 25, "assembled": true}
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>{"name": "sample_A", "files": ["/data/sequences/sample_A/reads_1.fa", "/data/sequences/sample_A/reads_2.fa"], "kmer_count": 1234567}
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>{"name": "sample_B", "files": ["/data/sequences/sample_B/reads.fa"], "kmer_count": 987654}
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>{"name": "sample_A", "files": ["/data/sequences/sample_A/reads_1.fa", "/data/sequences/sample_A/reads_2.fa"], "kmer_count": 1234567, "kmer_total": 1302114}
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>{"name": "sample_B", "files": ["/data/sequences/sample_B/reads.fa"], "kmer_count": 987654, "kmer_total": 1011540}
 </code></pre></div>
 <p>This file is the input for <a href="../profile/"><code>profile</code></a> and <a href="../compose/"><code>compose</code></a>.</p>
 <h2 id="examples">Examples</h2>
@@ -2938,10 +2808,10 @@ output header.</p>
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>samples.jsonl<span class="w"> </span>--leaf-grouping
 <a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
 <a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># Group paired-end reads (R1/R2) into one sample per pair</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>/data/reads<span class="w"> </span>-o<span class="w"> </span>samples.jsonl<span class="w"> </span>-dt<span class="w"> </span>u<span class="w"> </span>--paired
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>/data/reads<span class="w"> </span>-o<span class="w"> </span>samples.jsonl<span class="w"> </span>--dt<span class="w"> </span>u<span class="w"> </span>--paired
 <a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
 <a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="c1"># Custom mate pattern, e.g. "sample.fwd.fq" / "sample.rev.fq"</span>
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>/data/reads<span class="w"> </span>-o<span class="w"> </span>samples.jsonl<span class="w"> </span>-dt<span class="w"> </span>u<span class="w"> </span>--paired<span class="o">=</span><span class="s1">'\.(fwd|rev)$'</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>/data/reads<span class="w"> </span>-o<span class="w"> </span>samples.jsonl<span class="w"> </span>--dt<span class="w"> </span>u<span class="w"> </span>--paired<span class="o">=</span><span class="s1">'\.(fwd|rev)$'</span>
 <a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>
 <a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="c1"># Custom k-mer size</span>
 <a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>kmhelpers<span class="w"> </span>list<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>samples.jsonl<span class="w"> </span>-k<span class="w"> </span><span class="m">31</span>
@@ -3072,7 +2942,7 @@ output header.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>

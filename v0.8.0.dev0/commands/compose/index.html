@@ -605,10 +605,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -727,62 +723,6 @@
     
   
     Update an existing index
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorials/ecoli_api/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorials/ecoli_api_advanced/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API (advanced)
   
 
     
@@ -1960,8 +1900,6 @@
       
         
       
-        
-      
     
     
     
@@ -2136,34 +2074,6 @@
     
   
     query_report
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/pipeline/sample_lister/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    sample_lister
   
 
     
@@ -2649,7 +2559,7 @@
 <p>Compose index definition file(s) from a sample list produced by <a href="../list/"><code>list</code></a>. Building a new index requires a profile from <a href="../profile/"><code>profile</code></a>.</p>
 <div class="admonition abstract">
 <p class="admonition-title">USAGE</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers compose -o COMPOSE_DIR -n NAME [-pf PROFILES_FILE] [-S SESSION] [OPTIONS] INPUT_FILE
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers compose -o COMPOSE_DIR -n NAME [--pf PROFILES_FILE] [-s SESSION] [OPTIONS] INPUT_FILE
 </code></pre></div>
 <table>
 <thead>
@@ -2672,11 +2582,11 @@
 <td>Name of created or updated index</td>
 </tr>
 <tr>
-<td><code>-pf, --profiles-file FILE</code></td>
+<td><code>--pf, --profiles-file FILE</code></td>
 <td>Profiles YAML file with index configuration (required to build a new index)</td>
 </tr>
 <tr>
-<td><code>-S, --session-id SESSION</code></td>
+<td><code>-s, --session SESSION</code></td>
 <td>Session name: subdirectory of <code>COMPOSE_DIR/NAME/</code> and tag appended to index names (default: timestamp)</td>
 </tr>
 </tbody>
@@ -2685,7 +2595,7 @@
 <div class="admonition abstract">
 <p class="admonition-title">I/O</p>
 <p><strong>Input:</strong> JSONL sample list (from <a href="../list/"><code>list</code></a>), profiles YAML required only for new index creation (from <a href="../profile/"><code>profile</code></a>)<br />
-<strong>Output:</strong> index definition files in <code>COMPOSE_DIR/NAME/SESSION/</code>, with <code>NAME.yaml</code> as the entry point (<code>INPUT_FILE</code> for <code>plan</code>, <code>build</code> and <code>apply</code>)</p>
+<strong>Output:</strong> the session in <code>COMPOSE_DIR/NAME/SESSION/</code> (<code>index.yaml</code>, <code>samples.jsonl</code> unless <code>--no-copy-list</code>, <code>summary.csv</code>, <code>shards/</code>), and the layout <code>COMPOSE_DIR/NAME/layout.yaml</code>. Pass <code>COMPOSE_DIR</code> (with <code>-s SESSION</code>) to <code>plan</code>, <code>build</code> or <code>apply</code></p>
 </div>
 <h2 id="advanced-options">Advanced Options</h2>
 <table>
@@ -2697,24 +2607,36 @@
 </thead>
 <tbody>
 <tr>
-<td><code>-pr, --profile TEXT</code></td>
+<td><code>--pr, --profile TEXT</code></td>
 <td>Profile name to use (default: <code>default_profile</code> from profiles file)</td>
 </tr>
 <tr>
-<td><code>-p, --partition-count INT</code></td>
-<td>Partitions per index, fixed for its whole life; 0 lets the first build size it (default: 0)</td>
+<td><code>-P, --partition-count INT</code></td>
+<td>Hidden. Fix the partition count of every shard for the life of the index: inherited by every later session, no longer adapted to the system limits of <code>plan</code>/<code>build</code>. 0 (default) lets the first <code>plan</code> of each shard size it, see Partitioning below</td>
 </tr>
 <tr>
-<td><code>-si, --shard-size SIZE</code></td>
-<td>Max size of one shard (e.g. <code>256GB</code>, <code>500000MB</code>); omit for a single unlimited index per span</td>
+<td><code>--minim-size INT</code></td>
+<td>Minimizer size (4-15), fixed for the life of the index (default: 10 for a new index, the layout's value on an update)</td>
 </tr>
 <tr>
-<td><code>-m, --partition-min-size SIZE</code></td>
-<td>Minimum partition file size (e.g. <code>500MB</code>, <code>1GB</code>)</td>
+<td><code>--sb, --shard-budget INT</code></td>
+<td>Shard budget: a shard of span <code>s</code> holds at most <code>ceil8(budget / base^s)</code> samples (e.g. <code>2**43</code>); 0 for no limit (default: <code>2**43</code> for a new index, the layout's rule on an update)</td>
 </tr>
 <tr>
-<td><code>-P, --partition-count-limit INT</code></td>
-<td>Upper bound on auto partition count (default: 256)</td>
+<td><code>--kr, --kmer-ratio FLOAT</code></td>
+<td>Multiply the k-mer ratio (k-mer occurrences per counted k-mer) that sizes the build memory (default: 1), see Partitioning below</td>
+</tr>
+<tr>
+<td><code>--ncl, --no-copy-list</code></td>
+<td>Point the index definition files to the input sample list instead of copying it into the compose output folder; the list must then stay in place and unchanged as it is used for building</td>
+</tr>
+<tr>
+<td><code>--shard-budget-bytes SIZE</code></td>
+<td>Hidden. Cap a shard by its size on disk (e.g. <code>256GB</code>, <code>500000MB</code>) rather than by <code>--shard-budget</code>: when set, <code>--shard-budget</code> is not used. Cannot be combined with <code>--shard-budget</code></td>
+</tr>
+<tr>
+<td><code>--ab, --abundance-bits INT</code></td>
+<td>Build an abundance index with <code>N</code> bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0)</td>
 </tr>
 </tbody>
 </table>
@@ -2722,55 +2644,105 @@
 <p>Takes a JSONL sample list (produced by <a href="../list/"><code>list</code></a>) and generates index definition
 files that can be passed to <a href="../plan/"><code>plan</code></a>, <a href="../build/"><code>build</code></a> or <a href="../apply/"><code>apply</code></a>.</p>
 <p>Output files are written to <code>COMPOSE_DIR/NAME/SESSION/</code>, where <code>SESSION</code> defaults to the
-current timestamp if <code>--session-id</code> is not provided. Pass the <code>NAME.yaml</code> file in that
-directory as the input to <code>plan</code>, <code>build</code> or <code>apply</code> to process the index.</p>
+current timestamp if <code>--session</code> is not provided:</p>
+<ul>
+<li><code>index.yaml</code> describes the session: parameters, size, and the shards it adds samples to;</li>
+<li><code>shards/&lt;shard&gt;.yaml</code> lists the samples of each shard, and <code>samples.jsonl</code> their files;
+  with <code>--no-copy-list</code>, the shards point to the input list instead (<code>sample_file</code>), relative
+  when it lies in the parent of <code>COMPOSE_DIR</code> (e.g. a design's <code>list/</code>), absolute otherwise;</li>
+<li><code>summary.csv</code> has one row per shard.</li>
+</ul>
+<p>Pass <code>COMPOSE_DIR</code> (or <code>COMPOSE_DIR/NAME</code>, or the session's <code>index.yaml</code>) to <code>plan</code>,
+<code>build</code> or <code>apply</code>, with <code>-s SESSION</code> to pick a session other than the last one.</p>
 <p><strong>Building a new index</strong> - provide <code>--profiles-file</code> (produced by <a href="../profile/"><code>profile</code></a>).
-A layout file is written to <code>COMPOSE_DIR/NAME_layout.yaml</code> for future updates.</p>
+A layout file is written to <code>COMPOSE_DIR/NAME/layout.yaml</code> for future updates.</p>
 <p><strong>Updating an existing index</strong> - omit <code>--profiles-file</code>. The layout file at
-<code>COMPOSE_DIR/NAME_layout.yaml</code> is detected and loaded automatically.</p>
+<code>COMPOSE_DIR/NAME/layout.yaml</code> is detected and loaded automatically.</p>
 <p>If <code>--profile</code> is not specified, the <code>default_profile</code> field in the profiles file is used.</p>
-<p><strong>Partitioning</strong> - each Bloom filter is split into N partition files. Two indexes can only be
-merged when they share that count, and an update merges new samples into an existing shard, so
-the count is fixed once for the life of the index and stored in the layout file.</p>
-<p>Set it with <code>--partition-count</code>, or leave it at 0: the first <code>plan</code>, <code>apply</code> or <code>build</code> then
-sizes it from the resource limits (<code>--limits</code>), for a full shard when sharding is on, and writes
-it to the layout. Later runs reuse the stored value and warn when <code>-p</code> asks for another one.
-The minimizer size (<code>--minim-size</code>) is stored the same way.</p>
+<p><strong>Minimizer size</strong> - set at design (<code>--minim-size</code>, default 10) and recorded in the layout and
+in the session's definitions. Indexes can only be merged when they share it, so an update takes
+the layout's value and refuses another one. <code>plan</code>, <code>apply</code> and <code>build</code> have no <code>--minim-size</code>.</p>
+<p><strong>Partitioning</strong> - each Bloom filter is split into N partition files, and a shard can only be
+merged with updates built with the same N. By default <code>compose</code> leaves it open, and <code>plan</code>
+(or <code>apply</code>/<code>build</code>) chooses it for each shard, in this order:</p>
+<ol>
+<li>a shard already built in <code>BUILD_DIR</code> keeps its count, so the session merges into it; any
+   other value is ignored, with a warning;</li>
+<li>a part whose kmtricks runs are already started in <code>BUILD_DIR/work/SESSION/</code> keeps theirs
+   (<code>apply</code> after <code>plan</code>, a resumed build);</li>
+<li>the count fixed at design with <code>-P</code>;</li>
+<li>otherwise, a count sized from the resource limits (<code>--limits</code>) for a full shard.</li>
+</ol>
+<p><code>plan</code>, <code>apply</code> and <code>build</code> have no <code>-P</code>: they never write the design, and each machine sizes the
+shards it builds first. Fixing <code>-P</code> at design is inherited by every later session and is no longer
+adapted to the system limits.</p>
+<p><strong>k-mer ratio</strong> - kmtricks holds every k-mer <em>occurrence</em> of a sample partition in memory
+before it filters them (<code>--hard-min</code>), about <code>occurrences / partitions × 8 bytes</code> per thread.
+The Bloom filter capacity counts distinct k-mers (solid ones for raw reads), so <code>plan</code> sizes
+partitions and threads from that capacity × the shard's <strong>k-mer ratio</strong>, recorded as
+<code>kmer_ratio</code> in <code>index.yaml</code> and in each shard file:</p>
+<ul>
+<li>per sample, <code>kmer_total / kmer_count</code> from the sample list (<a href="../list/"><code>list</code></a> records
+  both), at least 1; without <code>kmer_total</code>, 1 for assembled data and 4 for raw reads;</li>
+<li>per shard, the largest ratio of its samples, multiplied by <code>--kmer-ratio</code>.</li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">Deep raw reads</p>
+<p>Deep raw reads (e.g. metabarcoding) can reach hundreds of occurrences per solid k-mer.
+For a list without <code>kmer_total</code>, raise <code>--kmer-ratio</code> or fix <code>-P</code> at design.</p>
+</div>
 <p>The layout also records, per span, the samples composed so far (<code>total_samples</code>) and the number
 of sessions that added samples to it (<code>updates</code>).</p>
-<p><strong>Sharding</strong> - with <code>--shard-size</code>, a span is split into independent shards of at most that
-size, instead of one index growing without bound. Shards are never merged together: each one
-is built and registered on its own, and a query hits them all.</p>
-<p>The per-span sample limit is derived from the Bloom filter size of the span, since a shard
-costs about <code>bf_size x samples / 8</code> bytes, and is rounded down to a multiple of 8 samples
-(minimum 8). It is written to the layout file, together with the shards and their sample
-counts, so a later session knows where to continue.</p>
+<p><strong>Sharding</strong> - a span is split into independent shards, instead of one index growing without
+bound. Shards are never merged together: each one is built and registered on its own, and a
+query hits them all.</p>
+<p>The per-span sample limit of a shard follows one rule:</p>
+<ul>
+<li>the shard budget (from Logan), on by default: a shard of span <code>s</code> holds at most
+  <code>ceil8(budget / base^s)</code> samples (<code>--shard-budget</code>, default <code>2**43</code>, about k-mers x samples).
+  <code>--shard-budget 0</code> disables it;</li>
+<li>or, with the hidden <code>--shard-budget-bytes SIZE</code>, its size on disk instead: a shard costs about
+  <code>bf_size x samples x bitw / 8</code> bytes, rounded down to a multiple of 8 samples (minimum 8).</li>
+</ul>
+<p>The rule (<code>shard_budget</code> or <code>shard_size</code>) and the shard limit of each span (<code>max_samples</code>) are
+written to the layout file, together with the shards and their sample counts, so a later
+session knows where to continue. An update keeps the layout's rule; passing <code>--shard-budget</code> or
+<code>--shard-budget-bytes</code> again re-shards it, affecting only the shards opened later. Layouts
+written with the former chunk model read as a shard budget of <code>chunk_budget x shard_chunks</code>.</p>
+<p>How a shard is split into kmtricks chunks is decided at build time, see
+<a href="../build/#shards-and-chunks">build - Shards and chunks</a>.</p>
 <p>An update fills the last shard of the span until that limit is reached, then opens a new one.
 Filling a shard means merging the session's new samples into it; only chunks (a build-time
 split, see <a href="../plan/">plan</a>) are merged as well.</p>
-<p>Without <code>--shard-size</code>, a span keeps a single index named <code>NAME_g&lt;i&gt;</code>. With it, shards are
-named <code>NAME_g&lt;i&gt;_p&lt;k&gt;</code>.</p>
+<p>Shards are named <code>NAME_g&lt;i&gt;_p&lt;k&gt;</code>. Without any limit (<code>--shard-budget 0</code>), a span keeps a
+single index named <code>NAME_g&lt;i&gt;</code>.</p>
+<p><strong>Abundance</strong> - by default an index records the presence or absence of each k-mer in each
+sample. With <code>--abundance-bits N</code>, each sample gets <code>N</code> bits per Bloom filter cell instead of
+one, holding the abundance class of the k-mer (2^N classes, kmindex uses 2 by default). The
+index is then built by kmtricks with <code>--mode hash:bfc:bin --bitw N</code>, takes <code>N</code> times more
+space, and a query reports the abundance class of each sample instead of the fraction of
+k-mers found. <code>N</code> is stored in the layout and fixed for the life of the index: an update with
+another value is refused.</p>
+<p><strong>Hard min</strong> - k-mers seen fewer times than the <code>abundance_min</code> of the JSONL header are
+dropped at build time. <code>list</code> sets it to 1 for assembled data and 2 for raw reads.</p>
 <h2 id="examples">Examples</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Build a new index (writes layout to ./db/my_index_layout.yaml)</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>-pf<span class="w"> </span>profiles.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Build a new index (writes layout to ./db/my_index/layout.yaml)</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>--pf<span class="w"> </span>profiles.yaml
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Build with a session tag (output goes to ./db/my_index/my_session/)</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>-pf<span class="w"> </span>profiles.yaml<span class="w"> </span>-S<span class="w"> </span>my_session
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>--pf<span class="w"> </span>profiles.yaml<span class="w"> </span>-s<span class="w"> </span>my_session
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Use a specific profile</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>-pf<span class="w"> </span>profiles.yaml<span class="w"> </span>--profile<span class="w"> </span>baseline
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>--pf<span class="w"> </span>profiles.yaml<span class="w"> </span>--profile<span class="w"> </span>baseline
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Override partition count</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>-pf<span class="w"> </span>profiles.yaml<span class="w"> </span>--partition-count<span class="w"> </span><span class="m">4</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Fix the partition count of every shard (inherited by later sessions)</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>--pf<span class="w"> </span>profiles.yaml<span class="w"> </span>--partition-count<span class="w"> </span><span class="m">4</span>
 <a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Set minimum partition size</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>-pf<span class="w"> </span>profiles.yaml<span class="w"> </span>--partition-min-size<span class="w"> </span>500MB
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Split spans into smaller shards</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>--pf<span class="w"> </span>profiles.yaml<span class="w"> </span>--shard-budget<span class="w"> </span><span class="m">2</span>**40
 <a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># Split large spans across multiple sub-indices</span>
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>-pf<span class="w"> </span>profiles.yaml<span class="w"> </span>--split-size<span class="w"> </span>10GB
-<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
-<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="c1"># Update an existing index (auto-detects ./db/my_index_layout.yaml)</span>
-<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-n<span class="w"> </span>my_index
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># Update an existing index (auto-detects ./db/my_index/layout.yaml)</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-n<span class="w"> </span>my_index
 </code></pre></div>
 <h2 id="see-also">See Also</h2>
 <ul>
@@ -2879,7 +2851,7 @@ named <code>NAME_g&lt;i&gt;_p&lt;k&gt;</code>.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>

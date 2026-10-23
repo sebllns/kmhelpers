@@ -605,10 +605,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -727,62 +723,6 @@
     
   
     Update an existing index
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../tutorials/ecoli_api/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../tutorials/ecoli_api_advanced/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API (advanced)
   
 
     
@@ -1843,8 +1783,6 @@
       
         
       
-        
-      
     
     
     
@@ -2019,34 +1957,6 @@
     
   
     query_report
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../api/pipeline/sample_lister/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    sample_lister
   
 
     
@@ -4498,19 +4408,69 @@
 <h2 id="080-2026-10-19">[0.8.0] - 2026-10-19</h2>
 <h3 id="added">Added</h3>
 <ul>
+<li><strong>k-mer ratio</strong>: <code>list</code> records <code>kmer_total</code> (k-mer occurrences, ntcard F1) next to <code>kmer_count</code>; <code>compose</code> records each shard's <code>kmer_ratio</code> (largest <code>kmer_total / kmer_count</code> of its samples, else 1 assembled / 4 raw reads, times <code>compose</code>/<code>design --kr, --kmer-ratio</code>) in <code>index.yaml</code> and the shard files, and <code>plan</code> sizes partitions and threads from the Bloom filter capacity × that ratio, since kmtricks holds every occurrence before <code>--hard-min</code></li>
+<li><strong><code>compose</code>/<code>design --ncl, --no-copy-list</code></strong>: the session points to the input sample list instead of copying it to <code>SESSION/samples.jsonl</code>; <code>design</code> never copies the list it writes (<code>list/samples_&lt;SESSION&gt;.jsonl</code>), so its sessions have no <code>samples.jsonl</code></li>
+<li><strong>Automatic group count</strong> (<code>profile -g 0</code>, <code>design -g 0</code>): starts from one group per 1000 samples, then adds one while it saves at least 20% of the storage, up to 20 groups</li>
+<li>Tuned with <code>profile --auto-group-samples</code>, <code>--auto-group-max</code> and <code>--auto-group-min-gain</code> (env: <code>KMHELPERS_AUTO_GROUP_*</code>), recorded under <code>auto_group</code> in <code>profile.yaml</code>; <code>design</code> reads only the environment variables</li>
+<li><strong>Abundance indexes</strong>: <code>design --ab N</code> / <code>compose --ab N</code> (<code>--abundance-bits</code>) compose an index storing <code>N</code> bits per sample and k-mer (2^N abundance classes), built by kmtricks with <code>--mode hash:bfc:bin --bitw N</code></li>
+<li><code>bitw</code> is stored in the index definitions and the layout; definitions without it, and <code>--ab 0</code> (default), are presence/absence as before</li>
+<li>An update with another <code>bitw</code> than the layout is refused: presence/absence and abundance indexes cannot be merged</li>
+<li>Storage estimates, shard sample limits, merge memory and <code>bytes_per_row</code> count <code>bitw</code> bits per sample</li>
+<li>Queries report the abundance class of each sample instead of the fraction of k-mers found</li>
 <li><strong><code>list --paired [REGEX]</code></strong> (<code>design --paired</code>): groups mate files (R1/R2) of a directory into one sample</li>
 <li>The default regex matches mate tokens such as <code>_R1</code>, <code>_R2</code>, <code>_1</code>, <code>.2</code>; <code>--paired=REGEX</code> sets a custom one</li>
-<li>Without <code>--paired</code>, a warning is logged when unassembled files (<code>-dt u</code>) look like read pairs</li>
+<li>Without <code>--paired</code>, a warning is logged when unassembled files (<code>--dt u</code>) look like read pairs</li>
 <li><strong><code>query --export</code> (<code>-x</code>)</strong>: writes a Markdown or HTML report beside the data results</li>
 <li><strong><code>query -f none</code></strong>: keeps only the raw kmindex results</li>
 <li><strong>Query statistics</strong>: <code>sequence_stats.tsv</code> (one row per query sequence) and <code>sample_stats.tsv</code> (one row per matched sample), with match count, perfect matches and mean and median scores; <code>--no-stats</code> skips them. The overall rows are also in the md and html reports</li>
+<li><strong>Plan/apply report</strong> (<code>BUILD_DIR/logs/kmhelpers_{plan,apply}_*.yaml</code>): organised by shard (<code>run</code> renamed <code>shards</code>, the span table moved to <code>summary.spans</code>), with a <code>summary</code> (status, times, counts, totals), the host, kernel, CPUs and SLURM job, the resolved limits, <code>kmhelpers.git_commit</code> from <code>$GIT_COMMIT</code>, each part's build parameters (with <code>partitions_source</code>: <code>design</code>, <code>auto</code>, <code>registered</code> or <code>run</code>), scripts and kmtricks runs, and how each shard is published (merge steps and their estimated memory)</li>
+<li><code>apply</code> adds per run the duration, peak RSS, max CPU, CPU efficiency and share of the RAM limit read from <code>logs/&lt;run&gt;/kmtricks.log</code>, and per shard the publish duration and size on disk</li>
+<li>Written as the run goes: a running or killed <code>apply</code> leaves its report so far (<code>summary.status: RUNNING</code>), also attached to the <code>--notify</code> mail</li>
 <li><strong><code>--keep-previous</code></strong> (<code>plan</code>, <code>apply</code>, <code>build</code>): keeps the replaced version of an updated index in <code>BUILD_DIR/work/SESSION/previous/</code></li>
 <li><strong><code>manage check -n</code></strong>: checks only the given indices, and fails if one is not registered</li>
 <li><strong><code>manage move-dir</code></strong> (internal, hidden): renames a folder for the generated scripts, failing instead of copying across filesystems</li>
 <li><strong><code>manage remove --missing-ok</code></strong> and <strong><code>--keep-link</code></strong>: skip unregistered IDs; only edit <code>index.json</code></li>
+<li><strong>Shard budget</strong> (from Logan, <code>compose</code>/<code>design --sb, --shard-budget</code>): a shard of span <code>s</code> holds at most <code>ceil8(budget / base^s)</code> samples</li>
+<li>Defaults to <code>2**43</code> for a new index; <code>--shard-budget 0</code> disables it</li>
+<li><code>shard_budget</code> is stored in the layout; an update keeps it, passing it again re-shards the layout</li>
+<li><strong>Chunk budget</strong> (<code>plan</code>, <code>apply</code>, <code>build</code> <code>--cb, --chunk-budget</code>): a kmtricks chunk of span <code>s</code> holds at most <code>ceil8(budget / base^s)</code> samples (default <code>2**37</code>, 0 for no limit), still within the open-files limit and <code>--max-chunks</code></li>
 </ul>
 <h3 id="changed">Changed</h3>
 <ul>
+<li><strong>Option names made consistent</strong></li>
+<li><code>design</code>/<code>compose -s, --session</code> (was <code>--session-id</code>), the same name as in <code>plan</code>/<code>apply</code>/<code>build</code></li>
+<li><code>design -a, --autorename</code> (was <code>-r</code>), as in <code>list</code></li>
+<li><code>design -p, --paired</code>, as in <code>list</code>; <code>design</code>/<code>compose -P, --partition-count</code> (was <code>-p</code>)</li>
+<li>Shards are selected with <code>--sh, --shard</code> in <code>plan</code>, <code>apply</code>, <code>query</code>, <code>manage</code> and <code>compress</code> (was <code>-n, --name</code>, <code>--index-ids</code>, <code>--index-id</code> or <code>--index-name</code>); <code>-n, --name</code> is only the index name of <code>design</code>/<code>compose</code>. <code>query --shard</code> also takes comma-separated names</li>
+<li><code>plan</code>/<code>apply</code>/<code>build --bp, --base-path</code> and <code>query --bq, --batch-query</code> (were <code>-b</code>); <code>-b</code> is <code>--base</code> in <code>profile</code>/<code>design</code></li>
+<li><strong>Minimizer size is set at design</strong>: <code>design</code>/<code>compose --minim-size</code> (default 10, an update takes the layout's value and refuses another one); <code>plan</code>/<code>apply</code>/<code>build</code> lose <code>--minim-size</code></li>
+<li><strong>Partition count</strong>: <code>-p</code> only on <code>design</code>/<code>compose</code>, where it fixes the count of every shard for the life of the index; otherwise <code>plan</code>/<code>apply</code>/<code>build</code> choose it per shard: a built shard keeps its count (another value is ignored with a warning), then started runs of the session, then the design's <code>-p</code>, else the resource limits. <code>plan</code>/<code>apply</code>/<code>build</code> lose <code>-p</code> and no longer write the design's layout</li>
+<li><strong>Compose output</strong>, simpler to read; old layouts and definition files are no longer read</li>
+<li>Everything about an index is in <code>COMPOSE_DIR/NAME/</code>: its layout is <code>NAME/layout.yaml</code> (was <code>COMPOSE_DIR/NAME_layout.yaml</code>), which also records the sessions composed</li>
+<li>A session <code>NAME/SESSION/</code> holds <code>index.yaml</code> (replacing the span registry <code>NAME.yaml</code>): parameters, size and shards of the session, keyed by shard name</li>
+<li>Each shard's definition is in <code>SESSION/shards/&lt;shard&gt;.yaml</code> (was <code>SESSION/&lt;shard&gt;_&lt;SESSION&gt;.yaml</code> next to the entry file)</li>
+<li>File names lose the <code>NAME_</code> prefix: <code>samples.jsonl</code>, <code>summary.csv</code> (one row per shard); <code>orig_dist.csv</code> is replaced by <code>distribution</code> in <code>index.yaml</code></li>
+<li><code>design</code> writes its sample list to <code>DESIGN_DIR/list/samples_SESSION.jsonl</code></li>
+<li><strong><code>plan</code>, <code>apply</code>, <code>build</code> take a directory</strong>: the design directory, a compose directory or <code>COMPOSE_DIR/NAME</code>, resolved to the session given by the new <code>-S/--session</code> or the last one composed; a session's <code>index.yaml</code> or a shard file can still be passed</li>
+<li><strong><code>compose</code>/<code>design --ab</code></strong> defaults to the layout's value on an update (0 for a new index), instead of 0; an explicit different value is still refused</li>
+<li><strong>Default group count</strong> (<code>profile -g</code>, <code>design -g</code>): 0 (automatic) instead of 20</li>
+<li><strong>New indexes are sharded by default</strong> under the shard budget: shards are named <code>NAME_g&lt;i&gt;_p&lt;k&gt;</code> (was <code>NAME_g&lt;i&gt;</code> without <code>--shard-size</code>); layouts without a budget keep no limit</li>
+<li><strong><code>compose</code>/<code>design --shard-size</code> (<code>-si</code>) is now the hidden <code>--shard-budget-bytes</code></strong>: it caps a shard by bytes on disk instead of the shard budget, not on top of it, and cannot be combined with <code>--shard-budget</code></li>
+<li><strong><code>--max-chunks</code></strong> (<code>plan</code>, <code>apply</code>, <code>build</code>): caps the chunks of a shard, default 64 (was 200)</li>
+<li><strong>Multi-letter short flags take two dashes</strong>: <code>-dt</code>, <code>-lg</code>, <code>-ntt</code>, <code>-nc</code>, <code>-fp</code>, <code>-ab</code>, <code>-pf</code>, <code>-pr</code>, <code>-NC</code>, <code>-SP</code>, <code>-NF</code> (and <code>test</code> <code>-mu</code>, <code>-sd</code>) become <code>--dt</code>, <code>--lg</code>, <code>--ntt</code>, <code>--nc</code>, <code>--fp</code>, <code>--ab</code>, <code>--pf</code>, <code>--pr</code>, <code>--ncp</code>, <code>--sp</code>, <code>--NF</code> (<code>--mu</code>, <code>--sd</code>); single-letter flags keep one dash</li>
+<li><strong>Option case: uppercase short flags only for global options</strong>; long names are unchanged</li>
+<li>Global: <code>-v</code>, <code>-q</code>, <code>-y</code> become <code>-V</code>, <code>-Q</code>, <code>-Y</code> (<code>-C</code>, <code>-L</code>, <code>--NF</code> unchanged)</li>
+<li><code>compose</code>/<code>design</code>/<code>plan</code>/<code>apply</code>/<code>build</code>: <code>-S</code> becomes <code>-s</code> (<code>--session</code>); <code>plan</code>/<code>apply</code>: <code>-X</code> becomes <code>-x</code> (<code>--fail-fast</code>); <code>apply</code>/<code>build</code>: <code>--SP</code> becomes <code>--sp</code>; <code>plan</code>/<code>apply</code>/<code>build</code>: <code>--NC</code> becomes <code>--ncp</code> (<code>--skip-compression</code>); <code>plan</code>: <code>-O</code> becomes <code>--off</code> (<code>--offline</code>)</li>
+<li><code>query</code>: <code>-R</code> becomes <code>--thr</code> (<code>--threshold</code>), <code>-T</code> becomes <code>--tms</code> (<code>--timestamp</code>), <code>-K</code> becomes <code>--kpq</code> (<code>--keep-query</code>), <code>-P</code> becomes <code>--par</code> (<code>--parallel</code>), and <code>--vec</code> loses <code>-V</code></li>
+<li>The hidden <code>compose</code>/<code>design -P, --partition-count</code> keeps its capital: <code>-p</code> is <code>--pair-regex</code> in <code>design</code></li>
+<li><strong><code>-H, --HELP</code></strong> on every command: the help including hidden options, marked <code>[hidden]</code></li>
+<li><strong><code>--threads</code></strong> (<code>plan</code>, <code>apply</code>, <code>build</code>) is hidden and loses <code>-t</code>: threads are sized from <code>--limits</code> (e.g. <code>--limits '{"threads": 8}'</code>)</li>
+<li><strong>Shard selection by glob pattern</strong>: <code>plan</code>, <code>apply</code>, <code>query</code> and <code>compress</code> <code>--sh, --shard</code> take glob patterns (<code>'idx_g0_*'</code>); a name without wildcard matches exactly. A pattern matching nothing is a warning; only no match at all is an error (also for <code>--run</code>). <code>plan</code>/<code>apply -s, --span</code> is removed: <code>--shard 'NAME_g&lt;i&gt;*'</code> selects a group</li>
+<li><strong><code>compress</code> without <code>--shard</code> compresses every shard of the registry</strong>, one after the other; a failed shard does not stop the others, the command fails at the end</li>
+<li><strong><code>plan</code>/<code>apply --run PATTERN</code></strong>: builds only the matching kmtricks runs (<code>&lt;part&gt;</code>, <code>&lt;part&gt;_chunk&lt;N&gt;</code>) without merging, e.g. one chunk per SLURM array task; a later <code>apply --shard</code> merges them</li>
+<li><strong><code>design</code>/<code>compose -P, --partition-count</code></strong> is hidden: the partition count is sized at plan from <code>--limits</code> unless fixed</li>
+<li><strong><code>KmtricksWrapper.pipeline</code>, <code>KmindexWrapper.build</code></strong>: <code>bloom_size</code> is required and <code>bitw</code> optional; with <code>bitw</code> set, the index is an abundance index of <code>bloom_size</code> cells, otherwise presence/absence (<code>nb_cell</code> removed)</li>
+<li>Its size estimate counts <code>bloom_size</code> in bits (it was read as bytes)</li>
 <li><strong>Index layout</strong>: every index lives in place in <code>BUILD_DIR/&lt;name&gt;/</code> (a directory of the registry, not a symlink), and keeps that folder across updates</li>
 <li>Everything temporary to a session (kmtricks runs, merges, previous version) is in <code>BUILD_DIR/work/SESSION/</code>, deleted when the session is done; <code>BUILD_DIR/kmindex_data/</code> is no longer used</li>
 <li><code>plan</code>, <code>apply</code> and <code>build</code> derive every path from one place (<code>BuildPaths</code>); scripts always go to <code>BUILD_DIR/assets/SESSION/</code></li>
@@ -4541,11 +4501,14 @@
 </ul>
 <h3 id="removed">Removed</h3>
 <ul>
+<li><strong><code>cli/kmindex.py</code></strong>: the <code>kmhelpers kmindex</code> group, no longer registered; and the unused diagram sources <code>docs/diagrams/pipeline_diagram_v1.drawio</code>, <code>pipeline_diagram_v2.drawio</code></li>
+<li><strong><code>compose</code> docs</strong> of options removed earlier (<code>--partition-min-size</code>, <code>--partition-count-limit</code>, <code>--split-size</code>)</li>
 <li><strong><code>-r/--registry</code> and <code>-bl/--bloom-dir</code></strong> (<code>plan</code>, <code>apply</code>): the registry is <code>BUILD_DIR</code>, where indices live in place</li>
 <li><strong><code>--on-conflict</code></strong> (<code>plan</code>, <code>apply</code>): builds are never registered, an existing run is kept when complete and rebuilt otherwise</li>
 </ul>
 <h3 id="fixed">Fixed</h3>
 <ul>
+<li><strong><code>compose</code> hard min</strong>: the <code>abundance_min</code> of the JSONL header (2 for unassembled data) is used, instead of always 1</li>
 <li><strong>Python 3.11</strong>: deleting an index used <code>shutil.rmtree(onexc=...)</code>, which exists only from Python 3.12</li>
 <li><strong><code>manage remove</code></strong>: always deleted the index files, ignoring <code>-d/--delete-files</code></li>
 <li><strong><code>query</code></strong>: results were lost when kmindex wrote one file per batch (<code>batch_N/</code>), and a query without match was reported as failed</li>
@@ -5517,7 +5480,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
       <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>

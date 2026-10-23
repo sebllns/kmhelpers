@@ -605,10 +605,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -727,62 +723,6 @@
     
   
     Update an existing index
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorials/ecoli_api/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorials/ecoli_api_advanced/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API (advanced)
   
 
     
@@ -1982,8 +1922,6 @@
       
         
       
-        
-      
     
     
     
@@ -2158,34 +2096,6 @@
     
   
     query_report
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/pipeline/sample_lister/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    sample_lister
   
 
     
@@ -2693,7 +2603,7 @@
 <p>Scan a directory or import a sample list, then run the full <a href="../list/"><code>list</code></a> → <a href="../profile/"><code>profile</code></a> → <a href="../compose/"><code>compose</code></a> pipeline in a single command.</p>
 <div class="admonition abstract">
 <p class="admonition-title">USAGE</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers design -o DESIGN_DIR -n NAME [-S SESSION] [OPTIONS] INPUT
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kmhelpers design -o DESIGN_DIR -n NAME [-s SESSION] [OPTIONS] INPUT
 </code></pre></div>
 <table>
 <thead>
@@ -2716,7 +2626,7 @@
 <td>Name of the created index (required)</td>
 </tr>
 <tr>
-<td><code>-S, --session-id SESSION</code></td>
+<td><code>-s, --session SESSION</code></td>
 <td>Session name: subdirectory of <code>DESIGN_DIR/compose/NAME/</code> and tag appended to index names (default: timestamp <code>YYYYMMDD_HHMMSS</code>)</td>
 </tr>
 <tr>
@@ -2724,7 +2634,7 @@
 <td>K-mer size for counting (default: 25)</td>
 </tr>
 <tr>
-<td><code>-dt, --data-type TEXT</code></td>
+<td><code>--dt, --data-type TEXT</code></td>
 <td>Data type: <code>a</code>/<code>assembled</code> (default) or <code>u</code>/<code>unassembled</code> (raw reads)</td>
 </tr>
 </tbody>
@@ -2733,34 +2643,37 @@
 <div class="admonition abstract">
 <p class="admonition-title">I/O</p>
 <p><strong>Input:</strong> directory to scan, a plain-text / YAML sample list, or a JSONL sample index (<code>.jsonl</code>, in which case the <code>list</code> step is skipped and INPUT is used as-is)<br />
-<strong>Output (pass to <code>build</code>, <code>plan</code> or <code>apply</code>):</strong> <code>DESIGN_DIR/compose/NAME/SESSION/NAME.yaml</code><br />
+<strong>Output (pass to <code>build</code>, <code>plan</code> or <code>apply</code>):</strong> <code>DESIGN_DIR</code> itself, with <code>-s SESSION</code> (default: the last session); the session is <code>DESIGN_DIR/compose/NAME/SESSION/index.yaml</code><br />
 <strong>Intermediate files (reused by later runs, not passed to <code>build</code>):</strong></p>
 <ul>
-<li><code>DESIGN_DIR/list/NAME_samples_TIMESTAMP.jsonl</code> - sample manifest</li>
+<li><code>DESIGN_DIR/list/samples_SESSION.jsonl</code> - sample manifest, read by the session's shards (not copied)</li>
 <li><code>DESIGN_DIR/profile/</code> - span profile (<code>profile.yaml</code>, <code>baseline.csv</code>, <code>groups.png</code>)</li>
-<li><code>DESIGN_DIR/compose/NAME_layout.yaml</code> - layout reused by updates</li>
+<li><code>DESIGN_DIR/compose/NAME/layout.yaml</code> - layout reused by updates</li>
 </ul>
 </div>
 <h2 id="output-structure">Output Structure</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>DESIGN_DIR/
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>DESIGN_DIR/                            -&gt; INPUT of build/plan/apply (-s SESSION)
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>├── list/
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>│   └── NAME_samples_TIMESTAMP.jsonl   intermediate: sample manifest (omitted if INPUT is already a JSONL index)
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>│   └── samples_SESSION.jsonl          sample manifest, read by the session (omitted if INPUT is already a JSONL index)
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>├── profile/
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>│   ├── profile.yaml                   intermediate: span profile (input for compose)
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>│   ├── baseline.csv                   intermediate: natural distribution
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>│   └── groups.png                     distribution plot
 <a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>└── compose/                           COMPOSE_DIR
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    ├── NAME_layout.yaml               intermediate: layout reused by updates
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    └── NAME/
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    └── NAME/                          the index
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>        ├── layout.yaml                state of the index: groups, shard budget, shards, partitions, bitw, sessions
 <a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>        └── SESSION/
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>            └── NAME.yaml              -&gt; INPUT_FILE for build/plan/apply
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>            ├── index.yaml             the session: parameters, size and shards (readable summary)
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>            ├── summary.csv            one row per shard
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>            └── shards/
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>                └── NAME_g&lt;i&gt;_p&lt;k&gt;.yaml  the samples this session adds to shard NAME_g&lt;i&gt;_p&lt;k&gt;
 </code></pre></div>
 <h2 id="next-step">Next Step</h2>
 <p>Pass the index definition file to <a href="../build/"><code>build</code></a>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli<span class="w"> </span>-S<span class="w"> </span>initial
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>kmhelpers<span class="w"> </span>build<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli<span class="w"> </span>-s<span class="w"> </span>initial
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>kmhelpers<span class="w"> </span>build<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build
 </code></pre></div>
-<p>Set <code>-S</code> to get a predictable path. Without it, <code>SESSION</code> is a timestamp: <code>design</code> logs the exact <code>build</code> command at the end of the run, or look up the folder in <code>DESIGN_DIR/compose/NAME/</code>. See <a href="../build/#paths">build - Paths</a> for the full directory layout.</p>
+<p>Set <code>-s</code> to get a predictable path. Without it, <code>SESSION</code> is a timestamp: <code>design</code> logs the exact <code>build</code> command at the end of the run, or look up the folder in <code>DESIGN_DIR/compose/NAME/</code>. See <a href="../build/#paths">build - Paths</a> for the full directory layout.</p>
 <h2 id="advanced-options">Advanced Options</h2>
 <table>
 <thead>
@@ -2772,42 +2685,62 @@
 <tbody>
 <tr>
 <td><code>-g, --group N</code></td>
-<td>Partition Bloom Filters into <code>N</code> storage-balanced groups and overlay on plot (default: 20)</td>
+<td>Partition Bloom Filters into <code>N</code> storage-balanced groups and overlay on plot; 0 chooses <code>N</code> (default: 0), tuned by the <code>KMHELPERS_AUTO_GROUP_*</code> environment variables, see <a href="../profile/#description">profile - Grouping</a></td>
 </tr>
 <tr>
 <td><code>-b, --base FLOAT</code></td>
 <td>Base for span bucket boundaries (default: 1.1)</td>
 </tr>
 <tr>
-<td><code>-si, --shard-size SIZE</code></td>
-<td>Max size of one shard (e.g. <code>10GB</code>); a span is split into independent shards, see <a href="../compose/">compose</a></td>
+<td><code>--sb, --shard-budget INT</code></td>
+<td>Shard budget: a shard of span <code>s</code> holds at most <code>ceil8(budget / base^s)</code> samples (default: <code>2**43</code> for a new index); 0 for no limit, see <a href="../compose/">compose</a></td>
 </tr>
 <tr>
-<td><code>-fp, --false-positive-rate FLOAT</code></td>
+<td><code>--fp, --false-positive-rate FLOAT</code></td>
 <td>Target Bloom-filter false-positive rate (default: 0.25)</td>
 </tr>
 <tr>
-<td><code>-p, --partition-count INT</code></td>
-<td>Desired number of partitions per index, 0 for automatic (default: 0)</td>
+<td><code>-P, --partition-count INT</code></td>
+<td>Hidden. Fix the partition count of every shard for the life of the index: inherited by every later session, no longer adapted to the system limits of <code>plan</code>/<code>build</code>. 0 (default) lets the first <code>plan</code> of each shard size it, see <a href="../compose/#description">compose - Partitioning</a></td>
 </tr>
 <tr>
-<td><code>-nc, --no-count</code></td>
+<td><code>--minim-size INT</code></td>
+<td>Minimizer size (4-15), fixed for the life of the index (default: 10 for a new index, the layout's value on an update)</td>
+</tr>
+<tr>
+<td><code>--ab, --abundance-bits INT</code></td>
+<td>Build an abundance index with <code>N</code> bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0), see <a href="../compose/">compose</a></td>
+</tr>
+<tr>
+<td><code>--nc, --no-count</code></td>
 <td>Skip k-mer counting with ntcard</td>
 </tr>
 <tr>
-<td><code>-lg, --leaf-grouping</code></td>
+<td><code>--kr, --kmer-ratio FLOAT</code></td>
+<td>Multiply the k-mer ratio (k-mer occurrences per counted k-mer) that sizes the build memory (default: 1), see <a href="../compose/#description">compose - Partitioning</a></td>
+</tr>
+<tr>
+<td><code>--ncl, --no-copy-list</code></td>
+<td>With a JSONL INPUT, point the index definition files to it instead of copying it into the compose output folder; the list must then stay in place and unchanged as it is used for building. A list written by <code>design</code> is never copied</td>
+</tr>
+<tr>
+<td><code>--shard-budget-bytes SIZE</code></td>
+<td>Hidden. Cap a shard by its size on disk (e.g. <code>10GB</code>) rather than by <code>--shard-budget</code>: when set, <code>--shard-budget</code> is not used. Cannot be combined with <code>--shard-budget</code>, see <a href="../compose/">compose</a></td>
+</tr>
+<tr>
+<td><code>--lg, --leaf-grouping</code></td>
 <td>Group files by leaf folder; each leaf directory becomes one sample</td>
 </tr>
 <tr>
-<td><code>--paired [REGEX]</code></td>
+<td><code>-p, --paired [REGEX]</code></td>
 <td>Group mate files (R1/R2) of a directory into one sample, see <a href="../list/#description">list</a></td>
 </tr>
 <tr>
-<td><code>-r, --autorename</code></td>
+<td><code>-a, --autorename</code></td>
 <td>Rename duplicate sample IDs by appending a numeric suffix instead of skipping</td>
 </tr>
 <tr>
-<td><code>-ntt, --ntcard-threads INT</code></td>
+<td><code>--ntt, --ntcard-threads INT</code></td>
 <td>Number of threads for ntcard k-mer counting (default: 8)</td>
 </tr>
 </tbody>
@@ -2815,18 +2748,18 @@
 <h2 id="description">Description</h2>
 <p><code>design</code> chains <a href="../list/"><code>list</code></a>, <a href="../profile/"><code>profile</code></a>, and <a href="../compose/"><code>compose</code></a> into a single invocation. It is equivalent to running the three commands in sequence with the intermediate files automatically routed between steps.</p>
 <p><strong>Step 1 - list:</strong> scans <code>INPUT</code> recursively for sequence files (or imports a sample list), counts k-mers with ntcard, and writes a JSONL manifest to <code>DESIGN_DIR/list/</code>. This step is <strong>skipped</strong> if <code>INPUT</code> is already a JSONL sample index (<code>.jsonl</code>); it is used directly as the manifest for the remaining steps.</p>
-<p><strong>Step 2 - profile:</strong> reads k-mer counts from the manifest, assigns each sample to a Bloom-filter span, computes a storage-balanced grouping, and writes <code>profile.yaml</code>, <code>baseline.csv</code>, and <code>groups.png</code> to <code>DESIGN_DIR/profile/</code>. This step is <strong>skipped automatically</strong> if a layout file already exists at <code>DESIGN_DIR/compose/NAME_layout.yaml</code> (re-run scenario).</p>
-<p><strong>Step 3 - compose:</strong> reads the manifest and the profile to generate the index definition file <code>DESIGN_DIR/compose/NAME/SESSION/NAME.yaml</code>.</p>
-<p><strong>Updates</strong> - if the compose layout file already exists from a previous run, the profile step is skipped and the existing layout is used directly. This allows re-running <code>design</code> with a new <code>-S</code> to add samples to an existing index without re-profiling, then building the new session into the same <code>BUILD_DIR</code>. The new session is merged with the existing index at build time, which keeps both versions on disk - see <a href="../build/#updating-an-index"><code>build</code> - Updating an index</a>.</p>
+<p><strong>Step 2 - profile:</strong> reads k-mer counts from the manifest, assigns each sample to a Bloom-filter span, computes a storage-balanced grouping, and writes <code>profile.yaml</code>, <code>baseline.csv</code>, and <code>groups.png</code> to <code>DESIGN_DIR/profile/</code>. This step is <strong>skipped automatically</strong> if a layout file already exists at <code>DESIGN_DIR/compose/NAME/layout.yaml</code> (re-run scenario).</p>
+<p><strong>Step 3 - compose:</strong> reads the manifest and the profile to generate the index definition file <code>DESIGN_DIR/compose/NAME/SESSION/index.yaml</code>.</p>
+<p><strong>Updates</strong> - if the compose layout file already exists from a previous run, the profile step is skipped and the existing layout is used directly. This allows re-running <code>design</code> with a new <code>-s</code> to add samples to an existing index without re-profiling, then building the new session into the same <code>BUILD_DIR</code>. The new session is merged with the existing index at build time, which keeps both versions on disk - see <a href="../build/#updating-an-index"><code>build</code> - Updating an index</a>.</p>
 <p><strong>False-positive rate</strong> - a higher rate reduces Bloom-filter size and disk footprint. At query time the <a href="https://doi.org/10.1007/978-3-030-86692-1_13">findere</a> algorithm compensates by querying <span class="arithmatex">\((k+z)\)</span>-mers, reducing the effective FP rate to <span class="arithmatex">\(p^z\)</span>. Recommended: build with <code>--fp 0.25</code> (default), query with <code>-z 6</code>, giving <span class="arithmatex">\(0.25^6 \approx 0.024\,\%\)</span> effective FP rate.</p>
 <h2 id="examples">Examples</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Full pipeline from a directory, then build</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli<span class="w"> </span>-S<span class="w"> </span>initial
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>kmhelpers<span class="w"> </span>build<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli<span class="w"> </span>-s<span class="w"> </span>initial
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>kmhelpers<span class="w"> </span>build<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="c1"># Add new samples to the same index, then build into the same BUILD_DIR</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>/data/new_sequences<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli<span class="w"> </span>-S<span class="w"> </span>update
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>kmhelpers<span class="w"> </span>build<span class="w"> </span>coli_db/compose/coli/update/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>/data/new_sequences<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli<span class="w"> </span>-s<span class="w"> </span>update
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>kmhelpers<span class="w"> </span>build<span class="w"> </span>coli_db<span class="w"> </span>-s<span class="w"> </span>update<span class="w"> </span>-o<span class="w"> </span>coli_build
 <a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
 <a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="c1"># Skip k-mer counting (if counts are already in the sample list)</span>
 <a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli<span class="w"> </span>--no-count
@@ -2835,16 +2768,19 @@
 <a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli<span class="w"> </span>--leaf-grouping
 <a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>
 <a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="c1"># Custom k-mer size and false-positive rate</span>
-<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli<span class="w"> </span>-k<span class="w"> </span><span class="m">31</span><span class="w"> </span>-fp<span class="w"> </span><span class="m">0</span>.1
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli<span class="w"> </span>-k<span class="w"> </span><span class="m">31</span><span class="w"> </span>--fp<span class="w"> </span><span class="m">0</span>.1
 <a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>
 <a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="c1"># Force a specific partition count</span>
-<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli<span class="w"> </span>-p<span class="w"> </span><span class="m">4</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli<span class="w"> </span>-P<span class="w"> </span><span class="m">4</span>
 <a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>
-<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="c1"># Import from a plain-text file list</span>
-<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>my_files.txt<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="c1"># Abundance index of paired raw reads (4 abundance classes)</span>
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>/data/reads<span class="w"> </span>-o<span class="w"> </span>reads_db<span class="w"> </span>-n<span class="w"> </span>reads<span class="w"> </span>--dt<span class="w"> </span>u<span class="w"> </span>--paired<span class="w"> </span>--ab<span class="w"> </span><span class="m">2</span>
 <a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>
-<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="c1"># Re-use an existing JSONL sample index, skipping the list step</span>
-<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>coli_db/list/coli_samples_20260101_120000.jsonl<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli
+<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="c1"># Import from a plain-text file list</span>
+<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>my_files.txt<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli
+<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>
+<a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="c1"># Re-use an existing JSONL sample index, skipping the list step</span>
+<a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>coli_db/list/samples_20260101_120000.jsonl<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli
 </code></pre></div>
 <h2 id="see-also">See Also</h2>
 <ul>
@@ -2954,7 +2890,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>

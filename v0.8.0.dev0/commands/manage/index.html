@@ -605,10 +605,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -727,62 +723,6 @@
     
   
     Update an existing index
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorials/ecoli_api/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorials/ecoli_api_advanced/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API (advanced)
   
 
     
@@ -2032,8 +1972,6 @@
       
         
       
-        
-      
     
     
     
@@ -2208,34 +2146,6 @@
     
   
     query_report
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/pipeline/sample_lister/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    sample_lister
   
 
     
@@ -2873,8 +2783,8 @@
 <td>Directory containing existing kmtricks indices to register</td>
 </tr>
 <tr>
-<td><code>-n, --index-ids TEXT</code></td>
-<td>Specific index IDs to register (default: all found)</td>
+<td><code>--sh, --shard TEXT</code></td>
+<td>Shard(s) to register (default: all found)</td>
 </tr>
 </tbody>
 </table>
@@ -2892,8 +2802,8 @@
 <td>Directory containing kmtricks indices to add (required)</td>
 </tr>
 <tr>
-<td><code>-n, --index-ids TEXT</code></td>
-<td>Specific index IDs to register (default: all found)</td>
+<td><code>--sh, --shard TEXT</code></td>
+<td>Shard(s) to register (default: all found)</td>
 </tr>
 </tbody>
 </table>
@@ -2907,8 +2817,8 @@
 </thead>
 <tbody>
 <tr>
-<td><code>-n, --index-ids TEXT</code></td>
-<td>Check only these index IDs (repeatable, default: all); fails if one is not registered</td>
+<td><code>--sh, --shard TEXT</code></td>
+<td>Check only these shards (repeatable, default: all); fails if one is not registered</td>
 </tr>
 <tr>
 <td><code>-v, --verbose</code></td>
@@ -2926,8 +2836,8 @@
 </thead>
 <tbody>
 <tr>
-<td><code>-n, --index-id TEXT</code></td>
-<td>Index ID to show information for (required)</td>
+<td><code>--sh, --shard TEXT</code></td>
+<td>Shard to show information for (required)</td>
 </tr>
 <tr>
 <td><code>--json</code></td>
@@ -2945,8 +2855,8 @@
 </thead>
 <tbody>
 <tr>
-<td><code>-n, --index-ids TEXT</code></td>
-<td>Index ID(s) to remove (required, repeatable)</td>
+<td><code>--sh, --shard TEXT</code></td>
+<td>Shard(s) to remove (required, repeatable)</td>
 </tr>
 <tr>
 <td><code>-d, --delete-files</code></td>
@@ -2999,8 +2909,8 @@
 <td>Directory containing the moved index files (required)</td>
 </tr>
 <tr>
-<td><code>-n, --index-id TEXT</code></td>
-<td>Index ID to relink (default: all registered indices)</td>
+<td><code>--sh, --shard TEXT</code></td>
+<td>Shard to relink (default: all registered shards)</td>
 </tr>
 </tbody>
 </table>
@@ -3019,22 +2929,22 @@
 <a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>add<span class="w"> </span>-i<span class="w"> </span>/data/new_indices
 <a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>
 <a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="c1"># Show info for a specific index</span>
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>info<span class="w"> </span>-n<span class="w"> </span>my_index
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>info<span class="w"> </span>--sh<span class="w"> </span>my_index
 <a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>
 <a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="c1"># Show info as JSON</span>
-<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>info<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>--json
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>info<span class="w"> </span>--sh<span class="w"> </span>my_index<span class="w"> </span>--json
 <a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>
 <a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="c1"># Check consistency</span>
 <a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>check
 <a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>
 <a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="c1"># Remove an index (keep files)</span>
-<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>remove<span class="w"> </span>-n<span class="w"> </span>my_index
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>remove<span class="w"> </span>--sh<span class="w"> </span>my_index
 <a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>
 <a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="c1"># Remove an index and delete files from disk</span>
-<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>remove<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>-d
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>remove<span class="w"> </span>--sh<span class="w"> </span>my_index<span class="w"> </span>-d
 <a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>
 <a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="c1"># Remove multiple indices without confirmation</span>
-<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>remove<span class="w"> </span>-n<span class="w"> </span>idx1<span class="w"> </span>-n<span class="w"> </span>idx2<span class="w"> </span>-y
+<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>remove<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>--sh<span class="w"> </span>idx2<span class="w"> </span>-y
 <a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a>
 <a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a><span class="c1"># Rename an index</span>
 <a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>rename<span class="w"> </span>-f<span class="w"> </span>old_name<span class="w"> </span>-t<span class="w"> </span>new_name
@@ -3043,7 +2953,7 @@
 <a id="__codelineno-1-36" name="__codelineno-1-36" href="#__codelineno-1-36"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>relink<span class="w"> </span>-i<span class="w"> </span>/new/location
 <a id="__codelineno-1-37" name="__codelineno-1-37" href="#__codelineno-1-37"></a>
 <a id="__codelineno-1-38" name="__codelineno-1-38" href="#__codelineno-1-38"></a><span class="c1"># Relink a specific index</span>
-<a id="__codelineno-1-39" name="__codelineno-1-39" href="#__codelineno-1-39"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>relink<span class="w"> </span>-i<span class="w"> </span>/new/location<span class="w"> </span>-n<span class="w"> </span>my_index
+<a id="__codelineno-1-39" name="__codelineno-1-39" href="#__codelineno-1-39"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>relink<span class="w"> </span>-i<span class="w"> </span>/new/location<span class="w"> </span>--sh<span class="w"> </span>my_index
 </code></pre></div>
 
 
@@ -3146,7 +3056,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>

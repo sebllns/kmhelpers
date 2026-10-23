@@ -1,3 +1,9 @@
+/* Release banner (overrides/main.html) */
+.md-banner a {
+  color: inherit;
+  text-decoration: underline;
+}
+
 .md-grid {
   max-width: 1440px;
 }

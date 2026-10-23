@@ -607,10 +607,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -765,10 +761,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-2-design-the-index-design" class="md-nav__link">
+  <a href="#step-2-create-a-file-list" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 2 - Design the index (design)
+        Step 2 - Create a file list
       
     </span>
   </a>
@@ -776,10 +772,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-3-build-the-index-build" class="md-nav__link">
+  <a href="#step-3-design-the-index-design" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 3 - Build the index (build)
+        Step 3 - Design the index (design)
       
     </span>
   </a>
@@ -787,10 +783,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-4-query-the-index-query" class="md-nav__link">
+  <a href="#step-4-build-the-index-build" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 4 - Query the index (query)
+        Step 4 - Build the index (build)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-5-query-the-index-query" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5 - Query the index (query)
       
     </span>
   </a>
@@ -871,62 +878,6 @@
     
   
     Update an existing index
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ecoli_api/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../ecoli_api_advanced/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API (advanced)
   
 
     
@@ -1987,8 +1938,6 @@
       
         
       
-        
-      
     
     
     
@@ -2163,34 +2112,6 @@
     
   
     query_report
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/pipeline/sample_lister/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    sample_lister
   
 
     
@@ -2570,10 +2491,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-2-design-the-index-design" class="md-nav__link">
+  <a href="#step-2-create-a-file-list" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 2 - Design the index (design)
+        Step 2 - Create a file list
       
     </span>
   </a>
@@ -2581,10 +2502,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-3-build-the-index-build" class="md-nav__link">
+  <a href="#step-3-design-the-index-design" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 3 - Build the index (build)
+        Step 3 - Design the index (design)
       
     </span>
   </a>
@@ -2592,10 +2513,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-4-query-the-index-query" class="md-nav__link">
+  <a href="#step-4-build-the-index-build" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 4 - Query the index (query)
+        Step 4 - Build the index (build)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-5-query-the-index-query" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5 - Query the index (query)
       
     </span>
   </a>
@@ -2730,18 +2662,38 @@ three commands:<br />
 <strong>Output:</strong> <code>coli_dataset/</code> </p>
 </details>
 <hr />
-<h2 id="step-2-design-the-index-design">Step 2 - Design the index (<a href="../../commands/design/"><code>design</code></a>)</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>coli_dataset/<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>-o<span class="w"> </span>coli_db/<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span>-n<span class="w"> </span>coli<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span>-S<span class="w"> </span>initial<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span>-k<span class="w"> </span><span class="m">25</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span>-b<span class="w"> </span><span class="m">1</span>.1<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span>-g<span class="w"> </span><span class="m">2</span>
+<h2 id="step-2-create-a-file-list">Step 2 - Create a file list</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>cat<span class="w"> </span>&gt;<span class="w"> </span>coli_10.txt<span class="w"> </span><span class="s">&lt;&lt; 'EOF'</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="s">coli_dataset/GCA_000780515.1_ASM78051v1_genomic.fna.gz</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="s">coli_dataset/GCA_001076125.1_ASM107612v1_genomic.fna.gz</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="s">coli_dataset/GCA_001417575.1_ASM141757v1_genomic.fna.gz</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="s">coli_dataset/GCA_000944435.1_Ec57A_E8C1_MIRA_assembly_genomic.fna.gz</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="s">coli_dataset/GCA_001075925.1_ASM107592v1_genomic.fna.gz</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="s">coli_dataset/GCA_000936715.1_E8C1_assembly_genomic.fna.gz</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="s">coli_dataset/GCA_000939215.1_Ec57A_A7_MIRA_assembly_genomic.fna.gz</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="s">coli_dataset/GCA_001413795.1_ASM141379v1_genomic.fna.gz</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="s">coli_dataset/GCA_001373195.1_57A_A7_assembly_genomic.fna.gz</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="s">coli_dataset/GCA_000938575.1_D1C4_assembly_genomic.fna.gz</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="s">EOF</span>
 </code></pre></div>
 <details class="abstract">
 <summary>I/O</summary>
-<p><strong>Input:</strong> <code>coli_dataset/</code>, scanned for sequence files (one sample per file)<br />
+<p><strong>Input:</strong> paths to the 10 <code>.fna.gz</code> files (written manually)<br />
+<strong>Output:</strong> <code>coli_10.txt</code></p>
+</details>
+<hr />
+<h2 id="step-3-design-the-index-design">Step 3 - Design the index (<a href="../../commands/design/"><code>design</code></a>)</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>coli_10.txt<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span>-o<span class="w"> </span>coli_db/<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span>-n<span class="w"> </span>coli<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span>-s<span class="w"> </span>initial<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span>-k<span class="w"> </span><span class="m">25</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span>-b<span class="w"> </span><span class="m">1</span>.1<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span>-g<span class="w"> </span><span class="m">2</span>
+</code></pre></div>
+<details class="abstract">
+<summary>I/O</summary>
+<p><strong>Input:</strong> <code>coli_10.txt</code><br />
 <strong>Output:</strong> <code>coli_db/list/</code> (JSONL), <code>coli_db/profile/</code> (profile.yaml, groups.png),
 <code>coli_db/compose/</code> (index definitions)</p>
 </details>
@@ -2749,21 +2701,15 @@ three commands:<br />
 <summary>INFO</summary>
 <p><code>design</code> runs <a href="../../commands/list/"><code>list</code></a> → <a href="../../commands/profile/"><code>profile</code></a> → <a href="../../commands/compose/"><code>compose</code></a> in a single command.<br />
 For a detailed walkthrough of each sub-command, see
-<a href="../ecoli_steps/#step-21-scan-samples-and-count-k-mers-list">Step-by-step: list → profile → compose</a>.</p>
-</details>
-<details class="question">
-<summary>Why scan a directory rather than pass a sample list?</summary>
-<p>A directory scan names each sample after its file and counts its k-mers.
-A sample list lets you set names, reuse k-mer counts, group files freely and
-mix locations - see <a href="../../commands/list/#when-to-use-a-sample-list">When to use a sample list</a>.</p>
+<a href="../ecoli_steps/#step-31-scan-samples-and-count-k-mers-list">Step-by-step: list → profile → compose</a>.</p>
 </details>
 <hr />
-<h2 id="step-3-build-the-index-build">Step 3 - Build the index (<a href="../../commands/build/"><code>build</code></a>)</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kmhelpers<span class="w"> </span>build<span class="w"> </span>coli_db/compose/coli/initial/coli.yaml<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--show-progress
+<h2 id="step-4-build-the-index-build">Step 4 - Build the index (<a href="../../commands/build/"><code>build</code></a>)</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>kmhelpers<span class="w"> </span>build<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--show-progress
 </code></pre></div>
 <details class="abstract">
 <summary>I/O</summary>
-<p><strong>Input:</strong> <code>coli_db/compose/coli/initial/coli.yaml</code><br />
+<p><strong>Input:</strong> <code>coli_db/compose/coli/initial/index.yaml</code><br />
 <strong>Output:</strong> <code>coli_build/index.json</code> + one folder per sub-index, <code>coli_build/coli_g0/</code> and <code>coli_build/coli_g1/</code> - ready-to-query index</p>
 </details>
 <details class="info">
@@ -2771,16 +2717,16 @@ mix locations - see <a href="../../commands/list/#when-to-use-a-sample-list">Whe
 <p><code>build</code> runs <a href="../../commands/plan/"><code>plan</code></a> → <a href="../../commands/apply/"><code>apply</code></a> in a single command, validating all paths before
 starting the build.<br />
 For a detailed walkthrough, or to run <code>plan</code> first and apply later with <code>bash</code>
-or <code>apply</code>, see <a href="../ecoli_steps/#step-31-preview-the-build-plan-plan">Step-by-step: plan → apply</a>.</p>
+or <code>apply</code>, see <a href="../ecoli_steps/#step-41-preview-the-build-plan-plan">Step-by-step: plan → apply</a>.</p>
 </details>
 <hr />
-<h2 id="step-4-query-the-index-query">Step 4 - Query the index (<a href="../../commands/query/"><code>query</code></a>)</h2>
+<h2 id="step-5-query-the-index-query">Step 5 - Query the index (<a href="../../commands/query/"><code>query</code></a>)</h2>
 <p>Extract the first contig of the first sample as a query sequence:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>zcat<span class="w"> </span>coli_dataset/GCA_000780515.1_ASM78051v1_genomic.fna.gz<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">'/^&gt;/{n++} n==2{exit} {print}'</span><span class="w"> </span>&gt;<span class="w"> </span>query.fa
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>zcat<span class="w"> </span>coli_dataset/GCA_000780515.1_ASM78051v1_genomic.fna.gz<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">'/^&gt;/{n++} n==2{exit} {print}'</span><span class="w"> </span>&gt;<span class="w"> </span>query.fa
 </code></pre></div>
 <p>Then query the index:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>coli_build/<span class="w"> </span>-o<span class="w"> </span>results/<span class="w"> </span>query.fa
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>coli_build/<span class="w"> </span>-o<span class="w"> </span>results/<span class="w"> </span>query.fa
 </code></pre></div>
 <details class="abstract">
 <summary>I/O</summary>
@@ -2791,11 +2737,11 @@ or <code>apply</code>, see <a href="../ecoli_steps/#step-31-preview-the-build-pl
 <summary>RESULT</summary>
 <p><code>query</code> merges the results of all sub-indices into <code>results/query/results.tsv</code>,
 one row per query sequence and one column per matching sample:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>seq GCA_000780515_1_ASM78051v1_genomic
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>JSPL01000060.1  1.000
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>seq GCA_000780515_1_ASM78051v1_genomic_fna
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>JSPL01000060.1  1.000
 </code></pre></div>
 <p>Each value is the fraction of query k-mers found in that sample. Samples
-scoring below the threshold (<code>-R</code>, default 0.05) are omitted. Use <code>-f</code> to
+scoring below the threshold (<code>--thr</code>, default 0.05) are omitted. Use <code>-f</code> to
 select another output format (<code>json</code>, <code>yaml</code>, <code>md</code>, <code>html</code>).
 <code>GCA_000780515</code> scores <strong>1.0</strong> -- a perfect match, as expected since <code>query.fa</code> was
 extracted from that assembly.</p>
@@ -2804,7 +2750,6 @@ extracted from that assembly.</p>
 <h2 id="next-steps">Next steps</h2>
 <p>To add samples to this index later without rebuilding it from scratch, see
 <a href="../ecoli_update/">Update an existing index</a>.</p>
-<p>To run the same pipeline from Python, see <a href="../ecoli_api/">Python API</a>.</p>
 <hr />
 <h2 id="references">References</h2>
 <ul>
@@ -2914,7 +2859,7 @@ extracted from that assembly.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>

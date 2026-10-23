@@ -605,10 +605,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -727,62 +723,6 @@
     
   
     Update an existing index
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorials/ecoli_api/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorials/ecoli_api_advanced/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API (advanced)
   
 
     
@@ -1971,8 +1911,6 @@
       
         
       
-        
-      
     
     
     
@@ -2147,34 +2085,6 @@
     
   
     query_report
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/pipeline/sample_lister/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    sample_lister
   
 
     
@@ -2691,7 +2601,7 @@
 </tr>
 <tr>
 <td><code>-g, --group N</code></td>
-<td>Partition Bloom Filters into <code>N</code> storage-balanced groups and overlay on plot (default: 20)</td>
+<td>Partition Bloom Filters into <code>N</code> storage-balanced groups and overlay on plot; 0 chooses <code>N</code> (default: 0), see <a href="#description">profile - Grouping</a></td>
 </tr>
 <tr>
 <td><code>-b, --base FLOAT</code></td>
@@ -2715,8 +2625,20 @@
 </thead>
 <tbody>
 <tr>
-<td><code>-fp, --false-positive-rate FLOAT</code></td>
+<td><code>--fp, --false-positive-rate FLOAT</code></td>
 <td>Target Bloom-filter false-positive rate (default: 0.25)</td>
+</tr>
+<tr>
+<td><code>--auto-group-samples N</code></td>
+<td>With <code>-g 0</code>: start from one group per <code>N</code> samples (default: 1000, env: <code>KMHELPERS_AUTO_GROUP_SAMPLES</code>)</td>
+</tr>
+<tr>
+<td><code>--auto-group-max N</code></td>
+<td>With <code>-g 0</code>: at most <code>N</code> groups (default: 20, env: <code>KMHELPERS_AUTO_GROUP_MAX</code>)</td>
+</tr>
+<tr>
+<td><code>--auto-group-min-gain F</code></td>
+<td>With <code>-g 0</code>: storage fraction a further group must save to be added (default: 0.2, env: <code>KMHELPERS_AUTO_GROUP_MIN_GAIN</code>)</td>
 </tr>
 </tbody>
 </table>
@@ -2763,18 +2685,37 @@ Recommended: build with <code>--fp 0.25</code> (default), query with <code>-z 6<
 <p><strong>Grouping</strong> - use <code>-g N</code> to merge spans into <code>N</code> storage-balanced sub-indices. Fewer
 sub-indices reduce the number of partition files opened per query. The grouping is
 overlaid on the distribution plot for visual inspection.</p>
+<p>With <code>-g 0</code> (default), <code>profile</code> chooses <code>N</code>:</p>
+<ol>
+<li>it starts from one group per 1000 samples (at least 1), so a group holds at most about
+   1000 samples;</li>
+<li>it then adds one group at a time while the new group reduces the total storage by at
+   least 20%, and stops at the first one that does not;</li>
+<li>it never goes above 20 groups, nor above the number of spans.</li>
+</ol>
+<p>Each group is one more sub-index to build, query and update, so a narrow distribution keeps
+few groups whatever its size. For example, 169 samples whose k-mer counts spread over two
+orders of magnitude start from 1 group (1.6 GB); a 2nd one saves 42% (0.95 GB), a 3rd only 18%,
+so they get 2 groups.</p>
+<p><code>--auto-group-samples</code>, <code>--auto-group-max</code> and <code>--auto-group-min-gain</code> (or their
+<code>KMHELPERS_AUTO_GROUP_*</code> environment variables) change these values. The chosen count is
+logged (<code>Auto groups: N (… start …, max …, min gain …)</code>), and recorded with the values used
+under <code>auto_group</code> in <code>profile.yaml</code>.</p>
 <h2 id="examples">Examples</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Profile with default settings</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>profile<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./profile_output
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Use a stricter false-positive rate</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>profile<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./profile_output<span class="w"> </span>-fp<span class="w"> </span><span class="m">0</span>.05
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>kmhelpers<span class="w"> </span>profile<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./profile_output<span class="w"> </span>--fp<span class="w"> </span><span class="m">0</span>.05
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Force a specific number of span groups</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>profile<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./profile_output<span class="w"> </span>-g<span class="w"> </span><span class="m">3</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Let profile choose the number of span groups (default)</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>kmhelpers<span class="w"> </span>profile<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./profile_output<span class="w"> </span>-g<span class="w"> </span><span class="m">0</span>
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Use a finer bucket granularity</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>kmhelpers<span class="w"> </span>profile<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./profile_output<span class="w"> </span>-b<span class="w"> </span><span class="m">1</span>.5
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Force a specific number of span groups</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>kmhelpers<span class="w"> </span>profile<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./profile_output<span class="w"> </span>-g<span class="w"> </span><span class="m">3</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Use a finer bucket granularity</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>kmhelpers<span class="w"> </span>profile<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./profile_output<span class="w"> </span>-b<span class="w"> </span><span class="m">1</span>.5
 </code></pre></div>
 <h2 id="see-also">See Also</h2>
 <ul>
@@ -2883,7 +2824,7 @@ overlaid on the distribution plot for visual inspection.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>

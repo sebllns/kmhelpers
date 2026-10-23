@@ -13,7 +13,7 @@
       
       
       
-        <link rel="prev" href="../tutorials/ecoli_api_advanced/">
+        <link rel="prev" href="../tutorials/ecoli_update/">
       
       
         <link rel="next" href="design/">
@@ -605,10 +605,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -727,62 +723,6 @@
     
   
     Update an existing index
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../tutorials/ecoli_api/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../tutorials/ecoli_api_advanced/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Python API (advanced)
   
 
     
@@ -1858,8 +1798,6 @@
       
         
       
-        
-      
     
     
     
@@ -2034,34 +1972,6 @@
     
   
     query_report
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../api/pipeline/sample_lister/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    sample_lister
   
 
     
@@ -2456,6 +2366,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#option-names" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option names
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2549,7 +2470,7 @@
 </tr>
 <tr>
 <td><a href="compress/"><code>compress</code></a></td>
-<td>Compress an index managed in a registry <em>(under development)</em></td>
+<td>Compress the shards of a registry <em>(under development)</em></td>
 </tr>
 </tbody>
 </table>
@@ -2628,19 +2549,26 @@
 <p>These options are available on the root <code>kmhelpers</code> command and apply to all subcommands:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>-C, --config FILE         YAML config file for default values  [env var:
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>                          KMHELPERS_CONFIG]
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>-v, --verbose             Increase verbosity: -v for DEBUG
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>-q, --quiet               Decrease verbosity: -q for WARNING, -qq for ERROR,
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                          -qqq for CRITICAL
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>-NF, --no-log-formatting  Disable log formatter  [env var:
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>-V, --verbose             Increase verbosity: -V for DEBUG
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>-Q, --quiet               Decrease verbosity: -Q for WARNING, -QQ for ERROR,
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                          -QQQ for CRITICAL
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>--NF, --no-log-formatting  Disable log formatter  [env var:
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>                          KMHELPERS_NO_LOG_FORMATTING]
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>-L, --log-file FILE       Path to log file (logs will be written in addition
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>                          to console output)  [env var: KMHELPERS_LOG_FILE]
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>--chdir DIRECTORY         Change to directory before initialization  [env
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>                          var: KMHELPERS_RUN_DIR]
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>-y, --yes                 Automatically answer yes to all confirmation
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>-Y, --yes                 Automatically answer yes to all confirmation
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>                          prompts.  [env var: KMHELPERS_SKIP_CONFIRMATION]
 </code></pre></div>
-<p>Also honors <code>KMHELPERS_LOG_LEVEL</code>: default log level 0-4 (0=CRITICAL, 4=DEBUG) before <code>-v</code>/<code>-q</code> adjustments. Default: 3 (INFO).</p>
+<p>Also honors <code>KMHELPERS_LOG_LEVEL</code>: default log level 0-4 (0=CRITICAL, 4=DEBUG) before <code>-V</code>/<code>-Q</code> adjustments. Default: 3 (INFO).</p>
+<h2 id="option-names">Option names</h2>
+<ul>
+<li>Global options, given before the command, have uppercase short flags (<code>-V</code>, <code>-Q</code>, <code>-Y</code>, <code>-C</code>, <code>-L</code>).</li>
+<li>Command options are lowercase. When a letter is already taken in a command, the option gets a short double-dash name instead (<code>query --thr, --threshold</code>, <code>plan --off, --offline</code>).</li>
+<li>Long names never change.</li>
+<li>Every command takes <code>-h, --help</code>, and <code>-H, --HELP</code> to also list its hidden (expert) options.</li>
+</ul>
 
 
 
@@ -2678,7 +2606,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../tutorials/ecoli_api_advanced/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Python API (advanced)">
+          <a href="../tutorials/ecoli_update/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Update an existing index">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2688,7 +2616,7 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Python API (advanced)
+                Update an existing index
               </div>
             </div>
           </a>
@@ -2742,7 +2670,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
       <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
