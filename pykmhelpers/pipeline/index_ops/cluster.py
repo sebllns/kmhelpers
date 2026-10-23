@@ -32,6 +32,7 @@ import yaml
 
 from pykmhelpers.pipeline.index_ops.plan_file import MERGE
 
+# Cluster types, each with the writer of its submission files (WRITERS, below)
 SCHEDULERS = ("slurm",)
 JOB_KINDS = ("build", "merge", "check")
 # Keys a job kind may set, also accepted at the top level as defaults
@@ -63,8 +64,7 @@ def load_cluster(path: str) -> dict:
     unknown = set(data) - TOP_KEYS
     if unknown:
         raise ValueError(f"{path}: unknown key(s) {', '.join(sorted(unknown))}")
-    if data.get("type") not in SCHEDULERS:
-        raise ValueError(f"{path}: 'type' must be one of {', '.join(SCHEDULERS)}")
+    check_type(data.get("type"), path)
     jobs = data.get("jobs") or {}
     unknown = set(jobs) - set(JOB_KINDS)
     if unknown:
@@ -126,6 +126,25 @@ def _sbatch_lines(job: dict, name: Optional[str], output: str) -> list[str]:
     lines += [f"#SBATCH -c {job['cpus']}", f"#SBATCH --mem={job['mem']}", f"#SBATCH -o {output}"]
     lines += [f"#SBATCH {opt}" for opt in job["extra"]]
     return lines
+
+
+def check_type(cluster_type, path: str = "cluster file") -> str:
+    """Refuse a cluster type that has no writer; return it."""
+    if not cluster_type:
+        raise ValueError(f"{path}: 'type' is required (supported: {', '.join(SCHEDULERS)})")
+    if cluster_type not in SCHEDULERS:
+        raise ValueError(
+            f"{path}: cluster type '{cluster_type}' is not supported "
+            f"(supported: {', '.join(SCHEDULERS)})"
+        )
+    return cluster_type
+
+
+def write_submission(plan: dict, cluster: dict, assets_dir: str) -> list[str]:
+    """Write the submission files of ``plan`` for its cluster type, to
+    ``assets_dir/<type>/``; return their paths."""
+    cluster_type = check_type(cluster.get("type"), cluster.get("source", "cluster file"))
+    return WRITERS[cluster_type](plan, cluster, os.path.join(assets_dir, cluster_type))
 
 
 def write_slurm(plan: dict, cluster: dict, slurm_dir: str) -> list[str]:
@@ -246,3 +265,7 @@ else
     echo "nothing pending"
 fi
 """
+
+
+WRITERS = {"slurm": write_slurm}
+assert set(WRITERS) == set(SCHEDULERS)

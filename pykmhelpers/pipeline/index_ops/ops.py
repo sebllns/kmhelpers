@@ -9,7 +9,7 @@ from pykmhelpers.core.log import Log
 from pykmhelpers.core.utils import summarize_names
 from pykmhelpers.operations.builder import IndexBuilder
 from pykmhelpers.pipeline.index_db import IndexDefinition, IndexDefinitionTools
-from pykmhelpers.pipeline.index_ops.cluster import write_slurm
+from pykmhelpers.pipeline.index_ops.cluster import check_type, write_submission
 from pykmhelpers.pipeline.index_ops.executor import IndexExecutor, validate_definition
 from pykmhelpers.pipeline.index_ops.layout import LayoutStore
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths, check_index_name
@@ -143,6 +143,9 @@ class IndexOps:
         if self._paths is None or self._input is None:
             logger.warning("Nothing planned: no plan written")
             return None
+        if cluster:
+            # before anything is written: a plan without its submission files is useless
+            check_type(cluster.get("type"), cluster.get("source", "cluster file"))
         self._script.write(self._paths.assets)
         groups = set(self._script.groups)
         per_job = self.config.chunks_per_job
@@ -170,11 +173,12 @@ class IndexOps:
             plan["cluster"] = cluster
         write_plan(self._paths.plan, plan)
         if cluster:
-            for path in write_slurm(plan, cluster, os.path.join(self._paths.assets, "slurm")):
+            written = write_submission(plan, cluster, self._paths.assets)
+            for path in written:
                 logger.debug(f"Written {path}")
-            logger.info(
-                f"Submit the jobs with: bash {os.path.join(self._paths.assets, 'slurm', 'submit.sh')}"
-            )
+            submit = next((p for p in written if p.endswith("submit.sh")), None)
+            if submit:
+                logger.info(f"Submit the jobs with: bash {submit}")
         return self._paths.plan
 
     def run(

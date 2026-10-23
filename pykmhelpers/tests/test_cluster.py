@@ -14,6 +14,7 @@ from pykmhelpers.pipeline.index_ops.cluster import (
     load_cluster,
     mem_bytes,
     write_slurm,
+    write_submission,
 )
 from pykmhelpers.pipeline.index_ops.plan_file import job_names
 
@@ -62,7 +63,8 @@ class TestLoadCluster(ClusterCase):
     def test_errors(self):
         for data, msg in [
             ({**CLUSTER, "nope": 1}, "unknown key"),
-            ({**CLUSTER, "type": "pbs"}, "'type'"),
+            ({**CLUSTER, "type": "pbs"}, "cluster type 'pbs' is not supported \\(supported: slurm\\)"),
+            ({k: v for k, v in CLUSTER.items() if k != "type"}, "'type' is required"),
             ({**CLUSTER, "jobs": {"build": {"cpus": 1}}}, "needs cpus and mem"),
             ({**CLUSTER, "jobs": {**CLUSTER["jobs"], "other": {}}}, "unknown job kind"),
             ({**CLUSTER, "limits": {"ram": 1}}, "unknown limit"),
@@ -121,6 +123,15 @@ class TestWriteSlurm(ClusterCase):
         self.assertIn("--pending", submit)
         for path in out.glob("*.s*"):
             subprocess.run(["bash", "-n", str(path)], check=True)
+
+    def test_submission_files_follow_the_type(self):
+        cluster = self.load(CLUSTER)
+        written = write_submission(self.plan(3), cluster, str(self.tmp / "assets"))
+        self.assertTrue(written)
+        self.assertTrue(all(Path(p).parent == self.tmp / "assets" / "slurm" for p in written))
+        with self.assertRaisesRegex(ValueError, "'pbs' is not supported"):
+            write_submission(self.plan(3), {**cluster, "type": "pbs"}, str(self.tmp / "x"))
+        self.assertFalse((self.tmp / "x").exists())
 
     def test_whole_shard_jobs_have_no_merge_job(self):
         out = self.write(0)

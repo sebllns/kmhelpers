@@ -98,7 +98,7 @@ A job is what `apply --task <job>` and a SLURM array task run. With `--chunks-pe
 
 ### Cluster
 
-`--cluster FILE` sizes the plan from the resources of the jobs that will run it, and writes the files submitting them. Only `type: slurm` for now.
+`--cluster FILE` sizes the plan from the resources of the jobs that will run it, and writes the files submitting them, to `BUILD_DIR/assets/SESSION/<type>/`. `type` is required and selects the scheduler: only `slurm` for now; another type is refused before anything is planned or written.
 
 ```yaml
 type: slurm
