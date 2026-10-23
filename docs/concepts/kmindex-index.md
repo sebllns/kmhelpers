@@ -82,21 +82,26 @@ index: an update replaces its content, not its path.
 
 ## A query
 
+`kmhelpers query` wraps `kmindex query`: it prepares the query files, runs kmindex on the
+index, then gathers its results into tables.
+
 ```mermaid
 sequenceDiagram
     actor U as you
     participant Q as kmhelpers query
+    participant K as kmindex query
     participant S as each shard, in turn
-    participant P as its partitions
     U->>Q: query.fa, -r coli_build/
-    Q->>Q: split each sequence into k-mers (and (k+z)-mers)
+    Q->>Q: find the FASTA/FASTQ files, decompress bz2, xz, zst (kmindex reads gzip only)
+    Q->>K: the sequences, the index, -z, --threshold
+    K->>K: split each sequence into k-mers (and (k+z)-mers)
     loop every shard
-        Q->>S: look up the k-mers
-        S->>P: read only the partitions of their minimizers
-        P-->>S: bits of every sample of the shard
-        S-->>Q: score per sample
+        K->>S: look up the k-mers
+        S-->>K: bits of every sample, read from the partitions of their minimizers only
+        K->>K: score per sample
     end
-    Q-->>U: results/: one row per sequence, one column per sample
+    K-->>Q: one result file per shard
+    Q-->>U: results/: one table per query (one row per sequence, one column per sample), statistics
 ```
 
 Query time grows with the number of shards (each is read in turn), with the number of
