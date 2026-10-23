@@ -32,7 +32,10 @@ Validate paths then build k-mer indices from an index definition file in a singl
 | `--ncp, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
 | `--keep-previous` | Keep the replaced version of an updated index in `BUILD_DIR/work/SESSION/previous/` instead of deleting it |
 | `--sp, --show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
-| `--notify EMAIL` | Send email notification on exit (requires sendmail), with the log and the apply report attached |
+| `--cpj, --chunks-per-job INT` | Chunks of a shard one job builds (see [plan - Jobs](plan.md#jobs)) |
+| `--hpc, --cluster FILE` | Build on a cluster: plan for the jobs of `FILE`, submit them, and exit (see [On a cluster](#on-a-cluster)) |
+| `--notify EMAIL` | Send email notifications (requires sendmail), see [Notifications](#notifications) |
+| `--notify-level global\|shard` | `global` (default): one mail at the end of the build; `shard`: also one mail per shard when it ends |
 
 ## Paths
 
@@ -88,7 +91,44 @@ Building a session again resumes it: complete kmtricks runs are kept, incomplete
 
 **Filtering** - `build` always processes every shard of the session. Use [`plan`](plan.md) with `--shard` (names or glob patterns), then [`apply`](apply.md) (`--task`), to build a subset or to spread the jobs over several nodes.
 
-**Notifications** - use `--notify` to receive an email when the build exits (requires `sendmail`). The notification is sent on both success and failure, including on `SIGTERM`, with the log file and the apply [report](#report) attached (the report so far, when the job was stopped).
+### On a cluster
+
+```bash
+kmhelpers build coli_db -o coli_build/ --hpc cluster.yaml [--chunks-per-job 4] [--notify you@example.com]
+kmhelpers apply coli_db -o coli_build/ --status          # where it stands, any time
+```
+
+With `--hpc FILE` (see [plan - Cluster](plan.md#cluster)), `build` plans for the jobs of `FILE`, runs the generated `slurm/submit.sh`, and exits: the SLURM jobs build the indices. Nothing is submitted when the plan is `FAILED` or `PARTIAL`. The jobs are:
+
+1. the **build array**: one task per build job (a shard, or `--chunks-per-job` chunks of it);
+2. one **merge** job per shard, after the array tasks of that shard;
+3. a **finish** job, after every job, successful or not: it checks the registry when everything is built, writes `progress.yaml`, and sends the final mail.
+
+A failed job cancels the jobs waiting on it (`--kill-on-invalid-dep=yes`), so the finish job always runs. Run the same `build` command again (or `slurm/submit.sh`) to resubmit what is not done: finished work is kept, and a job still queued or running is not submitted twice.
+
+**Progress** - `apply --status` prints, per shard, the status of each kmtricks run and merge, and writes it to `BUILD_DIR/assets/SESSION/progress.yaml` (also rewritten by every job, after each step):
+
+```yaml
+idx_g0:
+  idx_g0_initial_chunk0: SUCCESS
+  idx_g0_initial_chunk1: FAILED (log: logs/idx_g0/idx_g0_initial_chunk1.log, idx_g0_initial_chunk1.sh failed (exit 1): ...)
+  idx_g0_initial_chunk2: RUNNING (job 18001_2, node12, since 10:02)
+  idx_g0_initial_chunk3: PENDING (job 18001_3)
+  merge: PENDING (job 18002)
+```
+
+See [apply - Progress](apply.md#progress) for the statuses.
+
+### Notifications
+
+`--notify EMAIL` mails the build's status (requires `sendmail`, on the compute nodes too for a cluster build), with the progress tree in the body:
+
+| `--notify-level` | Mails |
+|------------------|-------|
+| `global` (default) | one at the end of the build: success, failure, or `CANCELLED` on `SIGTERM` |
+| `shard` | also one per shard when it ends: published, or failed (the step and its log) |
+
+Locally, the mails are sent by the `build` process, with the log file and the apply [report](#report) attached. On a cluster, the jobs ending a shard send the shard mails, and the finish job the final one, with `progress.yaml` attached. SLURM's own mails remain available through `extra:` in the cluster file (`--mail-user`, `--mail-type`).
 
 ### Shards and chunks
 
@@ -248,8 +288,12 @@ kmhelpers build coli_db -s update -o coli_build/
 # Set threads and show progress
 kmhelpers build coli_db -o coli_build/ --limits '{"threads": 8}' --sp
 
-# Notify by email when done
-kmhelpers build coli_db -o coli_build/ --notify user@example.com
+# Notify by email when done, and at the end of each shard
+kmhelpers build coli_db -o coli_build/ --notify user@example.com --notify-level shard
+
+# Build on a SLURM cluster, then follow it
+kmhelpers build coli_db -o coli_build/ --hpc cluster.yaml --notify user@example.com
+kmhelpers apply coli_db -o coli_build/ --status
 ```
 
 ## See Also

@@ -26,9 +26,11 @@ See [build - Paths](build.md#paths) for the directory layout.
 |--------|-------------|
 | `--task TEXT` | Run only what matches these names or glob patterns (repeatable or comma-separated): a shard (`idx_g0`) or its task (`idx_g0_initial`) runs all its jobs; a job runs alone, `<shard>_j<k>` (some of its chunks) or `<shard>_merge` (see [plan - Jobs](plan.md#jobs) and [Selecting what runs](#selecting-what-runs)) |
 | `--pending` | Print the jobs not done yet, one per line, and run nothing |
+| `--status` | Print the status of every step, per shard, write it to `progress.yaml`, and run nothing; with `--notify`, mail it (see [Progress](#progress)) |
 | `--sp, --show-progress` | Show the run being built (use in an interactive shell) |
 | `-x, --fail-fast` | Abort on first failure instead of going on with the other shards |
-| `--notify EMAIL` | Send email notification on exit (requires sendmail), with the log and the apply report attached |
+| `--notify EMAIL` | Send email notifications (requires sendmail), with the progress, the log and the apply report attached |
+| `--notify-level global\|shard` | `global` (default): one mail at the end; `shard`: also one mail per shard when it ends (see [build - Notifications](build.md#notifications)) |
 
 `apply` takes no sizing option (`--limits`, `--chunk-budget`, ...): they are decisions of the plan.
 
@@ -43,6 +45,21 @@ Then it runs the selected jobs (all by default), in order. Each step is checked 
 - a **merge** needs every chunk of its shard complete; it checks that the registry is as `plan` saw it (`expects`), or as an interrupted run of this same merge leaves it, and refuses otherwise.
 
 A failed step stops its shard; the other shards go on, unless `--fail-fast`. Logs are in `BUILD_DIR/logs/<shard>/` (`<run>.log` with the `kmtricks` output and its resource use, `merge.log`).
+
+### Progress
+
+Each step `apply` runs is recorded in `BUILD_DIR/assets/SESSION/<shard>/state/<step>.json` (status, job, node, times, log, error), and `BUILD_DIR/assets/SESSION/progress.yaml` is rewritten after each one. `apply --status` prints it, refreshed:
+
+| Status | Meaning |
+|--------|---------|
+| `SUCCESS` | the run is complete, or the shard holds the samples of its task (from the build directory, whatever was recorded) |
+| `FAILED` | the step failed: its log and the last line of its error |
+| `CANCELLED` | the job got `SIGTERM` (`scancel`, time limit) during the step |
+| `RUNNING` | started by a job (`job`, node, start time) |
+| `LOST` | recorded as running, but its job is no longer in `squeue`: it ended without a status (out of memory, node failure); see its SLURM log |
+| `PENDING` | not run yet; `(job X)` when `submit.sh` submitted it, `ended without running it` when that job is gone (a step before it failed, or a dependency was cancelled): submit again |
+
+`--status` exits 0 whatever the status; the summary line gives the overall one (`SUCCESS`, `FAILED`, `RUNNING`, `PENDING`).
 
 **Report** - `BUILD_DIR/logs/kmhelpers_apply_<timestamp>.yaml`: per shard, for each kmtricks run whether it was built, reused or already published, its duration, peak RSS, CPU efficiency and share of the RAM limit (from its log); the merge, its duration and size on disk. It is written after each job, with status `RUNNING` until the end, so a running or killed apply leaves its report so far. See [build - Report](build.md#report).
 
@@ -86,6 +103,9 @@ kmhelpers apply coli_db -o coli_build/ --sp -x
 
 # Notify by email when done
 kmhelpers apply coli_db -o coli_build/ --notify user@example.com
+
+# Where every shard and step stands
+kmhelpers apply coli_db -o coli_build/ --status
 ```
 
 ## See Also

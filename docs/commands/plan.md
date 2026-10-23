@@ -128,8 +128,11 @@ limits: {files: 131072, maps: 65530}   # optional, see below
 | `jobs.txt` | the build jobs, one per line |
 | `build.sbatch` | an array task: one build job (`apply --task`) |
 | `merge.sbatch` | one merge job (`apply --task <shard>_merge`) |
-| `check.sbatch` | `manage check` of the registry |
-| `submit.sh` | submits the jobs `apply --pending` lists: the build array (`%max_parallel`, split at the cluster `MaxArraySize`), each merge job after the array tasks of its own shard, then the check job after everything. Safe to run again: only what is not done is submitted |
+| `finish.sbatch` | after every job (`afterany`): `manage check` of the registry when nothing is pending, then `apply --status` (writes `progress.yaml`, mails it with `build --notify`); fails when the build is not done |
+| `submit.sh` | submits the jobs `apply --pending` lists: the build array (`%max_parallel`, split at the cluster `MaxArraySize`), each merge job after the array tasks of its own shard, then the finish job. Safe to run again: only what is not done is submitted, never a job still queued or running |
+| `submitted.tsv` | written by `submit.sh`: each job of the plan and its SLURM id, read by `apply --status` |
+
+Merge and finish jobs are cancelled when a job they wait on fails (`--kill-on-invalid-dep=yes`): nothing stays pending forever, and the finish job reports the failure. [`build --hpc`](build.md#on-a-cluster) plans and submits in one command, and takes `--notify`.
 
 ## Examples
 
