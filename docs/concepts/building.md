@@ -79,7 +79,7 @@ sequenceDiagram
     SL->>F: once every job has ended
     F->>F: check the index, write progress.yaml
     F-->>U: mail (with --notify)
-    U->>B: apply --status --sp, at any time
+    Note over U,F: follow it at any time: kmhelpers apply ... --status --sp
 ```
 
 A failed job cancels the jobs waiting on it, and the finish job reports it; running the same
