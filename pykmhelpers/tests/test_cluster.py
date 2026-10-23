@@ -111,7 +111,7 @@ class TestWriteSlurm(ClusterCase):
         for line in ("#SBATCH -p compute", "#SBATCH -c 24", "#SBATCH --mem=120G",
                      "#SBATCH --exclude=node01", "export PATH=/opt/kmhelpers/bin:$PATH"):
             self.assertIn(line, build)
-        self.assertIn('--job "$JOB"', build)
+        self.assertIn('--task "$JOB"', build)
         merge = (out / "merge.sbatch").read_text()
         self.assertIn("#SBATCH -p mem", merge)
         self.assertIn("#SBATCH -c 8", merge)

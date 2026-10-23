@@ -24,8 +24,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 ## Advanced Options
 | Option | Description |
 |--------|-------------|
-| `--sh, --shard TEXT` | Run only the jobs of these shards, as names or glob patterns (repeatable or comma-separated) |
-| `--job TEXT` | Run only the jobs matching these names or glob patterns: `<shard>` (a whole shard), `<shard>_j<k>` (some of its chunks) or `<shard>_merge` (see [plan - Jobs](plan.md#jobs)) |
+| `--task TEXT` | Run only what matches these names or glob patterns (repeatable or comma-separated): a shard (`idx_g0`) or its task (`idx_g0_initial`) runs all its jobs; a job runs alone, `<shard>_j<k>` (some of its chunks) or `<shard>_merge` (see [plan - Jobs](plan.md#jobs) and [Selecting what runs](#selecting-what-runs)) |
 | `--pending` | Print the jobs not done yet, one per line, and run nothing |
 | `--sp, --show-progress` | Show the run being built (use in an interactive shell) |
 | `-x, --fail-fast` | Abort on first failure instead of going on with the other shards |
@@ -47,6 +46,20 @@ A failed step stops its shard; the other shards go on, unless `--fail-fast`. Log
 
 **Report** - `BUILD_DIR/logs/kmhelpers_apply_<timestamp>.yaml`: per shard, for each kmtricks run whether it was built, reused or already published, its duration, peak RSS, CPU efficiency and share of the RAM limit (from its log); the merge, its duration and size on disk. It is written after each job, with status `RUNNING` until the end, so a running or killed apply leaves its report so far. See [build - Report](build.md#report).
 
+### Selecting what runs
+
+`--task` takes names or glob patterns (repeatable or comma-separated). A pattern selects every job whose name, task or shard it matches, so a shard or task name runs all the jobs of that shard, and a job name runs only that job:
+
+| `--task` | Runs |
+|----------|------|
+| `idx_g0` or `idx_g0_initial` | every job of that shard (shard or task name) |
+| `'idx_g0_*'` | every job of the group-0 shards |
+| `idx_g0_j1` | that one job |
+| `'idx_g0_j*'` | the shard's chunk jobs, not its merge |
+| `'*_merge'` | every merge |
+
+A pattern that matches nothing is a warning; only no match at all is an error (`No task matches ...`). Job names are listed in `plan.yaml` (`jobs:` of each task), and `--pending` prints those not done yet.
+
 ### Running jobs separately
 
 With `plan --chunks-per-job N`, the chunks of a shard are split into jobs that can run at the same time, e.g. as the tasks of a SLURM array, then the merge job of the shard. `plan --cluster` writes the SLURM files submitting them (see [plan - Cluster](plan.md#cluster)); by hand:
@@ -54,8 +67,8 @@ With `plan --chunks-per-job N`, the chunks of a shard are split into jobs that c
 ```bash
 kmhelpers plan coli_db -o coli_build/ --chunks-per-job 4
 kmhelpers apply coli_db -o coli_build/ --pending          # the jobs to run
-kmhelpers apply coli_db -o coli_build/ --job coli_g0_j0   # one per array task
-kmhelpers apply coli_db -o coli_build/ --job coli_g0_merge
+kmhelpers apply coli_db -o coli_build/ --task coli_g0_j0  # one per array task
+kmhelpers apply coli_db -o coli_build/ --task coli_g0_merge
 ```
 
 ## Examples
@@ -65,8 +78,8 @@ kmhelpers apply coli_db -o coli_build/ --job coli_g0_merge
 kmhelpers apply coli_db -o coli_build/
 
 # Run the jobs of some shards
-kmhelpers apply coli_db -o coli_build/ --sh coli_g0,coli_g1
-kmhelpers apply coli_db -o coli_build/ --sh 'coli_g0_*'
+kmhelpers apply coli_db -o coli_build/ --task coli_g0,coli_g1
+kmhelpers apply coli_db -o coli_build/ --task 'coli_g0_*'
 
 # Show progress, abort on first error
 kmhelpers apply coli_db -o coli_build/ --sp -x

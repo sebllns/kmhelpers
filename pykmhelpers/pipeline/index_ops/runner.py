@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from pykmhelpers.core.kmindex_paths import chunk_problems
-from pykmhelpers.core.utils import select_matching
+from pykmhelpers.core.utils import matches_any, select_matching
 from pykmhelpers.core.wrapper import Wrapper
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths
 from pykmhelpers.pipeline.index_ops.plan_file import MERGE, check_fresh, load_plan
@@ -62,25 +62,27 @@ class PlanRunner:
     # ---
     # SELECTION
 
-    def jobs(
-        self, shards: Optional[list[str]] = None, names: Optional[list[str]] = None
-    ) -> list[Job]:
-        """Jobs of the plan, in order: every job, or those of ``shards`` / ``names``
-        (glob patterns)."""
+    def jobs(self, patterns: Optional[list[str]] = None) -> list[Job]:
+        """Jobs of the plan, in order: every job, or those matching ``patterns``.
+
+        A job is selected when a glob pattern matches its name (``<shard>``,
+        ``<shard>_j<k>``, ``<shard>_merge``), its task (``<shard>_<session>``)
+        or its shard: ``idx_g0`` selects every job of that shard,
+        ``'idx_g0_j*'`` its chunk jobs, ``'*_merge'`` every merge.
+        """
         jobs = [
             Job(job, task, tuple(steps))
             for task, entry in self._tasks.items()
             for job, steps in (entry.get("jobs") or {}).items()
         ]
-        if shards:
-            selected = set(
-                select_matching([e["shard"] for e in self._tasks.values()], shards)
-            )
-            jobs = [j for j in jobs if self._tasks[j.task]["shard"] in selected]
-        if names:
-            selected = set(select_matching([j.name for j in jobs], names, "job"))
-            jobs = [j for j in jobs if j.name in selected]
-        return jobs
+        if not patterns:
+            return jobs
+        names = {
+            j: (j.name, j.task, self._tasks[j.task]["shard"]) for j in jobs
+        }
+        # unmatched patterns: warned about, refused when nothing matches
+        select_matching({n for ns in names.values() for n in ns}, patterns, "task")
+        return [j for j in jobs if any(matches_any(n, patterns) for n in names[j])]
 
     def pending(self, jobs: Optional[list[Job]] = None) -> list[Job]:
         """Jobs with a step not done yet."""

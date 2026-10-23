@@ -86,7 +86,7 @@ Building a session again resumes it: complete kmtricks runs are kept, incomplete
 
 **Step 2 - apply:** runs the plan, registers all completed indices in `BUILD_DIR/index.json`, and writes the apply [report](#report) as it goes.
 
-**Filtering** - `build` always processes every shard of the session. Use [`plan`](plan.md) with `--shard` (names or glob patterns), then [`apply`](apply.md) (`--shard`, `--job`), to build a subset or to spread the jobs over several nodes.
+**Filtering** - `build` always processes every shard of the session. Use [`plan`](plan.md) with `--shard` (names or glob patterns), then [`apply`](apply.md) (`--task`), to build a subset or to spread the jobs over several nodes.
 
 **Notifications** - use `--notify` to receive an email when the build exits (requires `sendmail`). The notification is sent on both success and failure, including on `SIGTERM`, with the log file and the apply [report](#report) attached (the report so far, when the job was stopped).
 

@@ -28,6 +28,7 @@ from pykmhelpers.pipeline.index_ops.plan_file import (
     write_plan,
 )
 from pykmhelpers.pipeline.index_ops.report import merge_status, run_status
+from pykmhelpers.pipeline.index_ops.runner import PlanRunner
 from pykmhelpers.pipeline.index_ops.samples import SampleResolver
 from pykmhelpers.pipeline.index_ops.script import ScriptRecorder
 from pykmhelpers.pipeline.index_ops.sizing import BuildParams, resolve_build_params
@@ -546,6 +547,41 @@ class TestJobNames(unittest.TestCase):
 
     def test_merge_only(self):
         self.assertEqual(job_names("t", [], True, 3), {"t": [MERGE]})
+
+
+class TestTaskFilter(unittest.TestCase):
+    """apply --task matches shards, tasks and jobs."""
+
+    def setUp(self):
+        self.runner = PlanRunner.__new__(PlanRunner)
+        chunks = [f"_chunk{n}" for n in range(3)]
+        self.runner._tasks = {
+            f"{shard}_s1": {
+                "shard": shard,
+                "jobs": job_names(shard, [f"{shard}_s1{c}" for c in chunks], True, 1),
+            }
+            for shard in ("idx_g0", "idx_g1")
+        }
+
+    def names(self, *patterns):
+        return [j.name for j in self.runner.jobs(list(patterns) or None)]
+
+    def test_all(self):
+        self.assertEqual(len(self.names()), 8)
+
+    def test_a_shard_or_its_task_selects_all_its_jobs(self):
+        expected = ["idx_g0_j0", "idx_g0_j1", "idx_g0_j2", "idx_g0_merge"]
+        self.assertEqual(self.names("idx_g0"), expected)
+        self.assertEqual(self.names("idx_g0_s1"), expected)
+
+    def test_jobs(self):
+        self.assertEqual(self.names("idx_g0_j1"), ["idx_g0_j1"])
+        self.assertEqual(self.names("idx_g1_j*"), ["idx_g1_j0", "idx_g1_j1", "idx_g1_j2"])
+        self.assertEqual(self.names("*_merge"), ["idx_g0_merge", "idx_g1_merge"])
+
+    def test_no_match_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "No task matches"):
+            self.names("nope*")
 
 
 class TestPlanFile(unittest.TestCase):

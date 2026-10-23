@@ -844,7 +844,7 @@ class TestChunkedBuild(PipelineE2EBase):
         self.assertEqual(jobs[0], f"{shard}_j0")
         self.assertGreater(len(jobs), 2, jobs)
 
-        self.run_cli("apply", session_file, "-o", "build", "--job", "*_j0")
+        self.run_cli("apply", session_file, "-o", "build", "--task", "*_j0")
         runs = sorted(p.name for p in (self.tmp / "build" / "work").rglob("*_chunk*"))
         self.assertEqual(len(runs), 1, f"unexpected runs: {runs}")
         self.assertTrue(runs[0].endswith("_chunk0"))
@@ -854,7 +854,7 @@ class TestChunkedBuild(PipelineE2EBase):
 
         # the merge refuses to run before every chunk is built
         early = self.run_cli(
-            "apply", session_file, "-o", "build", "--job", merge_job,
+            "apply", session_file, "-o", "build", "--task", merge_job,
             expect_success=False,
         )
         self.assertIn("runs not built", early.stdout + early.stderr)
@@ -865,14 +865,14 @@ class TestChunkedBuild(PipelineE2EBase):
         pending = self.run_cli("apply", session_file, "-o", "build", "--pending")
         self.assertEqual(pending.stdout.split(), [])
 
-    def test_unmatched_job_pattern_fails(self):
+    def test_unmatched_task_pattern_fails(self):
         session_file = self.design()
         self.run_cli("plan", session_file, "-o", "build")
         result = self.run_cli(
-            "apply", session_file, "-o", "build", "--job", "nope*",
+            "apply", session_file, "-o", "build", "--task", "nope*",
             expect_success=False,
         )
-        self.assertIn("No job matches nope*", result.stdout + result.stderr)
+        self.assertIn("No task matches nope*", result.stdout + result.stderr)
 
     def test_apply_needs_a_fresh_plan(self):
         session_file = self.design()

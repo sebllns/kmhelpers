@@ -176,18 +176,19 @@ _index_ids_option = click.option(
     "index_ids",
     multiple=True,
     required=False,
-    help="⚙   Shards to plan (plan) or to run (apply), as names or glob patterns "
-    "(repeatable or comma-separated: --shard idx_g0_p1, --shard 'idx_g0_*'). "
-    "With plan, a part name (<shard>_<session>) plans that part as its own index.",
+    help="⚙   Shards to plan, as names or glob patterns (repeatable or "
+    "comma-separated: --shard idx_g0_p1, --shard 'idx_g0_*'). A part name "
+    "(<shard>_<session>) plans that part as its own index.",
 )
-_job_option = click.option(
-    "--job",
-    "job_ids",
+_task_option = click.option(
+    "--task",
+    "task_ids",
     multiple=True,
     required=False,
-    help="⚙   Run only the jobs of the plan matching these names or glob patterns "
-    "(repeatable or comma-separated): '<shard>' (a whole task), '<shard>_j<k>' "
-    "(some of its chunks, see `plan --chunks-per-job`) or '<shard>_merge'.",
+    help="⚙   Run only what matches these names or glob patterns (repeatable or "
+    "comma-separated): a shard or its task (<shard>_<session>) runs all its "
+    "jobs; a job runs alone: '<shard>_j<k>' (some chunks, see `plan "
+    "--chunks-per-job`) or '<shard>_merge'. E.g. 'idx_g0_*', '*_merge'.",
 )
 pending_option = click.option(
     "--pending",
@@ -399,13 +400,13 @@ def index_build_options(f):
 
 
 def shard_option(f):
-    """--shard: the shards to plan (plan) or to run (apply)."""
+    """--shard: the shards to plan (plan)."""
     return _index_ids_option(f)
 
 
-def job_option(f):
-    """--job: the jobs of the plan to run (apply)."""
-    return _job_option(f)
+def task_option(f):
+    """--task: the shards, tasks or jobs of the plan to run (apply)."""
+    return _task_option(f)
 
 
 def index_apply_options(f):

@@ -145,7 +145,7 @@ The plan is made of plain bash scripts, in `OUTPUT_DIR/assets/SESSION/<shard>/`:
     done
     ```
 
-On a cluster, `plan --cluster cluster.yaml` sizes the plan for the jobs of `cluster.yaml` and writes the SLURM files submitting them, with `--chunks-per-job` to spread the chunks of a shard over several nodes (see [plan - Cluster](../commands/plan.md#cluster)). `apply` runs any subset of the jobs (`--shard`, `--job`), lists those not done (`--pending`), and can email a notification on completion:
+On a cluster, `plan --cluster cluster.yaml` sizes the plan for the jobs of `cluster.yaml` and writes the SLURM files submitting them, with `--chunks-per-job` to spread the chunks of a shard over several nodes (see [plan - Cluster](../commands/plan.md#cluster)). `apply` runs any subset of the jobs (`--task`: shards or jobs), lists those not done (`--pending`), and can email a notification on completion:
 
 ??? example "Commands"
     ```bash
@@ -153,8 +153,8 @@ On a cluster, `plan --cluster cluster.yaml` sizes the plan for the jobs of `clus
     bash coli_build/assets/initial/slurm/submit.sh
 
     # or by hand, each node a disjoint subset, emailing when its share is done
-    kmhelpers apply coli_db -o coli_build/ --sh coli_g0 --notify you@example.com
-    kmhelpers apply coli_db -o coli_build/ --sh coli_g1 --notify you@example.com
+    kmhelpers apply coli_db -o coli_build/ --task coli_g0 --notify you@example.com
+    kmhelpers apply coli_db -o coli_build/ --task coli_g1 --notify you@example.com
     ```
 
 ## Next Steps

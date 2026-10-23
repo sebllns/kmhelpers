@@ -19,14 +19,13 @@ def run_plan(
     input_file: str,
     work_dir: str,
     notifier: ExitNotifier,
-    index_ids=None,
-    job_ids=None,
+    task_ids=None,
     show_progress: bool = False,
     fail_on_error: bool = False,
 ) -> ops.ApplyResult:
     """Run the selected jobs of the plan of ``input_file`` in ``work_dir``."""
     runner = PlanRunner(work_dir, input_file)
-    jobs = runner.jobs(shared.split_names(index_ids), shared.split_names(job_ids))
+    jobs = runner.jobs(shared.split_names(task_ids))
     log_dir = os.path.join(os.path.realpath(work_dir), "logs")
     notifier.log_dir = log_dir
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -48,8 +47,7 @@ def run_plan(
 @click.command(name="apply")
 @click.argument("input_file", nargs=1, required=True, type=click.Path(exists=True))
 @shared.index_target_options
-@shared.shard_option
-@shared.job_option
+@shared.task_option
 @shared.pending_option
 @shared.index_apply_options
 @shared.fail_fast_option
@@ -59,8 +57,7 @@ def apply(
     input_file,
     work_dir,
     session,
-    index_ids,
-    job_ids,
+    task_ids,
     pending,
     show_progress,
     notify,
@@ -75,9 +72,9 @@ def apply(
 
     `apply` takes no sizing option: it runs the scripts of the plan as they
     are, and refuses a plan whose inputs changed since. Every step is checked
-    first, so a job can be run again after an interruption. Only the jobs of
-    the shards matching --shard, or the jobs matching --job, are run (all by
-    default).
+    first, so a job can be run again after an interruption. Only what matches
+    --task is run (all by default): a shard or its task runs all its jobs, a
+    job runs alone.
 
     Examples:
 
@@ -87,8 +84,8 @@ def apply(
 
     \b
     # Run one job (e.g. a SLURM array task), then the merge of its shard
-    kmhelpers apply coli_db -o coli_build --job coli_g0_j3
-    kmhelpers apply coli_db -o coli_build --job coli_g0_merge
+    kmhelpers apply coli_db -o coli_build --task coli_g0_j3
+    kmhelpers apply coli_db -o coli_build --task coli_g0_merge
 
     \b
     # List the jobs not done yet
@@ -99,7 +96,7 @@ def apply(
     try:
         if pending:
             runner = PlanRunner(work_dir, input_file)
-            jobs = runner.jobs(shared.split_names(index_ids), shared.split_names(job_ids))
+            jobs = runner.jobs(shared.split_names(task_ids))
             for job in runner.pending(jobs):
                 click.echo(job.name)
                 logger.debug(describe(job))
@@ -108,8 +105,7 @@ def apply(
             input_file,
             work_dir,
             notifier,
-            index_ids,
-            job_ids,
+            task_ids,
             show_progress,
             fail_on_error,
         )

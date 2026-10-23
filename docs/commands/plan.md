@@ -94,7 +94,7 @@ The **fingerprint** holds the input files the plan was made from: the definition
 
 ### Jobs
 
-A job is what `apply --job` and a SLURM array task run. With `--chunks-per-job 0` (default), a shard is one job, named after it: its chunks one after the other, then its merge. With `--chunks-per-job N`, a shard of more than N chunks gets `ceil(chunks / N)` jobs `<shard>_j<k>` of up to N chunks, which can run at the same time on several nodes, then `<shard>_merge`, which runs once they are all done.
+A job is what `apply --task <job>` and a SLURM array task run. With `--chunks-per-job 0` (default), a shard is one job, named after it: its chunks one after the other, then its merge. With `--chunks-per-job N`, a shard of more than N chunks gets `ceil(chunks / N)` jobs `<shard>_j<k>` of up to N chunks, which can run at the same time on several nodes, then `<shard>_merge`, which runs once they are all done.
 
 ### Cluster
 
@@ -126,8 +126,8 @@ limits: {files: 131072, maps: 65530}   # optional, see below
 | File | Runs |
 |------|------|
 | `jobs.txt` | the build jobs, one per line |
-| `build.sbatch` | an array task: one build job (`apply --job`) |
-| `merge.sbatch` | one merge job (`apply --job <shard>_merge`) |
+| `build.sbatch` | an array task: one build job (`apply --task`) |
+| `merge.sbatch` | one merge job (`apply --task <shard>_merge`) |
 | `check.sbatch` | `manage check` of the registry |
 | `submit.sh` | submits the jobs `apply --pending` lists: the build array (`%max_parallel`, split at the cluster `MaxArraySize`), each merge job after the array tasks of its own shard, then the check job after everything. Safe to run again: only what is not done is submitted |
 

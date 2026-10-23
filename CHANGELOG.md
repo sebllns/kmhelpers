@@ -9,12 +9,13 @@ All notable changes to this project will be documented in this file.
 - **`plan --cluster FILE`**: a YAML file (`type: slurm`) of the partition, time, excluded nodes, setup lines and the resources of each kind of job (`jobs.build`, `jobs.merge`, `jobs.check`); the plan is sized from these resources (`--limits` with `--cluster` is refused), and `BUILD_DIR/assets/SESSION/slurm/` gets `build.sbatch` (an array task per build job), `merge.sbatch`, `check.sbatch` and `submit.sh`
   - `submit.sh` submits what `apply --pending` lists: the build array (`max_parallel`, split at `MaxArraySize`), each merge job after the array tasks of its own shard, then `manage check` after everything; safe to run again
 - **`plan --chunks-per-job N`**: the chunks of a shard are split into jobs `<shard>_j<k>` of up to N chunks, then a job `<shard>_merge`; 0 (default) keeps one job per shard
-- **`apply --job PATTERN`** runs some jobs of the plan, **`apply --pending`** lists the jobs not done yet
+- **`apply --task PATTERN`** runs part of the plan: a shard or its task (`<shard>_<session>`) runs all its jobs, a job (`<shard>_j<k>`, `<shard>_merge`) runs alone; **`apply --pending`** lists the jobs not done yet
 
 ### Changed
 
 - **`plan` prepares, `apply` runs**: `plan` takes every build decision and writes `BUILD_DIR/assets/SESSION/plan.yaml` (one task per part: its chunks, merge and jobs) and one directory of scripts per shard, `<shard>/` (`<run>.sh` and `.fof` per kmtricks run, `merge.sh`, `merge/`); `apply` runs these scripts, under monitoring, and builds nothing itself
   - `apply` refuses a missing plan, and a stale one: an input changed since (definition, shard files, `layout.yaml`, sample lists, cluster file, hashed in `plan.yaml`) or another kmhelpers version made it
+  - `apply --shard` is replaced by `apply --task`
   - `apply` has no sizing option any more (`--limits`, `--safety-margin`, `--max-chunks`, `--chunk-budget`, `--threads`, `--base-path`, `--skip-compression`, `--keep-previous`): they are options of `plan` (and `build`)
   - Before a merge, `apply` checks the registry is as `plan` saw it (`expects`), or as an interrupted run of the same merge leaves it
   - Each run script skips samples already published and complete runs, and deletes and rebuilds an incomplete run, so every script can be run again
@@ -28,7 +29,7 @@ All notable changes to this project will be documented in this file.
 
 ### Removed
 
-- `plan`/`apply --run`: replaced by jobs (`plan --chunks-per-job`, `apply --job`)
+- `plan`/`apply --run`: replaced by jobs (`plan --chunks-per-job`, `apply --task`)
 - `BUILD_DIR/assets/SESSION/kmhelpers_apply.sh` and the flat `<shard>.sh` / `<shard>_merge.sh` scripts: replaced by the per-shard directories
 - Support for build directories of older kmhelpers: parts registered on their own (merged in as they were), and symlinked index folders
 

@@ -163,14 +163,14 @@ def write_slurm(plan: dict, cluster: dict, slurm_dir: str) -> list[str]:
             + [
                 "# Array task i runs line OFFSET + i + 1 of the job list $1",
                 'JOB=$(sed -n "$((${2:-0} + SLURM_ARRAY_TASK_ID + 1))p" "$1")',
-                f'{apply} --job "$JOB"',
+                f'{apply} --task "$JOB"',
             ]
         ),
         "merge.sbatch": "\n".join(
             head
             + _sbatch_lines(cluster["jobs"]["merge"], None, single)
             + body_head
-            + ["# $1: a merge job of the plan (<shard>_merge)", f'{apply} --job "$1"']
+            + ["# $1: a merge job of the plan (<shard>_merge)", f'{apply} --task "$1"']
         ),
         "check.sbatch": "\n".join(
             head

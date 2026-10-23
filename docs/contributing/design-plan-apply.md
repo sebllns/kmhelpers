@@ -23,10 +23,10 @@ Status: **implemented** (see `commands/plan.md` and `commands/apply.md` for the 
 | `--cluster FILE` (new) | ✔ | | |
 | `--pending` (new: list jobs not done) | | ✔ | |
 | `--shard` (filter what is planned) | ✔ | | |
-| `--shard`, `--job` (select what is run) | | ✔ | |
+| `--task` (select what is run: shards, tasks or jobs) | | ✔ | |
 | `--show-progress`, `--notify`, `--fail-fast` | | ✔ | ✔ |
 
-- `apply --run` is removed: `--job` replaces it.
+- `apply --run` is removed: `--task` replaces it.
 - `build` = `plan` then `apply` on the plan just written (whole shard jobs).
 
 ## Shards, chunks and jobs
@@ -39,7 +39,7 @@ Status: **implemented** (see `commands/plan.md` and `commands/apply.md` for the 
 - its **merge**: check runs, merge, swap, register, check, clean up (what
   `<shard>_merge.sh` does today).
 
-A task's work is grouped into **jobs**, what `apply --job` and a SLURM
+A task's work is grouped into **jobs**, what `apply --task` and a SLURM
 array task run. A job never spans tasks.
 
 A plan *task* is not a SLURM *task*: the SLURM side is always written
@@ -77,14 +77,14 @@ assets/initial/
     merge.sh                      # the merge of the shard
     merge/                        # runs.tsv and the register .tsv of each merge step
     jobs/                         # only with --chunks-per-job N > 0
-      j0.sh  j1.sh  merge.sh      # each calls `kmhelpers apply --job <job>`
+      j0.sh  j1.sh  merge.sh      # each calls `kmhelpers apply --task <job>`
   idx_g1/
     ...
 ```
 
 - Every file of a shard lives in its directory: a job never spans shards.
 - Run files keep the full run name (`<part>_chunk<n>.sh`), so a file name
-  alone matches log lines and `--job` values.
+  alone matches log lines and `--task` values.
 - With `--chunks-per-job 0` there is no `jobs/`: the shard is the job
   (its run scripts, then `merge.sh`).
 - An index definition outside a span registry is its own target: it gets
@@ -155,8 +155,9 @@ shard's merge.
 1. Load `plan.yaml`; fail if missing.
 2. Recompute the fingerprint; refuse if it differs ("plan is stale, run
    `kmhelpers plan` again").
-3. Select jobs: all (in dependency order), `--shard` (the jobs of these
-   shards), or `--job`.
+3. Select jobs: all (in dependency order), or those `--task` matches: a
+   pattern matching a shard or a task selects all its jobs, one matching a
+   job selects that job.
 4. For a `<shard>_merge` job, refuse if another job of the shard is not done.
 5. For each chunk, then the merge, of the job:
    - done: skip (`reused`);
@@ -232,8 +233,8 @@ Writes `slurm/`:
 
 ```
 jobs.txt          build jobs, one per line
-build.sbatch      array: array task i runs `kmhelpers apply --job <line i>`
-merge.sbatch      `kmhelpers apply --job <shard>_merge`
+build.sbatch      array: array task i runs `kmhelpers apply --task <line i>`
+merge.sbatch      `kmhelpers apply --task <shard>_merge`
 check.sbatch      `kmhelpers manage -r BUILD_DIR check`
 submit.sh         submits what `apply --pending` lists (safe to run again):
                   1. the build array, %max_parallel
@@ -265,7 +266,7 @@ submit.sh         submits what `apply --pending` lists (safe to run again):
    rebuild), as merges are guarded.
 3. New executor for `apply`: load, check fingerprint, select, check
    `needs`/`expects`, run scripts, report, progress from logs.
-4. CLI: move options, add `--chunks-per-job`, `--job`, `--pending`,
+4. CLI: move options, add `--chunks-per-job`, `--task`, `--pending`,
    `--cluster`; `build` = plan + apply.
 5. `--cluster`: schema and validation, limits from the job resources,
    SLURM writer.

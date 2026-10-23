@@ -14,7 +14,7 @@ name::
         merge: {script: merge.sh, expects, mode, steps, ...}
         jobs: {<job>: [<run>..., merge]}
 
-A **job** is what ``apply --job`` and a SLURM array task run: some chunks of
+A **job** is what ``apply --task <job>`` and a SLURM array task run: some chunks of
 one task, or its merge (``MERGE``).
 """
 
