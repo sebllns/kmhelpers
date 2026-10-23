@@ -15,9 +15,9 @@ from pykmhelpers.pipeline.index_ops.report import RunReport
 from pykmhelpers.pipeline.index_ops.run_log import parse_kmtricks_log
 from pykmhelpers.pipeline.index_ops.sizing import BuildParams
 
-# Written by Wrapper._run_cmd for a 16SV4V5 shard (kmtricks 1.4)
+# Written by Wrapper._run_cmd for a idx shard (kmtricks 1.4)
 KMTRICKS_LOG = """\
-Command: kmtricks pipeline --file a.fof --run-dir runs/16SV4V5_g0_initial --kmer-size 25 --nb-partitions 32 --threads 24
+Command: kmtricks pipeline --file a.fof --run-dir runs/idx_g0_initial --kmer-size 25 --nb-partitions 32 --threads 24
 Execution time: 1334.79s
 Max CPU: 2404.1%
 Max Memory: 19087.6836 MB

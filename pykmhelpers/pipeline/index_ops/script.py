@@ -3,6 +3,8 @@ import os
 
 logger = logging.getLogger(__name__)
 
+MERGE_SCRIPT = "merge"
+
 
 def _echo(msg: str) -> str:
     return f"echo \"$(date '+%F %T') {msg}\""
@@ -11,13 +13,11 @@ def _echo(msg: str) -> str:
 class ScriptRecorder:
     """Collects build/merge commands into replayable shell scripts.
 
-    Commands are grouped per script (one per shard, see ``WorkPlan.scripts``),
-    builds and merges apart (``<shard>.sh``, ``<shard>_merge.sh``); ``write``
-    emits one script per group and a runner calling them in order.
+    Commands are grouped per script, named ``<task dir>/<name>``: one script
+    per kmtricks run (``<dir>/<run>.sh``) and one for the merge of the task
+    (``<dir>/merge.sh``, see ``merge_group``). ``write`` emits one script per
+    group under the session's assets folder.
     """
-
-    RUNNER_NAME = "kmhelpers_apply.sh"
-    MERGE_SUFFIX = "_merge"
 
     def __init__(self, workdir: str) -> None:
         self._workdir = workdir
@@ -29,14 +29,19 @@ class ScriptRecorder:
         """Script receiving the next commands."""
         return self._current
 
-    @classmethod
-    def merge_group(cls, name: str) -> str:
-        """Script holding the merges of group ``name``.
+    @property
+    def groups(self) -> list[str]:
+        """Scripts recorded so far, in recording order."""
+        return list(self._groups)
 
-        Merges go to their own script, run after the group's builds, so that
-        they can wait for builds done elsewhere (e.g. a SLURM array).
+    @staticmethod
+    def merge_group(task_dir: str) -> str:
+        """Script holding the merge of the task written to ``task_dir``.
+
+        The merge has its own script, run after the builds of the task, so
+        that it can wait for builds done elsewhere (e.g. a SLURM array).
         """
-        return name if name.endswith(cls.MERGE_SUFFIX) else name + cls.MERGE_SUFFIX
+        return f"{task_dir}/{MERGE_SCRIPT}"
 
     def select(self, name: str) -> None:
         """Make ``name`` the script receiving the next commands."""
@@ -48,31 +53,22 @@ class ScriptRecorder:
         if self._current is None:
             raise RuntimeError("No script selected")
         lines = self._groups[self._current]
-        lines.append(_echo(f"[{self._current}] {label}"))
+        tag = os.path.basename(self._current)
+        lines.append(_echo(f"[{tag}] {label}"))
         lines.append(cmd.replace(self._workdir, "${WORKDIR}"))
 
-    def write(self, directory: str) -> None:
-        """Write the group scripts and the runner to ``directory``.
-
-        Existing files are backed up with a ``.bak`` suffix.
-        """
-        os.makedirs(directory, exist_ok=True)
-        runner: list[str] = []
+    def write(self, directory: str) -> list[str]:
+        """Write one script per group under ``directory``; return their paths."""
+        written = []
         for name, lines in self._groups.items():
-            self._write_file(directory, f"{name}.sh", lines + [_echo(f"[{name}] done")])
-            runner += self._run_lines(os.path.join(directory, f"{name}.sh"))
-        self._write_file(directory, self.RUNNER_NAME, runner)
+            tag = os.path.basename(name)
+            path = os.path.join(directory, f"{name}.sh")
+            self._write_file(path, lines + [_echo(f"[{tag}] done")])
+            written.append(path)
+        return written
 
-    def _run_lines(self, script_path: str) -> list[str]:
-        path = script_path.replace(self._workdir, "${WORKDIR}")
-        shown = os.path.relpath(script_path, self._workdir)
-        return [_echo(f"Running {shown}"), f'bash "{path}"']
-
-    def _write_file(self, directory: str, file_name: str, lines: list[str]) -> None:
-        path = os.path.join(directory, file_name)
-        if os.path.exists(path):
-            os.replace(path, path + ".bak")
-            logger.debug(f"Backed up existing script to {path}.bak")
+    def _write_file(self, path: str, lines: list[str]) -> None:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         # Stop at the first failure, so cleanup only runs after a successful merge
         header = [
             "#!/usr/bin/env bash",
@@ -85,4 +81,5 @@ class ScriptRecorder:
         ]
         with open(path, "w") as f:
             f.write("\n".join(header + lines) + "\n")
-        logger.info(f"Script written to {path}")
+        os.chmod(path, 0o755)
+        logger.debug(f"Script written to {path}")

@@ -32,6 +32,7 @@ from pykmhelpers.pipeline.index_ops import (
     IndexOps,
     IndexOpsConfig,
 )
+from pykmhelpers.pipeline.index_ops.runner import PlanRunner
 from pykmhelpers.pipeline.sample_lister import SampleLister
 from pykmhelpers.pipeline.span_profiler import SpanProfiler
 
@@ -62,8 +63,9 @@ def build(reg, workdir):
         )
     )
     iops.run(reg, mode=ApplyMode.PLAN, fail_on_error=False)
-    iops.write_script()
-    result = iops.run(reg, mode=ApplyMode.APPLY, fail_on_error=True)
+    iops.write_plan()
+    runner = PlanRunner(workdir, reg)
+    result = runner.run(runner.jobs(), fail_on_error=True)
     assert result.status is not ApplyStatus.FAILED, f"build failed: {result.status}"
 
 

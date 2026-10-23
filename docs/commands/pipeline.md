@@ -36,7 +36,7 @@ Run a sequence of commands defined in a YAML pipeline file.
 compose:
   workdir: /path/to/workdir
   input_files: [samples.yaml]
-apply:
+build:
   workdir: /path/to/workdir
   threads: 8
 ```

@@ -246,6 +246,7 @@ class IndexBuilder:
         on_existing: str = "fail",
         progress: typing.Optional[Progress] = None,
         register: bool = True,
+        fof_path: typing.Optional[str] = None,
     ) -> dict:
         """Build a new sub-index from a set of samples via KmindexWrapper.build.
 
@@ -299,6 +300,8 @@ class IndexBuilder:
                 (`kmindex build`). `False` builds with `kmtricks pipeline` only;
                 the `register*` values of `on_existing` then reuse an existing
                 directory when it holds a complete run.
+            fof_path (typing.Optional[str]): Where to write the sample list
+                (default: `<assets_folder>/<name>.fof`).
 
         Returns:
             dict: Result returned by `KmindexWrapper.build` (or
@@ -320,7 +323,8 @@ class IndexBuilder:
             assert samples.validate_sample_files(), "Some sample files are missing"
 
         wrapper = pykmhelpers.core.KmindexWrapper(dry_run=dry_run)
-        fof_path = os.path.join(self.assets_folder, f"{name}.fof")
+        fof_path = fof_path or os.path.join(self.assets_folder, f"{name}.fof")
+        os.makedirs(os.path.dirname(fof_path), exist_ok=True)
         samples.save(fof_path=fof_path)
 
         if n_threads == 0:

@@ -1,0 +1,132 @@
+"""Unit tests for the --cluster file and the SLURM files written from it."""
+
+import json
+import shutil
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+import yaml
+
+from pykmhelpers.pipeline.index_ops.cluster import (
+    limits_for,
+    load_cluster,
+    mem_bytes,
+    write_slurm,
+)
+from pykmhelpers.pipeline.index_ops.plan_file import job_names
+
+CLUSTER = {
+    "type": "slurm",
+    "partition": "compute",
+    "time": "2-00:00:00",
+    "exclude": ["node01"],
+    "max_parallel": 8,
+    "setup": "export PATH=/opt/kmhelpers/bin:$PATH\n",
+    "jobs": {
+        "build": {"cpus": 24, "mem": "120G"},
+        "merge": {"cpus": 8, "mem": "64G", "partition": "mem"},
+        "check": {"time": "1:00:00"},
+    },
+    "limits": {"files": 131072, "maps": 65530},
+}
+
+
+class ClusterCase(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+
+    def load(self, data):
+        path = self.tmp / "cluster.yaml"
+        path.write_text(yaml.safe_dump(data))
+        return load_cluster(str(path))
+
+
+class TestLoadCluster(ClusterCase):
+    def test_job_kinds_inherit_the_top_level(self):
+        cluster = self.load(CLUSTER)
+        build, merge, check = (cluster["jobs"][k] for k in ("build", "merge", "check"))
+        self.assertEqual((build["partition"], build["time"]), ("compute", "2-00:00:00"))
+        self.assertEqual(merge["partition"], "mem")
+        self.assertEqual((check["cpus"], check["mem"], check["time"]), (1, "4G", "1:00:00"))
+        self.assertEqual(build["exclude"], ["node01"])
+
+    def test_limits_from_the_job_resources(self):
+        cluster = self.load(CLUSTER)
+        build = json.loads(limits_for(cluster, "build", 0.5))
+        self.assertEqual(build, {"ram": 60 << 30, "threads": 24, "files": 131072, "maps": 65530})
+        self.assertEqual(json.loads(limits_for(cluster, "merge"))["threads"], 8)
+
+    def test_errors(self):
+        for data, msg in [
+            ({**CLUSTER, "nope": 1}, "unknown key"),
+            ({**CLUSTER, "type": "pbs"}, "'type'"),
+            ({**CLUSTER, "jobs": {"build": {"cpus": 1}}}, "needs cpus and mem"),
+            ({**CLUSTER, "jobs": {**CLUSTER["jobs"], "other": {}}}, "unknown job kind"),
+            ({**CLUSTER, "limits": {"ram": 1}}, "unknown limit"),
+            ({**CLUSTER, "jobs": {**CLUSTER["jobs"], "build": {"cpus": 2, "mem": "lots"}}}, "Invalid memory"),
+        ]:
+            with self.subTest(msg=msg), self.assertRaisesRegex(ValueError, msg):
+                self.load(data)
+
+    def test_mem(self):
+        self.assertEqual(mem_bytes("120G"), 120 << 30)
+        self.assertEqual(mem_bytes("4096M"), 4 << 30)
+        self.assertEqual(mem_bytes("1.5T"), int(1.5 * (1 << 40)))
+        self.assertEqual(mem_bytes(2048), 2 << 30)  # MB, as sbatch
+
+
+class TestWriteSlurm(ClusterCase):
+    def plan(self, per_job):
+        chunks = [f"idx_g0_initial_chunk{n}" for n in range(7)]
+        tasks = {}
+        for shard in ("idx_g0", "idx_g1"):
+            runs = [c.replace("idx_g0", shard) for c in chunks]
+            tasks[f"{shard}_initial"] = {
+                "shard": shard,
+                "dir": f"{shard}/",
+                "jobs": job_names(shard, runs, True, per_job),
+            }
+        return {
+            "definition": "/db/compose/idx/initial/index.yaml",
+            "build_dir": str(self.tmp / "build"),
+            "tasks": tasks,
+        }
+
+    def write(self, per_job):
+        cluster = self.load(CLUSTER)
+        out = self.tmp / "slurm"
+        write_slurm(self.plan(per_job), cluster, str(out))
+        return out
+
+    def test_jobs_and_headers(self):
+        out = self.write(3)
+        self.assertEqual(
+            (out / "jobs.txt").read_text().split(),
+            [f"idx_g{s}_j{k}" for s in (0, 1) for k in range(3)],
+        )
+        build = (out / "build.sbatch").read_text()
+        for line in ("#SBATCH -p compute", "#SBATCH -c 24", "#SBATCH --mem=120G",
+                     "#SBATCH --exclude=node01", "export PATH=/opt/kmhelpers/bin:$PATH"):
+            self.assertIn(line, build)
+        self.assertIn('--job "$JOB"', build)
+        merge = (out / "merge.sbatch").read_text()
+        self.assertIn("#SBATCH -p mem", merge)
+        self.assertIn("#SBATCH -c 8", merge)
+        self.assertIn("#SBATCH -t 1:00:00", (out / "check.sbatch").read_text())
+        submit = (out / "submit.sh").read_text()
+        self.assertIn("%8", submit)
+        self.assertIn("--pending", submit)
+        for path in out.glob("*.s*"):
+            subprocess.run(["bash", "-n", str(path)], check=True)
+
+    def test_whole_shard_jobs_have_no_merge_job(self):
+        out = self.write(0)
+        self.assertEqual((out / "jobs.txt").read_text().split(), ["idx_g0", "idx_g1"])
+        self.assertNotIn("_merge", (out / "submit.sh").read_text().split("for SHARD in")[1].split(";")[0])
+
+
+if __name__ == "__main__":
+    unittest.main()

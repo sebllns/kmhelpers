@@ -125,7 +125,7 @@ For large sample counts, prefer running [`plan`](../commands/plan.md) and [`appl
 
 **Automatic build**
 
-Review the scripts in `coli_build/assets/initial/` and the plan report in `coli_build/logs/` (see [build - Report](../commands/build.md#report)), then:
+Review the plan in `coli_build/assets/initial/` (`plan.yaml` and one folder of scripts per shard) and the plan report in `coli_build/logs/` (see [build - Report](../commands/build.md#report)), then:
 
 ??? example "Commands"
     ```bash
@@ -134,19 +134,25 @@ Review the scripts in `coli_build/assets/initial/` and the plan report in `coli_
 
 **Manual build**
 
-`plan` also writes plain bash scripts equivalent to running `apply` in `OUTPUT_DIR/assets/SESSION/`: two per sub-index (`<shard>.sh`: its kmtricks builds; `<shard>_merge.sh`: check, publish, cleanup), and `kmhelpers_apply.sh`, which runs them all in order. They can be run manually for a fully hands-on build, and since each sub-index script is independent, they are easy to dispatch for distributed computing - e.g. one job per script in a cluster job scheduler:
+The plan is made of plain bash scripts, in `OUTPUT_DIR/assets/SESSION/<shard>/`: one per kmtricks run (`<part>.sh`, or `<part>_chunk<N>.sh`), then `merge.sh` (check, publish, cleanup). They can be run by hand for a fully hands-on build, runs first, then the merge:
 
 ??? example "Commands"
     ```bash
     kmhelpers plan coli_db -o coli_build/
-    bash coli_build/assets/initial/kmhelpers_apply.sh
+    for shard in coli_build/assets/initial/*/; do
+        for run in "$shard"*.sh; do [ "$run" = "${shard}merge.sh" ] || bash "$run"; done
+        bash "${shard}merge.sh"
+    done
     ```
 
-`apply` itself remains as an useful alternative, including on distributed systems - it can be launched independently on each node (e.g. one `--shard` subset per node, or one chunk per task with `--run`) just like the bash script, lets you filter or rerun specific builds by shard or run, and can email a notification on completion:
+On a cluster, `plan --cluster cluster.yaml` sizes the plan for the jobs of `cluster.yaml` and writes the SLURM files submitting them, with `--chunks-per-job` to spread the chunks of a shard over several nodes (see [plan - Cluster](../commands/plan.md#cluster)). `apply` runs any subset of the jobs (`--shard`, `--job`), lists those not done (`--pending`), and can email a notification on completion:
 
 ??? example "Commands"
     ```bash
-    # each node builds a disjoint subset, and emails when its share is done
+    kmhelpers plan coli_db -o coli_build/ --cluster cluster.yaml
+    bash coli_build/assets/initial/slurm/submit.sh
+
+    # or by hand, each node a disjoint subset, emailing when its share is done
     kmhelpers apply coli_db -o coli_build/ --sh coli_g0 --notify you@example.com
     kmhelpers apply coli_db -o coli_build/ --sh coli_g1 --notify you@example.com
     ```

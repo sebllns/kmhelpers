@@ -130,7 +130,8 @@ class SectionedGroup(click.Group):
             result = super().invoke(ctx)
             elapsed = time.monotonic() - _start
             if ctx.invoked_subcommand != "about":
-                print(f"Done in {elapsed:.2f}s")
+                # stderr: stdout stays for output read by scripts (apply --pending)
+                print(f"Done in {elapsed:.2f}s", file=sys.stderr)
             return result
         except (click.ClickException, click.exceptions.Exit, click.Abort, SystemExit):
             # Let Click exceptions and sys.exit pass through

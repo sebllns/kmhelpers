@@ -176,18 +176,43 @@ _index_ids_option = click.option(
     "index_ids",
     multiple=True,
     required=False,
-    help="⚙   Shards to build, as names or glob patterns (repeatable or "
-    "comma-separated: --shard idx_g0_p1, --shard 'idx_g0_*'). A part name "
-    "(<shard>_<session>) builds that part only, without merging it.",
+    help="⚙   Shards to plan (plan) or to run (apply), as names or glob patterns "
+    "(repeatable or comma-separated: --shard idx_g0_p1, --shard 'idx_g0_*'). "
+    "With plan, a part name (<shard>_<session>) plans that part as its own index.",
 )
-_run_option = click.option(
-    "--run",
-    "run_ids",
+_job_option = click.option(
+    "--job",
+    "job_ids",
     multiple=True,
     required=False,
-    help="⚙   Build only the kmtricks runs matching these names or glob patterns "
-    "(e.g. 'idx_g0_p1_initial_chunk*'), without merging; a later run with "
-    "--shard alone merges them.",
+    help="⚙   Run only the jobs of the plan matching these names or glob patterns "
+    "(repeatable or comma-separated): '<shard>' (a whole task), '<shard>_j<k>' "
+    "(some of its chunks, see `plan --chunks-per-job`) or '<shard>_merge'.",
+)
+pending_option = click.option(
+    "--pending",
+    is_flag=True,
+    help="🚩  Print the jobs of the plan not done yet, one per line, and run nothing.",
+)
+cluster_option = click.option(
+    "--cluster",
+    "cluster_file",
+    required=False,
+    type=click.Path(exists=True, dir_okay=False),
+    help="📁  YAML file of the scheduler and the resources of each kind of job "
+    "(type: slurm). Sizes the plan from these resources (not with --limits) and "
+    "writes BUILD_DIR/assets/SESSION/slurm/, with submit.sh.",
+)
+chunks_per_job_option = click.option(
+    "--chunks-per-job",
+    "--cpj",
+    "chunks_per_job",
+    type=click.IntRange(min=0),
+    default=0,
+    show_default=True,
+    help="⚙   Chunks of a shard one job builds: 0 for one job per shard (its "
+    "chunks, then its merge); else jobs '<shard>_j<k>' of up to N chunks, then "
+    "a job '<shard>_merge'.",
 )
 _threads_option = click.option(
     "--threads",
@@ -272,32 +297,28 @@ _keep_previous_option = click.option(
     "BUILD_DIR/work/SESSION/previous/ instead of deleting it.",
 )
 
-_INDEX_BUILD_OPTIONS = [
+# Where the plan is (plan, apply, build)
+_INDEX_TARGET_OPTIONS = [
     output_dir_option,
     _session_option,
+]
+
+# Decisions of the plan (plan, build); `apply` runs the plan as it is
+_INDEX_BUILD_OPTIONS = [
     _base_path_option,
     _threads_option,
     _skip_compression_option,
     _keep_previous_option,
+    chunks_per_job_option,
 ]
 
-# Only meaningful for commands that operate on an already-composed
-# definition/registry file (plan, apply); `build` always processes the
-# whole input file, so filtering by shard or run doesn't apply there.
-_INDEX_FILTER_OPTIONS = [
-    _index_ids_option,
-    _run_option,
-]
-
-# Only meaningful for commands that actually execute a build (apply, build);
-# `plan` is a preview/dry-run, so a progress bar or completion notification
-# don't apply there.
+# Only meaningful for commands that execute a plan (apply, build)
 _INDEX_APPLY_OPTIONS = [
     _show_progress_option,
     _notify_option,
 ]
 
-# For commands that auto-size threads/partitions (plan, apply, build).
+# For commands that auto-size threads/partitions (plan, build).
 _INDEX_LIMITS_OPTIONS = [
     _limits_option,
     _safety_margin_option,
@@ -363,29 +384,39 @@ def resolve_definition(input_path: str, session: str | None) -> str:
         raise click.ClickException(str(e))
 
 
+def index_target_options(f):
+    """BUILD_DIR and session (plan, apply, build)."""
+    for opt in reversed(_INDEX_TARGET_OPTIONS):
+        f = opt(f)
+    return f
+
+
 def index_build_options(f):
-    """Shared options for commands that build k-mer indices (plan, apply, build)."""
+    """Options taking the decisions of a plan (plan, build), not `apply`."""
     for opt in reversed(_INDEX_BUILD_OPTIONS):
         f = opt(f)
     return f
 
 
-def index_filter_options(f):
-    """Extra options for commands that filter by name/span (plan, apply), not `build`."""
-    for opt in reversed(_INDEX_FILTER_OPTIONS):
-        f = opt(f)
-    return f
+def shard_option(f):
+    """--shard: the shards to plan (plan) or to run (apply)."""
+    return _index_ids_option(f)
+
+
+def job_option(f):
+    """--job: the jobs of the plan to run (apply)."""
+    return _job_option(f)
 
 
 def index_apply_options(f):
-    """Extra options for commands that execute a build (apply, build), not `plan`."""
+    """Extra options for commands that execute a plan (apply, build), not `plan`."""
     for opt in reversed(_INDEX_APPLY_OPTIONS):
         f = opt(f)
     return f
 
 
 def index_limits_options(f):
-    """Extra options for commands that let resource limits be overridden (plan, apply, build)."""
+    """Resource limits sizing a plan (plan, build), not `apply`."""
     for opt in reversed(_INDEX_LIMITS_OPTIONS):
         f = opt(f)
     return f

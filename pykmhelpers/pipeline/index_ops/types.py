@@ -86,9 +86,6 @@ class IndexOpsConfig:
             replacing the value declared in each index definition.
         filter_names: If set, only process the shards (or parts) whose name
             matches one of these glob patterns.
-        filter_runs: If set, only build the kmtricks runs (``<part>`` or
-            ``<part>_chunk<N>``) matching one of these glob patterns, and
-            publish nothing.
         limits: JSON line of resource limits (``ram``, ``files``, ``threads``,
             ``focus``) forwarded to ``auto_params`` when
             ``kmindex_threads`` is unset. Any key omitted is auto-detected
@@ -105,6 +102,11 @@ class IndexOpsConfig:
         keep_previous: Keep the replaced version of an updated index in
             ``work/<session>/previous/`` instead of deleting it. Defaults to
             ``False``.
+        chunks_per_job: Chunks of a task one job runs (``plan.yaml`` jobs).
+            ``0`` (default): one job per task, its chunks then its merge.
+        merge_limits: JSON line of the resources of a merge job, when they
+            differ from ``limits`` (``--cluster`` ``jobs.merge``). ``None``:
+            merges are sized from ``limits``.
     """
 
     workdir: str
@@ -113,9 +115,10 @@ class IndexOpsConfig:
     kmindex_skip_compression: bool = False
     kmindex_build_from: Optional[str] = None
     filter_names: Optional[list[str]] = None
-    filter_runs: Optional[list[str]] = None
     limits: Optional[str] = None
     safety_margin: float = 0.9
     max_chunks: int = MAX_CHUNKS
     chunk_budget: int = CHUNK_BUDGET
     keep_previous: bool = False
+    chunks_per_job: int = 0
+    merge_limits: Optional[str] = None

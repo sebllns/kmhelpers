@@ -1,16 +1,24 @@
 import logging
 import os
+import shutil
 from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Optional
 
 from pykmhelpers.core.log import Log
-from pykmhelpers.core.utils import select_matching, summarize_names
+from pykmhelpers.core.utils import summarize_names
 from pykmhelpers.operations.builder import IndexBuilder
 from pykmhelpers.pipeline.index_db import IndexDefinition, IndexDefinitionTools
+from pykmhelpers.pipeline.index_ops.cluster import write_slurm
 from pykmhelpers.pipeline.index_ops.executor import IndexExecutor, validate_definition
 from pykmhelpers.pipeline.index_ops.layout import LayoutStore
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths, check_index_name
+from pykmhelpers.pipeline.index_ops.plan_file import (
+    MERGE,
+    job_names,
+    new_plan,
+    write_plan,
+)
 from pykmhelpers.pipeline.index_ops.report import RunReport, indent_prefix
 from pykmhelpers.pipeline.index_ops.samples import SampleResolver
 from pykmhelpers.pipeline.index_ops.script import ScriptRecorder
@@ -42,15 +50,16 @@ class _Built:
 
 
 class IndexOps:
-    """Orchestrates k-mer index builds against the kmindex registry ``BUILD_DIR``.
+    """Plans k-mer index builds against the kmindex registry ``BUILD_DIR``.
 
-    Loads an index definition or a span registry (see ``sources``), builds
-    every selected definition as unregistered kmtricks runs, then publishes
-    each target: the runs of its parts, merged with its current version when
-    it is already registered, become ``BUILD_DIR/<target>``. A definition
-    that is not a part of a selected merge is its own target. In plan/dry-run
-    modes, commands are only generated and can be exported as shell scripts
-    via ``write_script()``.
+    Loads an index definition or a span registry (see ``sources``), plans
+    every selected definition as unregistered kmtricks runs, then the
+    publication of each target: the runs of its parts, merged with its
+    current version when it is already registered, become
+    ``BUILD_DIR/<target>``. A definition that is not a part of a selected
+    merge is its own target. Nothing is built: ``write_plan()`` writes the
+    scripts of every task and ``plan.yaml``, which ``apply`` runs
+    (``runner.PlanRunner``).
 
     Args:
         config: Runtime configuration governing paths, build parameters,
@@ -74,6 +83,12 @@ class IndexOps:
         self._dbs = DbCache()
         self._script = ScriptRecorder(self.work_dir)
         self._paths: Optional[BuildPaths] = None
+        self._input: Optional[str] = None
+        self._inputs: list[str] = []
+        self._limits: dict = {}
+        # Tasks of the last run(), keyed by part name (see plan_file)
+        self._tasks: dict[str, dict] = {}
+        self._task_dirs: set[str] = set()
 
         logger.debug(f"Init {type(self).__name__}")
         logger.debug("workdir: " + self.work_dir)
@@ -112,18 +127,55 @@ class IndexOps:
     # ---
     # PUBLIC METHODS
 
-    def write_script(self) -> None:
-        """Write the commands collected by the last ``run()`` to ``assets/<session>/``.
+    @property
+    def tasks(self) -> dict[str, dict]:
+        """Tasks planned by the last ``run()``, as written to ``plan.yaml``."""
+        return self._tasks
 
-        One script per group of parts (``<shard>.sh``: builds, then
-        ``<shard>_merge.sh``: publication and cleanup), plus
-        ``kmhelpers_apply.sh`` running them in order. Existing files are
-        backed up with a ``.bak`` suffix.
+    def write_plan(self, cluster: Optional[dict] = None) -> Optional[str]:
+        """Write the scripts of the last ``run()`` and ``plan.yaml``; return its path.
+
+        Under ``assets/<session>/``, one directory per task (``<shard>/``):
+        one script per kmtricks run, ``merge.sh`` (publication and cleanup),
+        their sample lists and merge inputs. With ``cluster`` (a loaded
+        ``--cluster`` file), also ``slurm/``: the files submitting the jobs.
         """
-        if self._paths is None:
-            logger.warning("Nothing planned: no script written")
-            return
+        if self._paths is None or self._input is None:
+            logger.warning("Nothing planned: no plan written")
+            return None
         self._script.write(self._paths.assets)
+        groups = set(self._script.groups)
+        per_job = self.config.chunks_per_job
+        for task in self._tasks.values():
+            has_merge = ScriptRecorder.merge_group(task["dir"]) in groups
+            if not has_merge:
+                task.pop("merge", None)
+            task["jobs"] = job_names(task["shard"], list(task["chunks"]), has_merge, per_job)
+        options = {
+            "limits": self._limits,
+            "chunks_per_job": per_job,
+            "skip_compression": self.config.kmindex_skip_compression,
+            "keep_previous": self.config.keep_previous,
+            "base_path": self.config.sample_rootpath,
+        }
+        plan = new_plan(
+            self._input,
+            self.work_dir,
+            self._paths.session,
+            self._inputs + ([cluster["source"]] if cluster else []),
+            options,
+            {name: _task_entry(t) for name, t in self._tasks.items()},
+        )
+        if cluster:
+            plan["cluster"] = cluster
+        write_plan(self._paths.plan, plan)
+        if cluster:
+            for path in write_slurm(plan, cluster, os.path.join(self._paths.assets, "slurm")):
+                logger.debug(f"Written {path}")
+            logger.info(
+                f"Submit the jobs with: bash {os.path.join(self._paths.assets, 'slurm', 'submit.sh')}"
+            )
+        return self._paths.plan
 
     def run(
         self,
@@ -132,14 +184,14 @@ class IndexOps:
         fail_on_error: bool = False,
         report_path: Optional[str] = None,
     ) -> ApplyResult:
-        """Apply an index definition or span registry file to the kmindex registry.
+        """Plan an index definition or span registry file against the kmindex registry.
 
-        Builds every selected definition, then publishes every target.
+        Plans every selected definition, then the publication of every target.
 
         Args:
             path: Path to a YAML or JSON file containing either an
                 ``IndexDefinition`` or a span registry.
-            mode: Execution mode - controls whether to dry-run, plan, or apply.
+            mode: ``PLAN``, or ``DRY_RUN`` to skip the sample file checks.
             report_path: Where to write the YAML report, updated as the run
                 goes (after each definition and each publish) and at the end.
             fail_on_error: Abort this run on the first build or merge error
@@ -151,15 +203,29 @@ class IndexOps:
             error, ``PARTIAL`` when some fail (only when
             ``fail_on_error=False``), or ``FAILED`` when a fatal error occurs.
         """
+        if mode.executes:
+            raise ValueError("IndexOps only plans: `apply` runs the plan")
         path = os.path.realpath(path)
         self._script = ScriptRecorder(self.work_dir)
         self._paths = paths = BuildPaths.for_input(self.work_dir, path)
+        self._input = path
+        self._tasks = {}
+        self._task_dirs = set()
         report = RunReport(path, mode, self.config, report_path)
         report.set_build_dir(self.work_dir, paths.assets)
+        self._limits = report.result.details["limits"]
+        samples: Optional[SampleResolver] = None
         try:
-            self._run(report, path, mode, fail_on_error)
+            samples = self._run(report, path, mode, fail_on_error)
         finally:
             report.close()
+            layout = LayoutStore.next_to(path)
+            self._inputs = (
+                [path]
+                + self._dbs.paths
+                + ([layout.path] if layout.path else [])
+                + (samples.files_read if samples else [])
+            )
         return report.result
 
     # ---
@@ -167,7 +233,7 @@ class IndexOps:
 
     def _run(
         self, report: RunReport, path: str, mode: ApplyMode, fail_on_error: bool
-    ) -> ApplyResult:
+    ) -> Optional[SampleResolver]:
         paths = self._paths
         assert paths is not None
         idt = IndexDefinitionTools()
@@ -177,7 +243,7 @@ class IndexOps:
         if data is None or input_type is ApplyInputType.UNKNOWN:
             logger.error("Could not retrieve data type.")
             report.result.status = ApplyStatus.FAILED
-            return report.result
+            return None
 
         os.makedirs(paths.assets, exist_ok=True)
         builder = IndexBuilder(
@@ -195,10 +261,10 @@ class IndexOps:
         except Exception as e:
             Log.handle_exception(logger, e, f"Failed to load definition file '{path}'")
             report.result.status = ApplyStatus.FAILED
-            return report.result
+            return None
 
         layout = LayoutStore.next_to(path)
-        executor = IndexExecutor(builder, mode, self.config, self._script, paths)
+        executor = IndexExecutor(builder, self.config, self._script, paths)
         samples = SampleResolver(
             self.config.sample_rootpath, mode.checks_files, self._dbs
         )
@@ -213,42 +279,39 @@ class IndexOps:
                 report.record(i.name, ApplyStatus.NONE)
                 continue
             try:
-                self._script.select(plan.script_of(i.name))
-                b = self._build(
-                    report, executor, samples, i, layout, plan.script_of(i.name)
-                )
+                target = plan.script_of(i.name)
+                self._select_task(executor, target, target)
+                b = self._build(report, executor, samples, i, layout, target)
                 if b:
                     built[i.name] = b
             except Exception as e:
-                msg = f"   Failed to build index '{i.name}'"
+                msg = f"   Failed to plan index '{i.name}'"
                 if report.fail(e, msg, i.name, fail_on_error):
-                    return report.result
+                    return samples
             report.dump()
-
-        if self.config.filter_runs:
-            # --run builds runs only: a later run with --shard alone merges them
-            try:
-                select_matching(
-                    executor.run_names, self.config.filter_runs, "kmtricks run"
-                )
-            except ValueError as e:
-                report.fail(e, "Invalid --run", None, True)
-                return report.result
-            logger.info("Runs built, nothing merged (--run)")
-            return report.finish()
 
         for target, parts in targets.items():
             try:
-                self._publish(report, executor, plan, target, parts, built)
+                self._select_task(executor, plan.script_of(parts[0]), target)
+                self._publish(report, executor, target, parts, built)
             except Exception as e:
-                msg = f"Failed to publish index '{target}'"
+                msg = f"Failed to plan the publication of '{target}'"
                 if target in executor.publish_details:
                     report.record_merge(target, executor.publish_details[target])
                 if report.fail(e, msg, target, fail_on_error):
-                    return report.result
+                    return samples
             report.dump()
 
-        return report.finish()
+        report.finish()
+        return samples
+
+    def _select_task(self, executor: IndexExecutor, task_dir: str, target: str) -> None:
+        """Record into ``assets/<session>/<task_dir>/``, emptied the first time."""
+        assert self._paths is not None
+        if task_dir not in self._task_dirs:
+            self._task_dirs.add(task_dir)
+            shutil.rmtree(self._paths.task(task_dir), ignore_errors=True)
+        executor.set_task(task_dir, target)
 
     @staticmethod
     def _targets(plan: WorkPlan) -> dict[str, list[str]]:
@@ -337,7 +400,7 @@ class IndexOps:
         self._store_params(i, params)
         report.record_params(i.name, i, params, sample_count)
         assert self._paths is not None
-        report.record_script(i.name, os.path.join(self._paths.assets, f"{target}.sh"))
+        report.record_script(i.name, self._paths.task(target))
         try:
             runs = executor.build(i, fof, params)
         finally:
@@ -351,71 +414,96 @@ class IndexOps:
                 },
             )
         report.record(i.name, ApplyStatus.SUCCESS, issues=issues)
+        self._tasks[i.name] = {
+            "shard": target,
+            "dir": target,
+            "samples": sample_count,
+            "span": i.span,
+            "partitions": params.partitions,
+            "minim_size": params.minim_size,
+            "threads": params.threads,
+            "chunks": {r: {"samples": n} for r, n in runs.items()},
+        }
         return _Built(i, params, runs)
 
     def _publish(
         self,
         report: RunReport,
         executor: IndexExecutor,
-        plan: WorkPlan,
         target: str,
         parts: list[str],
         built: dict[str, _Built],
     ) -> None:
-        """Publish the runs of ``parts`` as ``target`` and record the outcome.
+        """Plan the publication of the runs of ``parts`` as ``target``.
 
-        Parts that are indexes of ``BUILD_DIR`` (left by an older kmhelpers,
-        which registered parts before merging them) are merged in as they are.
         A folder ``BUILD_DIR/<target>`` left unregistered by an interrupted
         publish, with nothing new to add, is registered.
         """
         new = [built[p] for p in parts if p in built]
-        absorbed = [
-            p
-            for p in parts
-            if p != target and (executor.has_index(p) or executor.has_folder(p))
-        ]
         failed = [
             p
             for p in parts
-            if p not in built
-            and p not in absorbed
-            and report.result_of(p) == ApplyStatus.FAILED.value
+            if p not in built and report.result_of(p) == ApplyStatus.FAILED.value
         ]
         if failed:
             logger.warning(
-                f"Cannot publish '{target}': {summarize_names(failed)} failed to build"
+                f"Cannot publish '{target}': {summarize_names(failed)} failed to plan"
             )
             if parts != [target]:
                 report.fold_merge(target, parts)
             return
+
+        registered = executor.has_index(target)
+        # What the merge script assumes of the registry; checked by apply
+        expects = {
+            "registered": registered,
+            "samples": len(executor.index_samples(target)) if registered else 0,
+        }
         if not new:
-            if executor.has_folder(target) and not executor.has_index(target):
+            if executor.has_folder(target) and not registered:
                 logger.info(f"► Registering '{target}' (publish interrupted)...")
-                self._script.select(plan.script_of(parts[0]))
                 executor.register_folder(target, parts)
-            self._record_publish(report, executor, plan, target, parts)
+            self._record_publish(report, executor, target, parts, expects)
             return
 
+        if len(new) > 1:
+            raise ValueError(
+                f"'{target}' gets {len(new)} parts in one session "
+                f"({summarize_names([b.definition.name for b in new])}): one is expected"
+            )
         logger.info(f"► Publishing '{target}'...")
-        runs = {name: n for b in new for name, n in b.runs.items()}
-        self._script.select(plan.script_of(parts[0]))
-        executor.publish(new[0].definition, target, runs, new[0].params, absorbed)
-        self._record_publish(report, executor, plan, target, parts)
+        executor.publish(new[0].definition, target, new[0].runs, new[0].params)
+        self._record_publish(report, executor, target, parts, expects)
 
     def _record_publish(
         self,
         report: RunReport,
         executor: IndexExecutor,
-        plan: WorkPlan,
         target: str,
         parts: list[str],
+        expects: dict,
     ) -> None:
         assert self._paths is not None
         details = dict(executor.publish_details.get(target, {}))
         if details:
-            group = ScriptRecorder.merge_group(plan.script_of(parts[0]))
-            details["merge_script"] = os.path.join(self._paths.assets, f"{group}.sh")
+            task_dir = executor.task_dir
+            details["merge_script"] = os.path.join(
+                self._paths.task(task_dir), f"{MERGE}.sh"
+            )
             report.record_merge(target, details)
+            part = next((p for p in parts if p in self._tasks), parts[0])
+            task = self._tasks.setdefault(
+                part,
+                {"shard": target, "dir": task_dir, "samples": 0, "chunks": {}},
+            )
+            publish = details.get("publish", {})
+            task["merge"] = {"script": f"{MERGE}.sh", "expects": expects, **publish}
         if parts != [target]:
             report.fold_merge(target, parts)
+
+
+def _task_entry(task: dict) -> dict:
+    """A task as written to ``plan.yaml``: its directory with a trailing slash."""
+    entry = dict(task)
+    entry["dir"] = task["dir"].rstrip("/") + "/"
+    return entry

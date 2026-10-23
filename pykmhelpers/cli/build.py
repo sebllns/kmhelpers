@@ -1,18 +1,15 @@
-"""Validate paths then build k-mer indices in a single command."""
+"""Plan then run k-mer index builds in a single command."""
 
-import atexit
 import logging
-import os
-import signal
-import sys
 
 import click
-from click.core import ParameterSource
 
 import pykmhelpers.cli.shared as shared
 import pykmhelpers.core.log
 import pykmhelpers.pipeline.index_ops as ops
-import pykmhelpers.pipeline.mail_notifier
+from pykmhelpers.cli.apply import run_plan
+from pykmhelpers.cli.notify import ExitNotifier
+from pykmhelpers.cli.plan import make_plan
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +27,7 @@ class PartialError(click.ClickException):
 
 @click.command(name="build")
 @click.argument("input_file", nargs=1, required=True, type=click.Path(exists=True))
+@shared.index_target_options
 @shared.index_build_options
 @shared.index_apply_options
 @shared.index_limits_options
@@ -38,12 +36,13 @@ class PartialError(click.ClickException):
 def build(
     ctx,
     input_file,
-    session,
     work_dir,
+    session,
     base_path,
     threads,
     skip_compression,
     keep_previous,
+    chunks_per_job,
     show_progress,
     notify,
     limits,
@@ -51,7 +50,7 @@ def build(
     max_chunks,
     chunk_budget,
 ):
-    """Validate paths then build indices from definition files.
+    """Plan then build indices from definition files.
 
     Runs the pipeline [plan → apply] in a single command.
 
@@ -64,8 +63,9 @@ def build(
 
     \b
     Steps:
-      1. plan  - validate paths and write a build script to BUILD_DIR/assets/
-      2. apply - execute the build and register all indices
+      1. plan  - decide everything, write BUILD_DIR/assets/SESSION/plan.yaml
+                 and the scripts of every shard
+      2. apply - run the plan and register all indices
 
     Examples:
 
@@ -77,152 +77,68 @@ def build(
     # Add an update session to the same index directory
     kmhelpers build coli_db -s update -o coli_build
     """
-
     input_file = shared.resolve_definition(input_file, session)
-
-    abort_msg = "Command 'build' aborted."
-    attachments = []
-    log_dir = "UNDEFINED_LOG_DIR"
-
-    if pykmhelpers.core.log.Log.log_file:
-        attachments.append(pykmhelpers.core.log.Log.log_file)
-
-    _notify_state = {
-        "status": ops.ApplyStatus.NONE.value,
-        "recipient": notify,
-        "sender": "kmhelpers@groupes.renater.fr",
-    }
-
-    def _send_notification():
-        recipient = _notify_state.get("recipient")
-        if not recipient:
-            return
-        status = _notify_state["status"]
-        if status == "NONE":
-            status = "CANCELLED"
-        try:
-            pykmhelpers.pipeline.mail_notifier.MailNotifier(dry_run=False).send(
-                to=recipient,
-                subject=f"[kmhelpers build] {status}",
-                body=f"kmhelpers build exited with status: {status}\nkmindex logs can be found in {log_dir}",
-                sender=_notify_state["sender"],
-                attachments=attachments,
-            )
-        except Exception as e:
-            logger.warning(f"Could not send notification email: {e}")
-
-    def _handle_sigterm(sig, frame):
-        _notify_state["status"] = ops.ApplyStatus.NONE.value
-        sys.exit(1)
-
-    if notify:
-        atexit.register(_send_notification)
-        signal.signal(signal.SIGTERM, _handle_sigterm)
-
-    try:
-        assert work_dir, "Required parameter 'work_dir' was not provided."
-
-    except Exception as e:
-        pykmhelpers.core.log.Log.handle_exception(logger, e, "Invalid argument.")
-        raise click.ClickException(abort_msg)
-
-    work_dir = os.path.realpath(work_dir)
-
-    # Only an explicit --base-path overrides the sample root; otherwise each
-    # definition resolves paths against its JSONL header's root_path.
-    if base_path:
-        base_path = os.path.realpath(base_path)
-        if not os.path.isdir(base_path):
-            raise click.ClickException(f"Data root directory not found at {base_path}")
-
-    logger.info(f"Working directory: {work_dir}")
-
-    # build keeps a conservative margin unless --safety-margin is given
-    # if ctx.get_parameter_source("safety_margin") is ParameterSource.DEFAULT:
-    #     safety_margin = 0.75
-
-    iops = ops.IndexOps(
-        config=ops.IndexOpsConfig(
-            workdir=work_dir,
-            sample_rootpath=base_path,
-            kmindex_threads=threads,
-            kmindex_skip_compression=skip_compression,
-            kmindex_build_from=None,
-            filter_names=None,
-            keep_previous=keep_previous,
-            limits=limits,
-            safety_margin=safety_margin,
-            max_chunks=max_chunks,
-            chunk_budget=chunk_budget,
-        )
-    )
-
-    log_dir = iops.log_dir
+    notifier = ExitNotifier("build", notify)
 
     # --- Step 1: plan ---
     try:
         pykmhelpers.core.log.Log.step(logger, f"STEP 1: Plan {input_file}")
-        details_path = os.path.join(log_dir, f"kmhelpers_plan_{iops.timestamp}.yaml")
-        result = iops.run(
+        result, plan_path, log_dir = make_plan(
             input_file,
-            mode=ops.ApplyMode.PLAN,
+            work_dir,
+            base_path,
+            None,
+            threads,
+            limits,
+            safety_margin,
+            max_chunks,
+            chunk_budget,
+            chunks_per_job,
+            skip_compression,
+            keep_previous,
             fail_on_error=False,
-            report_path=details_path,
         )
-        logger.info(f"Plan details written to {details_path}")
+        notifier.log_dir = log_dir
+    except click.ClickException:
+        raise
     except Exception as e:
-        pykmhelpers.core.log.Log.handle_exception(
-            logger, e, f"Could not plan {os.path.basename(input_file)}"
-        )
+        notifier.status = ops.ApplyStatus.FAILED.value
+        pykmhelpers.core.log.Log.handle_exception(logger, e, "FAILED ('plan')")
         raise click.ClickException("FAILED ('plan')")
 
-    iops.write_script()
-    if result.status is ops.ApplyStatus.FAILED:
+    if result.status is ops.ApplyStatus.FAILED or plan_path is None:
+        notifier.status = ops.ApplyStatus.FAILED.value
         logger.error("FAILED ('plan')")
         raise click.ClickException("FAILED ('plan')")
-    elif result.status is ops.ApplyStatus.PARTIAL:
-        # A partial plan means some operations were dropped; do not proceed
-        # to apply a build we already know is incomplete -- fail directly.
-        _notify_state["status"] = ops.ApplyStatus.PARTIAL.value
+    if result.status is ops.ApplyStatus.PARTIAL:
+        # Some operations were dropped: do not build what is known incomplete
+        notifier.status = ops.ApplyStatus.PARTIAL.value
         logger.error("PARTIAL ('plan')")
         raise PartialError("PARTIAL ('plan')")
-    elif result.status is ops.ApplyStatus.NONE:
-        logger.info("NOTHING TO DO ('plan')")
-    else:
-        logger.info("SUCCESS ('plan')")
+    logger.info("SUCCESS ('plan')")
 
     # --- Step 2: apply ---
-    apply_mode = (
-        ops.ApplyMode.APPLY_SHOW_PROGRESS if show_progress else ops.ApplyMode.APPLY
-    )
-
     try:
         pykmhelpers.core.log.Log.step(logger, f"STEP 2: Apply {input_file}")
         # 'build' is the high-level command: always fail loudly rather than
         # skipping a failed index and exiting 0.
-        details_path = os.path.join(log_dir, f"kmhelpers_apply_{iops.timestamp}.yaml")
-        # attached before the run: a killed run still mails its report so far
-        attachments.append(details_path)
-        result = iops.run(
-            input_file, apply_mode, fail_on_error=True, report_path=details_path
+        result = run_plan(
+            input_file, work_dir, notifier, show_progress=show_progress, fail_on_error=True
         )
-        _notify_state["status"] = result.status.value
-        logger.info(f"Apply details written to {details_path}")
-        if result.status is ops.ApplyStatus.FAILED:
-            logger.error("FAILED ('apply')")
-            raise click.ClickException("FAILED ('apply')")
-        elif result.status is ops.ApplyStatus.PARTIAL:
-            logger.warning("PARTIAL ('apply')")
-            raise PartialError("PARTIAL ('apply')")
-        elif result.status is ops.ApplyStatus.NONE:
-            logger.info("NOTHING TO DO ('apply')")
-        else:
-            logger.info("SUCCESS ('apply')")
     except click.ClickException:
         raise
     except Exception as e:
-        _notify_state["status"] = ops.ApplyStatus.FAILED.value
-        pykmhelpers.core.log.Log.handle_exception(
-            logger, e, f"Could not apply {os.path.basename(input_file)}"
-        )
+        notifier.status = ops.ApplyStatus.FAILED.value
+        pykmhelpers.core.log.Log.handle_exception(logger, e, "FAILED ('apply')")
         raise click.ClickException("FAILED ('apply')")
+
+    if result.status is ops.ApplyStatus.FAILED:
+        logger.error("FAILED ('apply')")
+        raise click.ClickException("FAILED ('apply')")
+    if result.status is ops.ApplyStatus.PARTIAL:
+        logger.warning("PARTIAL ('apply')")
+        raise PartialError("PARTIAL ('apply')")
+    if result.status is ops.ApplyStatus.NONE:
+        logger.info("NOTHING TO DO ('apply')")
+    else:
+        logger.info("SUCCESS ('apply')")

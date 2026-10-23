@@ -1,6 +1,6 @@
 # Design: `plan` prepares, `apply` runs
 
-Status: **draft, for approval**. No backward compatibility is kept.
+Status: **implemented** (see `commands/plan.md` and `commands/apply.md` for the reference). No backward compatibility is kept.
 
 ## Goals
 
@@ -53,13 +53,13 @@ A plan *task* is not a SLURM *task*: the SLURM side is always written
 
 Chunks of one job run one after the other, each sized by `--limits`.
 
-Example, shard `metaG_g0` in 7 chunks with `--chunks-per-job 3`:
+Example, shard `idx_g0` in 7 chunks with `--chunks-per-job 3`:
 
 ```
-metaG_g0_j0     chunk0 chunk1 chunk2
-metaG_g0_j1     chunk3 chunk4 chunk5
-metaG_g0_j2     chunk6
-metaG_g0_merge  needs metaG_g0_j0, metaG_g0_j1, metaG_g0_j2
+idx_g0_j0     chunk0 chunk1 chunk2
+idx_g0_j1     chunk3 chunk4 chunk5
+idx_g0_j2     chunk6
+idx_g0_merge  needs idx_g0_j0, idx_g0_j1, idx_g0_j2
 ```
 
 ## The plan bundle
@@ -71,14 +71,14 @@ assets/initial/
   plan.yaml                       # session manifest (below)
   slurm/                          # with --cluster only (see Cluster)
     jobs.txt  build.sbatch  submit.sh
-  16SV4V5_g0/
-    16SV4V5_g0_initial.sh         # one script per chunk
-    16SV4V5_g0_initial.fof        # its sample list
+  idx_g0/
+    idx_g0_initial.sh         # one script per chunk
+    idx_g0_initial.fof        # its sample list
     merge.sh                      # the merge of the shard
     merge/                        # runs.tsv and the register .tsv of each merge step
     jobs/                         # only with --chunks-per-job N > 0
       j0.sh  j1.sh  merge.sh      # each calls `kmhelpers apply --job <job>`
-  16SV4V5_g1/
+  idx_g1/
     ...
 ```
 
@@ -98,37 +98,37 @@ assets/initial/
 type: plan
 fingerprint: sha256:...        # see Staleness
 created: 2026-10-23T10:00:00
-definition: bioswot/metaG/compose/metaG/initial/index.yaml
+definition: /data/db/compose/idx/initial/index.yaml
 options:
   limits: {ram: 128849018880, threads: 24, ...}   # resolved values
   chunks_per_job: 3
   ...
 tasks:
-  metaG_g0_initial:
-    shard: metaG_g0                 # target index in BUILD_DIR
-    dir: metaG_g0/
+  idx_g0_initial:
+    shard: idx_g0                 # target index in BUILD_DIR
+    dir: idx_g0/
     samples: 448
     partitions: 64
     minim_size: 10
     threads: 24
     chunks:                         # dir/<chunk>.sh, dir/<chunk>.fof
-      metaG_g0_initial_chunk0: {samples: 64}
+      idx_g0_initial_chunk0: {samples: 64}
       ...
-      metaG_g0_initial_chunk6: {samples: 64}
+      idx_g0_initial_chunk6: {samples: 64}
     merge:
       script: merge.sh
       expects: {target_registered: false}   # or {partitions: 64, minim_size: 10}
       mode: merge                   # move: a single chunk and no current version
       max_inputs: 4
       steps:
-        - {name: metaG_g0__sub1_0, inputs: [metaG_g0_initial_chunk0, ..., chunk3]}
-        - {name: metaG_g0__sub1_1, inputs: [metaG_g0_initial_chunk4, ..., chunk6]}
-        - {name: metaG_g0, inputs: [metaG_g0__sub1_0, metaG_g0__sub1_1]}
+        - {name: idx_g0__sub1_0, inputs: [idx_g0_initial_chunk0, ..., chunk3]}
+        - {name: idx_g0__sub1_1, inputs: [idx_g0_initial_chunk4, ..., chunk6]}
+        - {name: idx_g0, inputs: [idx_g0__sub1_0, idx_g0__sub1_1]}
     jobs:
-      metaG_g0_j0: [metaG_g0_initial_chunk0, metaG_g0_initial_chunk1, metaG_g0_initial_chunk2]
-      metaG_g0_j1: [metaG_g0_initial_chunk3, metaG_g0_initial_chunk4, metaG_g0_initial_chunk5]
-      metaG_g0_j2: [metaG_g0_initial_chunk6]
-      metaG_g0_merge: [merge]       # after every other job of the shard
+      idx_g0_j0: [idx_g0_initial_chunk0, idx_g0_initial_chunk1, idx_g0_initial_chunk2]
+      idx_g0_j1: [idx_g0_initial_chunk3, idx_g0_initial_chunk4, idx_g0_initial_chunk5]
+      idx_g0_j2: [idx_g0_initial_chunk6]
+      idx_g0_merge: [merge]       # after every other job of the shard
 ```
 
 Done tests are implied: a chunk is done when its run directory is complete
@@ -192,14 +192,14 @@ each kind of job. `plan` then writes the submission files next to the plan.
 
 ```yaml
 type: slurm                     # only slurm for now
-partition: long
-time: 10-00:00:00
-exclude: [node59]
+partition: compute
+time: 2-00:00:00
+exclude: [node01]
 account: null                   # optional: account, qos, constraint
 max_parallel: 8                 # build array tasks running at once (%8)
 output: logs/slurm/%x_%A_%a.out # relative to BUILD_DIR
 setup: |                        # run before kmhelpers in every job
-  export PATH=/home/external/sbellenous/shared/kmhelpers/.env/bin:$PATH
+  export PATH=/path/to/kmhelpers/bin:$PATH
 extra: []                       # other sbatch options, as is
 jobs:                           # resources per kind of job
   build: {cpus: 24, mem: 120G}
@@ -223,7 +223,7 @@ limits: {files: 131072, maps: 65530}  # optional: compute-node limits, see below
   - `maps`: `vm.max_map_count` (`cat /proc/sys/vm/max_map_count`), per node,
     not propagated by SLURM;
   - read them on a compute node with
-    `srun -p long -c 1 --mem=1G -t 5 bash -c 'ulimit -Hn; cat /proc/sys/vm/max_map_count'`.
+    `srun -p <partition> -c 1 --mem=1G -t 5 bash -c 'ulimit -Hn; cat /proc/sys/vm/max_map_count'`.
 - The resolved file is copied into `plan.yaml` (`cluster:`) and hashed in the
   fingerprint.
 - The same file can be given in the `-C` config (`plan: {cluster: ...}`).
@@ -271,6 +271,4 @@ submit.sh         submits what `apply --pending` lists (safe to run again):
    SLURM writer.
 6. Tests: e2e plan/apply/resume, stale plan, `expects` mismatch, job grouping
    (N = 0, N >= c, N < c), cluster file validation, SLURM files.
-7. Docs: `commands/plan.md`, `apply.md`, `build.md`;
-   `bioswot/scripts/build.sbatch` becomes `bioswot/cluster.yaml` +
-   `plan --cluster` + `submit.sh`.
+7. Docs: `commands/plan.md`, `apply.md`, `build.md`.

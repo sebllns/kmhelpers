@@ -32,6 +32,11 @@ class DbCache:
             self._dbs[path] = idt.load_db(path)
         return self._dbs[path]
 
+    @property
+    def paths(self) -> list[str]:
+        """Definition files loaded so far."""
+        return list(self._dbs)
+
     def source_dir(self, db: IndexDB | None) -> str | None:
         """Directory of the file ``db`` was loaded from."""
         for path, dbs in self._dbs.items():

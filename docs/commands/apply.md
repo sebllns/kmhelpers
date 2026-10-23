@@ -2,7 +2,7 @@
 
 ## Synopsis
 
-Build k-mer indices from an index definition file.
+Run the plan written by [`plan`](plan.md): build, merge and register the indices.
 
 !!! abstract "USAGE"
     ```
@@ -11,12 +11,12 @@ Build k-mer indices from an index definition file.
 
     | Argument | Description |
     |----------|-------------|
-    | `INPUT` | The design directory (`DESIGN_DIR` of `design`), a compose directory or one of its indexes (`COMPOSE_DIR/NAME`), a session (`COMPOSE_DIR/NAME/SESSION` or its `index.yaml`), or one shard file (`SESSION/shards/<shard>.yaml`, built without merge) (required) |
+    | `INPUT` | The INPUT given to `plan`: the design directory, a compose directory or one of its indexes, a session or its `index.yaml`, or one shard file (required) |
     | `-s, --session SESSION` | Session to use when INPUT is a directory (default: the last one composed) |
-    | `-o, --output-dir BUILD_DIR` | Index directory: receives the built index, reused across builds and passed to `query -r` (required) |
+    | `-o, --output-dir BUILD_DIR` | The BUILD_DIR given to `plan` (required) |
 
 !!! abstract "I/O"
-    **Input:** `DESIGN_DIR` of `design` (or `COMPOSE_DIR` of `compose`), with `-s` to pick a session; it resolves to `compose/NAME/SESSION/index.yaml` (see [design - Next Step](design.md#next-step))  
+    **Input:** `BUILD_DIR/assets/SESSION/plan.yaml`, written by `plan` for the same INPUT and BUILD_DIR  
     **Output:** indices in `BUILD_DIR/<name>/`, registered in `BUILD_DIR/index.json`
 
 See [build - Paths](build.md#paths) for the directory layout.
@@ -24,59 +24,52 @@ See [build - Paths](build.md#paths) for the directory layout.
 ## Advanced Options
 | Option | Description |
 |--------|-------------|
-| `--bp, --base-path DIR` | Base path to resolve relative sample paths |
-| `--sh, --shard TEXT` | Shards to build, as names or glob patterns (repeatable or comma-separated, e.g. `idx_g0_p1`, `'idx_g0_*'`); a part name (`<shard>_<session>`) builds that part only, without merging |
-| `--run TEXT` | Build only the kmtricks runs matching these names or glob patterns (`<part>` or `<part>_chunk<N>`), without merging; see [Building chunks separately](apply.md#building-chunks-separately) |
-| `--threads INT` | Hidden. Force the number of kmtricks threads instead of sizing them from `--limits` |
-| `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Builds and merges](build.md#builds-and-merges) |
-| `--safety-margin FLOAT` | Fraction of a detected system limit to use (default: 0.9) |
-| `--max-chunks INT` | Max number of kmtricks chunks a shard is built in; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 64) |
-| `--cb, --chunk-budget INT` | K-mer budget of one kmtricks chunk: a chunk of span `s` holds at most `ceil8(budget / base^s)` samples. 0 for no limit (default: `2**37`), see [build - Shards and chunks](build.md#shards-and-chunks) |
-| `--keep-previous` | Keep the replaced version of an updated index in `BUILD_DIR/work/SESSION/previous/` instead of deleting it |
-| `--ncp, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
-| `--sp, --show-progress` | Enable animation that shows the current subindex being built (use in an interactive shell) |
-| `-x, --fail-fast` | Abort on first failure instead of continuing |
+| `--sh, --shard TEXT` | Run only the jobs of these shards, as names or glob patterns (repeatable or comma-separated) |
+| `--job TEXT` | Run only the jobs matching these names or glob patterns: `<shard>` (a whole shard), `<shard>_j<k>` (some of its chunks) or `<shard>_merge` (see [plan - Jobs](plan.md#jobs)) |
+| `--pending` | Print the jobs not done yet, one per line, and run nothing |
+| `--sp, --show-progress` | Show the run being built (use in an interactive shell) |
+| `-x, --fail-fast` | Abort on first failure instead of going on with the other shards |
 | `--notify EMAIL` | Send email notification on exit (requires sendmail), with the log and the apply report attached |
+
+`apply` takes no sizing option (`--limits`, `--chunk-budget`, ...): they are decisions of the plan.
 
 ## Description
 
-`apply` builds the indices of the session and registers them in `BUILD_DIR/index.json` on completion.
+`apply` loads the plan and refuses it when it is stale: an input file changed since `plan` (definition, shard files, `layout.yaml`, sample lists, `--cluster` file), or another kmhelpers version made it. Run `plan` again then.
 
-**Report** - `BUILD_DIR/logs/kmhelpers_apply_<timestamp>_<n>.yaml`, the [plan report](build.md#report) completed with what happened: per kmtricks run, whether it was built, rebuilt or reused, its duration, peak RSS, CPU efficiency and share of the RAM limit (from `logs/<run>/kmtricks.log`); per shard, the publish duration and size on disk. It is written after each part and each publish, with status `RUNNING` until the end, so a running or killed apply leaves its report so far. See [build - Report](build.md#report).
+Then it runs the selected jobs (all by default), in order. Each step is checked before it runs, so a job can be run again after an interruption, or by several processes in turn:
 
-**Parent indices** - built automatically when required.
+- a shard is **done** when it is registered and holds every sample of the plan's chunks: its jobs do nothing;
+- a **chunk** is skipped when its kmtricks run is complete (`reused`), else its script deletes what an earlier attempt left and builds it;
+- a **merge** needs every chunk of its shard complete; it checks that the registry is as `plan` saw it (`expects`), or as an interrupted run of this same merge leaves it, and refuses otherwise.
 
-**Filtering** - `--shard` selects shards (all by default) by name or glob pattern: `--shard 'idx_g0_*'` selects every shard of group 0. A pattern that matches no shard is a warning; only no match at all is an error (same for `--run`). `--run` goes one level down, to the kmtricks runs of a shard, and builds them without merging.
+A failed step stops its shard; the other shards go on, unless `--fail-fast`. Logs are in `BUILD_DIR/logs/<shard>/` (`<run>.log` with the `kmtricks` output and its resource use, `merge.log`).
 
-### Building chunks separately
+**Report** - `BUILD_DIR/logs/kmhelpers_apply_<timestamp>.yaml`: per shard, for each kmtricks run whether it was built, reused or already published, its duration, peak RSS, CPU efficiency and share of the RAM limit (from its log); the merge, its duration and size on disk. It is written after each job, with status `RUNNING` until the end, so a running or killed apply leaves its report so far. See [build - Report](build.md#report).
 
-A shard whose new samples don't fit one kmtricks build is built in chunks, `<part>_chunk<N>` (see [build - Shards and chunks](build.md#shards-and-chunks)). `--run` builds only the matching runs and merges nothing, e.g. one chunk per task of a SLURM array; a final `apply --shard` reuses the complete runs and merges them. Every task must use the same `--limits`, `--chunk-budget` and `--max-chunks` as the final apply, so the chunks are cut the same way: `plan` with these options lists the run names.
+### Running jobs separately
+
+With `plan --chunks-per-job N`, the chunks of a shard are split into jobs that can run at the same time, e.g. as the tasks of a SLURM array, then the merge job of the shard. `plan --cluster` writes the SLURM files submitting them (see [plan - Cluster](plan.md#cluster)); by hand:
 
 ```bash
-# one task per chunk
-kmhelpers apply coli_db -o coli_build/ --limits "$LIMITS" --run "coli_g0_p0_initial_chunk${SLURM_ARRAY_TASK_ID}"
-# then, once all are done
-kmhelpers apply coli_db -o coli_build/ --limits "$LIMITS" --shard coli_g0_p0
+kmhelpers plan coli_db -o coli_build/ --chunks-per-job 4
+kmhelpers apply coli_db -o coli_build/ --pending          # the jobs to run
+kmhelpers apply coli_db -o coli_build/ --job coli_g0_j0   # one per array task
+kmhelpers apply coli_db -o coli_build/ --job coli_g0_merge
 ```
 
 ## Examples
 
 ```bash
-# Build all indices in a definition file
+# Run the whole plan
 kmhelpers apply coli_db -o coli_build/
 
-# Build only selected indices by name (comma-separated or repeated flags)
+# Run the jobs of some shards
 kmhelpers apply coli_db -o coli_build/ --sh coli_g0,coli_g1
-kmhelpers apply coli_db -o coli_build/ --sh coli_g0 --sh coli_g1
-
-# Build every shard of group 0 (glob pattern)
 kmhelpers apply coli_db -o coli_build/ --sh 'coli_g0_*'
 
-# Resolve sample paths from a base directory
-kmhelpers apply coli_db -o coli_build/ --bp /data/samples
-
-# Set threads, show progress, abort on first error
-kmhelpers apply coli_db -o coli_build/ --limits '{"threads": 8}' --sp -x
+# Show progress, abort on first error
+kmhelpers apply coli_db -o coli_build/ --sp -x
 
 # Notify by email when done
 kmhelpers apply coli_db -o coli_build/ --notify user@example.com
@@ -84,7 +77,7 @@ kmhelpers apply coli_db -o coli_build/ --notify user@example.com
 
 ## See Also
 
-- [`plan`](plan.md) - preview the build plan with path validation
+- [`plan`](plan.md) - decide everything and write the plan
 - [`build`](build.md) - run plan then apply in a single command
 - [`compose`](compose.md) - generate index definition files
 - [`pipeline`](pipeline.md) - run multiple steps in sequence

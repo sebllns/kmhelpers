@@ -63,27 +63,30 @@ coli_build/                       BUILD_DIR (build -o, query -r): the kmindex re
 │       ├── merges/               throwaway merge registries and their outputs
 │       └── previous/             replaced version of an updated index
 ├── assets/
-│   ├── initial/                  scripts (<shard>.sh, <shard>_merge.sh, kmhelpers_apply.sh) and fof files, one folder per SESSION
+│   ├── initial/                  one folder per SESSION
+│   │   ├── plan.yaml             the plan, run by apply (see plan)
+│   │   ├── slurm/                with plan --cluster
+│   │   └── coli_g0_p0/           one folder per shard: <part>[_chunk<N>].sh and .fof, merge.sh, merge/
 │   └── update/
 └── logs/
     ├── kmhelpers_plan_<timestamp>.yaml    plan report, see Report below
     ├── kmhelpers_apply_<timestamp>.yaml   apply report
-    └── coli_g0_p0_initial/kmtricks.log    one per kmtricks run built by apply
+    └── coli_g0_p0/                        <run>.log of each kmtricks run, merge.log
 ```
 
 Reuse the same `BUILD_DIR` for every session of an index. Each index keeps one folder, `BUILD_DIR/<name>/`, for its whole life; a session only uses `BUILD_DIR/work/SESSION/` while it is built, and deletes it when it is done. Index names cannot be `work`, `assets`, `logs`, or start with `.`.
 
-Building a session again resumes it: complete kmtricks runs are kept, incomplete ones are rebuilt, finished merges are not redone, and parts whose samples are already in their index are skipped. A finished session built again changes nothing. A run of `<shard>_merge.sh` interrupted at any point is finished by running it again (or `apply`): until the new version of a sub-index is registered, the sub-index is either registered with its previous folder or not registered at all, never registered with other data.
+Building a session again resumes it: complete kmtricks runs are kept, incomplete ones are rebuilt, finished merges are not redone, and parts whose samples are already in their index are skipped. A finished session built again changes nothing. A run of `<shard>/merge.sh` interrupted at any point is finished by running it again (or `apply`): until the new version of a sub-index is registered, the sub-index is either registered with its previous folder or not registered at all, never registered with other data.
 
 ## Description
 
 `build` chains [`plan`](plan.md) and [`apply`](apply.md) into a single invocation. It is equivalent to running the two commands in sequence.
 
-**Step 1 - plan:** validates all sample paths upfront and writes the equivalent shell scripts to `BUILD_DIR/assets/SESSION/` (`<shard>.sh` and `<shard>_merge.sh` per sub-index, plus `kmhelpers_apply.sh` running them in order) and the plan [report](#report) to `BUILD_DIR/logs/`. Fix any path errors before the build starts rather than discovering them mid-run.
+**Step 1 - plan:** validates all sample paths upfront, takes every build decision and writes the plan to `BUILD_DIR/assets/SESSION/`: `plan.yaml` and one folder of scripts per shard (see [`plan`](plan.md)), and the plan [report](#report) to `BUILD_DIR/logs/`. Fix any path errors before the build starts rather than discovering them mid-run.
 
-**Step 2 - apply:** executes the build, registers all completed indices in `BUILD_DIR/index.json`, and writes the apply [report](#report) as it goes.
+**Step 2 - apply:** runs the plan, registers all completed indices in `BUILD_DIR/index.json`, and writes the apply [report](#report) as it goes.
 
-**Filtering** - `build` always processes every shard of the session. Use [`plan`](plan.md) and [`apply`](apply.md) with `--shard` (names or glob patterns) or `--run` to build a subset.
+**Filtering** - `build` always processes every shard of the session. Use [`plan`](plan.md) with `--shard` (names or glob patterns), then [`apply`](apply.md) (`--shard`, `--job`), to build a subset or to spread the jobs over several nodes.
 
 **Notifications** - use `--notify` to receive an email when the build exits (requires `sendmail`). The notification is sent on both success and failure, including on `SIGTERM`, with the log file and the apply [report](#report) attached (the report so far, when the job was stopped).
 
@@ -106,23 +109,23 @@ chunks. With the default budgets, a full shard fits 64 chunks (`2**43 = 64 x 2**
 
 Every sub-index is built as unregistered `kmtricks` runs, then published:
 
-1. **Build** - each part of the sub-index (its samples of this session) is built with `kmtricks pipeline` into `BUILD_DIR/work/SESSION/runs/<part>/`, not registered. When one `kmtricks` build cannot hold all the samples of a part (open files, `--chunk-budget` and `--max-chunks`, see [Shards and chunks](#shards-and-chunks)), the part is built in chunks, `<part>_chunk<N>/`. These commands are in `assets/SESSION/<shard>.sh`, and can be run anywhere, e.g. as a SLURM array.
-2. **Check** - `assets/SESSION/<shard>_merge.sh` starts by checking every run: `run_infos.txt` (written by kmtricks only when it finishes), `kmtricks.fof`, `options.txt`, and all partition matrices present, non-empty and of equal size. If one run is incomplete, the script stops before registering or merging anything; rebuild that run and run the merge script again.
+1. **Build** - each part of the sub-index (its samples of this session) is built with `kmtricks pipeline` into `BUILD_DIR/work/SESSION/runs/<part>/`, not registered. When one `kmtricks` build cannot hold all the samples of a part (open files, `--chunk-budget` and `--max-chunks`, see [Shards and chunks](#shards-and-chunks)), the part is built in chunks, `<part>_chunk<N>/`. Each run has its script, `assets/SESSION/<shard>/<run>.sh`, which can be run anywhere, e.g. as a SLURM array task (see [plan - Jobs](plan.md#jobs)).
+2. **Check** - `assets/SESSION/<shard>/merge.sh` starts by checking every run: `run_infos.txt` (written by kmtricks only when it finishes), `kmtricks.fof`, `options.txt`, and all partition matrices present, non-empty and of equal size. If one run is incomplete, the script stops before registering or merging anything; rebuild that run and run the merge script again.
 3. **Publish a single run** - a new sub-index built in one run is moved in place (`kmindex register --mode move`): no copy, no merge.
 4. **Merge** - otherwise the runs, plus the current version of the sub-index when it is already registered (see [Updating an index](#updating-an-index)), are merged. Each `kmindex merge` runs in a throwaway registry, `BUILD_DIR/work/SESSION/merges/<name>/<step>/`, holding only its inputs. `kmindex merge` loads the repartition table of every registered sub-index (2 MiB each at minimizer size 10), so a registry limited to the inputs keeps its memory proportional to what is merged. Merges get at most one thread per partition.
 5. **Sub-shards** - one merge can take at most `k` inputs: `ram / (2 * 4^m)` (anonymous memory), `(maps - 1000) / threads` (`vm.max_map_count`) and `files / threads - 1` (open files), with the values of `--limits`. More inputs are merged in balanced groups of at most `k` (`<name>__sub1_<i>`), then these are merged, and so on. Each level reads and writes the data once more.
 6. **Swap** - holding the lock `BUILD_DIR/.registry.lock` (several merge jobs may publish at once): the sub-index is unregistered, its current version is moved to `work/SESSION/previous/`, the merge result is moved to `BUILD_DIR/<name>/`, and registered. Queries see the previous version until the swap; during it (a second or so) the sub-index is not queryable. Moves are renames (an internal `kmhelpers manage move-dir`), so they take the same time whatever the size; they fail instead of copying if `work/` is on another filesystem.
 7. **Check, then clean up** - `kmhelpers manage check --shard <name>` checks the published sub-index; only then are the runs, merges and previous version deleted. A failed check stops the script with everything kept.
 
-`kmhelpers_apply.sh` runs `<shard>.sh` then `<shard>_merge.sh`. The plan logs, for each merge, its number of inputs, the limit that sets `k`, and its expected memory: the anonymous part must fit in RAM, while the mapped inputs are page cache that the kernel reclaims when they exceed it. The same merge plan is in the [report](#report), under `publish.steps`.
+`apply` runs the run scripts of a shard, then its `merge.sh`. The plan logs, for each merge, its number of inputs, the limit that sets `k`, and its expected memory: the anonymous part must fit in RAM, while the mapped inputs are page cache that the kernel reclaims when they exceed it. The same merge plan is in the [report](#report), under `publish.steps`.
 
 ### Report
 
-`plan` and `apply` each write a YAML report to `BUILD_DIR/logs/`: `kmhelpers_plan_<timestamp>_<n>.yaml` and `kmhelpers_apply_<timestamp>_<n>.yaml` (`build` writes both, without `_<n>`). Both have the same layout, organised by shard: `plan` fills in what will be built, `apply` adds what happened.
+`plan` and `apply` each write a YAML report to `BUILD_DIR/logs/`: `kmhelpers_plan_<timestamp>.yaml` and `kmhelpers_apply_<timestamp>.yaml` (`build` writes `kmhelpers_plan_*` and `kmhelpers_build_*`). Both are organised by shard: `plan` records what will be built, `apply` what happened.
 
 - `plan` writes its report once done; every run is `planned`.
-- `apply` writes it after each part and each publish, with `summary.status: RUNNING` until the end: a running or killed apply leaves its report so far. The `--notify` mail attaches it.
-- Each kmtricks run that `apply` runs writes `logs/<run>/kmtricks.log` (command, execution time, max CPU and memory, kmtricks output); the report reads its run metrics from there, also for a run reused from an earlier attempt.
+- `apply` writes it after each job, with `summary.status: RUNNING` until the end: a running or killed apply leaves its report so far. The `--notify` mail attaches it.
+- Each kmtricks run that `apply` runs writes `logs/<shard>/<run>.log` (command, execution time, max CPU and memory, kmtricks output); the report reads its run metrics from there.
 
 ??? example "An apply report (abridged)"
     ```yaml
@@ -138,8 +141,8 @@ Every sub-index is built as unregistered `kmtricks` runs, then published:
       spans:
         169: {shards: 1, samples: 121, est_size: 1.44GB}
         178: {shards: 1, samples: 48, est_size: 1.33GB}
-    input_file: .../compose/16SV4V5/initial/index.yaml
-    build_dir: {path: .../16SV4V5, logs: .../16SV4V5/logs, assets: .../16SV4V5/assets/initial}
+    input_file: .../compose/idx/initial/index.yaml
+    build_dir: {path: .../idx, logs: .../idx/logs, assets: .../idx/assets/initial}
     kmindex: {version: 0.7.1, path: .../bin/kmindex}
     kmhelpers: {version: 0.8.0, path: .../bin/kmhelpers, git_commit: bcc3f5c}
     system:
@@ -147,7 +150,7 @@ Every sub-index is built as unregistered `kmtricks` runs, then published:
       os: Linux
       kernel: 4.18.0-477.27.1.el8_8.x86_64
       cpus: 24
-      slurm: {job_id: '179469', job_name: build_16SV4V5, partition: long, node: node58, cpus_per_task: '24'}
+      slurm: {job_id: '179469', job_name: build_idx, partition: compute, node: node02, cpus_per_task: '24'}
     limits:
       source: auto
       ram: 103.9GB
@@ -159,9 +162,9 @@ Every sub-index is built as unregistered `kmtricks` runs, then published:
       max_chunks: 64
       chunk_budget: 137438953472
     shards:
-      16SV4V5_g0:                     # a shard
+      idx_g0:                     # a shard
         result: SUCCESS
-        16SV4V5_g0_initial:           # its part of this session
+        idx_g0_initial:           # its part of this session
           result: SUCCESS
           span: 169
           samples: 121
@@ -177,12 +180,12 @@ Every sub-index is built as unregistered `kmtricks` runs, then published:
             bitw: 3
             kmer_ratio: 448.62
           est_size: 1.44GB
-          script: .../assets/initial/16SV4V5_g0.sh
+          script: .../assets/initial/idx_g0
           runs:
-            16SV4V5_g0_initial:
+            idx_g0_initial:
               samples: 121
               action: built
-              log: .../logs/16SV4V5_g0_initial/kmtricks.log
+              log: .../logs/idx_g0/idx_g0_initial.log
               duration_s: 1334.79
               max_cpu_pct: 2404.1
               return_code: 0
@@ -194,10 +197,9 @@ Every sub-index is built as unregistered `kmtricks` runs, then published:
               ram_limit_use: 0.193
               threads: 24
               cpu_efficiency: 1.0
-        publish: {mode: move, duration_s: 4.1}
+        publish: {mode: move, duration_s: 4.1, log: .../logs/idx_g0/merge.log}
         disk_size: 1.40GB
-        merge_script: .../assets/initial/16SV4V5_g0_merge.sh
-      16SV4V5_g1:
+      idx_g1:
         ...
     ```
 

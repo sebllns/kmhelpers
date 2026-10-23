@@ -1,19 +1,15 @@
 import datetime
 import glob
+import json
 import logging
 import os
 import shlex
-import shutil
-import subprocess
-import sys
-import time
 from dataclasses import replace
 from typing import Optional
 
 from pykmhelpers.core.byte import ByteCounter, SizeFormat
 from pykmhelpers.core.kmindex_layout import load_options_file
-from pykmhelpers.core.kmindex_paths import chunk_problems
-from pykmhelpers.core.utils import matches_any, summarize_names
+from pykmhelpers.core.utils import summarize_names
 from pykmhelpers.operations.builder import IndexBuilder, backup_name
 from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.pipeline.index_db import IndexDefinition
@@ -25,12 +21,9 @@ from pykmhelpers.pipeline.index_ops.merging import (
     merge_tree,
 )
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths
-from pykmhelpers.pipeline.index_ops.progress import progress_for
-from pykmhelpers.pipeline.index_ops.report import dir_bytes
-from pykmhelpers.pipeline.index_ops.run_log import parse_kmtricks_log, run_log_path
 from pykmhelpers.pipeline.index_ops.script import ScriptRecorder
 from pykmhelpers.pipeline.index_ops.sizing import BuildParams
-from pykmhelpers.pipeline.index_ops.types import ApplyMode, IndexOpsConfig
+from pykmhelpers.pipeline.index_ops.types import IndexOpsConfig
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +36,28 @@ def _q(path: str) -> str:
     return shlex.quote(path)
 
 
+def _fof_names(path: str) -> str:
+    """Shell command printing the sorted sample names of the fof ``path``."""
+    return f"awk -F: '{{gsub(/[ \\t]/, \"\", $1); if ($1 != \"\") print $1}}' {_q(path)} | sort"
+
+
+def _run_complete_cmd(run_dir: str, partitions: int) -> str:
+    """Shell test, true when the kmtricks run ``run_dir`` is complete.
+
+    Same test as ``chunk_problems``: kmtricks writes ``run_infos.txt`` only
+    after its last stage; all ``partitions`` matrices must be non-empty and
+    of one size. Run in a subshell, so a failing command is only a false test.
+    """
+    d = _q(run_dir)
+    return (
+        f"( n=$(ls {d}/matrices/matrix_*.cmbf 2>/dev/null | wc -l); "
+        f"sizes=$(stat -c %s {d}/matrices/matrix_*.cmbf 2>/dev/null | sort -u); "
+        f"[ -s {d}/run_infos.txt ] && [ -f {d}/kmtricks.fof ] && [ -f {d}/options.txt ] "
+        f'&& [ "$n" -eq {partitions} ] && [ "$(echo "$sizes" | wc -l)" -eq 1 ] '
+        '&& [ -n "$sizes" ] && [ "$sizes" != 0 ] )'
+    )
+
+
 def validate_definition(i: IndexDefinition) -> None:
     if not i.name:
         raise ValueError("IndexDefinition is missing required 'name' field")
@@ -53,40 +68,47 @@ def validate_definition(i: IndexDefinition) -> None:
 
 
 class IndexExecutor:
-    """Builds kmtricks runs and publishes them as indexes of one registry.
+    """Plans kmtricks runs and their publication as indexes of one registry.
 
     Every index is built as unregistered kmtricks runs in ``work/<session>/``
     (one, or several chunks), then published by ``publish``: merged with the
     current version of the index if there is one, and moved in place into
-    ``BUILD_DIR``. The steps are recorded into the script; when executing,
-    the recorded shell commands of ``publish`` are also run, so the script
-    and the run do the same thing.
+    ``BUILD_DIR``. Nothing is run here: every step is recorded into the
+    scripts of the task (``set_task``), which ``apply`` runs. Each script can
+    be run again after an interruption.
     """
 
     def __init__(
         self,
         builder: IndexBuilder,
-        mode: ApplyMode,
         config: IndexOpsConfig,
         script: ScriptRecorder,
         paths: BuildPaths,
     ) -> None:
         self._builder = builder
-        self._mode = mode
         self._config = config
         self._script = script
         self._paths = paths
         self._claimed = set[str]()
-        self._prepared: set[str] = set()
-        # Every run name planned, selected by --run or not
+        self._task_dir: str | None = None
+        self._target: str | None = None
+        # Every run name planned
         self.run_names: list[str] = []
-        # For the report: each run built (or reused), each target published
+        # For the report and the plan: each run planned, each target published
         self.run_details: dict[str, dict] = {}
         self.publish_details: dict[str, dict] = {}
 
+    def set_task(self, task_dir: str, target: str) -> None:
+        """Record the next runs and merge into ``assets/<session>/<task_dir>/``,
+        for the index ``target``."""
+        self._task_dir = task_dir
+        self._target = target
+
     @property
-    def executes(self) -> bool:
-        return self._mode.executes
+    def task_dir(self) -> str:
+        if self._task_dir is None:
+            raise RuntimeError("No task selected")
+        return self._task_dir
 
     def has_index(self, name: str) -> bool:
         self._builder.index.load_json()
@@ -118,17 +140,15 @@ class IndexExecutor:
         A publish interrupted after its moves: nothing is left to build or
         merge, only the runs of ``parts`` (and their chunks) to delete.
         """
-        group = self._script.current or target
-        self._script.select(ScriptRecorder.merge_group(group))
+        self._script.select(ScriptRecorder.merge_group(self.task_dir))
         self.publish_details[target] = {"publish": {"mode": "register"}}
         self._locked(self._register(target), f"register {target}")
         runs = [self._paths.run(p) for p in parts]
-        self._check_and_clean(target, runs, [])
+        self._check_and_clean(target, runs)
         self._sh(
             "rm -rf " + " ".join(f"{_q(r)}_chunk*" for r in runs),
             f"cleanup {summarize_names(parts)} chunks",
         )
-        self._script.select(group)
 
     def claim(self, name: str) -> bool:
         """Reserve ``name`` for a build in this run. False if already claimed."""
@@ -194,11 +214,10 @@ class IndexExecutor:
     def build(
         self, i: IndexDefinition, fof: FofManager, params: BuildParams
     ) -> dict[str, int]:
-        """Build ``i`` as unregistered runs; return their sample count by run name.
+        """Plan ``i`` as unregistered runs; return their sample count by run name.
 
         One run named after ``i``, or ``{name}_chunk{n}`` runs when ``params``
-        requires chunks. With ``config.filter_runs``, only the matching runs
-        are built and returned.
+        requires chunks.
         """
         assert i.name
         if params.chunk_size is None:
@@ -217,11 +236,8 @@ class IndexExecutor:
             }
         self.run_names.extend(planned)
 
-        patterns = self._config.filter_runs
         runs: dict[str, int] = {}
         for name, run_fof in planned.items():
-            if patterns and not matches_any(name, patterns):
-                continue
             self._build_run(name, run_fof, i, params)
             runs[name] = run_fof.get_sample_count()
         return runs
@@ -229,69 +245,53 @@ class IndexExecutor:
     def _build_run(
         self, name: str, fof: FofManager, i: IndexDefinition, params: BuildParams
     ) -> None:
-        """Build the kmtricks run ``work/<session>/runs/<name>``.
+        """Record the script building the kmtricks run ``work/<session>/runs/<name>``.
 
-        A complete run left by an earlier attempt is kept; an incomplete one
-        is deleted and rebuilt.
+        The script is ``<task dir>/<name>.sh``, its sample list
+        ``<task dir>/<name>.fof``. It does nothing when the samples are
+        already published in the target, keeps a complete run left by an
+        earlier attempt, and deletes and rebuilds an incomplete one.
         """
         run_dir = self._paths.run(name)
-        log = run_log_path(self._paths.logs, name)
-        details: dict = {
-            "samples": fof.get_sample_count(),
-            "action": "built" if self.executes else "planned",
-        }
-        self.run_details[name] = details
-        if self.executes and os.path.exists(run_dir):
-            problems = chunk_problems(run_dir, params.partitions)
-            if not problems:
-                logger.info(f"  └── Reusing complete run '{name}'")
-                details["action"] = "reused"
-                self._add_log(details, log)
-                return
-            logger.info(
-                f"  └── Rebuilding incomplete run '{name}': {', '.join(problems)}"
-            )
-            details["action"] = "rebuilt"
-            shutil.rmtree(run_dir)
-        if self._mode is ApplyMode.APPLY:
-            logger.info(f"  └── Building '{name}'...")
+        fof_path = os.path.join(self._paths.task(self.task_dir), f"{name}.fof")
+        self.run_details[name] = {"samples": fof.get_sample_count(), "action": "planned"}
 
-        group = self._script.current or name
-        if group not in self._prepared:
-            # kmtricks needs the parent of its run directory
-            self._script.add(f"mkdir -p {_q(self._paths.runs)}", "prepare")
-            self._prepared.add(group)
+        self._script.select(f"{self.task_dir}/{name}")
+        target_fof = os.path.join(self._paths.shard(self._target or name), "kmtricks.fof")
+        self._script.add(
+            f"if [ -f {_q(target_fof)} ] && [ -z \"$(comm -23 "
+            f"<({_fof_names(fof_path)}) <({_fof_names(target_fof)}))\" ]; then "
+            "echo 'samples already published: skip'; exit 0; fi",
+            f"check {name}",
+        )
+        self._script.add(
+            f"if {_run_complete_cmd(run_dir, params.partitions)}; then "
+            "echo 'complete run: skip'; exit 0; fi",
+            f"reuse {name}",
+        )
+        # kmtricks needs the parent of its run directory, not the run itself
+        self._script.add(
+            f"rm -rf {_q(run_dir)} && mkdir -p {_q(self._paths.runs)}", "prepare"
+        )
 
-        with progress_for(self._mode, name) as progress:
-            result = self._builder.create_subindex(
-                name=name,
-                samples=fof,
-                abundance_min=i.abundance_min,
-                bitw=i.bitw or None,
-                bloom_size=i.bf_size,
-                n_partitions=params.partitions,
-                n_threads=params.threads,
-                auto_check=True,
-                compress_intermediate=not self._config.kmindex_skip_compression,
-                minim_size=params.minim_size,
-                dry_run=not self.executes,
-                kmer_size=i.kmer_size,
-                progress=progress.handler,
-                register=False,
-            )
-            if result and "command" in result:
-                self._script.add(result["command"], f"build {name}")
-        if self.executes:
-            self._add_log(details, log)
-
-    @staticmethod
-    def _add_log(details: dict, log: str) -> None:
-        """Add what the ``kmtricks.log`` of a run tells, when there is one."""
-        info = parse_kmtricks_log(log)
-        if info:
-            details["log"] = log
-            info.pop("samples", None)  # already in details
-            details.update(info)
+        result = self._builder.create_subindex(
+            name=name,
+            samples=fof,
+            abundance_min=i.abundance_min,
+            bitw=i.bitw or None,
+            bloom_size=i.bf_size,
+            n_partitions=params.partitions,
+            n_threads=params.threads,
+            auto_check=True,
+            compress_intermediate=not self._config.kmindex_skip_compression,
+            minim_size=params.minim_size,
+            dry_run=True,
+            kmer_size=i.kmer_size,
+            register=False,
+            fof_path=fof_path,
+        )
+        if result and "command" in result:
+            self._script.add(result["command"], f"build {name}")
 
     def publish(
         self,
@@ -299,14 +299,10 @@ class IndexExecutor:
         target: str,
         runs: dict[str, int],
         params: BuildParams,
-        absorbed: list[str] | None = None,
     ) -> None:
         """Publish the runs built for ``target`` as the index ``BUILD_DIR/<target>``.
 
-        ``absorbed`` are other indexes of ``BUILD_DIR`` to merge in, then
-        unregister and delete (parts registered by an older kmhelpers).
-
-        Recorded in the merge script of the current group, run after its builds:
+        Recorded in the merge script of the task, run after its builds:
 
         1. check that every run is complete (else stop before touching anything);
         2. a single new run: move it in place and register it;
@@ -326,12 +322,10 @@ class IndexExecutor:
         not registered at all. Moves are renames (``kmhelpers manage move-dir``):
         they fail instead of copying across filesystems.
         """
-        start = time.monotonic()
         paths = self._paths
         partitions = params.partitions
         names = list(runs)
         run_dirs = {name: paths.run(name) for name in names}
-        absorbed = absorbed or []
         final_done = self._done(target, target)
         # An interrupted publish may have left target unregistered, or moved away
         existing = (
@@ -340,11 +334,10 @@ class IndexExecutor:
             or os.path.exists(final_done)
         )
 
-        group = self._script.current or target
-        self._script.select(ScriptRecorder.merge_group(group))
+        self._script.select(ScriptRecorder.merge_group(self.task_dir))
 
         shard = paths.shard(target)
-        single = len(names) == 1 and not existing and not absorbed
+        single = len(names) == 1 and not existing
         run = run_dirs[names[0]]
         # once merged (or moved in place), the runs may be gone: nothing to check
         published = (
@@ -362,8 +355,6 @@ class IndexExecutor:
         )
 
         details: dict = {"mode": "move" if single else "merge"}
-        if absorbed:
-            details["absorbed"] = list(absorbed)
         if existing:
             details["updates"] = target
         self.publish_details[target] = {"publish": details}
@@ -383,17 +374,13 @@ class IndexExecutor:
                 current = backup_name(target, stamp)
                 inputs[current] = shard
                 samples[current] = len(self.index_samples(target))
-            for name in absorbed:
-                inputs[name] = paths.shard(name)
-                samples[name] = len(self.index_samples(name))
             out = self._merge(i, target, inputs, samples, params, details)
 
             previous = paths.previous(target)
+            # the entry's folder is moved below
             unregister = shlex.join(
                 ["kmhelpers", "manage", "-r", paths.registry, "remove"]
-                + [a for n in [target] + absorbed for a in ("--shard", n)]
-                # the entry's folder (or old-layout symlink) is moved below
-                + ["-y", "--missing-ok", "--keep-link"]
+                + ["--shard", target, "-y", "--missing-ok"]
             )
             swap = [
                 unregister,
@@ -404,15 +391,9 @@ class IndexExecutor:
             ]
             self._locked(" && ".join(swap), f"publish {target}")
 
-        self._check_and_clean(target, list(run_dirs.values()), absorbed)
-        self._script.select(group)
-        if self.executes:
-            details["duration_s"] = round(time.monotonic() - start, 1)
-            self.publish_details[target]["disk_bytes"] = dir_bytes(paths.shard(target))
+        self._check_and_clean(target, list(run_dirs.values()))
 
-    def _check_and_clean(
-        self, target: str, run_dirs: list[str], absorbed: list[str]
-    ) -> None:
+    def _check_and_clean(self, target: str, run_dirs: list[str]) -> None:
         """Check the published ``target``, then delete what built it."""
         paths = self._paths
         # 4. a broken index must not cost its inputs
@@ -432,7 +413,7 @@ class IndexExecutor:
         )
 
         # 5. runs, merges and the previous version are no longer needed
-        cleanup = run_dirs + [paths.shard(n) for n in absorbed] + [paths.merges(target)]
+        cleanup = run_dirs + [paths.merges(target)]
         if not self._config.keep_previous:
             cleanup.append(paths.previous(target))
         self._remove(cleanup, f"cleanup {target}")
@@ -490,8 +471,11 @@ class IndexExecutor:
         """
         paths = self._paths
         partitions = params.partitions
-        threads = merge_threads(params.threads, partitions)
-        limits = MergeLimits.resolve(self._config.limits, self._config.safety_margin)
+        # a merge job may have other resources than the build jobs (--cluster)
+        merge_limits = self._config.merge_limits or self._config.limits
+        merge_cpus = json.loads(merge_limits or "{}").get("threads")
+        threads = merge_threads(min(params.threads, merge_cpus or params.threads), partitions)
+        limits = MergeLimits.resolve(merge_limits, self._config.safety_margin)
         k, binding = max_inputs(limits, partitions, params.minim_size, threads)
         steps = merge_tree(target, list(inputs), k)
         step_details: list[dict] = []
@@ -589,29 +573,12 @@ class IndexExecutor:
         self._sh(f"flock {_q(self._paths.lock)} -c {_q(cmd)}", label)
 
     def _sh(self, cmd: str, label: str) -> None:
-        """Record ``cmd`` into the script; when executing, also run it with bash."""
+        """Record ``cmd`` into the selected script."""
         self._script.add(cmd, label)
-        if not self.executes:
-            return
-        env = dict(os.environ)
-        # kmhelpers and kmindex of this installation come first
-        env["PATH"] = os.path.dirname(sys.executable) + os.pathsep + env.get("PATH", "")
-        r = subprocess.run(
-            ["bash", "-c", f"set -euo pipefail\n{cmd}"],
-            cwd=self._paths.build_dir,
-            env=env,
-            capture_output=True,
-            text=True,
-        )
-        if r.stdout:
-            logger.debug(r.stdout.rstrip())
-        if r.returncode != 0:
-            tail = "\n".join((r.stderr or r.stdout).strip().splitlines()[-20:])
-            raise RuntimeError(f"'{label}' failed (exit {r.returncode}):\n{tail}")
 
     def _write_tsv(self, file_name: str, entries: dict[str, str]) -> str:
-        """Write ``name<TAB>path`` lines to the assets folder; return the file path."""
-        path = os.path.join(self._paths.assets, file_name)
+        """Write ``name<TAB>path`` lines to ``<task dir>/merge/``; return the file path."""
+        path = os.path.join(self._paths.task(self.task_dir), "merge", file_name)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w") as f:
             f.writelines(f"{name}\t{p}\n" for name, p in entries.items())
@@ -640,14 +607,6 @@ class IndexExecutor:
         )
 
     def _remove(self, paths: list[str], label: str) -> None:
-        """Delete ``paths``, and the target of those that are symlinks."""
-        if not paths:
-            return
-        quoted = " ".join(_q(p) for p in paths)
-        self._sh(
-            # cd -P resolves a symlink portably (no GNU realpath -m)
-            f"for d in {quoted}; do "
-            'if p=$(cd -P "$d" 2>/dev/null && pwd); then rm -rf "$p"; fi; '
-            'rm -rf "$d"; done',
-            label,
-        )
+        """Delete ``paths``."""
+        if paths:
+            self._sh("rm -rf " + " ".join(_q(p) for p in paths), label)

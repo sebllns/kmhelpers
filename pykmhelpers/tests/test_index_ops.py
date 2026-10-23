@@ -19,6 +19,14 @@ from pykmhelpers.pipeline.index_ops.executor import IndexExecutor
 from pykmhelpers.pipeline.index_ops.layout import LayoutStore
 from pykmhelpers.pipeline.index_ops.ops import IndexOps
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths, check_index_name
+from pykmhelpers.pipeline.index_ops.plan_file import (
+    MERGE,
+    check_fresh,
+    job_names,
+    load_plan,
+    new_plan,
+    write_plan,
+)
 from pykmhelpers.pipeline.index_ops.report import merge_status, run_status
 from pykmhelpers.pipeline.index_ops.samples import SampleResolver
 from pykmhelpers.pipeline.index_ops.script import ScriptRecorder
@@ -494,12 +502,12 @@ class TestAlignWithStartedRuns(unittest.TestCase):
         self.assertEqual(aligned.partitions, 8)
 
 
-class TestRunFilter(unittest.TestCase):
-    """--run builds only the matching runs of a part."""
+class TestChunks(unittest.TestCase):
+    """A part is planned in one run, or in chunks of ``chunk_size`` samples."""
 
-    def build(self, chunk_size, **filters):
+    def build(self, chunk_size):
         executor = IndexExecutor.__new__(IndexExecutor)
-        executor._config = make_config(**filters)
+        executor._config = make_config()
         executor.run_names = []
         built = []
         executor._build_run = lambda name, fof, i, params: built.append(name)
@@ -509,20 +517,67 @@ class TestRunFilter(unittest.TestCase):
         )
         return built, runs, executor.run_names
 
-    def test_without_filter_every_chunk_is_built(self):
+    def test_every_chunk_is_planned(self):
         built, runs, names = self.build(2)
         self.assertEqual(built, ["t_s1_chunk0", "t_s1_chunk1", "t_s1_chunk2"])
         self.assertEqual(runs, {"t_s1_chunk0": 2, "t_s1_chunk1": 2, "t_s1_chunk2": 1})
         self.assertEqual(names, built)
 
-    def test_only_matching_chunks_are_built(self):
-        built, runs, names = self.build(2, filter_runs=["*_chunk1"])
-        self.assertEqual((built, runs), (["t_s1_chunk1"], {"t_s1_chunk1": 2}))
-        self.assertEqual(len(names), 3)
-
     def test_a_part_in_one_run(self):
-        self.assertEqual(self.build(None, filter_runs=["t_s1"])[0], ["t_s1"])
-        self.assertEqual(self.build(None, filter_runs=["other"])[0], [])
+        self.assertEqual(self.build(None)[0], ["t_s1"])
+
+
+class TestJobNames(unittest.TestCase):
+    chunks = [f"t_s1_chunk{n}" for n in range(7)]
+
+    def test_one_job_per_task_by_default(self):
+        self.assertEqual(
+            job_names("t", self.chunks, True, 0), {"t": self.chunks + [MERGE]}
+        )
+
+    def test_fewer_chunks_than_per_job(self):
+        self.assertEqual(job_names("t", self.chunks, True, 7), {"t": self.chunks + [MERGE]})
+
+    def test_chunks_split_then_merge(self):
+        jobs = job_names("t", self.chunks, True, 3)
+        self.assertEqual(list(jobs), ["t_j0", "t_j1", "t_j2", "t_merge"])
+        self.assertEqual(jobs["t_j2"], ["t_s1_chunk6"])
+        self.assertEqual(jobs["t_merge"], [MERGE])
+
+    def test_merge_only(self):
+        self.assertEqual(job_names("t", [], True, 3), {"t": [MERGE]})
+
+
+class TestPlanFile(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.definition = self.tmp / "index.yaml"
+        self.definition.write_text("type: x\n")
+
+    def plan(self):
+        return new_plan(str(self.definition.resolve()), str(self.tmp), "s1", [str(self.definition)], {}, {})
+
+    def test_round_trip(self):
+        path = self.tmp / "assets" / "s1" / "plan.yaml"
+        write_plan(str(path), self.plan())
+        plan = load_plan(str(path))
+        self.assertEqual(plan["session"], "s1")
+        check_fresh(plan, str(self.definition))
+
+    def test_changed_input_is_stale(self):
+        plan = self.plan()
+        self.definition.write_text("type: y\n")
+        with self.assertRaisesRegex(ValueError, "inputs changed"):
+            check_fresh(plan)
+
+    def test_other_definition_is_stale(self):
+        with self.assertRaisesRegex(ValueError, "made for"):
+            check_fresh(self.plan(), str(self.tmp / "other.yaml"))
+
+    def test_missing_plan(self):
+        with self.assertRaisesRegex(FileNotFoundError, "kmhelpers plan"):
+            load_plan(str(self.tmp / "nope.yaml"))
 
 
 class TestBuildPaths(unittest.TestCase):
@@ -611,15 +666,15 @@ class TestScriptRecorder(unittest.TestCase):
     def lines(self, name):
         return (self.assets / name).read_text().splitlines()
 
-    def test_one_script_per_group_and_runner(self):
+    def test_one_script_per_run_and_merge_in_task_dirs(self):
         rec = ScriptRecorder(str(self.tmp))
-        rec.select("b")
+        rec.select("b/b_p0")
         rec.add(f"build {self.tmp}/b_p0", "build b_p0")
-        rec.select("a")
+        rec.select("a/a_p0")
         rec.add("build a_p0", "build a_p0")
-        rec.select("b")
+        rec.select(ScriptRecorder.merge_group("b"))
         rec.add("merge b", "merge b_p0 -> b")
-        rec.write(str(self.assets))
+        written = rec.write(str(self.assets))
 
         header = [
             "#!/usr/bin/env bash",
@@ -630,57 +685,28 @@ class TestScriptRecorder(unittest.TestCase):
         ]
         ts = "$(date '+%F %T')"
         self.assertEqual(
-            self.lines("b.sh"),
+            self.lines("b/b_p0.sh"),
             header
             + [
-                f'echo "{ts} [b] build b_p0"',
+                f'echo "{ts} [b_p0] build b_p0"',
                 "build ${WORKDIR}/b_p0",
-                f'echo "{ts} [b] merge b_p0 -> b"',
-                "merge b",
-                f'echo "{ts} [b] done"',
+                f'echo "{ts} [b_p0] done"',
             ],
         )
         self.assertEqual(
-            self.lines("a.sh"),
+            self.lines("b/merge.sh"),
             header
-            + [f'echo "{ts} [a] build a_p0"', "build a_p0", f'echo "{ts} [a] done"'],
+            + [f'echo "{ts} [merge] merge b_p0 -> b"', "merge b", f'echo "{ts} [merge] done"'],
         )
         self.assertEqual(
-            self.lines("kmhelpers_apply.sh"),
-            header
-            + [
-                f'echo "{ts} Running assets/b.sh"',
-                'bash "${WORKDIR}/assets/b.sh"',
-                f'echo "{ts} Running assets/a.sh"',
-                'bash "${WORKDIR}/assets/a.sh"',
-            ],
+            [Path(p).relative_to(self.assets).as_posix() for p in written],
+            ["b/b_p0.sh", "a/a_p0.sh", "b/merge.sh"],
         )
+        self.assertFalse((self.assets / "kmhelpers_apply.sh").exists())
 
     def test_add_requires_selection(self):
         with self.assertRaises(RuntimeError):
             ScriptRecorder(str(self.tmp)).add("cmd", "step")
-
-    def test_write_creates_the_session_directory(self):
-        rec = ScriptRecorder(str(self.tmp))
-        rec.select("a")
-        rec.add("build a_p0", "step")
-        session_dir = self.assets / "initial"
-        rec.write(str(session_dir))
-
-        self.assertTrue((session_dir / "a.sh").is_file())
-        self.assertEqual(
-            self.lines("initial/kmhelpers_apply.sh")[-1],
-            'bash "${WORKDIR}/assets/initial/a.sh"',
-        )
-
-    def test_rewrite_backs_up(self):
-        for cmd in ("first", "second"):
-            rec = ScriptRecorder(str(self.tmp))
-            rec.select("a")
-            rec.add(cmd, "step")
-            rec.write(str(self.assets))
-        self.assertIn("second", self.lines("a.sh"))
-        self.assertIn("first", self.lines("a.sh.bak"))
 
 
 if __name__ == "__main__":

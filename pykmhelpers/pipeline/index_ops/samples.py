@@ -29,6 +29,11 @@ class SampleResolver:
         self._enriched = set[int]()
         self._sample_files = dict[str, dict[str, list[str]]]()
 
+    @property
+    def files_read(self) -> list[str]:
+        """JSONL sample files read so far."""
+        return list(self._sample_files)
+
     def build_fof(self, i: IndexDefinition) -> tuple[FofManager, list[str]]:
         """Return the fof of ``i`` and the issues of the samples that were skipped."""
         self._enrich_from_sample_file(i)

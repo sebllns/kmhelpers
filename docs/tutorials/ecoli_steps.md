@@ -209,7 +209,7 @@ kmhelpers plan coli_db -o coli_build/
     errors now rather than discovering them mid-build.
 
 ??? success "RESULT"
-    ??? tip "Report in `coli_build/logs/kmhelpers_plan_<timestamp>_0.yaml`"
+    ??? tip "Report in `coli_build/logs/kmhelpers_plan_<timestamp>.yaml`"
         - **`summary`** -- status (`SUCCESS`, `PARTIAL`, `FAILED`), counts, and totals: shards, samples, kmtricks runs, estimated size, also per span
         - **`kmindex` / `kmhelpers` / `system`** -- tool versions, host, and the SLURM job if any
         - **`limits`** -- the RAM, open files and threads the build is sized for
@@ -217,14 +217,16 @@ kmhelpers plan coli_db -o coli_build/
 
         `apply` writes the same report, completed with what happened (run durations, peak memory, size on disk); see [build - Report](../commands/build.md#report).
 
-    ??? tip "Build scripts in `coli_build/assets/initial/`"
-        - **`coli_g<span>.sh`** -- one script per sub-index (`coli_g0`, `coli_g1`): one
-          `kmtricks pipeline` call per part (or chunk), with Bloom-filter size, k-mer size,
-          partitions and threads pre-filled.
-        - **`coli_g<span>_merge.sh`** -- checks the runs, publishes them as the sub-index
-          (moved in place, or merged), checks it, then deletes the runs.
-        - **`kmhelpers_apply.sh`** -- runs every script in order. Each script stops at the
-          first failing command; see [build - Builds and merges](../commands/build.md#builds-and-merges).
+    ??? tip "The plan in `coli_build/assets/initial/`"
+        - **`plan.yaml`** -- what `apply` runs: one task per sub-index, its kmtricks runs,
+          its merge and its jobs (see [plan](../commands/plan.md#description)).
+        - **`coli_g<span>/coli_g<span>_initial.sh`** -- one script per kmtricks run (or chunk)
+          of the sub-index (`coli_g0`, `coli_g1`), with Bloom-filter size, k-mer size,
+          partitions and threads pre-filled, next to its sample list (`.fof`).
+        - **`coli_g<span>/merge.sh`** -- checks the runs, publishes them as the sub-index
+          (moved in place, or merged), checks it, then deletes the runs. Each script stops
+          at the first failing command and can be run again; see
+          [build - Builds and merges](../commands/build.md#builds-and-merges).
 
 ---
 
@@ -243,11 +245,14 @@ kmhelpers plan coli_db -o coli_build/
 === "bash"
 
     ```bash
-    bash coli_build/assets/initial/kmhelpers_apply.sh
+    for shard in coli_g0 coli_g1; do
+        bash coli_build/assets/initial/$shard/${shard}_initial.sh
+        bash coli_build/assets/initial/$shard/merge.sh
+    done
     ```
 
     ??? abstract "I/O"
-        **Input:** `coli_build/assets/initial/kmhelpers_apply.sh`   
+        **Input:** `coli_build/assets/initial/<shard>/*.sh`   
         **Output:** `coli_build/index.json` + one folder per sub-index, `coli_build/coli_g0/` and `coli_build/coli_g1/` - ready-to-query index 
 
 

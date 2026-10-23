@@ -3,7 +3,6 @@ from datetime import datetime
 from time import sleep
 
 from pykmhelpers.operations.builder import IndexBuilder
-from pykmhelpers.pipeline.index_ops.types import ApplyMode
 
 
 class NullProgress:
@@ -71,8 +70,3 @@ class ProgressDisplay:
         )
         self._stop_spinner()
 
-
-def progress_for(mode: ApplyMode, name: str) -> ProgressDisplay | NullProgress:
-    if mode is ApplyMode.APPLY_SHOW_PROGRESS:
-        return ProgressDisplay(name)
-    return NullProgress()

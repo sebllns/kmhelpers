@@ -41,6 +41,11 @@ class LayoutStore:
         return cls(os.path.join(index_dir, LAYOUT_FILE))
 
     @property
+    def path(self) -> Optional[str]:
+        """The layout file, when there is one."""
+        return self._path if self._path and os.path.isfile(self._path) else None
+
+    @property
     def exists(self) -> bool:
         return bool(self._data)
 

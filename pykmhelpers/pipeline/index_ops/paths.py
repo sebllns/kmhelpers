@@ -35,8 +35,10 @@ class BuildPaths:
         │   ├── runs/<run>/            kmtricks runs (parts, chunks)
         │   ├── merges/<target>/<step>/  throwaway registry + merge output
         │   └── previous/<target>      replaced version, during an update
-        ├── assets/<session>/          scripts, fofs, tsv
-        └── logs/
+        ├── assets/<session>/
+        │   ├── plan.yaml              manifest of the plan
+        │   └── <shard>/               scripts and fofs of one task, merge/ tsv
+        └── logs/<shard>/              logs of the runs and merge of one task
     """
 
     build_dir: str
@@ -73,6 +75,19 @@ class BuildPaths:
     @property
     def runs(self) -> str:
         return os.path.join(self.work, "runs")
+
+    @property
+    def plan(self) -> str:
+        """Manifest written by ``plan``, run by ``apply``."""
+        return os.path.join(self.assets, "plan.yaml")
+
+    def task(self, task_dir: str) -> str:
+        """Scripts and sample lists of one task: ``assets/<session>/<task_dir>/``."""
+        return os.path.join(self.assets, task_dir)
+
+    def task_logs(self, task_dir: str) -> str:
+        """Logs of the runs and the merge of one task."""
+        return os.path.join(self.logs, task_dir)
 
     def shard(self, name: str) -> str:
         """Published index ``name``."""

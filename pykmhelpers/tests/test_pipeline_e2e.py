@@ -356,10 +356,10 @@ class UpdateSessionBase(PipelineE2EBase):
         return self.tmp / "db" / "compose" / "idx" / "upd" / "index.yaml"
 
 
-class TestRerunAndOldLayout(UpdateSessionBase):
-    """Rerunning a session is a no-op; an old symlinked build dir can be updated."""
+class TestRerunAndUpdate(UpdateSessionBase):
+    """Rerunning a session is a no-op; an update rebuilds what an attempt left."""
 
-    def test_rerun_then_update_old_layout(self):
+    def test_rerun_then_update(self):
         session_file = self.design_initial()
         self.run_cli("build", session_file, "-o", "build")
         build = self.tmp / "build"
@@ -375,14 +375,7 @@ class TestRerunAndOldLayout(UpdateSessionBase):
         )
         self.assert_in_place("build")
 
-        # 2. turn the build dir into the old layout: symlinks to kmindex_data/initial/
-        old_data = build / "kmindex_data" / "initial"
-        old_data.mkdir(parents=True)
-        for name in after:
-            shutil.move(str(build / name), str(old_data / name))
-            (build / name).symlink_to(old_data / name, target_is_directory=True)
-
-        # 3. update it, with junk left in the run folders by an interrupted attempt
+        # 2. update it, with junk left in the run folders by an interrupted attempt
         upd_session = self.compose_update()
         shards = yaml.safe_load(upd_session.read_text())["shards"]
         # each shard of the session receives one part, named after the session
@@ -394,16 +387,15 @@ class TestRerunAndOldLayout(UpdateSessionBase):
                 (junk / "matrix_0.cmbf").write_text("partial")
         self.run_cli("build", upd_session, "-o", "build")
 
+        registry = json.loads((build / "index.json").read_text())["index"]
         for name in after:
             if name in updated:
-                # moved in place; its previous version is deleted
-                self.assertTrue(
-                    (build / name).is_dir() and not (build / name).is_symlink()
+                self.assertEqual(
+                    registry[name]["nb_samples"], after[name]["nb_samples"] + 1
                 )
-                self.assertFalse((old_data / name).exists(), f"old {name} left")
             else:
-                self.assertTrue((build / name).is_symlink(), f"{name} was touched")
-        self.assertFalse((build / "work").exists(), "work dir left")
+                self.assertEqual(registry[name]["nb_samples"], after[name]["nb_samples"])
+        self.assert_in_place("build")
 
         # every sample, old and new, is queryable
         for idx, sample in [(0, "sample_0"), (N_SAMPLES, "sample_new")]:
@@ -449,15 +441,17 @@ class TestInterruptedPublish(UpdateSessionBase):
 
                 # plan the update, build its runs, then stop the swap after `stop`
                 self.run_cli("plan", upd_session, "-o", name)
-                scripts = build / "assets" / "upd"
-                merge_script = scripts / f"{target}_merge.sh"
-                self.bash(scripts / f"{target}.sh")
+                scripts = build / "assets" / "upd" / target
+                merge_script = scripts / "merge.sh"
+                for run in sorted(scripts.glob("*.sh")):
+                    if run != merge_script:
+                        self.bash(run)
                 lines = merge_script.read_text().splitlines()
                 publish = next(ln for ln in lines if ln.startswith("flock "))
                 swap = shlex.split(publish)[3].split(" && ")
                 self.assertEqual(len(swap), 4, swap)
                 for ln in lines[: lines.index(publish)]:
-                    if not ln.startswith(("#!", "set ", "export ", "cd ", "echo ")):
+                    if not ln.startswith(("#!", "set ", "ulimit ", "export ", "cd ", "echo ")):
                         self.bash(ln, workdir=build, cmd=True)
                 self.bash(" && ".join(swap[:stop]), workdir=build, cmd=True)
 
@@ -523,19 +517,17 @@ class TestStepByStepDesignAndBuild(PipelineE2EBase):
 
         # build, decomposed
         self.run_cli("plan", session_file, "-o", "build2")
-        self.assertTrue(
-            (
-                self.tmp / "build2" / "assets" / "initial" / "kmhelpers_apply.sh"
-            ).is_file(),
-            "plan did not write the build script",
-        )
+        scripts = self.tmp / "build2" / "assets" / "initial"
+        plan = yaml.safe_load((scripts / "plan.yaml").read_text())
+        self.assertEqual(plan["type"], "plan")
+        self.assertTrue(plan["tasks"], "plan did not plan anything")
         # parts are kmtricks runs in work/SESSION/, published under the lock
         # and checked before anything is deleted; plan touches no registry
-        scripts = self.tmp / "build2" / "assets" / "initial"
+        task_dirs = [scripts / t["dir"] for t in plan["tasks"].values()]
         builds = "".join(
-            p.read_text() for p in scripts.glob("*.sh") if not p.stem.endswith("_merge")
+            p.read_text() for d in task_dirs for p in d.glob("*.sh") if p.name != "merge.sh"
         )
-        merges = "".join(p.read_text() for p in scripts.glob("*_merge.sh"))
+        merges = "".join((d / "merge.sh").read_text() for d in task_dirs)
         self.assertIn("kmtricks pipeline", builds)
         self.assertIn("${WORKDIR}/work/initial/runs/", builds)
         self.assertNotIn("kmindex build", builds)
@@ -544,16 +536,24 @@ class TestStepByStepDesignAndBuild(PipelineE2EBase):
         self.assertLess(merges.index("check --shard"), merges.index("cleanup"))
         registry = json.loads((self.tmp / "build2" / "index.json").read_text())
         self.assertEqual(registry["index"], {}, "plan registered something")
-        # the written scripts build the index on their own
+        # the written scripts build the index on their own: runs, then merge
         env = dict(os.environ)
         env["PATH"] = os.path.dirname(sys.executable) + os.pathsep + env["PATH"]
-        proc = subprocess.run(
-            ["bash", str(scripts / "kmhelpers_apply.sh")],
-            capture_output=True,
-            text=True,
-            env=env,
-        )
-        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        for task in plan["tasks"].values():
+            directory = scripts / task["dir"]
+            for script in [f"{r}.sh" for r in task["chunks"]] + ["merge.sh"]:
+                proc = subprocess.run(
+                    ["bash", str(directory / script)],
+                    capture_output=True,
+                    text=True,
+                    env=env,
+                )
+                self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        # run again, a chunk script sees its samples published and does nothing
+        task = next(iter(plan["tasks"].values()))
+        chunk = scripts / task["dir"] / f"{next(iter(task['chunks']))}.sh"
+        proc = subprocess.run(["bash", str(chunk)], capture_output=True, text=True, env=env)
+        self.assertIn("samples already published", proc.stdout)
         self.assert_in_place("build2")
         built = json.loads((self.tmp / "build2" / "index.json").read_text())["index"]
 
@@ -714,14 +714,13 @@ class TestShardedBuild(PipelineE2EBase):
         # every shard is registered on its own; nothing merges them together
         self.assertEqual(sorted(registry), sorted(shards))
 
-        # one build script and one merge script per shard
-        scripts = sorted(
-            p.stem for p in (self.tmp / "build" / "assets" / "initial").glob("*.sh")
-        )
-        self.assertEqual(
-            scripts,
-            sorted(shards + [f"{s}_merge" for s in shards] + ["kmhelpers_apply"]),
-        )
+        # one directory per shard: one script per run, and its merge script
+        assets = self.tmp / "build" / "assets" / "initial"
+        self.assertEqual(sorted(p.name for p in assets.iterdir() if p.is_dir()), sorted(shards))
+        for shard in shards:
+            scripts = sorted(p.name for p in (assets / shard).glob("*.sh"))
+            self.assertEqual(scripts, sorted([f"{shard}_initial.sh", "merge.sh"]))
+        self.assertFalse(list(assets.glob("*.sh")), "scripts outside the shard dirs")
 
         # samples stay queryable through their shard
         q0, q0_header = self.write_query("s0", sample_idx=0)
@@ -749,8 +748,16 @@ class TestChunkedBuild(PipelineE2EBase):
     needed), and only the merged index ends up in the registry, in place.
     """
 
+    def design(self):
+        self.run_cli(
+            "design", self.samples_txt, "-o", "db", "-n", "idx", "-s", "initial",
+            "-k", KMER_SIZE, "-b", "4", "-g", "1",
+        )
+        return self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
+
     def chunked_apply(self, limits: str) -> str:
-        """Design one group of N_SAMPLES samples and apply it under ``limits``; return the log."""
+        """Design one group of N_SAMPLES samples, plan it under ``limits`` and
+        apply it; return the logs."""
         # A wide span base (-b 4) buckets all N_SAMPLES samples into one
         # group, so the group's build is what gets constrained by --limits.
         self.run_cli(
@@ -771,10 +778,9 @@ class TestChunkedBuild(PipelineE2EBase):
         )
         session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
         self.assertTrue(session_file.is_file(), f"missing session file: {session_file}")
-        # the same plan, written as scripts (apply runs it without writing them)
-        self.run_cli("plan", session_file, "-o", "planned", "--limits", limits)
-        result = self.run_cli("apply", session_file, "-o", "build", "--limits", limits)
-        return result.stdout + result.stderr
+        planned = self.run_cli("plan", session_file, "-o", "build", "--limits", limits)
+        result = self.run_cli("apply", session_file, "-o", "build")
+        return planned.stdout + planned.stderr + result.stdout + result.stderr
 
     def assert_merged_and_clean(self):
         build = self.tmp / "build"
@@ -794,20 +800,19 @@ class TestChunkedBuild(PipelineE2EBase):
         # chunk runs, throwaway registries and intermediate merges are deleted
         self.assertFalse((build / "work").exists(), "work dir left")
 
-        # builds and merges are recorded in separate scripts
-        assets = self.tmp / "planned" / "assets"
-        merge_scripts = list(assets.rglob("*_merge.sh"))
-        self.assertTrue(merge_scripts, "no merge script written")
-        text = merge_scripts[0].read_text()
+        # one script per chunk, and the merge in its own script
+        task = build / "assets" / "initial" / name
+        text = (task / "merge.sh").read_text()
         self.assertIn("incomplete run", text)
         self.assertIn("kmindex register --global-index", text)
         self.assertIn("--from-file", text)
         self.assertIn("kmindex merge", text)
-        build_script = merge_scripts[0].with_name(
-            merge_scripts[0].name.replace("_merge.sh", ".sh")
-        )
-        self.assertIn("kmtricks pipeline", build_script.read_text())
-        self.assertNotIn("--register-as", build_script.read_text())
+        chunks = sorted(task.glob("*_chunk*.sh"))
+        self.assertGreater(len(chunks), 1, "not chunked")
+        for chunk in chunks:
+            self.assertIn("kmtricks pipeline", chunk.read_text())
+            self.assertNotIn("--register-as", chunk.read_text())
+            self.assertTrue(chunk.with_suffix(".fof").is_file())
 
         # every original sample must still be queryable after the chunked merge
         for idx in range(N_SAMPLES):
@@ -824,43 +829,68 @@ class TestChunkedBuild(PipelineE2EBase):
         self.chunked_apply('{"files": 5}')
         self.assert_merged_and_clean()
 
-    def test_run_builds_one_chunk_then_shard_merges(self):
-        """apply --run builds one chunk without merging; --shard merges later."""
-        limits = '{"files": 5}'
+    def test_jobs_build_chunks_then_merge(self):
+        """--chunks-per-job splits the chunks into jobs; the merge waits for them."""
+        session_file = self.design()
         self.run_cli(
-            "design", self.samples_txt, "-o", "db", "-n", "idx", "-s", "initial",
-            "-k", KMER_SIZE, "-b", "4", "-g", "1",
+            "plan", session_file, "-o", "build", "--limits", '{"files": 5}',
+            "--chunks-per-job", "1",
         )
-        session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
-        self.run_cli("plan", session_file, "-o", "planned", "--limits", limits)
-        self.run_cli(
-            "apply", session_file, "-o", "build", "--limits", limits,
-            "--run", "*_chunk0",
-        )
+        pending = self.run_cli("apply", session_file, "-o", "build", "--pending")
+        jobs = pending.stdout.split()
+        self.assertTrue(jobs[-1].endswith("_merge"), jobs)
+        merge_job = jobs[-1]
+        shard = merge_job[: -len("_merge")]
+        self.assertEqual(jobs[0], f"{shard}_j0")
+        self.assertGreater(len(jobs), 2, jobs)
+
+        self.run_cli("apply", session_file, "-o", "build", "--job", "*_j0")
         runs = sorted(p.name for p in (self.tmp / "build" / "work").rglob("*_chunk*"))
         self.assertEqual(len(runs), 1, f"unexpected runs: {runs}")
         self.assertTrue(runs[0].endswith("_chunk0"))
-        self.assertFalse((self.tmp / "build" / "idx_g0").exists(), "merged too early")
+        self.assertFalse((self.tmp / "build" / shard).exists(), "merged too early")
+        pending = self.run_cli("apply", session_file, "-o", "build", "--pending")
+        self.assertNotIn(f"{shard}_j0", pending.stdout.split())
 
-        result = self.run_cli(
-            "apply", session_file, "-o", "build", "--limits", limits,
-            "--shard", "idx_g0*",
-        )
-        self.assertIn("Reusing complete run", result.stdout + result.stderr)
-        self.assert_merged_and_clean()
-
-    def test_unmatched_run_pattern_fails(self):
-        self.run_cli(
-            "design", self.samples_txt, "-o", "db", "-n", "idx", "-s", "initial",
-            "-k", KMER_SIZE, "-b", "4", "-g", "1",
-        )
-        session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
-        result = self.run_cli(
-            "apply", session_file, "-o", "build", "--run", "nope*",
+        # the merge refuses to run before every chunk is built
+        early = self.run_cli(
+            "apply", session_file, "-o", "build", "--job", merge_job,
             expect_success=False,
         )
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("No kmtricks run matches nope*", result.stdout + result.stderr)
+        self.assertIn("runs not built", early.stdout + early.stderr)
+
+        result = self.run_cli("apply", session_file, "-o", "build")
+        self.assertIn("Reusing complete run", result.stdout + result.stderr)
+        self.assert_merged_and_clean()
+        pending = self.run_cli("apply", session_file, "-o", "build", "--pending")
+        self.assertEqual(pending.stdout.split(), [])
+
+    def test_unmatched_job_pattern_fails(self):
+        session_file = self.design()
+        self.run_cli("plan", session_file, "-o", "build")
+        result = self.run_cli(
+            "apply", session_file, "-o", "build", "--job", "nope*",
+            expect_success=False,
+        )
+        self.assertIn("No job matches nope*", result.stdout + result.stderr)
+
+    def test_apply_needs_a_fresh_plan(self):
+        session_file = self.design()
+        result = self.run_cli("apply", session_file, "-o", "build", expect_success=False)
+        self.assertIn("No plan", result.stdout + result.stderr)
+
+        self.run_cli("plan", session_file, "-o", "build")
+        shard_file = next((session_file.parent / "shards").glob("*.yaml"))
+        shard_file.write_text(shard_file.read_text() + "\n# edited\n")
+        result = self.run_cli("apply", session_file, "-o", "build", expect_success=False)
+        self.assertIn("The plan is stale", result.stdout + result.stderr)
+
+    def test_apply_takes_no_sizing_option(self):
+        session_file = self.design()
+        result = self.run_cli(
+            "apply", session_file, "-o", "build", "--limits", "{}", expect_success=False
+        )
+        self.assertIn("No such option", result.stdout + result.stderr)
 
     def test_merge_split_into_sub_shards_by_max_map_count(self):
         # 2 mmaps above the reserved 1000: 2 inputs per merge, so the chunks

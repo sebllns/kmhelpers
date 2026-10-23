@@ -46,7 +46,7 @@ kmhelpers design db/list/bact.jsonl \
     ${SHARD_SIZE:+-si "$SHARD_SIZE"}
 
 # 3. Plan offline: sample files are not checked (they do not exist), and
-#    the build scripts are written to build/assets/
+#    the plan and the scripts of every shard are written to build/assets/initial/
 kmhelpers plan db \
     -o build/ \
     --offline \
@@ -54,8 +54,8 @@ kmhelpers plan db \
 
 # 4. What plan produced
 echo
-echo "Sub-index scripts: $(ls build/assets/*.sh | grep -vc kmhelpers_apply.sh)"
-echo "kmindex build commands: $(grep -h '^kmindex build' build/assets/*.sh | wc -l)"
-echo "kmindex merge commands: $(grep -h '^kmindex merge' build/assets/*.sh | wc -l)"
-echo "Runner: build/assets/kmhelpers_apply.sh"
+echo "Shards: $(ls -d build/assets/initial/*/ | wc -l)"
+echo "kmtricks runs: $(ls build/assets/initial/*/*.sh | grep -vc '/merge.sh$')"
+echo "kmindex merge commands: $(grep -ho 'kmindex merge' build/assets/initial/*/merge.sh | wc -l)"
+echo "Plan: build/assets/initial/plan.yaml (run it with: kmhelpers apply db -o build/)"
 echo "Plan report: $(ls build/logs/kmhelpers_plan_*.yaml)"
