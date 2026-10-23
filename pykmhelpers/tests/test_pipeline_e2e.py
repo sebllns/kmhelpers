@@ -897,6 +897,96 @@ class TestChunkedBuild(PipelineE2EBase):
         pending = self.run_cli("apply", session_file, "-o", "build", "--pending")
         self.assertEqual(pending.stdout.split(), [])
 
+    def test_status_and_failures(self):
+        """apply --status shows each step; a failing chunk is FAILED with its error."""
+        session_file = self.design()
+        self.run_cli(
+            "plan", session_file, "-o", "build", "--limits", '{"files": 5}',
+            "--chunks-per-job", "1",
+        )
+        jobs = self.run_cli("apply", session_file, "-o", "build", "--pending").stdout.split()
+        shard = jobs[-1][: -len("_merge")]
+        task_dir = self.tmp / "build" / "assets" / "initial" / shard
+        chunk1 = next(task_dir.glob("*_chunk1.sh"))
+        chunk1.write_text(chunk1.read_text().replace(
+            "kmtricks pipeline", "echo 'simulated failure' >&2; exit 4; kmtricks pipeline", 1
+        ))
+
+        self.run_cli("apply", session_file, "-o", "build", "--task", f"{shard}_j0")
+        self.run_cli(
+            "apply", session_file, "-o", "build", "--task", f"{shard}_j1",
+            expect_success=False,
+        )
+        status = self.run_cli("apply", session_file, "-o", "build", "--status").stdout
+        lines = {ln.split(":")[0].strip(): ln for ln in status.splitlines()}
+        self.assertTrue(status.startswith("FAILED: 0/1 shard(s) done, 1 failed"), status)
+        self.assertIn("_chunk0: SUCCESS", lines[f"{chunk1.stem[:-1]}0"])
+        self.assertIn("exit 4): simulated failure", lines[chunk1.stem])
+        self.assertIn("merge: PENDING", lines["merge"])
+        progress = yaml.safe_load((task_dir.parent / "progress.yaml").read_text())
+        self.assertEqual(progress["summary"]["failed"], 1)
+        state = json.loads((task_dir / "state" / f"{chunk1.stem}.json").read_text())
+        self.assertEqual(state["status"], "FAILED")
+
+    def test_task_end_callback(self):
+        """on_task_end is called once per task: at its end, or when it fails."""
+        from pykmhelpers.pipeline.index_ops.runner import PlanRunner
+
+        session_file = self.design()
+        self.run_cli(
+            "plan", session_file, "-o", "build", "--limits", '{"files": 5}',
+            "--chunks-per-job", "2",
+        )
+        calls = []
+        cwd = os.getcwd()
+        os.chdir(self.tmp)
+        try:
+            runner = PlanRunner(str(self.tmp / "build"), str(session_file))
+            runner.run(runner.jobs(), on_task_end=lambda shard, st: calls.append((shard, st)))
+        finally:
+            os.chdir(cwd)
+        self.assertEqual(len(calls), 1, calls)
+        self.assertEqual(calls[0][1], "SUCCESS")
+        self.assert_merged_and_clean()
+
+    def test_build_hpc_submits_and_exits(self):
+        """build --hpc plans for the cluster file and runs submit.sh (fake sbatch)."""
+        session_file = self.design()
+        fake = self.mkdirs("fakebin")
+        (fake / "sbatch").write_text(
+            "#!/usr/bin/env bash\n"
+            f"echo \"$*\" >> {fake}/calls\n"
+            f"n=$(( $(cat {fake}/n 2>/dev/null || echo 100) + 1 )); echo $n > {fake}/n; echo $n\n"
+        )
+        (fake / "squeue").write_text("#!/usr/bin/env bash\nexit 0\n")
+        (fake / "scontrol").write_text("#!/usr/bin/env bash\necho 'MaxArraySize = 1001'\n")
+        for f in fake.iterdir():
+            f.chmod(0o755)
+        cluster = self.tmp / "cluster.yaml"
+        cluster.write_text(yaml.safe_dump({
+            "type": "slurm", "partition": "compute",
+            "jobs": {"build": {"cpus": 2, "mem": "4G"}, "merge": {"cpus": 2, "mem": "4G"}},
+            "limits": {"files": 5},
+        }))
+        env = dict(os.environ, PATH=f"{fake}{os.pathsep}{os.environ['PATH']}")
+        cmd = [sys.executable, "-m", CLI_MODULE, "build", str(session_file), "-o", "build",
+               "--hpc", str(cluster), "--chunks-per-job", "2"]
+        proc = subprocess.run(cmd, cwd=self.tmp, capture_output=True, text=True, env=env)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        calls = (fake / "calls").read_text().splitlines()
+        self.assertTrue(calls[0].startswith("--parsable --array=0-"), calls)
+        self.assertIn("merge.sbatch", calls[-2])
+        self.assertIn("--dependency=afterany:", calls[-1])
+        self.assertIn("finish.sbatch", calls[-1])
+        self.assertFalse((self.tmp / "build" / "index.json").exists() and json.loads(
+            (self.tmp / "build" / "index.json").read_text())["index"], "built locally")
+        submitted = (self.tmp / "build" / "assets" / "initial" / "slurm" / "submitted.tsv")
+        self.assertIn("finish\t", submitted.read_text())
+        # --limits is a decision of the cluster file
+        cmd += ["--limits", "{}"]
+        proc = subprocess.run(cmd, cwd=self.tmp, capture_output=True, text=True, env=env)
+        self.assertNotEqual(proc.returncode, 0)
+
     def test_unmatched_task_pattern_fails(self):
         session_file = self.design()
         self.run_cli("plan", session_file, "-o", "build")

@@ -1,6 +1,8 @@
 """Plan then run k-mer index builds in a single command."""
 
 import logging
+import os
+import subprocess
 
 import click
 
@@ -32,6 +34,7 @@ class PartialError(click.ClickException):
 @shared.index_apply_options
 @shared.index_limits_options
 @shared.chunk_budget_option
+@shared.cluster_option
 @click.pass_context
 def build(
     ctx,
@@ -45,10 +48,13 @@ def build(
     chunks_per_job,
     show_progress,
     notify,
+    notify_level,
+    notify_final,
     limits,
     safety_margin,
     max_chunks,
     chunk_budget,
+    cluster_file,
 ):
     """Plan then build indices from definition files.
 
@@ -76,9 +82,23 @@ def build(
     \b
     # Add an update session to the same index directory
     kmhelpers build coli_db -s update -o coli_build
+
+    \b
+    # On a cluster: plan for the jobs of cluster.yaml, submit them, and exit;
+    # mail the end of every shard and of the build
+    kmhelpers build coli_db -o coli_build --hpc cluster.yaml \\
+        --notify you@example.com --notify-level shard
+    kmhelpers apply coli_db -o coli_build --status
     """
     input_file = shared.resolve_definition(input_file, session)
-    notifier = ExitNotifier("build", notify)
+    if cluster_file:
+        _build_on_cluster(
+            input_file, work_dir, base_path, threads, limits, safety_margin,
+            max_chunks, chunk_budget, chunks_per_job, skip_compression,
+            keep_previous, cluster_file, notify, notify_level,
+        )
+        return
+    notifier = ExitNotifier("build", notify, notify_level, final=notify_final)
 
     # --- Step 1: plan ---
     try:
@@ -142,3 +162,54 @@ def build(
         logger.info("NOTHING TO DO ('apply')")
     else:
         logger.info("SUCCESS ('apply')")
+
+
+def _build_on_cluster(
+    input_file, work_dir, base_path, threads, limits, safety_margin, max_chunks,
+    chunk_budget, chunks_per_job, skip_compression, keep_previous, cluster_file,
+    notify, notify_level,
+) -> None:
+    """Plan for the jobs of ``cluster_file``, then run its submit.sh and exit:
+    the jobs build the indices; ``apply --status`` follows them."""
+    try:
+        pykmhelpers.core.log.Log.step(logger, f"STEP 1: Plan {input_file}")
+        result, plan_path, _ = make_plan(
+            input_file,
+            work_dir,
+            base_path,
+            None,
+            threads,
+            limits,
+            safety_margin,
+            max_chunks,
+            chunk_budget,
+            chunks_per_job,
+            skip_compression,
+            keep_previous,
+            fail_on_error=False,
+            cluster_file=cluster_file,
+            notify=notify,
+            notify_level=notify_level,
+        )
+    except click.ClickException:
+        raise
+    except (ValueError, FileNotFoundError) as e:
+        raise click.ClickException(str(e))
+    except Exception as e:
+        pykmhelpers.core.log.Log.handle_exception(logger, e, "FAILED ('plan')")
+        raise click.ClickException("FAILED ('plan')")
+    if result.status is ops.ApplyStatus.FAILED or plan_path is None:
+        raise click.ClickException("FAILED ('plan')")
+    if result.status is ops.ApplyStatus.PARTIAL:
+        # Some operations were dropped: do not submit what is known incomplete
+        raise PartialError("PARTIAL ('plan'): nothing submitted")
+    logger.info("SUCCESS ('plan')")
+
+    submit = os.path.join(os.path.dirname(plan_path), "slurm", "submit.sh")
+    pykmhelpers.core.log.Log.step(logger, f"STEP 2: Submit {submit}")
+    proc = subprocess.run(["bash", submit], capture_output=True, text=True)
+    for line in (proc.stdout + proc.stderr).splitlines():
+        logger.info(line)
+    if proc.returncode != 0:
+        raise click.ClickException(f"FAILED ('submit'): {submit} exited {proc.returncode}")
+    logger.info(f"Submitted. Follow it with: kmhelpers apply {input_file} -o {work_dir} --status")

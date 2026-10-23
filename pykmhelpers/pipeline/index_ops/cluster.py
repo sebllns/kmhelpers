@@ -140,19 +140,38 @@ def check_type(cluster_type, path: str = "cluster file") -> str:
     return cluster_type
 
 
-def write_submission(plan: dict, cluster: dict, assets_dir: str) -> list[str]:
+def write_submission(
+    plan: dict,
+    cluster: dict,
+    assets_dir: str,
+    notify: Optional[str] = None,
+    notify_level: str = "global",
+) -> list[str]:
     """Write the submission files of ``plan`` for its cluster type, to
     ``assets_dir/<type>/``; return their paths."""
     cluster_type = check_type(cluster.get("type"), cluster.get("source", "cluster file"))
-    return WRITERS[cluster_type](plan, cluster, os.path.join(assets_dir, cluster_type))
+    return WRITERS[cluster_type](
+        plan, cluster, os.path.join(assets_dir, cluster_type), notify, notify_level
+    )
 
 
-def write_slurm(plan: dict, cluster: dict, slurm_dir: str) -> list[str]:
+def write_slurm(
+    plan: dict,
+    cluster: dict,
+    slurm_dir: str,
+    notify: Optional[str] = None,
+    notify_level: str = "global",
+) -> list[str]:
     """Write the SLURM files of ``plan`` to ``slurm_dir``; return their paths.
 
     ``jobs.txt`` (build jobs), ``build.sbatch`` (an array task runs one of
-    them), ``merge.sbatch``, ``check.sbatch`` and ``submit.sh``, which
-    submits what ``apply --pending`` lists: safe to run again.
+    them), ``merge.sbatch``, ``finish.sbatch`` (after every job: checks the
+    registry when everything is done, writes ``progress.yaml``, mails it with
+    ``notify``) and ``submit.sh``, which submits what ``apply --pending``
+    lists, skipping the jobs still queued: safe to run again.
+
+    With ``notify_level`` ``shard``, the build and merge jobs mail the end of
+    their shard (a failed chunk, or the published shard).
     """
     os.makedirs(slurm_dir, exist_ok=True)
     build_dir = plan["build_dir"]
@@ -163,6 +182,13 @@ def write_slurm(plan: dict, cluster: dict, slurm_dir: str) -> list[str]:
     setup = (cluster.get("setup") or "").rstrip("\n")
     head = ["#!/usr/bin/env bash"]
     body_head = ["set -euo pipefail"] + ([setup] if setup else [])
+    shard_mail = (
+        f" --notify {shlex.quote(notify)} --notify-level shard --no-notify-final"
+        if notify and notify_level == "shard"
+        else ""
+    )
+    # a failed dependency cancels the job, so finish always runs
+    no_wait = ["#SBATCH --kill-on-invalid-dep=yes"]
 
     build_jobs, merges = [], {}
     for task in plan["tasks"].values():
@@ -172,6 +198,17 @@ def write_slurm(plan: dict, cluster: dict, slurm_dir: str) -> list[str]:
             else:
                 build_jobs.append(job)
     name = os.path.basename(build_dir.rstrip("/"))
+    finish_cmds = [
+        "# Every job has ended: check the registry when nothing is pending,",
+        "# write progress.yaml (and mail it), fail when the build is not done",
+        f"PENDING=$({apply} --pending)",
+        "CHECK=0",
+        'if [ -z "$PENDING" ]; then',
+        f"    kmhelpers manage -r {shlex.quote(build_dir)} check || CHECK=$?",
+        "fi",
+        f"{apply} --status" + (f" --notify {shlex.quote(notify)}" if notify else ""),
+        '[ -z "$PENDING" ] && [ "$CHECK" -eq 0 ]',
+    ]
 
     files = {
         "jobs.txt": "\n".join(build_jobs) + ("\n" if build_jobs else ""),
@@ -182,23 +219,29 @@ def write_slurm(plan: dict, cluster: dict, slurm_dir: str) -> list[str]:
             + [
                 "# Array task i runs line OFFSET + i + 1 of the job list $1",
                 'JOB=$(sed -n "$((${2:-0} + SLURM_ARRAY_TASK_ID + 1))p" "$1")',
-                f'{apply} --task "$JOB"',
+                f'{apply} --task "$JOB"{shard_mail}',
             ]
         ),
         "merge.sbatch": "\n".join(
             head
             + _sbatch_lines(cluster["jobs"]["merge"], None, single)
+            + no_wait
             + body_head
-            + ["# $1: a merge job of the plan (<shard>_merge)", f'{apply} --task "$1"']
+            + ["# $1: a merge job of the plan (<shard>_merge)", f'{apply} --task "$1"{shard_mail}']
         ),
-        "check.sbatch": "\n".join(
+        "finish.sbatch": "\n".join(
             head
-            + _sbatch_lines(cluster["jobs"]["check"], f"{name}_check", single)
+            + _sbatch_lines(cluster["jobs"]["check"], f"{name}_finish", single)
+            + no_wait
             + body_head
-            + [f"kmhelpers manage -r {shlex.quote(build_dir)} check"]
+            + finish_cmds
         ),
         "submit.sh": _submit_script(apply, setup, build_dir, merges, cluster),
     }
+    # an older plan's check.sbatch is replaced by finish.sbatch
+    old = os.path.join(slurm_dir, "check.sbatch")
+    if os.path.exists(old):
+        os.remove(old)
     written = []
     for file_name, text in files.items():
         path = os.path.join(slurm_dir, file_name)
@@ -217,50 +260,83 @@ def _submit_script(apply: str, setup: str, build_dir: str, merges: dict, cluster
     logs = shlex.quote(os.path.dirname(os.path.join(build_dir, cluster["output"])))
     return f"""#!/usr/bin/env bash
 # Submit the plan: build array, one merge job per shard after its own array
-# tasks, then a check job after everything. Safe to run again: only the jobs
-# `apply --pending` lists are submitted (and it refuses a stale plan).
+# tasks, then a finish job after everything (progress.yaml, check, mail).
+# Safe to run again: only the jobs `apply --pending` lists are submitted (it
+# refuses a stale plan), and a job still queued or running is not submitted
+# twice. Every submission is appended to submitted.tsv (job, SLURM id).
 set -euo pipefail
 {setup}
 DIR=$(cd "$(dirname "$0")" && pwd)
+SUBMITTED="$DIR/submitted.tsv"
 mkdir -p {logs}
+touch "$SUBMITTED"
+
+# Last SLURM id of a job of the plan, if it is still queued or running
+active() {{
+    local id
+    id=$(awk -F'\t' -v j="$1" '$1 == j {{ id = $2 }} END {{ print id }}' "$SUBMITTED")
+    [ -n "$id" ] && squeue -h -j "$id" -o %T 2>/dev/null | grep -q . && echo "$id"
+    return 0
+}}
 
 {apply} --pending > "$DIR/pending.txt"
-grep -vxF -f <(printf '%s\\n' {' '.join(shlex.quote(m) for m in merges.values()) or "''"}) \\
-    "$DIR/pending.txt" > "$DIR/pending_build.txt" || true
+: > "$DIR/pending_build.txt"
+declare -A ID_OF  # job of the plan -> SLURM id it waits on
+while read -r JOB; do
+    [ -n "$JOB" ] || continue
+    ACTIVE=$(active "$JOB")
+    if [ -n "$ACTIVE" ]; then
+        ID_OF[$JOB]=$ACTIVE
+        echo "$JOB: still queued or running (job $ACTIVE), not submitted again"
+    elif ! grep -qxF "$JOB" <(printf '%s\n' {' '.join(shlex.quote(m) for m in merges.values()) or "''"}); then
+        echo "$JOB" >> "$DIR/pending_build.txt"
+    fi
+done < "$DIR/pending.txt"
 
 # 1. Build arrays, split at the cluster MaxArraySize
 MAX=$(scontrol show config 2>/dev/null | awk '/^MaxArraySize/ {{print $3}}')
 MAX=${{MAX:-1001}}
 N=$(wc -l < "$DIR/pending_build.txt")
-declare -A TASK_OF  # line number (from 1) -> <array job>_<task>
 ALL=()
 for ((OFFSET = 0; OFFSET < N; OFFSET += MAX)); do
     COUNT=$(( N - OFFSET < MAX ? N - OFFSET : MAX ))
-    ARRAY=$(sbatch --parsable --array=0-$((COUNT - 1)){pct} "$DIR/build.sbatch" \\
+    ARRAY=$(sbatch --parsable --array=0-$((COUNT - 1)){pct} "$DIR/build.sbatch" \
         "$DIR/pending_build.txt" "$OFFSET")
     ARRAY=${{ARRAY%%;*}}
     ALL+=("$ARRAY")
-    for ((i = 0; i < COUNT; i++)); do TASK_OF[$((OFFSET + i + 1))]="${{ARRAY}}_$i"; done
+    for ((i = 0; i < COUNT; i++)); do
+        JOB=$(sed -n "$((OFFSET + i + 1))p" "$DIR/pending_build.txt")
+        ID_OF[$JOB]="${{ARRAY}}_$i"
+        printf '%s\t%s\n' "$JOB" "${{ARRAY}}_$i" >> "$SUBMITTED"
+    done
     echo "build array $ARRAY: $COUNT task(s)"
 done
 
-# 2. One merge job per shard, after the array tasks of that shard only
+# 2. One merge job per shard, after the build jobs of that shard only
 for SHARD in {shards}; do
-    grep -qxF "${{SHARD}}_merge" "$DIR/pending.txt" || continue
+    MERGE="${{SHARD}}_merge"
+    grep -qxF "$MERGE" "$DIR/pending.txt" || continue
+    if [ -n "${{ID_OF[$MERGE]:-}}" ]; then ALL+=("${{ID_OF[$MERGE]}}"); continue; fi
     DEP=""
-    while IFS=: read -r LINE _; do
-        DEP+=":${{TASK_OF[$LINE]}}"
-    done < <(grep -n "^${{SHARD}}_j[0-9]*$" "$DIR/pending_build.txt" || true)
-    ID=$(sbatch --parsable -J "${{SHARD}}_merge" ${{DEP:+--dependency=afterok$DEP}} \\
-        "$DIR/merge.sbatch" "${{SHARD}}_merge")
-    ALL+=("${{ID%%;*}}")
-    echo "merge $SHARD: job ${{ID%%;*}} ${{DEP:+after${{DEP//:/ }}}}"
+    for JOB in "${{!ID_OF[@]}}"; do
+        [[ "$JOB" =~ ^${{SHARD}}_j[0-9]+$ ]] && DEP+=":${{ID_OF[$JOB]}}"
+    done
+    ID=$(sbatch --parsable -J "$MERGE" ${{DEP:+--dependency=afterok$DEP}} \
+        "$DIR/merge.sbatch" "$MERGE")
+    ID=${{ID%%;*}}
+    ALL+=("$ID")
+    printf '%s\t%s\n' "$MERGE" "$ID" >> "$SUBMITTED"
+    echo "merge $SHARD: job $ID ${{DEP:+after${{DEP//:/ }}}}"
 done
+for JOB in "${{!ID_OF[@]}}"; do ALL+=("${{ID_OF[$JOB]}}"); done
 
-# 3. Check the registry once everything succeeded
+# 3. Finish once every job has ended, successful or not
 if [ ${{#ALL[@]}} -gt 0 ]; then
-    ID=$(sbatch --parsable --dependency="afterok:$(IFS=:; echo "${{ALL[*]}}")" "$DIR/check.sbatch")
-    echo "check: job ${{ID%%;*}}"
+    DEPS=$(printf '%s\n' "${{ALL[@]}}" | sort -u | paste -sd: -)
+    ID=$(sbatch --parsable --dependency="afterany:$DEPS" "$DIR/finish.sbatch")
+    ID=${{ID%%;*}}
+    printf '%s\t%s\n' finish "$ID" >> "$SUBMITTED"
+    echo "finish: job $ID"
 else
     echo "nothing pending"
 fi

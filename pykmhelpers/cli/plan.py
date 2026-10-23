@@ -30,6 +30,8 @@ def make_plan(
     fail_on_error: bool,
     offline: bool = False,
     cluster_file: Optional[str] = None,
+    notify: Optional[str] = None,
+    notify_level: str = "global",
 ) -> tuple[ops.ApplyResult, Optional[str], str]:
     """Plan ``input_file`` into ``work_dir``; return the result, the plan path
     (None when nothing was planned) and the log directory."""
@@ -84,7 +86,7 @@ def make_plan(
     logger.info(f"Plan details written to {report_path}")
     plan_path = None
     if result.status is not ops.ApplyStatus.FAILED:
-        plan_path = iops.write_plan(cluster)
+        plan_path = iops.write_plan(cluster, notify, notify_level)
     return result, plan_path, iops.log_dir
 
 

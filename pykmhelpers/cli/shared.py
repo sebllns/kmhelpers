@@ -200,6 +200,13 @@ _task_option = click.option(
     "jobs; a job runs alone: '<shard>_j<k>' (some chunks, see `plan "
     "--chunks-per-job`) or '<shard>_merge'. E.g. 'idx_g0_*', '*_merge'.",
 )
+status_option = click.option(
+    "--status",
+    is_flag=True,
+    help="🚩  Print where the build stands, per shard and step (also written to "
+    "BUILD_DIR/assets/SESSION/progress.yaml), and run nothing; with --notify, "
+    "mail it.",
+)
 pending_option = click.option(
     "--pending",
     is_flag=True,
@@ -325,9 +332,28 @@ _INDEX_BUILD_OPTIONS = [
 ]
 
 # Only meaningful for commands that execute a plan (apply, build)
+_notify_level_option = click.option(
+    "--notify-level",
+    type=click.Choice(["global", "shard"]),
+    default="global",
+    show_default=True,
+    help="📧  With --notify: 'global' mails the end of the build; 'shard' also "
+    "mails each shard when it ends.",
+)
+# For the SLURM job ending a shard: its shard mail only, the end of the build
+# is mailed by the last job
+_notify_final_option = click.option(
+    "--notify-final/--no-notify-final",
+    default=True,
+    hidden=True,
+    help="📧  With --notify: also mail the end of this command.",
+)
+
 _INDEX_APPLY_OPTIONS = [
     _show_progress_option,
     _notify_option,
+    _notify_level_option,
+    _notify_final_option,
 ]
 
 # For commands that auto-size threads/partitions (plan, build).

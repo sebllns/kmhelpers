@@ -132,13 +132,19 @@ class IndexOps:
         """Tasks planned by the last ``run()``, as written to ``plan.yaml``."""
         return self._tasks
 
-    def write_plan(self, cluster: Optional[dict] = None) -> Optional[str]:
+    def write_plan(
+        self,
+        cluster: Optional[dict] = None,
+        notify: Optional[str] = None,
+        notify_level: str = "global",
+    ) -> Optional[str]:
         """Write the scripts of the last ``run()`` and ``plan.yaml``; return its path.
 
         Under ``assets/<session>/``, one directory per task (``<shard>/``):
         one script per kmtricks run, ``merge.sh`` (publication and cleanup),
         their sample lists and merge inputs. With ``cluster`` (a loaded
-        ``--cluster`` file), also ``slurm/``: the files submitting the jobs.
+        ``--cluster`` file), also ``slurm/``: the files submitting the jobs,
+        mailing ``notify`` at ``notify_level`` (``global`` or ``shard``).
         """
         if self._paths is None or self._input is None:
             logger.warning("Nothing planned: no plan written")
@@ -170,10 +176,12 @@ class IndexOps:
             {name: _task_entry(t) for name, t in self._tasks.items()},
         )
         if cluster:
-            plan["cluster"] = cluster
+            plan["cluster"] = dict(cluster, notify={"email": notify, "level": notify_level})
         write_plan(self._paths.plan, plan)
         if cluster:
-            written = write_submission(plan, cluster, self._paths.assets)
+            written = write_submission(
+                plan, cluster, self._paths.assets, notify, notify_level
+            )
             for path in written:
                 logger.debug(f"Written {path}")
             submit = next((p for p in written if p.endswith("submit.sh")), None)

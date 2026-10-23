@@ -9,15 +9,18 @@ is checked before it runs, so a job can be run again after an interruption:
 - a chunk is done when its task is, or when its kmtricks run is complete;
 - before a merge, the registry must still be as ``plan`` saw it (``expects``),
   or as the merge itself leaves it when it was interrupted.
+
+Each step it runs is recorded in a state file, and ``progress.yaml`` is
+rewritten after each one (see ``status``).
 """
 
-import json
 import logging
 import os
+import signal
 import sys
 import time
 from dataclasses import dataclass
-from typing import Optional
+from typing import Callable, Optional
 
 from pykmhelpers.core.kmindex_paths import chunk_problems
 from pykmhelpers.core.utils import matches_any, select_matching
@@ -27,6 +30,13 @@ from pykmhelpers.pipeline.index_ops.plan_file import MERGE, check_fresh, load_pl
 from pykmhelpers.pipeline.index_ops.progress import ProgressDisplay
 from pykmhelpers.pipeline.index_ops.report import RunReport, dir_bytes
 from pykmhelpers.pipeline.index_ops.run_log import parse_kmtricks_log
+from pykmhelpers.pipeline.index_ops.status import (
+    CANCELLED,
+    FAILED,
+    RUNNING,
+    SUCCESS,
+    BuildState,
+)
 from pykmhelpers.pipeline.index_ops.types import ApplyMode, ApplyResult, ApplyStatus
 
 logger = logging.getLogger(__name__)
@@ -49,7 +59,9 @@ class PlanRunner:
         self.plan = load_plan(self._paths.plan)
         check_fresh(self.plan, input_file)
         self._tasks: dict[str, dict] = self.plan.get("tasks") or {}
+        self.state = BuildState(self.plan, self._paths)
         self._shell = Wrapper("bash")
+        self._current: Optional[tuple[dict, str]] = None  # step running now
         # kmhelpers, kmindex and kmtricks of this installation come first
         bin_dir = os.path.dirname(sys.executable)
         if bin_dir not in os.environ.get("PATH", "").split(os.pathsep):
@@ -105,11 +117,13 @@ class PlanRunner:
         fail_on_error: bool = False,
         show_progress: bool = False,
         report_path: Optional[str] = None,
+        on_task_end: Optional[Callable[[str, str], None]] = None,
     ) -> ApplyResult:
         """Run ``jobs`` in order; return the overall result.
 
         A failed step stops its task (its later steps are not run); the other
-        tasks go on, unless ``fail_on_error``.
+        tasks go on, unless ``fail_on_error``. ``on_task_end(shard, status)``
+        is called when a task ends here: its last step done, or a step failed.
         """
         mode = ApplyMode.APPLY_SHOW_PROGRESS if show_progress else ApplyMode.APPLY
         report = RunReport(self._input, mode, None, report_path)
@@ -117,27 +131,77 @@ class PlanRunner:
         report.result.details["limits"] = (self.plan.get("options") or {}).get("limits", {})
         report.result.details["plan"] = self.plan_path
         failed_tasks: set[str] = set()
+        previous = self._on_sigterm()
         try:
             for job in jobs:
                 if job.task in failed_tasks:
                     logger.warning(f"Skipping job '{job.name}': its task failed")
                     continue
                 logger.info(f"► Job '{job.name}'...")
+                shard = self._tasks[job.task]["shard"]
                 try:
                     self._run_job(report, job, show_progress)
                 except Exception as e:
                     failed_tasks.add(job.task)
-                    shard = self._tasks[job.task]["shard"]
+                    if on_task_end:
+                        on_task_end(shard, FAILED)
                     if report.fail(e, f"Job '{job.name}' failed", shard, fail_on_error):
                         break
+                else:
+                    if on_task_end and self._ends_task(job):
+                        on_task_end(shard, SUCCESS)
                 report.dump()
             if report.result.status is not ApplyStatus.FAILED:
                 status = report.finish().status
                 if failed_tasks and status is ApplyStatus.SUCCESS:
                     report.result.status = ApplyStatus.PARTIAL
         finally:
+            signal.signal(signal.SIGTERM, previous)
             report.close()
         return report.result
+
+    def _ends_task(self, job: Job) -> bool:
+        """``job`` is the last job of its task (its merge, or its only job)."""
+        jobs = list(self._tasks[job.task].get("jobs") or {})
+        return bool(jobs) and jobs[-1] == job.name
+
+    def _on_sigterm(self):
+        """On SIGTERM (scancel, time limit), record the running step as
+        CANCELLED, then let the previous handler (or exit 143) end the process."""
+        previous = signal.getsignal(signal.SIGTERM)
+
+        def handler(sig, frame):
+            if self._current:
+                task, step = self._current
+                self._record(task, step, CANCELLED, error="SIGTERM")
+            if callable(previous):
+                previous(sig, frame)
+            sys.exit(128 + sig)
+
+        signal.signal(signal.SIGTERM, handler)
+        return previous
+
+    def _record(self, task: dict, step: str, status: str, **fields) -> None:
+        """Record the state of a step, then refresh progress.yaml; never fails a run."""
+        try:
+            self.state.write_state(task, step, status, **fields)
+            self.state.write_progress()
+        except Exception as e:
+            logger.warning(f"Could not record the state of '{step}': {e}")
+
+    def _step(self, task: dict, step: str, log: str, run) -> None:
+        """Run ``run()`` as step ``step`` of ``task``, recording its state."""
+        self._current = (task, step)
+        self._record(task, step, RUNNING, log=log)
+        try:
+            run()
+        except Exception as e:
+            first = str(e).strip().splitlines()[0] if str(e).strip() else type(e).__name__
+            self._record(task, step, FAILED, log=log, error=first)
+            raise
+        finally:
+            self._current = None
+        self._record(task, step, SUCCESS, log=log)
 
     def _run_job(self, report: RunReport, job: Job, show_progress: bool) -> None:
         task = self._tasks[job.task]
@@ -173,12 +237,18 @@ class PlanRunner:
             return {**info, "action": "reused"}
         log = os.path.join(self._paths.task_logs(task["dir"].rstrip("/")), f"{run}.log")
         logger.info(f"  └── Building '{run}'...")
-        self._script(task, f"{run}.sh", log, run, show_progress)
-        info.update(parse_kmtricks_log(log))
-        info["log"] = log
-        problems = chunk_problems(self._paths.run(run), task["partitions"])
-        if problems:
-            raise RuntimeError(f"Run '{run}' is incomplete: {', '.join(problems)}")
+
+        def build() -> None:
+            self._script(task, f"{run}.sh", log, run, show_progress)
+            problems = chunk_problems(self._paths.run(run), task["partitions"])
+            if problems:
+                raise RuntimeError(f"Run '{run}' is incomplete: {', '.join(problems)}")
+
+        try:
+            self._step(task, run, log, build)
+        finally:
+            info.update(parse_kmtricks_log(log))
+            info["log"] = log
         return {**info, "action": "built"}
 
     def _run_merge(
@@ -206,15 +276,19 @@ class PlanRunner:
         log = os.path.join(self._paths.task_logs(task["dir"].rstrip("/")), "merge.log")
         logger.info(f"  └── Publishing '{shard}'...")
         start = time.monotonic()
-        self._script(task, merge.get("script", f"{MERGE}.sh"), log, shard, show_progress)
+
+        def publish() -> None:
+            self._script(task, merge.get("script", f"{MERGE}.sh"), log, shard, show_progress)
+            if not self._task_done(task):
+                raise RuntimeError(f"'{shard}' does not hold the samples of '{part}'")
+
+        self._step(task, MERGE, log, publish)
         details["duration_s"] = round(time.monotonic() - start, 1)
         details["log"] = log
         report.record_merge(
             shard, {"publish": details, "disk_bytes": dir_bytes(self._paths.shard(shard))}
         )
         report.record(shard, ApplyStatus.SUCCESS)
-        if not self._task_done(task):
-            raise RuntimeError(f"'{shard}' does not hold the samples of '{part}'")
         return True
 
     def _script(
@@ -235,9 +309,11 @@ class PlanRunner:
                 print()
         code = (result or {}).get("return_code", -1)
         if code != 0:
-            stderr = str((result or {}).get("stderr") or "").strip().splitlines()
+            stderr = [ln for ln in str((result or {}).get("stderr") or "").splitlines() if ln.strip()]
+            last = f": {stderr[-1].strip()}" if stderr else ""
             tail = "\n".join(stderr[-10:])
-            raise RuntimeError(f"{script} failed (exit {code}), log: {log}\n{tail}")
+            # first line: what the state file and progress.yaml show
+            raise RuntimeError(f"{script} failed (exit {code}){last}\nlog: {log}\n{tail}")
 
     # ---
     # STATE
@@ -260,40 +336,16 @@ class PlanRunner:
             )
 
     def _registered(self, shard: str) -> bool:
-        path = os.path.join(self._paths.registry, "index.json")
-        try:
-            with open(path) as f:
-                return shard in (json.load(f).get("index") or {})
-        except (OSError, ValueError):
-            return False
+        return self.state.registered(shard)
 
     def _published(self, shard: str) -> set[str]:
-        return _fof_names(os.path.join(self._paths.shard(shard), "kmtricks.fof"))
-
-    def _task_samples(self, task: dict) -> set[str]:
-        directory = self._paths.task(task["dir"].rstrip("/"))
-        names: set[str] = set()
-        for run in task["chunks"]:
-            names |= _fof_names(os.path.join(directory, f"{run}.fof"))
-        return names
+        return self.state.published(shard)
 
     def _task_done(self, task: dict) -> bool:
-        if not self._registered(task["shard"]):
-            return False
-        return self._task_samples(task) <= self._published(task["shard"])
+        return self.state.task_done(task)
 
     def _chunk_complete(self, task: dict, run: str) -> bool:
-        return not chunk_problems(self._paths.run(run), task["partitions"])
-
-
-def _fof_names(path: str) -> set[str]:
-    try:
-        with open(path) as f:
-            return {
-                line.split(":", 1)[0].strip() for line in f if line.split(":", 1)[0].strip()
-            }
-    except OSError:
-        return set()
+        return self.state.chunk_complete(task, run)
 
 
 def describe(job: Job) -> str:

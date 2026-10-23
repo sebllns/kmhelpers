@@ -97,10 +97,10 @@ class TestWriteSlurm(ClusterCase):
             "tasks": tasks,
         }
 
-    def write(self, per_job):
+    def write(self, per_job, notify=None, level="global"):
         cluster = self.load(CLUSTER)
         out = self.tmp / "slurm"
-        write_slurm(self.plan(per_job), cluster, str(out))
+        write_slurm(self.plan(per_job), cluster, str(out), notify, level)
         return out
 
     def test_jobs_and_headers(self):
@@ -117,12 +117,42 @@ class TestWriteSlurm(ClusterCase):
         merge = (out / "merge.sbatch").read_text()
         self.assertIn("#SBATCH -p mem", merge)
         self.assertIn("#SBATCH -c 8", merge)
-        self.assertIn("#SBATCH -t 1:00:00", (out / "check.sbatch").read_text())
+        finish = (out / "finish.sbatch").read_text()
+        self.assertIn("#SBATCH -t 1:00:00", finish)
+        self.assertIn("--status", finish)
+        self.assertIn("manage -r", finish)
+        self.assertFalse((out / "check.sbatch").exists())
+        # a failed dependency cancels merge and finish, never the build tasks
+        self.assertIn("--kill-on-invalid-dep=yes", merge)
+        self.assertIn("--kill-on-invalid-dep=yes", finish)
+        self.assertNotIn("--kill-on-invalid-dep", build)
         submit = (out / "submit.sh").read_text()
         self.assertIn("%8", submit)
         self.assertIn("--pending", submit)
         for path in out.glob("*.s*"):
             subprocess.run(["bash", "-n", str(path)], check=True)
+
+    def test_submit_records_and_skips_active_jobs(self):
+        submit = (self.write(3) / "submit.sh").read_text()
+        self.assertIn("submitted.tsv", submit)
+        self.assertIn("squeue -h -j", submit)
+        self.assertIn('--dependency="afterany:', submit)
+
+    def test_notify(self):
+        out = self.write(3)
+        self.assertNotIn("--notify", (out / "build.sbatch").read_text())
+        self.assertNotIn("--notify", (out / "finish.sbatch").read_text())
+
+        out = self.write(3, "me@example.com")
+        self.assertNotIn("--notify", (out / "build.sbatch").read_text())
+        self.assertNotIn("--notify", (out / "merge.sbatch").read_text())
+        self.assertIn("--status --notify me@example.com", (out / "finish.sbatch").read_text())
+
+        out = self.write(3, "me@example.com", "shard")
+        shard = "--notify me@example.com --notify-level shard --no-notify-final"
+        self.assertIn(shard, (out / "build.sbatch").read_text())
+        self.assertIn(shard, (out / "merge.sbatch").read_text())
+        self.assertIn("--status --notify me@example.com", (out / "finish.sbatch").read_text())
 
     def test_submission_files_follow_the_type(self):
         cluster = self.load(CLUSTER)
