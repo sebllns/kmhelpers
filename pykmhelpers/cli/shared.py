@@ -207,7 +207,7 @@ pending_option = click.option(
 )
 cluster_option = click.option(
     "--cluster",
-    "--cl",
+    "--hpc",
     "cluster_file",
     required=False,
     type=click.Path(exists=True, dir_okay=False),

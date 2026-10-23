@@ -28,7 +28,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 | `--bp, --base-path DIR` | Base path to resolve relative sample paths |
 | `--sh, --shard TEXT` | Shards to plan, as names or glob patterns (repeatable or comma-separated, e.g. `idx_g0_p1`, `'idx_g0_*'`); a part name (`<shard>_<session>`) plans that part as its own index |
 | `--cpj, --chunks-per-job INT` | Chunks of a shard one job builds: 0 (default) for one job per shard, its chunks then its merge; else jobs `<shard>_j<k>` of up to N chunks, then a job `<shard>_merge` (see [Jobs](#jobs)) |
-| `--cl, --cluster FILE` | YAML file of the scheduler and the resources of each kind of job: sizes the plan from them (instead of `--limits`) and writes the SLURM files (see [Cluster](#cluster)) |
+| `--hpc, --cluster FILE` | YAML file of the scheduler and the resources of each kind of job: sizes the plan from them (instead of `--limits`) and writes the SLURM files (see [Cluster](#cluster)) |
 | `--threads INT` | Hidden. Force the number of kmtricks threads instead of sizing them from `--limits` |
 | `--ncp, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
 | `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set, for the shard's k-mer occurrences (see [compose - Partitioning](compose.md#description)) (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Builds and merges](build.md#builds-and-merges) |
