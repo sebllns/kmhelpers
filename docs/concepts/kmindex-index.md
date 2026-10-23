@@ -8,7 +8,7 @@ are). An abundance index (`design --ab N`) also stores how often each k-mer occu
 class from 0 to 2^N - 1, and reports that class instead.
 
 Each sample is stored as a [Bloom filter](https://en.wikipedia.org/wiki/Bloom_filter): a
-compact bit array that can answer "present" wrongly, at a known rate (`--fp`), but never
+compact bit array that can answer "present" wrongly, at a known rate (`--fp`), but **never**
 "absent" wrongly. See the [Glossary](terms.md) for the terms used below.
 
 ## Two ways of splitting
