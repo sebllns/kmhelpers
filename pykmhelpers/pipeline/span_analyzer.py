@@ -71,6 +71,12 @@ class SpanAnalyzer:
         return self._default_profile
 
     def add_profile(self, name, span_list, sample_dist):
+        """Add the grouping ``span_list`` of ``sample_dist`` samples per span.
+
+        Sizes are for a presence/absence index, 1 bit per cell: an abundance
+        index of ``bitw`` bits per cell (``compose --ab``) is ``bitw`` times
+        bigger, for every group alike, so the grouping chosen is the same.
+        """
         bloom_size = [self.bf[s] for s in span_list]
         span_sizes = [
             BloomFilterSpecs(s, n, 256).total_storage_size()

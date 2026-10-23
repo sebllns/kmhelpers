@@ -81,6 +81,12 @@ few groups whatever its size. For example, 169 samples whose k-mer counts spread
 orders of magnitude start from 1 group (1.6 GB); a 2nd one saves 42% (0.95 GB), a 3rd only 18%,
 so they get 2 groups.
 
+**Sizes** - the sizes in `profile.yaml` (`disk_usage`, `total_size`, `bytes_per_sample`)
+are for a presence/absence index, 1 bit per sample and Bloom-filter cell. An abundance
+index (`design`/`compose --ab N`) stores N bits per cell: multiply them by N, e.g. 208 MB
+becomes 624 MB with `--ab 3`. The factor is the same for every group, so it does not change
+the grouping chosen; `compose` counts it in its own estimates.
+
 `--auto-group-samples`, `--auto-group-max` and `--auto-group-min-gain` (or their
 `KMHELPERS_AUTO_GROUP_*` environment variables) change these values. The chosen count is
 logged (`Auto groups: N (… start …, max …, min gain …)`), and recorded with the values used

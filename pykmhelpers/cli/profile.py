@@ -89,6 +89,10 @@ def profile(
     ► RECOMMENDED: build with p=0.25, query with z=6 (effective FP rate: 0.25^6 ≈ 0.024%).
 
     \b
+    ► SIZES: for a presence/absence index (1 bit per cell); multiply them by N
+      for an abundance index (`compose --ab N`). The grouping is the same.
+
+    \b
     Output files (written to OUTPUT_DIR):
       baseline.csv  - natural distribution: span id, Bloom filter size, sample count
       profile.yaml  - natural distribution (baseline) and storage-balanced grouped profile(s)
