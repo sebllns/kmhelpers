@@ -125,7 +125,11 @@ def build(
             _already_built(input_file, work_dir)
             return
         if action == "submit":
-            _submit(input_file, work_dir, os.path.join(os.path.dirname(plan_file), "slurm", "submit.sh"))
+            _submit(
+                input_file, work_dir,
+                os.path.join(os.path.dirname(plan_file), "slurm", "submit.sh"),
+                show_progress,
+            )
             if show_progress:
                 ctx.exit(watch(input_file, work_dir, WATCH_INTERVAL))
             return
@@ -137,7 +141,7 @@ def build(
         _build_on_cluster(
             input_file, work_dir, base_path, threads, limits, safety_margin,
             max_chunks, chunk_budget, chunks_per_job, skip_compression,
-            keep_previous, cluster_file, notify, notify_level,
+            keep_previous, cluster_file, notify, notify_level, show_progress,
         )
         if show_progress:
             ctx.exit(watch(input_file, work_dir, WATCH_INTERVAL))
@@ -219,7 +223,7 @@ def _apply_locally(input_file: str, work_dir: str, notifier: ExitNotifier, show_
 def _build_on_cluster(
     input_file, work_dir, base_path, threads, limits, safety_margin, max_chunks,
     chunk_budget, chunks_per_job, skip_compression, keep_previous, cluster_file,
-    notify, notify_level,
+    notify, notify_level, show_progress=False,
 ) -> None:
     """Plan for the jobs of ``cluster_file``, then run its submit.sh and exit:
     the jobs build the indices; ``apply --status --sp`` follows them."""
@@ -259,10 +263,14 @@ def _build_on_cluster(
         _already_built(input_file, work_dir)
         return
     logger.info("SUCCESS ('plan')")
-    _submit(input_file, work_dir, os.path.join(os.path.dirname(plan_path), "slurm", "submit.sh"))
+    _submit(
+        input_file, work_dir,
+        os.path.join(os.path.dirname(plan_path), "slurm", "submit.sh"),
+        show_progress,
+    )
 
 
-def _submit(input_file: str, work_dir: str, submit: str) -> None:
+def _submit(input_file: str, work_dir: str, submit: str, watching: bool = False) -> None:
     """Run the plan's submit.sh: it submits what is not done yet."""
     pykmhelpers.core.log.Log.step(logger, f"STEP 2: Submit {submit}")
     proc = subprocess.run(["bash", submit], capture_output=True, text=True)
@@ -270,7 +278,12 @@ def _submit(input_file: str, work_dir: str, submit: str) -> None:
         logger.info(line)
     if proc.returncode != 0:
         raise click.ClickException(f"FAILED ('submit'): {submit} exited {proc.returncode}")
-    logger.info(f"Submitted. Follow it with: kmhelpers apply {input_file} -o {work_dir} --status --sp")
+    status = f"kmhelpers apply {input_file} -o {work_dir} --status"
+    logger.info("Submitted: the jobs run on SLURM, independently of this command")
+    if watching:
+        logger.info("Ctrl-C only stops following them: the jobs go on")
+    logger.info(f"Follow them (again) with: {status} --sp")
+    logger.info(f"Details of shards (RAM, kmtricks step, job ids): {status} --sp --task SHARD (or a quoted glob)")
 
 
 # options taking build decisions: not used when the existing plan is run
