@@ -66,7 +66,7 @@ Set `-s` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 | `--redesign` | Design the index again: remove its previous design (`DESIGN_DIR/compose/NAME/`, `DESIGN_DIR/profile/`) first; the sample list stays. An index built from the previous design cannot be updated with the new one: build into a new `BUILD_DIR` |
 | `--ngp, --no-grouping` | One group, no grouping strategy: every sample gets the Bloom filter of the largest one; not with `-g N` |
 | `-b, --base FLOAT` | Base for span bucket boundaries (default: 1.1) |
-| `--sb, --shard-budget INT` | Shard budget: a shard of span `s` holds at most `ceil8(budget / base^s)` samples (default: `2**43` for a new index); 0 for no limit, see [compose](compose.md) |
+| `--sb, --shard-budget INT` | Shard budget: about how many k-mers a shard holds, summed over its samples (a shard of span `s` gets `ceil8(budget / base^s)` samples) (default: `2**43` for a new index); 0 for no limit, see [compose](compose.md) |
 | `--fp, --false-positive-rate FLOAT` | Target Bloom-filter false-positive rate (default: 0.25) |
 | `-P, --partition-count INT` | Hidden. Fix the partition count of every shard for the life of the index: inherited by every later session, no longer adapted to the system limits of `plan`/`build`. 0 (default) lets the first `plan` of each shard size it, see [compose - Partitioning](compose.md#description) |
 | `--minim-size INT` | Minimizer size (4-15), fixed for the life of the index (default: 10 for a new index, the layout's value on an update) |

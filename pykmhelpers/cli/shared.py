@@ -82,10 +82,10 @@ def sharding_options(f):
         "--shard-budget",
         "--sb",
         "shard_budget",
-        help="💾  Shard budget: a span s is split into shards of at most "
-        "ceil8(budget / base**s) samples (about k-mers x samples). 0 for no "
-        "limit. Recorded in the layout; passing it on an update re-shards the "
-        "layout. [default: '2**43' for a new index]",
+        help="💾  Shard budget: about how many k-mers a shard holds, summed "
+        "over its samples, so shards of big samples hold fewer samples. 0 for "
+        "no limit. Recorded in the layout; passing it on an update re-shards "
+        "the layout. [default: '2**43' for a new index]",
     )(f)
     return f
 
