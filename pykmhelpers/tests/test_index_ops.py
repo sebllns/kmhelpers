@@ -5,6 +5,7 @@ sample resolution and script export. The full build/publish flow is covered by
 ``test_pipeline_e2e.py``.
 """
 
+import multiprocessing
 import shutil
 import tempfile
 import unittest
@@ -16,7 +17,7 @@ import yaml
 from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.pipeline.index_ops import ApplyStatus, IndexOpsConfig
 from pykmhelpers.pipeline.index_ops.executor import IndexExecutor
-from pykmhelpers.pipeline.index_ops.layout import LayoutStore
+from pykmhelpers.pipeline.index_ops.layout import LayoutStore, record_shard_partitions
 from pykmhelpers.pipeline.index_ops.ops import IndexOps
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths, check_index_name
 from pykmhelpers.pipeline.index_ops.plan_file import (
@@ -453,6 +454,132 @@ class TestResolveInput(unittest.TestCase):
         )
         layout = LayoutStore.next_to(str(shard))
         self.assertEqual(layout._path, str((self.index / "layout.yaml").resolve()))
+
+
+def write_layout(path, shards_per_span, span_partitions=0):
+    """A layout whose spans 1, 2, ... hold the given shard names."""
+    data = {
+        "type": "layout",
+        "data": {
+            "base": 1.1,
+            "map": {
+                n: {
+                    "name": f"idx_g{n - 1}",
+                    "partition_count": span_partitions,
+                    "shards": [{"name": sh, "samples": 3} for sh in shards],
+                }
+                for n, shards in enumerate(shards_per_span, start=1)
+            },
+        },
+    }
+    with open(path, "w") as f:
+        yaml.dump(data, f)
+
+
+def _record_in_process(path, shard, count):
+    record_shard_partitions(path, shard, count)
+
+
+class TestShardPartitions(unittest.TestCase):
+    """apply records the partition count of a published shard in the layout;
+    plan builds later parts of the shard with it."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.path = str(self.tmp / "layout.yaml")
+        write_layout(self.path, [["idx_g0_p0", "idx_g0_p1"], ["idx_g1"]])
+
+    def test_a_missing_count_is_recorded_per_shard(self):
+        self.assertTrue(record_shard_partitions(self.path, "idx_g0_p0", 27))
+        layout = LayoutStore(self.path)
+        self.assertEqual(layout.shard_partition_count("idx_g0_p0"), 27)
+        self.assertIsNone(layout.shard_partition_count("idx_g0_p1"))
+        self.assertIsNone(layout.partition_count(1))  # the design is unchanged
+
+    def test_a_recorded_count_is_never_changed(self):
+        record_shard_partitions(self.path, "idx_g1", 17)
+        before = Path(self.path).read_bytes()
+        self.assertFalse(record_shard_partitions(self.path, "idx_g1", 17))
+        with self.assertLogs(level="WARNING") as logs:
+            self.assertFalse(record_shard_partitions(self.path, "idx_g1", 32))
+        self.assertIn("layout left unchanged", logs.output[0])
+        self.assertEqual(Path(self.path).read_bytes(), before)
+
+    def test_unknown_shard_or_layout(self):
+        with self.assertLogs(level="WARNING"):
+            self.assertFalse(record_shard_partitions(self.path, "other", 8))
+        self.assertFalse(record_shard_partitions(str(self.tmp / "none.yaml"), "idx_g1", 8))
+        self.assertFalse(record_shard_partitions(self.path, "idx_g1", 0))
+
+    def test_concurrent_publishes_keep_every_count(self):
+        shards = [f"idx_g0_p{n}" for n in range(12)]
+        write_layout(self.path, [shards])
+        ctx = multiprocessing.get_context("fork")
+        procs = [
+            ctx.Process(target=_record_in_process, args=(self.path, sh, 8 + n))
+            for n, sh in enumerate(shards)
+        ]
+        for p in procs:
+            p.start()
+        for p in procs:
+            p.join()
+        layout = LayoutStore(self.path)
+        self.assertEqual(
+            [layout.shard_partition_count(sh) for sh in shards],
+            [8 + n for n in range(12)],
+        )
+
+    def test_the_published_count_wins_over_the_design_and_the_limits(self):
+        write_layout(self.path, [["idx_g0"]], span_partitions=16)
+        record_shard_partitions(self.path, "idx_g0", 27)
+        config = make_config(limits='{"ram": 8000000000, "files": 4096, "threads": 4}')
+        layout = LayoutStore(self.path)
+
+        params = resolve_build_params(make_definition(partition_count=16), 7, config, layout, "idx_g0")
+        self.assertEqual(params.partitions, 27)
+        self.assertEqual(params.partitions_source, "published")
+
+        # another shard of the span: the design
+        params = resolve_build_params(make_definition(), 7, config, layout, "idx_g0_p1")
+        self.assertEqual(params.partitions, 16)
+        self.assertEqual(params.partitions_source, "design")
+
+    def runner(self, registered):
+        """A runner of a plan whose input sits next to the layout."""
+        session = self.tmp / "initial"
+        session.mkdir(exist_ok=True)
+        (session / "index.yaml").write_text("type: index_session\n")
+        runner = PlanRunner.__new__(PlanRunner)
+        runner._input = str(session / "index.yaml")
+        runner.state = SimpleNamespace(registered_partitions=lambda shard: registered)
+        return runner
+
+    def test_apply_records_the_registered_count(self):
+        write_layout(self.path, [["idx_g0"]])
+        self.runner(registered=32)._record_partitions({"shard": "idx_g0", "partitions": 27})
+        self.assertEqual(LayoutStore(self.path).shard_partition_count("idx_g0"), 32)
+
+    def test_apply_falls_back_on_the_plan_count(self):
+        write_layout(self.path, [["idx_g0"]])
+        self.runner(registered=None)._record_partitions({"shard": "idx_g0", "partitions": 27})
+        self.assertEqual(LayoutStore(self.path).shard_partition_count("idx_g0"), 27)
+
+    def test_a_rerun_of_apply_leaves_the_plan_fresh(self):
+        """The layout is not a plan input: recording a count does not make
+        the plan of pending jobs stale."""
+        write_layout(self.path, [["idx_g0"], ["idx_g1"]])
+        runner = self.runner(registered=None)
+        plan = new_plan(runner._input, str(self.tmp), "initial", [runner._input], {}, {})
+        runner._record_partitions({"shard": "idx_g0", "partitions": 27})
+        check_fresh(plan, runner._input)
+        runner._record_partitions({"shard": "idx_g0", "partitions": 27})
+        self.assertIsNone(LayoutStore(self.path).shard_partition_count("idx_g1"))
+
+    def test_a_recording_failure_does_not_fail_the_run(self):
+        Path(self.path).write_text("{not yaml")
+        with self.assertLogs(level="WARNING"):
+            self.runner(registered=8)._record_partitions({"shard": "idx_g0", "partitions": 8})
 
 
 class TestAlignWithStartedRuns(unittest.TestCase):

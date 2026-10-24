@@ -71,12 +71,20 @@ merged with updates built with the same N. By default `compose` leaves it open, 
    other value is ignored, with a warning;
 2. a part whose kmtricks runs are already started in `BUILD_DIR/work/SESSION/` keeps theirs
    (`apply` after `plan`, a resumed build);
-3. the count fixed at design with `-P`;
-4. otherwise, a count sized from the resource limits (`--limits`) for a full shard.
+3. the count the layout records for the shard, once published;
+4. the count fixed at design with `-P`;
+5. otherwise, a count sized from the resource limits (`--limits`) for a full shard.
 
 `plan`, `apply` and `build` have no `-P`: they never write the design, and each machine sizes the
 shards it builds first. Fixing `-P` at design is inherited by every later session and is no longer
-adapted to the system limits.
+adapted to the system limits; a shard already published keeps its own count (with a warning).
+
+When `apply` publishes a shard, it records the count the shard is built with (the registry's)
+under the shard in the layout, `map.<span>.shards[].partition_count`; the span's
+`partition_count` stays the design value (`-P`, 0 when left open). A recorded count is never
+changed, and an `apply` finding a shard already published records it if missing. `compose` and
+the publish jobs update the layout under a lock (`layout.yaml.lock`) and replace it atomically; a
+`compose` session keeps the counts recorded while it ran.
 
 **k-mer ratio** - kmtricks holds every k-mer *occurrence* of a sample partition in memory
 before it filters them (`--hard-min`), about `occurrences / partitions × 8 bytes` per thread.

@@ -353,9 +353,9 @@ class IndexOps:
         i.partition_count = params.partitions
 
     def _resolve_params(
-        self, i: IndexDefinition, sample_count: int, layout: LayoutStore
+        self, i: IndexDefinition, sample_count: int, layout: LayoutStore, target: str
     ) -> BuildParams:
-        params = resolve_build_params(i, sample_count, self.config, layout)
+        params = resolve_build_params(i, sample_count, self.config, layout, target)
         # Keeps size estimates of i in line with what is built
         i.partition_count = params.partitions
         return params
@@ -371,7 +371,7 @@ class IndexOps:
     ) -> Optional[_Built]:
         """Build the runs of index ``i`` and record its outcome in ``report``."""
         # Partitions must be known before estimating the size
-        params = self._resolve_params(i, i.sample_count, layout)
+        params = self._resolve_params(i, i.sample_count, layout, target)
         size = i.get_stored_size()
         report.add_span_stats(i.span, i.sample_count, size.byte_count)
         logger.info(f"  └── Sample count: {i.sample_count}")
@@ -413,7 +413,7 @@ class IndexOps:
         if sample_count != i.sample_count:
             # i.partition_count now holds the first count: keep its source
             source = params.partitions_source
-            params = self._resolve_params(i, sample_count, layout)
+            params = self._resolve_params(i, sample_count, layout, target)
             params = replace(params, partitions_source=source)
         params = executor.align_with(target, params, i.name)
         self._store_params(i, params)

@@ -13,6 +13,7 @@ import yaml
 import pykmhelpers.pipeline.index_db as db
 from pykmhelpers.core.bloom_filter import SpanManager
 from pykmhelpers.core.byte import ByteCounter
+from pykmhelpers.core.file_lock import locked, replace_atomically
 from pykmhelpers.core.constants import (
     DEFAULT_MINIM_SIZE,
     KMHELPERS_COMMIT,
@@ -249,6 +250,13 @@ class IndexComposer:
             # Fixed by the user: every shard of the index keeps this count
             for props in spans_properties.values():
                 props["partition_count"] = self.partition_count
+                for sh in props["shards"]:
+                    built = sh.get("partition_count")
+                    if built and built != self.partition_count:
+                        logger.warning(
+                            f"'{sh['name']}' is published with {built} partitions: "
+                            f"it keeps them, -P {self.partition_count} applies to new shards"
+                        )
             logger.info(f"Partition count fixed to {self.partition_count}")
 
         touched: set[int] = set()
@@ -466,7 +474,28 @@ class IndexComposer:
         sessions: Optional[list[str]] = None,
     ) -> None:
         """Write the layout: shard state, build invariants of later sessions,
-        and the sessions composed so far (the last one is built by default)."""
+        and the sessions composed so far (the last one is built by default).
+
+        ``apply`` may record the partition count of a shard it publishes while
+        this session is composed: under the layout lock, the counts recorded
+        since the layout was loaded are kept, and the file replaced atomically.
+        """
+        with locked(layout_lock(path)):
+            _keep_recorded_partitions(path, spans_properties)
+            self._dump_layout(
+                path, span_base, shard_size, minim_size, spans_properties, sessions
+            )
+        logger.info(f"Wrote layout: {path}")
+
+    def _dump_layout(
+        self,
+        path: str,
+        span_base: float,
+        shard_size: int,
+        minim_size: int,
+        spans_properties: dict,
+        sessions: Optional[list[str]],
+    ) -> None:
         layout_data = {
             "type": "layout",
             "data": {
@@ -484,7 +513,15 @@ class IndexComposer:
                         "updates": props["updates"],
                         "partition_count": props["partition_count"],
                         "shards": [
-                            {"name": sh["name"], "samples": sh["samples"]}
+                            {
+                                "name": sh["name"],
+                                "samples": sh["samples"],
+                                **(
+                                    {"partition_count": sh["partition_count"]}
+                                    if sh.get("partition_count")
+                                    else {}
+                                ),
+                            }
                             for sh in props["shards"]
                         ],
                     }
@@ -492,9 +529,38 @@ class IndexComposer:
                 },
             },
         }
-        with open(path, "w") as f:
-            yaml.dump(layout_data, f, default_flow_style=False, sort_keys=True)
-        logger.info(f"Wrote layout: {path}")
+        replace_atomically(
+            path, yaml.dump(layout_data, default_flow_style=False, sort_keys=True)
+        )
+
+
+def layout_lock(path: str) -> str:
+    """Lock file of the layout ``path``, taken by every writer of the layout."""
+    return f"{path}.lock"
+
+
+def _keep_recorded_partitions(path: str, spans_properties: dict) -> None:
+    """Copy into ``spans_properties`` the shard partition counts the layout
+    on disk records and they lack (recorded by ``apply`` since it was loaded)."""
+    if not os.path.isfile(path):
+        return
+    try:
+        with open(path) as f:
+            payload = (yaml.safe_load(f) or {}).get("data") or {}
+    except (OSError, yaml.YAMLError) as e:
+        logger.warning(f"Could not read {path} to keep its partition counts: {e}")
+        return
+    recorded = {
+        sh["name"]: int(sh["partition_count"])
+        for entry in (payload.get("map") or {}).values()
+        if isinstance(entry, dict)
+        for sh in entry.get("shards") or []
+        if isinstance(sh, dict) and sh.get("name") and sh.get("partition_count")
+    }
+    for props in spans_properties.values():
+        for sh in props.get("shards") or []:
+            if not sh.get("partition_count") and sh["name"] in recorded:
+                sh["partition_count"] = recorded[sh["name"]]
 
 
 def max_samples_for(bf_size: int, shard_size: int, bitw: int = 0) -> int:
@@ -608,6 +674,12 @@ def load_layout(path: str) -> tuple[float, int, int, dict]:
                     "id": n if max_samples else None,
                     "name": sh["name"],
                     "samples": int(sh.get("samples", 0)),
+                    # recorded by apply once the shard is published
+                    **(
+                        {"partition_count": int(sh["partition_count"])}
+                        if sh.get("partition_count")
+                        else {}
+                    ),
                 }
                 for n, sh in enumerate(stored_shards)
             ]

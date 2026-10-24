@@ -11,7 +11,8 @@ is checked before it runs, so a job can be run again after an interruption:
   or as the publish step itself leaves it when it was interrupted.
 
 Each step it runs is recorded in a state file, and ``progress.yaml`` is
-rewritten after each one (see ``status``).
+rewritten after each one (see ``status``). A published shard has its partition
+count recorded in the layout, so later sessions are planned with it.
 """
 
 import logging
@@ -25,6 +26,7 @@ from typing import Callable, Optional
 from pykmhelpers.core.kmindex_paths import chunk_problems
 from pykmhelpers.core.utils import matches_any, select_matching
 from pykmhelpers.core.wrapper import Wrapper
+from pykmhelpers.pipeline.index_ops.layout import LayoutStore, record_shard_partitions
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths
 from pykmhelpers.pipeline.index_ops.plan_file import PUBLISH, check_fresh, load_plan
 from pykmhelpers.pipeline.index_ops.progress import ShardDisplay
@@ -277,6 +279,8 @@ class PlanRunner:
         details = {k: v for k, v in publish.items() if k not in ("script", "expects")}
         if self._task_done(task):
             logger.info(f"  └── '{shard}' already holds the samples of '{part}'")
+            # a shard published before the count was recorded gets it now
+            self._record_partitions(task)
             report.record_publish(shard, {"publish": {**details, "action": "done"}})
             return False
         missing = [r for r in task["chunks"] if not self._chunk_complete(task, r)]
@@ -300,6 +304,7 @@ class PlanRunner:
                 raise RuntimeError(f"'{shard}' does not hold the samples of '{part}'")
 
         self._step(task, PUBLISH, log, run_script)
+        self._record_partitions(task)
         details["duration_s"] = round(time.monotonic() - start, 1)
         details["log"] = log
         report.record_publish(
@@ -330,6 +335,18 @@ class PlanRunner:
             tail = "\n".join(stderr[-10:])
             # first line: what the state file and progress.yaml show
             raise RuntimeError(f"{script} failed (exit {code}){last}\nlog: {log}\n{tail}")
+
+    def _record_partitions(self, task: dict) -> None:
+        """Record in the layout the partition count the shard of ``task`` is
+        published with (the registry's, else the plan's); never fails a run."""
+        shard = task["shard"]
+        count = self.state.registered_partitions(shard) or task.get("partitions")
+        try:
+            path = LayoutStore.next_to(self._input).path
+            if path and count:
+                record_shard_partitions(path, shard, int(count))
+        except Exception as e:
+            logger.warning(f"Could not record the partition count of '{shard}' in the layout: {e}")
 
     # ---
     # STATE

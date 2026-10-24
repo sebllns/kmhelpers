@@ -4,6 +4,7 @@ The full compose flow is covered by ``test_pipeline_e2e.py``.
 """
 
 import json
+import multiprocessing
 import os
 import shutil
 import tempfile
@@ -29,6 +30,7 @@ from pykmhelpers.pipeline.index_db import (
     IndexDefinitionTools,
     Sample,
 )
+from pykmhelpers.pipeline.index_ops.layout import record_shard_partitions
 
 
 class TestMaxSamplesFor(unittest.TestCase):
@@ -336,6 +338,11 @@ class TestCurrentShard(unittest.TestCase):
         self.assertEqual(shard["name"], "idx_g7_p0")
 
 
+def _compose_layout(path, props):
+    """A compose session writing the layout it loaded before any publish."""
+    IndexComposer(name="idx")._write_layout(path, 1.1, 80, 10, props)
+
+
 class TestLayout(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
@@ -364,6 +371,75 @@ class TestLayout(unittest.TestCase):
 
         self.assertEqual((base, shard_size, minim_size), (1.1, 10000, 10))
         self.assertEqual(loaded, props)
+
+    def test_shard_partition_count_round_trip(self):
+        """The count apply records for a published shard survives a new session."""
+        props = {
+            76: {
+                "id": 0,
+                "name": "idx_g0",
+                "max_samples": 80,
+                "total_samples": 85,
+                "updates": 2,
+                "partition_count": 0,
+                "shards": [
+                    {"id": 0, "name": "idx_g0_p0", "samples": 80, "partition_count": 27},
+                    {"id": 1, "name": "idx_g0_p1", "samples": 5},
+                ],
+            }
+        }
+        IndexComposer(name="idx")._write_layout(self.path, 1.1, 10000, 10, props)
+        loaded = load_layout(self.path)[3]
+        self.assertEqual(loaded, props)
+        with open(self.path) as f:
+            shards = yaml.safe_load(f)["data"]["map"][76]["shards"]
+        self.assertNotIn("partition_count", shards[1])
+
+    def shard_props(self, names):
+        return {
+            76: {
+                "id": 0,
+                "name": "idx_g0",
+                "max_samples": 80,
+                "total_samples": 3 * len(names),
+                "updates": 1,
+                "partition_count": 0,
+                "shards": [
+                    {"id": n, "name": name, "samples": 3} for n, name in enumerate(names)
+                ],
+            }
+        }
+
+    def test_counts_recorded_since_the_load_are_kept(self):
+        """apply publishes a shard while compose runs: its count survives."""
+        composer = IndexComposer(name="idx")
+        composer._write_layout(self.path, 1.1, 80, 10, self.shard_props(["idx_g0_p0"]))
+        props = load_layout(self.path)[3]  # compose loads the layout
+        record_shard_partitions(self.path, "idx_g0_p0", 27)  # apply publishes
+        props[76]["shards"].append({"id": 1, "name": "idx_g0_p1", "samples": 3})
+        composer._write_layout(self.path, 1.1, 80, 10, props)
+
+        shards = load_layout(self.path)[3][76]["shards"]
+        self.assertEqual(shards[0]["partition_count"], 27)
+        self.assertNotIn("partition_count", shards[1])
+
+    def test_compose_and_publishes_at_once(self):
+        names = [f"idx_g0_p{n}" for n in range(12)]
+        IndexComposer(name="idx")._write_layout(self.path, 1.1, 80, 10, self.shard_props(names))
+        ctx = multiprocessing.get_context("fork")
+        procs = [
+            ctx.Process(target=record_shard_partitions, args=(self.path, name, 8 + n))
+            for n, name in enumerate(names)
+        ] + [
+            ctx.Process(target=_compose_layout, args=(self.path, self.shard_props(names)))
+            for _ in range(4)
+        ]
+        for p in procs:
+            p.start()
+        for p in procs:
+            p.join()
+        shards = load_layout(self.path)[3][76]["shards"]
+        self.assertEqual([sh.get("partition_count") for sh in shards], [8 + n for n in range(12)])
 
     def test_bitw_round_trip(self):
         IndexComposer(name="idx", bitw=2)._write_layout(self.path, 1.1, 0, 10, {})

@@ -33,7 +33,8 @@ class BuildParams:
     of at most that many samples, which are merged.
 
     ``partitions_source`` tells where the partition count comes from, for the
-    report: ``design`` (``compose -P``), ``auto`` (sized from the limits),
+    report: ``published`` (the layout records the count of the shard),
+    ``design`` (``compose -P``), ``auto`` (sized from the limits),
     ``registered`` (the shard already built) or ``run`` (a run of the session
     already started). It does not take part in comparisons.
     """
@@ -80,21 +81,36 @@ def build_kmers(i: IndexDefinition) -> int:
     return math.ceil(bf_max_kmers(i.bf_size, i.fp_rate) * i.kmer_ratio)
 
 
-def partitions_source(i: IndexDefinition, layout: LayoutStore) -> str:
-    """``design`` when the partition count of ``i`` is fixed, else ``auto``
-    (the test of ``resolve_partitions``)."""
+def partitions_source(
+    i: IndexDefinition, layout: LayoutStore, shard: Optional[str] = None
+) -> str:
+    """``published`` when the layout records the count of ``shard``,
+    ``design`` when the partition count of ``i`` is fixed, else ``auto``
+    (the tests of ``resolve_partitions``)."""
+    if shard and layout.shard_partition_count(shard):
+        return "published"
     return "design" if i.partition_count or layout.partition_count(i.span) else "auto"
 
 
 def resolve_partitions(
-    i: IndexDefinition, sample_count: int, config: IndexOpsConfig, layout: LayoutStore
+    i: IndexDefinition,
+    sample_count: int,
+    config: IndexOpsConfig,
+    layout: LayoutStore,
+    shard: Optional[str] = None,
 ) -> int:
-    """Partition count of ``i``: fixed at design (``compose -P``), else sized
-    from the resource limits for a full shard.
+    """Partition count of ``i``, part of ``shard``: the count the layout
+    records for the shard once published, else fixed at design
+    (``compose -P``), else sized from the resource limits for a full shard.
 
     A shard already built, or a run of the session already started, keeps its
     own count: ``IndexExecutor.align_with`` applies it afterwards.
     """
+    published = layout.shard_partition_count(shard) if shard else None
+    if published:
+        logger.info(f"  └── Partitions: {clamp_partitions(published)} (published shard)")
+        return clamp_partitions(published)
+
     fixed = i.partition_count or layout.partition_count(i.span)
     if fixed:
         logger.info(f"  └── Partitions: {clamp_partitions(fixed)} (design -P)")
@@ -125,8 +141,10 @@ def resolve_build_params(
     sample_count: int,
     config: IndexOpsConfig,
     layout: LayoutStore,
+    shard: Optional[str] = None,
 ) -> BuildParams:
-    """Resolve the build parameters of index ``i`` holding ``sample_count`` samples.
+    """Resolve the build parameters of index ``i`` holding ``sample_count`` samples,
+    a part of ``shard`` (its partition count may be recorded in the layout).
 
     The partition count and the minimizer size are index invariants (see
     ``resolve_partitions``). Threads and chunking are per run: threads are
@@ -135,8 +153,8 @@ def resolve_build_params(
     ceiling, ``config.max_chunks`` and ``config.chunk_budget``.
     """
     minim_size = resolve_minim_size(i, layout)
-    source = partitions_source(i, layout)
-    partitions = resolve_partitions(i, sample_count, config, layout)
+    source = partitions_source(i, layout, shard)
+    partitions = resolve_partitions(i, sample_count, config, layout, shard)
 
     max_chunk_samples = chunk_samples(i, config, layout)
     if config.kmindex_threads:

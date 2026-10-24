@@ -85,7 +85,7 @@ tasks:
       idx_g0_publish: [publish]
 ```
 
-The **fingerprint** holds the input files the plan was made from: the definition, its shard files, `layout.yaml`, the sample lists and the `--cluster` file. `apply` refuses the plan when one of them changed, or when it was made by another kmhelpers version.
+The **fingerprint** holds the input files the plan was made from: the definition, its shard files, the sample lists and the `--cluster` file. `layout.yaml` is not part of it: each `compose` session rewrites it and `apply` records the partition count of the shards it publishes, which must not make pending plans stale. `apply` refuses the plan when one of them changed, or when it was made by another kmhelpers version.
 
 **Report** - `BUILD_DIR/logs/kmhelpers_plan_<timestamp>.yaml`: per shard and part, the build parameters (with where the partition count comes from), the kmtricks runs and chunks planned, the merge steps and their expected memory, and the scripts; plus the limits the sizing used, the host and the SLURM job. See [build - Report](build.md#report).
 

@@ -37,7 +37,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 
 ## Description
 
-`apply` loads the plan and refuses it when it is stale: an input file changed since `plan` (definition, shard files, `layout.yaml`, sample lists, `--cluster` file), or another kmhelpers version made it. Run `plan` again then.
+`apply` loads the plan and refuses it when it is stale: an input file changed since `plan` (definition, shard files, sample lists, `--cluster` file; not `layout.yaml`, which `compose` and `apply` update), or another kmhelpers version made it. Run `plan` again then.
 
 Then it runs the selected jobs (all by default), in order. Each step is checked before it runs, so a job can be run again after an interruption, or by several processes in turn:
 

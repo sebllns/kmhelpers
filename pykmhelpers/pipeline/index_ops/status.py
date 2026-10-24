@@ -91,6 +91,15 @@ class BuildState:
         except (OSError, ValueError):
             return False
 
+    def registered_partitions(self, shard: str) -> Optional[int]:
+        """Partition count the registry holds for ``shard``, None if unknown."""
+        try:
+            with open(os.path.join(self.paths.registry, "index.json")) as f:
+                entry = (json.load(f).get("index") or {}).get(shard) or {}
+            return int(entry.get("nb_partitions") or 0) or None
+        except (OSError, ValueError, TypeError, AttributeError):
+            return None
+
     def published(self, shard: str) -> set[str]:
         return fof_names(os.path.join(self.paths.shard(shard), "kmtricks.fof"))
 
