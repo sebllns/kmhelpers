@@ -9,7 +9,8 @@ This page runs the [E. coli tutorial](ecoli.md) and its
 | [`list`](../commands/list.md) | `SampleLister` |
 | [`profile`](../commands/profile.md) | `SpanProfiler` |
 | [`compose`](../commands/compose.md) | `IndexComposer` |
-| [`plan`](../commands/plan.md) / [`apply`](../commands/apply.md) | `IndexOps` with `ApplyMode.PLAN` / `ApplyMode.APPLY` |
+| [`plan`](../commands/plan.md) | `IndexOps` with `ApplyMode.PLAN`, then `write_plan()` |
+| [`apply`](../commands/apply.md) | `PlanRunner` |
 | [`query`](../commands/query.md) | `QueryRunner` |
 
 `design` and `build` are chains of these classes, written below as two small
@@ -89,7 +90,7 @@ download(DATASET, "coli_dataset")
 ## Step 2 - Design the index (`list` → `profile` → `compose`)
 
 ```python
-from pykmhelpers.pipeline.composer import IndexComposer
+from pykmhelpers.pipeline.composer import SESSION_FILE, IndexComposer, layout_path
 from pykmhelpers.pipeline.index_db import IndexDB
 from pykmhelpers.pipeline.sample_lister import SampleLister
 from pykmhelpers.pipeline.span_profiler import SpanProfiler
@@ -108,7 +109,7 @@ def reset_index_registry():
 
 def design(input_dir, session, profile=True):
     """list -> profile -> compose, the steps of `kmhelpers design`."""
-    jsonl = f"coli_db/list/coli_samples_{session}.jsonl"
+    jsonl = f"coli_db/list/samples_{session}.jsonl"
     os.makedirs("coli_db/list", exist_ok=True)
 
     # list: one sample per file, k-mers counted with ntcard
@@ -130,29 +131,32 @@ def design(input_dir, session, profile=True):
         ).run()
 
     # compose: a new index from the profile, or an update from the layout
+    # (coli_db/compose/coli/layout.yaml, written by the first session)
     reset_index_registry()
     IndexComposer(
         profiles_file="coli_db/profile/profile.yaml" if profile else None,
-        layout_file=None if profile else "coli_db/compose/coli_layout.yaml",
+        layout_file=None if profile else layout_path("coli_db/compose", "coli"),
         name="coli",
+        # no sharding, as `--sb 0`: each group is one index, coli_g0 and coli_g1
+        shard_budget=0 if profile else None,
     ).run(input_file=jsonl, output_dir="coli_db/compose", run_id=session)
-    return f"coli_db/compose/coli/{session}/coli.yaml"
+    return f"coli_db/compose/coli/{session}/{SESSION_FILE}.yaml"
 
 
 definition = design("coli_dataset", "initial")
 ```
 
-CLI equivalent: `kmhelpers design coli_dataset/ -o coli_db/ -n coli -S initial -k 25 -b 1.1 -g 2`
+CLI equivalent: `kmhelpers design coli_dataset/ -o coli_db/ -n coli -s initial -k 25 -b 1.1 -g 2 --sb 0`
 
 ??? abstract "I/O"
     **Input:** `coli_dataset/`, scanned for sequence files (one sample per file)  
-    **Output:** `coli_db/list/` (JSONL), `coli_db/profile/` (profile.yaml, groups.png),
-    `coli_db/compose/` (index definitions, `coli_layout.yaml`)
+    **Output:** `coli_db/list/samples_initial.jsonl`, `coli_db/profile/` (profile.yaml, groups.png),
+    `coli_db/compose/coli/` (`layout.yaml`, and the session `initial/index.yaml` with its `shards/`)
 
 ??? info "INFO"
     `IndexDB` keeps every index definition in a class-level registry keyed by
     name. The CLI runs each command in a new process; in a single Python process,
-    free the names with `reset_index_registry()` before each compose and build.
+    free the names with `reset_index_registry()` before each compose, plan and apply.
 
 ??? question "Why scan a directory rather than pass a sample list?"
     A directory scan names each sample after its file and counts its k-mers.
@@ -169,31 +173,34 @@ CLI equivalent: `kmhelpers design coli_dataset/ -o coli_db/ -n coli -S initial -
     |---|---|---|
     | `input_dir` / `input_list` | `INPUT` | Directory to scan, or a plain-text / YAML sample list |
     | `kmer_size` | `-k` | K-mer size used for counting |
-    | `is_assembled` | `-dt` | `True`: distinct k-mers (assemblies); `False`: solid k-mers (raw reads) |
-    | `do_count` | `-nc` | `False` skips ntcard |
-    | `do_grouping` | `-lg` | One sample per leaf folder |
-    | `pair_regex` | `--paired` | Group mate files (R1/R2) into one sample; `DEFAULT_PAIR_REGEX` in `pykmhelpers.core.constants` |
+    | `is_assembled` | `--dt` | `True`: distinct k-mers (assemblies); `False`: solid k-mers (raw reads) |
+    | `do_count` | `--nc` | `False` skips ntcard |
+    | `do_grouping` | `--lg` | One sample per leaf folder |
+    | `pair_regex` | `-p, --paired` | Group mate files (R1/R2) into one sample; `DEFAULT_PAIR_REGEX` in `pykmhelpers.core.constants` |
     | `do_continue` | `-c` | Resume from an existing output file |
     | `autorename` | `-a` | Rename duplicate sample IDs instead of skipping them |
-    | `ntcard_threads` | `-ntt` | Threads used by ntcard |
+    | `ntcard_threads` | `--ntt` | Threads used by ntcard |
 
 ??? tip "Customize `SpanProfiler` (`profile`)"
     | Parameter | CLI | Effect |
     |---|---|---|
-    | `n_groups` | `-g` | Number of storage-balanced groups (sub-indexes) |
+    | `n_groups` | `-g` | Number of storage-balanced groups (sub-indexes), `0` to choose it |
     | `base` | `-b` | Base of the span buckets: closer to 1 means finer buckets |
-    | `false_positive_rate` | `-fp` | Bloom filter false-positive rate |
+    | `false_positive_rate` | `--fp` | Bloom filter false-positive rate |
+    | `no_grouping` | `--ngp` | One group, no grouping strategy |
+    | `auto_group_*` | `--auto-group-*` | Limits of the automatic grouping (`n_groups=0`) |
 
 ??? tip "Customize `IndexComposer` (`compose`)"
     | Parameter | CLI | Effect |
     |---|---|---|
-    | `profiles_file` / `layout_file` | `-pf` | New index from a profile, or update from the existing layout |
-    | `selected_profile` | `-pr` | Profile to use from `profile.yaml` (default: the one set by `profile`) |
-    | `shard_size` | `-si` | Maximum size of one shard, in bytes (`parse_shard_size("256GB")` from `pykmhelpers.cli.shared`) |
-    | `partition_count` | `-p` | Partitions per index, `0` for automatic |
-    | `abundance_min` | - | Minimum k-mer abundance written to the definitions |
-    | `kmer_size`, `false_positive_rate` | - | Override the values read from the JSONL header and profile |
-    | `format` | - | Definition file format (`yaml` by default) |
+    | `profiles_file` / `layout_file` | `--pf` | New index from a profile, or update from the existing layout (`layout_path(compose_dir, name)`) |
+    | `selected_profile` | `--pr` | Profile to use from `profile.yaml` (default: the one set by `profile`) |
+    | `shard_budget` | `--sb` | Shard budget (`samples * base**span`), `0` for no sharding; `None`: the layout's rule on an update, the default budget otherwise |
+    | `partition_count` | - | Partitions per index, `0` for automatic |
+    | `minim_size` | `--minim-size` | Minimizer size, fixed for the life of the index |
+    | `bitw`, `abundance_min` | `--ab` | Abundance bits (`0`: presence/absence) and minimum k-mer abundance |
+    | `copy_list` | `--ncl` | `False` points the shards to the input sample list instead of a copy in the session |
+    | `kmer_ratio` | `--kr` | Multiplies the k-mer ratio of the sample list |
 
 ---
 
@@ -206,51 +213,64 @@ from pykmhelpers.pipeline.index_ops import (
     IndexOps,
     IndexOpsConfig,
 )
+from pykmhelpers.pipeline.index_ops.runner import PlanRunner
 
 
 def build(definition):
     """plan -> apply, the steps of `kmhelpers build`."""
+    # plan: one kmtricks run per shard (chunk_budget=0, as `--cb 0`)
     reset_index_registry()
-    ops = IndexOps(IndexOpsConfig(workdir="coli_build"))
-
+    ops = IndexOps(IndexOpsConfig(workdir="coli_build", chunk_budget=0))
     result = ops.run(definition, mode=ApplyMode.PLAN)
-    ops.write_script()  # coli_build/assets/<session>/kmhelpers_apply.sh
-    assert result.status is not ApplyStatus.FAILED, "plan failed"
+    assert result.status is ApplyStatus.SUCCESS, f"plan: {result.status.value}"
+    # coli_build/assets/<session>/plan.yaml and the scripts of its jobs
+    ops.write_plan()
 
-    result = ops.run(definition, mode=ApplyMode.APPLY, fail_on_error=True)
-    assert result.status is not ApplyStatus.FAILED, "apply failed"
+    # apply: run every job of the plan, here
+    reset_index_registry()
+    runner = PlanRunner("coli_build", definition)
+    result = runner.run(runner.jobs(), fail_on_error=True)
+    assert result.status is ApplyStatus.SUCCESS, f"apply: {result.status.value}"
 
 
 build(definition)
 ```
 
-CLI equivalent: `kmhelpers build coli_db/compose/coli/initial/coli.yaml -o coli_build/`
+CLI equivalent: `kmhelpers build coli_db -s initial -o coli_build/ --cb 0`
 
 ??? abstract "I/O"
-    **Input:** `coli_db/compose/coli/initial/coli.yaml`  
+    **Input:** `coli_db/compose/coli/initial/index.yaml`  
     **Output:** `coli_build/index.json` + one folder per sub-index, `coli_build/coli_g0/`
-    and `coli_build/coli_g1/`, build scripts in `coli_build/assets/initial/`
+    and `coli_build/coli_g1/`; the plan, `coli_build/assets/initial/plan.yaml`, with one
+    directory of scripts per shard
 
 ??? info "INFO"
-    `run()` returns an `ApplyResult`: `status` is `SUCCESS`, `PARTIAL` (some
-    indexes failed, only with `fail_on_error=False`), `FAILED` or `NONE` (nothing
-    to do), and `details` holds the per-index report written to
-    `coli_build/logs/` by the CLI.
+    `IndexOps` only plans: it takes every build decision (partitions, threads,
+    chunks, merges, jobs) and `write_plan()` writes them. `PlanRunner` then runs the
+    plan as it is. Both return an `ApplyResult`: `status` is `SUCCESS`, `PARTIAL`
+    (some indexes failed, only with `fail_on_error=False`), `FAILED` or `NONE`
+    (nothing to do), and `details` holds the per-index report the CLI writes to
+    `coli_build/logs/`.
 
-??? tip "Customize `IndexOpsConfig` (`plan`, `apply`, `build`)"
+    The publish step of each shard runs `kmhelpers manage check --shard <shard>`
+    before deleting what built it: a structure check, then a query of a few
+    k-mers of the shard's first sample (see [manage - check](../commands/manage.md#check)).
+
+??? tip "Customize `IndexOpsConfig` (`plan`)"
     | Parameter | CLI | Effect |
     |---|---|---|
-    | `kmindex_threads` | `-t` | Threads per build, `None` to size them from the resource limits |
     | `limits`, `safety_margin` | `--limits`, `--safety-margin` | Resource limits (`ram`, `files`, `threads`) and the fraction of detected limits to use |
-    | `max_chunks` | `--max-chunks` | Cap on the chunks one index is split into |
-    | `partition_count` | `-p` | Override the number of partitions |
-    | `minimizer_length` | `--minim-size` | Minimizer size |
-    | `kmindex_skip_compression` | `-NC` | Do not compress intermediate files |
+    | `chunk_budget` | `--cb` | K-mer budget of one kmtricks chunk, `0` for no limit |
+    | `max_chunks` | `--max-chunks` | Cap on the chunks one shard is built in |
+    | `chunks_per_job` | `--cpj` | Chunks one job builds, `0` for one job per shard |
+    | `filter_names` | `--sh` | Plan only these shards (names or glob patterns) |
+    | `kmindex_skip_compression` | `--ncp` | Do not compress intermediate files |
     | `keep_previous` | `--keep-previous` | Keep the replaced version of an updated index |
-    | `sample_rootpath` | `-b` | Base path for relative sample paths |
+    | `sample_rootpath` | `--bp` | Base path for relative sample paths |
 
-    `ApplyMode.APPLY_SHOW_PROGRESS` is the `--show-progress` animation, and
-    `ApplyMode.DRY_RUN` only generates the commands.
+    `ApplyMode.DRY_RUN` plans without checking that the sample files exist
+    (`--offline`). `runner.run(..., show_progress=True)` is `--show-progress`, and
+    `runner.jobs(["coli_g0"])` selects jobs as `apply --task` does.
 
 ---
 
@@ -315,11 +335,11 @@ CLI equivalent: `kmhelpers query -r coli_build/ -o results/ query.fa`
 ??? tip "Customize `QueryRunnerConfig` (`query`)"
     | Parameter | CLI | Effect |
     |---|---|---|
-    | `index_ids` | `-n` | Query only these sub-indexes |
+    | `index_ids` | `--sh` | Query only these shards |
     | `zvalue` | `-z` | Findere z: effective false-positive rate p^z |
-    | `threshold` | `-R` | Minimum score kept |
+    | `threshold` | `--thr` | Minimum score kept |
     | `threads` | `-t` | kmindex threads |
-    | `batch`, `single_query` | `-b`, `-s` | Concatenate files or sequences into one query |
+    | `batch`, `single_query` | `--bq`, `-s` | Concatenate files or sequences into one query |
     | `output_format`, `export` | `-f`, `-x` | Data format (`tsv`, `json`, `yaml`, `None`) and human report (`md`, `html`) |
     | `on_existing`, `force` | `-e` | Existing output directory: `skip` (default, returns no result), `fail`, `delete` |
     | `stats` | `--stats` | Write `sequence_stats.tsv` and `sample_stats.tsv` |
@@ -345,8 +365,8 @@ print(query("query_update.fa", "results_update"))
 print(query("query.fa", "results_after"))
 ```
 
-CLI equivalent: `kmhelpers design coli_update/ -o coli_db/ -n coli -S update`,
-then `kmhelpers build coli_db/compose/coli/update/coli.yaml -o coli_build/`
+CLI equivalent: `kmhelpers design coli_update/ -o coli_db/ -n coli -s update`,
+then `kmhelpers build coli_db -s update -o coli_build/ --cb 0`
 
 ??? success "RESULT"
     The new sample scores **1.0** on its own contig, and `GCA_000780515` still

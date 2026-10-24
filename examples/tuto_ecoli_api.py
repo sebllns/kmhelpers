@@ -15,7 +15,7 @@ import tempfile
 import urllib.request
 
 from pykmhelpers import QueryRunner, QueryRunnerConfig
-from pykmhelpers.pipeline.composer import IndexComposer
+from pykmhelpers.pipeline.composer import SESSION_FILE, IndexComposer, layout_path
 from pykmhelpers.pipeline.index_db import IndexDB
 from pykmhelpers.pipeline.index_ops import (
     ApplyMode,
@@ -23,6 +23,7 @@ from pykmhelpers.pipeline.index_ops import (
     IndexOps,
     IndexOpsConfig,
 )
+from pykmhelpers.pipeline.index_ops.runner import PlanRunner
 from pykmhelpers.pipeline.sample_lister import SampleLister
 from pykmhelpers.pipeline.span_profiler import SpanProfiler
 
@@ -74,7 +75,7 @@ def reset_index_registry():
 
 def design(input_dir, session, profile=True):
     """list -> profile -> compose, the steps of `kmhelpers design`."""
-    jsonl = f"coli_db/list/coli_samples_{session}.jsonl"
+    jsonl = f"coli_db/list/samples_{session}.jsonl"
     os.makedirs("coli_db/list", exist_ok=True)
 
     # list: one sample per file, k-mers counted with ntcard
@@ -96,26 +97,33 @@ def design(input_dir, session, profile=True):
         ).run()
 
     # compose: a new index from the profile, or an update from the layout
+    # (coli_db/compose/coli/layout.yaml, written by the first session)
     reset_index_registry()
     IndexComposer(
         profiles_file="coli_db/profile/profile.yaml" if profile else None,
-        layout_file=None if profile else "coli_db/compose/coli_layout.yaml",
+        layout_file=None if profile else layout_path("coli_db/compose", "coli"),
         name="coli",
+        # no sharding, as `--sb 0`: each group is one index, coli_g0 and coli_g1
+        shard_budget=0 if profile else None,
     ).run(input_file=jsonl, output_dir="coli_db/compose", run_id=session)
-    return f"coli_db/compose/coli/{session}/coli.yaml"
+    return f"coli_db/compose/coli/{session}/{SESSION_FILE}.yaml"
 
 
 def build(definition):
     """plan -> apply, the steps of `kmhelpers build`."""
+    # plan: one kmtricks run per shard (chunk_budget=0, as `--cb 0`)
     reset_index_registry()
-    ops = IndexOps(IndexOpsConfig(workdir="coli_build"))
-
+    ops = IndexOps(IndexOpsConfig(workdir="coli_build", chunk_budget=0))
     result = ops.run(definition, mode=ApplyMode.PLAN)
-    ops.write_script()  # coli_build/assets/<session>/kmhelpers_apply.sh
-    assert result.status is not ApplyStatus.FAILED, "plan failed"
+    assert result.status is ApplyStatus.SUCCESS, f"plan: {result.status.value}"
+    # coli_build/assets/<session>/plan.yaml and the scripts of its jobs
+    ops.write_plan()
 
-    result = ops.run(definition, mode=ApplyMode.APPLY, fail_on_error=True)
-    assert result.status is not ApplyStatus.FAILED, "apply failed"
+    # apply: run every job of the plan, here
+    reset_index_registry()
+    runner = PlanRunner("coli_build", definition)
+    result = runner.run(runner.jobs(), fail_on_error=True)
+    assert result.status is ApplyStatus.SUCCESS, f"apply: {result.status.value}"
 
 
 def query(query_file, output_dir):

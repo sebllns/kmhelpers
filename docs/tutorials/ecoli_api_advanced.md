@@ -2,7 +2,7 @@
 
 This page extends the [Python API tutorial](ecoli_api.md) without changing
 kmhelpers: the pipeline steps exchange plain files (JSONL sample list,
-`profile.yaml`, layout and index definitions, build scripts), so any step can be
+`profile.yaml`, layout and index definitions, the build plan and its scripts), so any step can be
 replaced, fed with your own data or post-processed. The snippets run in the
 tutorial's working directory, next to `coli_dataset/`, `coli_db/` and
 `coli_build/`, and reuse its `reset_index_registry()` and `build()` functions.
@@ -63,14 +63,15 @@ computed by another tool or an earlier run:
 ```python
 import json
 
-with open("coli_db/list/coli_samples_initial.jsonl") as f:
-    counted = [json.loads(line) for line in f][1:]
+with open("coli_db/list/samples_initial.jsonl") as f:
+    header, *counted = [json.loads(line) for line in f]
 
 os.makedirs("reuse_db/list", exist_ok=True)
 with open("reuse_db/list/reuse.jsonl", "w") as f:
     f.write(json.dumps({"k": 25, "assembled": True, "abundance_min": 1}) + "\n")
     for s in counted:
-        path = os.path.abspath(os.path.join("coli_dataset", s["files"][0]))
+        # files are relative to the root_path of the header
+        path = os.path.abspath(os.path.join(header["root_path"], s["files"][0]))
         entry = {"name": s["name"], "files": [path], "kmer_count": s["kmer_count"]}
         f.write(json.dumps(entry) + "\n")
 ```
@@ -78,7 +79,8 @@ with open("reuse_db/list/reuse.jsonl", "w") as f:
 ??? info "INFO"
     - `k` is required in the header; `assembled` and `abundance_min` are written
       by `list` and kept for consistency.
-    - Use absolute file paths when the JSONL is not written by `list`.
+    - `list` writes file paths relative to `root_path`, in its header. Without
+      `root_path`, use absolute file paths.
     - `kmer_count` must be positive: it sizes the Bloom filter of the sample.
       For raw reads, count solid k-mers (seen at least twice), as `list` does
       with `is_assembled=False`.
@@ -109,7 +111,9 @@ SpanProfiler(
     base=1.1,
 ).run()
 reset_index_registry()
-IndexComposer(profiles_file="reuse_db/profile/profile.yaml", name="reuse").run(
+IndexComposer(
+    profiles_file="reuse_db/profile/profile.yaml", name="reuse", shard_budget=0
+).run(
     input_file="reuse_db/list/reuse.jsonl",
     output_dir="reuse_db/compose",
     run_id="initial",
@@ -117,7 +121,7 @@ IndexComposer(profiles_file="reuse_db/profile/profile.yaml", name="reuse").run(
 ```
 
 ??? success "RESULT"
-    7 of the 10 samples are kept, and `reuse_db/compose/reuse/initial/reuse.yaml`
+    7 of the 10 samples are kept, and `reuse_db/compose/reuse/initial/index.yaml`
     is ready to build.
 
 The same applies to the other files: `profile.yaml` (see
@@ -129,32 +133,55 @@ before the next step.
 
 ## Run the build outside Python
 
-`ApplyMode.PLAN` generates the commands without running them, and
-`write_script()` saves them as bash scripts. Plan from Python, then run the build
-where and when you want: another machine with the same paths, a job scheduler,
-or after review.
+`IndexOps` only plans: `write_plan()` writes the plan, `plan.yaml`, and the
+scripts of its jobs. Plan from Python, then run the build where and when you
+want: with `kmhelpers apply`, on a SLURM cluster, or after review.
 
 ```python
 from pykmhelpers.pipeline.index_ops import ApplyMode, IndexOps, IndexOpsConfig
 
 reset_index_registry()
-ops = IndexOps(IndexOpsConfig(workdir="reuse_build", kmindex_threads=4))
-result = ops.run("reuse_db/compose/reuse/initial/reuse.yaml", mode=ApplyMode.PLAN)
-ops.write_script()
-print(result.status)
+ops = IndexOps(IndexOpsConfig(workdir="reuse_build", chunk_budget=0))
+result = ops.run("reuse_db/compose/reuse/initial/index.yaml", mode=ApplyMode.PLAN)
+print(result.status, ops.write_plan())
 ```
 
 ```bash
 ls reuse_build/assets/initial/
-# kmhelpers_apply.sh  reuse_g0_initial.sh  reuse_g0_initial_merge.sh  ...
-bash reuse_build/assets/initial/kmhelpers_apply.sh
+# plan.yaml  reuse_g0/  reuse_g1/
+kmhelpers apply reuse_db -o reuse_build/ --show-progress
 ```
 
 ??? info "INFO"
-    There is one `<part>.sh` script per group of parts (the kmindex builds), one
-    `<part>_merge.sh` (publication into the registry and cleanup), and
-    `kmhelpers_apply.sh` running them all in order. Each script stops at the
-    first failing command. See [plan](../commands/plan.md).
+    Each shard has its directory of scripts: one `<part>.sh` per kmtricks run and
+    `publish.sh` (check, merge or move into the registry, check again, clean).
+    `apply` runs them in the order of `plan.yaml`, records each step and can be
+    run again after an interruption. See [plan](../commands/plan.md).
+
+??? tip "On a SLURM cluster"
+    Size the plan from the job resources of a [cluster file](../commands/plan.md#cluster),
+    as `kmhelpers plan --cluster` does, and pass it to `write_plan()`: it also
+    writes `reuse_build/assets/initial/slurm/`, with `submit.sh`.
+
+    ```python
+    from pykmhelpers.pipeline.index_ops.cluster import limits_for, load_cluster
+
+    cluster = load_cluster("cluster.yaml")
+    reset_index_registry()
+    ops = IndexOps(
+        IndexOpsConfig(
+            workdir="reuse_build",
+            limits=limits_for(cluster, "build", 0.9),
+            publish_limits=limits_for(cluster, "publish", 0.9),
+        )
+    )
+    ops.run("reuse_db/compose/reuse/initial/index.yaml", mode=ApplyMode.PLAN)
+    ops.write_plan(cluster, notify="you@example.com")
+    ```
+
+    ```bash
+    bash reuse_build/assets/initial/slurm/submit.sh
+    ```
 
 ---
 
