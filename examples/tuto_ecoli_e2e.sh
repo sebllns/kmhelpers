@@ -69,25 +69,20 @@ zcat coli_dataset/GCA_000780515.1_ASM78051v1_genomic.fna.gz \
 kmhelpers query -r coli_build/ -o results/ query.fa
 
 echo "== Update step 1: download a new sample =="
-cd coli_dataset
+mkdir -p coli_update && cd coli_update
 fetch "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/005/845/GCA_000005845.2_ASM584v2/GCA_000005845.2_ASM584v2_genomic.fna.gz"
 cd ..
 
-echo "== Update step 2: create the file list for the new samples =="
-cat > coli_update.txt << 'EOF'
-coli_dataset/GCA_000005845.2_ASM584v2_genomic.fna.gz
-EOF
+echo "== Update step 2: design the update session =="
+kmhelpers design coli_update -o coli_db/ -n coli -s update
 
-echo "== Update step 3: design the update session =="
-kmhelpers design coli_update.txt -o coli_db/ -n coli -s update
-
-echo "== Update step 4: build the update session =="
+echo "== Update step 3: build the update session =="
 kmhelpers build coli_db -s update -o coli_build/ --cb 0 --show-progress
 
-echo "== Update step 5: query the updated index =="
+echo "== Update step 4: query the updated index =="
 kmhelpers query -r coli_build/ -o results_update/ query.fa
 
-echo "== Update step 6: check the updated index =="
+echo "== Update step 5: check the updated index =="
 kmhelpers manage -r coli_build/ list
 kmhelpers manage -r coli_build/ info --sh coli_g0
 

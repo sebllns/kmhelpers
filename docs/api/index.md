@@ -1,6 +1,7 @@
 # API Reference
 
-This section documents the public Python API of `pykmhelpers`.
+This section documents the public Python API of `pykmhelpers`. For a guided
+example, see the [Python API tutorial](../tutorials/ecoli_api.md).
 
 | Sub-package | Description |
 |---|---|

@@ -30,6 +30,27 @@ Scan a directory or import a sample list, count k-mers, and produce a JSONL samp
 | `-a, --autorename` | Rename duplicate sample IDs by appending a numeric suffix instead of skipping |
 | `--ntt, --ntcard-threads INT` | Number of threads for ntcard k-mer counting (default: 8) |
 
+## When to use a sample list
+
+Scanning a directory is the simplest input: every sequence file becomes a sample
+named after the file (or one sample per leaf folder with `--leaf-grouping`, or
+one per read pair with `--paired`), and k-mers are counted with ntcard. A sample
+list replaces this automatic listing when you need control over it:
+
+- **Precomputed k-mer counts** - give `kmer_count` and ntcard is skipped for that
+  sample, which saves hours on large collections already counted elsewhere.
+- **Custom sample names** - use your own IDs (accessions, patient IDs) instead of
+  names derived from file names.
+- **Explicit multi-file samples** - pairs, lanes or several assemblies per sample,
+  when neither `--paired` nor `--leaf-grouping` matches your layout.
+- **Files from several locations** - mix directories, absolute paths or shared
+  storage, or select a subset of a directory.
+- **Any rule of your own** - generate the list with a script, for example from a
+  metadata table.
+
+A YAML list also carries its top-level keys (other than `samples`) into the
+output header.
+
 ## Input formats
 
 ### Plain text (`.txt`)
@@ -67,7 +88,7 @@ samples:
 
 `INPUT` can be a directory (scanned recursively for sequence files) or a sample list file (plain text or YAML) - the type is detected automatically. K-mer counts are parsed or computed for each sample and written to the JSONL manifest.
 
-**Grouping** - by default, each file is treated as its own sample. Use `--leaf-grouping` to group files by leaf folder, where each leaf directory becomes one sample whose ID is the folder name.
+**Grouping** - by default, each file is treated as its own sample. Use `--leaf-grouping` to group files by leaf folder, where each leaf directory becomes one sample whose ID is the folder name. For any other grouping or naming, use a sample list (see [When to use a sample list](#when-to-use-a-sample-list)).
 
 **Paired reads** - use `--paired` to group mate files into one sample. The last match of a regex is removed from each file name (without extension), and files of the same directory with the same result form one sample named after it. The default regex `[._][Rr]?[12](?=[._]|$)` matches mate tokens such as `_R1`, `_R2`, `_1`, `.2`:
 
