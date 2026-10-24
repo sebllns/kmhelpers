@@ -141,7 +141,7 @@ def resolve_partitions(
     if partitions < params.partitions:
         logger.warning(
             f"  └── Auto-sized partition count {params.partitions} capped to "
-            f"{AUTO_MAX_PARTITIONS}: fewer threads or more chunks fit the limits"
+            f"{AUTO_MAX_PARTITIONS}: fewer threads fit the RAM limit"
         )
     logger.info(
         f"  └── Partitions: {partitions} (auto from the limits, "

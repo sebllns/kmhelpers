@@ -112,6 +112,14 @@ class TestParamsForPartitions(unittest.TestCase):
         )
         self.assertEqual(p.samples, ULIMIT // THREADS - 1)
 
+    def test_warns_when_one_thread_exceeds_ram(self):
+        limits = '{"ram": 1000, "files": 4096, "threads": 4}'
+        with self.assertLogs("pykmhelpers.core.build_params", "WARNING"):
+            p = params_for_partitions(
+                kmers=KMERS, samples=SAMPLES, partitions=4, limits=limits
+            )
+        self.assertEqual(p.threads, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -172,6 +172,13 @@ def params_for_partitions(
     ram_params.nb_threads()
     if ram_params.threads is None:
         raise TypeError("expected nb_threads() to set threads")
+    # nb_threads never goes below 1 thread, even when that one exceeds RAM
+    ram_params.max_memory()
+    if ram_params.threads == 1 and ram_params.memory > ram:
+        logger.warning(
+            f"{partitions} partitions need {ram_params.memory:.0f} bytes for a "
+            f"single thread, over the {ram} bytes RAM limit"
+        )
 
     chunk_s = _chunk_size(
         samples, ulimit, n_threads, max_chunks, max_chunk_samples

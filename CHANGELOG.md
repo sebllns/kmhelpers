@@ -30,6 +30,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - Auto-sized partition counts (`plan`, no `-P` and no published count) are rounded up to the next power of 2, at most 256; a count fixed by `-P` or recorded for a published shard is kept as is
+- `plan` warns when a partition count leaves even one thread over the RAM limit (the build still runs with 1 thread)
 - **`plan` prepares, `apply` runs**: `plan` takes every build decision and writes `BUILD_DIR/assets/SESSION/plan.yaml` (one task per part: its chunks, publish step and jobs) and one directory of scripts per shard, `<shard>/` (`<run>.sh` and `.fof` per kmtricks run, `publish.sh`, `publish/`); `apply` runs these scripts, under monitoring, and builds nothing itself
   - `apply` refuses a missing plan, and a stale one: an input changed since (definition, shard files, `layout.yaml`, sample lists, cluster file, hashed in `plan.yaml`) or another kmhelpers version made it
   - `apply --shard` is replaced by `apply --task`
