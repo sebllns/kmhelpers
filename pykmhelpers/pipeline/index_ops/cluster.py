@@ -166,8 +166,8 @@ def write_slurm(
 
     ``jobs.txt`` (build jobs), ``build.sbatch`` (an array task runs one of
     them), ``publish.sbatch``, ``finish.sbatch`` (after every job: checks the
-    registry when everything is done, writes ``progress.yaml``, mails it with
-    ``notify``) and ``submit.sh``, which submits what ``apply --pending``
+    registry when everything is done, then removes the lock files, writes
+    ``progress.yaml``, mails it with ``notify``) and ``submit.sh``, which submits what ``apply --pending``
     lists, skipping the jobs still queued: safe to run again.
 
     With ``notify_level`` ``shard``, the build and publish jobs mail the end of
@@ -200,11 +200,15 @@ def write_slurm(
     name = os.path.basename(build_dir.rstrip("/"))
     finish_cmds = [
         "# Every job has ended: check the registry when nothing is pending,",
+        "# remove the lock files once the build is done and checked,",
         "# write progress.yaml (and mail it), fail when the build is not done",
         f"PENDING=$({apply} --pending)",
         "CHECK=0",
         'if [ -z "$PENDING" ]; then',
         f"    kmhelpers manage -r {shlex.quote(build_dir)} check || CHECK=$?",
+        "fi",
+        'if [ -z "$PENDING" ] && [ "$CHECK" -eq 0 ]; then',
+        f"    {apply} --cleanup || true",
         "fi",
         f"{apply} --status" + (f" --notify {shlex.quote(notify)}" if notify else ""),
         '[ -z "$PENDING" ] && [ "$CHECK" -eq 0 ]',

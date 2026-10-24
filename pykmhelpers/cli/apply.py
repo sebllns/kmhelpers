@@ -58,7 +58,22 @@ def run_plan(
     )
     notifier.status = result.status.value
     logger.info(f"Result details written to {report_path}")
+    if not task_ids and result.status in (ops.ApplyStatus.SUCCESS, ops.ApplyStatus.NONE):
+        # the whole plan ran here: once it is done, nothing needs its locks
+        cleanup(runner, quiet=True)
     return result
+
+
+def cleanup(runner: PlanRunner, quiet: bool = False) -> None:
+    """Remove the lock files of the build once its plan is done; never fails.
+    ``quiet``: a plan not done (other jobs still to run) is not warned about."""
+    try:
+        runner.cleanup()
+    except ValueError as e:
+        if not quiet:
+            logger.warning(str(e))
+    except Exception as e:
+        logger.warning(f"Could not remove the lock files: {e}")
 
 
 def selected_steps(runner: PlanRunner, task_ids) -> dict[str, set[str]]:
@@ -142,6 +157,15 @@ def watch(input_file: str, work_dir: str, interval: float, task_ids=None) -> int
 @shared.pending_option
 @shared.status_option
 @click.option(
+    "--cleanup",
+    "do_cleanup",
+    is_flag=True,
+    hidden=True,
+    help="🚩  Hidden, run by the finish job of a cluster build. Once every job of the plan is done, remove the lock files no process "
+    "holds (BUILD_DIR/.registry.lock, the layout's), and run nothing. A lock in use "
+    "is kept.",
+)
+@click.option(
     "--interval",
     type=click.FloatRange(min=0.1),
     default=30,
@@ -159,6 +183,7 @@ def apply(
     task_ids,
     pending,
     status,
+    do_cleanup,
     interval,
     show_progress,
     notify,
@@ -206,6 +231,12 @@ def apply(
     kmhelpers apply coli_db -o coli_build --status --task 'coli_g*'   # quoted: no shell glob
     """
     input_file = shared.resolve_definition(input_file, session)
+    if do_cleanup:
+        try:
+            cleanup(PlanRunner(work_dir, input_file))
+        except (ValueError, FileNotFoundError) as e:
+            raise click.ClickException(str(e))
+        return
     if status:
         try:
             if show_progress:

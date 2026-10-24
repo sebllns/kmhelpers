@@ -26,6 +26,12 @@ class TestFullHelp(unittest.TestCase):
         # the options are hidden again afterwards
         self.assertNotIn("[hidden]", runner.invoke(cli, ["design", "-h"]).output)
 
+    def test_internal_options_are_hidden(self):
+        """Options the generated SLURM jobs run are not offered to users."""
+        runner = CliRunner()
+        self.assertNotIn("--cleanup", runner.invoke(cli, ["apply", "-h"]).output)
+        self.assertIn("--cleanup", runner.invoke(cli, ["apply", "-H"]).output)
+
     def test_every_command_has_full_help(self):
         for path, cmd in _walk(cli):
             names = {o for p in cmd.params for o in getattr(p, "opts", [])}

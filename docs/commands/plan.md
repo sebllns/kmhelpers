@@ -129,7 +129,7 @@ limits: {files: 131072, maps: 65530}   # optional, see below
 | `jobs.txt` | the build jobs, one per line |
 | `build.sbatch` | an array task: one build job (`apply --task`) |
 | `publish.sbatch` | one publish job (`apply --task <shard>_publish`) |
-| `finish.sbatch` | after every job (`afterany`): `manage check` of the registry when nothing is pending, then `apply --status` (writes `progress.yaml`, mails it with `build --notify`); fails when the build is not done |
+| `finish.sbatch` | after every job (`afterany`): `manage check` of the registry when nothing is pending, then, when it passed, `apply --cleanup` (hidden: removes the lock files no process holds), then `apply --status` (writes `progress.yaml`, mails it with `build --notify`); fails when the build is not done |
 | `submit.sh` | submits the jobs `apply --pending` lists: the build array (`%max_parallel`, split at the cluster `MaxArraySize`), each publish job after the array tasks of its own shard, then the finish job. Safe to run again: only what is not done is submitted, never a job still queued or running; a finish job still pending is kept, or replaced when new jobs are submitted |
 | `submitted.tsv` | written by `submit.sh`: each job of the plan and its SLURM id, read by `apply --status` |
 

@@ -133,6 +133,45 @@ class TestWriteSlurm(ClusterCase):
         for path in out.glob("*.s*"):
             subprocess.run(["bash", "-n", str(path)], check=True)
 
+    def run_finish(self, pending="", check=0):
+        """Run finish.sbatch with a fake kmhelpers; return its calls and exit code."""
+        out = self.write(3)
+        bin_dir = self.tmp / "bin"
+        bin_dir.mkdir(exist_ok=True)
+        calls = self.tmp / "calls.txt"
+        fake = bin_dir / "kmhelpers"
+        fake.write_text(
+            "#!/usr/bin/env bash\n"
+            f'echo "$*" >> {calls}\n'
+            'case "$*" in\n'
+            f'  *--pending*) printf "%s" "{pending}" ;;\n'
+            f"  *check*) exit {check} ;;\n"
+            "esac\n"
+        )
+        fake.chmod(0o755)
+        env = {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}"}
+        code = subprocess.run(["bash", str(out / "finish.sbatch")], env=env).returncode
+        return calls.read_text().splitlines(), code
+
+    def test_finish_cleans_up_a_done_and_checked_build(self):
+        calls, code = self.run_finish()
+        self.assertEqual(code, 0)
+        self.assertTrue(any("--cleanup" in c for c in calls))
+        # removed before the status is written and mailed
+        self.assertLess(
+            next(n for n, c in enumerate(calls) if "--cleanup" in c),
+            next(n for n, c in enumerate(calls) if "--status" in c),
+        )
+
+    def test_finish_keeps_the_locks_of_an_unfinished_build(self):
+        for kwargs in ({"pending": "idx_g0_publish"}, {"check": 1}):
+            with self.subTest(**kwargs):
+                (self.tmp / "calls.txt").unlink(missing_ok=True)
+                calls, code = self.run_finish(**kwargs)
+                self.assertNotEqual(code, 0)
+                self.assertFalse(any("--cleanup" in c for c in calls))
+                self.assertTrue(any("--status" in c for c in calls))
+
     def test_submit_records_and_skips_active_jobs(self):
         submit = (self.write(3) / "submit.sh").read_text()
         self.assertIn("submitted.tsv", submit)

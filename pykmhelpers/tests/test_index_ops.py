@@ -7,6 +7,7 @@ sample resolution and script export. The full build/publish flow is covered by
 
 import multiprocessing
 import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,6 +15,7 @@ from types import SimpleNamespace
 
 import yaml
 
+from pykmhelpers.core.file_lock import remove_if_free
 from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.pipeline.index_ops import ApplyStatus, IndexOpsConfig
 from pykmhelpers.pipeline.index_ops.executor import IndexExecutor
@@ -580,6 +582,65 @@ class TestShardPartitions(unittest.TestCase):
         Path(self.path).write_text("{not yaml")
         with self.assertLogs(level="WARNING"):
             self.runner(registered=8)._record_partitions({"shard": "idx_g0", "partitions": 8})
+
+
+class TestLockCleanup(unittest.TestCase):
+    """Once the plan is done, the lock files no process holds are removed."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.lock = self.tmp / "x.lock"
+
+    def test_a_free_lock_is_removed(self):
+        self.lock.touch()
+        self.assertTrue(remove_if_free(str(self.lock)))
+        self.assertFalse(self.lock.exists())
+        self.assertIsNone(remove_if_free(str(self.lock)))  # and none is created
+        self.assertFalse(self.lock.exists())
+
+    @unittest.skipUnless(shutil.which("flock"), "no flock command")
+    def test_a_lock_held_by_the_publish_scripts_is_kept(self):
+        """The publish scripts lock with the flock command: it is seen."""
+        self.lock.touch()
+        holder = subprocess.Popen(
+            ["flock", str(self.lock), "-c", "echo held; sleep 30"],
+            stdout=subprocess.PIPE, text=True,
+        )
+        self.addCleanup(holder.kill)
+        self.assertEqual(holder.stdout.readline().strip(), "held")
+        self.assertFalse(remove_if_free(str(self.lock)))
+        self.assertTrue(self.lock.exists())
+
+    def runner(self, pending=()):
+        """A runner of a session plan whose layout and build dir hold locks."""
+        session = self.tmp / "compose" / "idx" / "initial"
+        session.mkdir(parents=True)
+        (session / "index.yaml").write_text("type: index_session\n")
+        write_layout(str(self.tmp / "compose" / "idx" / "layout.yaml"), [["idx_g0"]])
+        runner = PlanRunner.__new__(PlanRunner)
+        runner._input = str(session / "index.yaml")
+        runner._paths = BuildPaths(str(self.tmp / "build"), "initial")
+        runner.pending = lambda jobs=None: [SimpleNamespace(name=n) for n in pending]
+        Path(runner._paths.build_dir).mkdir()
+        for path in runner.lock_files():
+            Path(path).touch()
+        return runner
+
+    def test_cleanup_removes_the_registry_and_layout_locks(self):
+        runner = self.runner()
+        locks = runner.lock_files()
+        self.assertEqual(
+            [Path(p).name for p in locks], [".registry.lock", "layout.yaml.lock"]
+        )
+        self.assertEqual(runner.cleanup(), {p: True for p in locks})
+        self.assertFalse(any(Path(p).exists() for p in locks))
+
+    def test_cleanup_is_refused_while_a_job_is_pending(self):
+        runner = self.runner(pending=["idx_g0_publish"])
+        with self.assertRaisesRegex(ValueError, "idx_g0_publish"):
+            runner.cleanup()
+        self.assertTrue(all(Path(p).exists() for p in runner.lock_files()))
 
 
 class TestAlignWithStartedRuns(unittest.TestCase):

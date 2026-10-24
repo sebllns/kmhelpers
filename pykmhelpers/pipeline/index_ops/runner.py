@@ -12,7 +12,8 @@ is checked before it runs, so a job can be run again after an interruption:
 
 Each step it runs is recorded in a state file, and ``progress.yaml`` is
 rewritten after each one (see ``status``). A published shard has its partition
-count recorded in the layout, so later sessions are planned with it.
+count recorded in the layout, so later sessions are planned with it. Once every
+job is done, ``cleanup`` removes the lock files no process holds.
 """
 
 import logging
@@ -23,9 +24,11 @@ import time
 from dataclasses import dataclass
 from typing import Callable, Optional
 
+from pykmhelpers.core.file_lock import remove_if_free
 from pykmhelpers.core.kmindex_paths import chunk_problems
 from pykmhelpers.core.utils import matches_any, select_matching
 from pykmhelpers.core.wrapper import Wrapper
+from pykmhelpers.pipeline.composer import layout_lock
 from pykmhelpers.pipeline.index_ops.layout import LayoutStore, record_shard_partitions
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths
 from pykmhelpers.pipeline.index_ops.plan_file import PUBLISH, check_fresh, load_plan
@@ -115,6 +118,43 @@ class PlanRunner:
         if PUBLISH in job.steps:
             return False
         return all(self._chunk_complete(task, run) for run in job.steps)
+
+    # ---
+    # CLEANUP
+
+    def lock_files(self) -> list[str]:
+        """The lock files of the build: the registry's, and the layout's."""
+        paths = [self._paths.lock]
+        try:
+            layout = LayoutStore.next_to(self._input).path
+        except Exception:
+            layout = None  # an index definition passed directly has no layout
+        if layout:
+            paths.append(layout_lock(layout))
+        return paths
+
+    def cleanup(self) -> dict[str, Optional[bool]]:
+        """Remove the lock files no process holds, once every job of the plan
+        is done; ``{path: removed}`` (None: there was none, False: kept).
+
+        A lock still held is kept: another session, a local apply or a
+        compose is writing. Refused while a job of the plan is not done.
+        """
+        pending = self.pending()
+        if pending:
+            raise ValueError(
+                f"{len(pending)} job(s) of the plan are not done "
+                f"({', '.join(j.name for j in pending[:3])}"
+                f"{', ...' if len(pending) > 3 else ''}): lock files kept"
+            )
+        removed: dict[str, Optional[bool]] = {}
+        for path in self.lock_files():
+            removed[path] = remove_if_free(path)
+            if removed[path]:
+                logger.info(f"Removed lock file {path}")
+            elif removed[path] is False:
+                logger.warning(f"Lock file {path} kept: in use by another process")
+        return removed
 
     # ---
     # RUN

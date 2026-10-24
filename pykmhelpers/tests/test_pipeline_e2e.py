@@ -684,12 +684,23 @@ class TestPartitionCountStaysFixed(PipelineE2EBase):
             "--limits",
             '{"ram": 500000000, "files": 4096, "threads": 2}',
         )
-        # building never writes the design
-        self.assertEqual(layout_file.read_bytes(), designed)
         registry = json.loads((self.tmp / "build" / "index.json").read_text())["index"]
         for props in registry.values():
             self.assertGreater(props["nb_partitions"], 0)
             self.assertEqual(props["minim_size"], 10)
+        # building records the count of each published shard, nothing else
+        built_layout = yaml.safe_load(layout_file.read_bytes())["data"]
+        shards = [sh for s in built_layout["map"].values() for sh in s["shards"]]
+        self.assertEqual(
+            {sh["name"]: sh["partition_count"] for sh in shards},
+            {n: e["nb_partitions"] for n, e in registry.items()},
+        )
+        for sh in shards:
+            del sh["partition_count"]
+        self.assertEqual(built_layout, layout)
+        # the plan is done: its lock files are removed
+        self.assertFalse((self.tmp / "build" / ".registry.lock").exists())
+        self.assertFalse(layout_file.with_name("layout.yaml.lock").exists())
 
         # a second session on a very different machine profile: the built
         # shards keep their partition count, so the merge succeeds
@@ -732,7 +743,9 @@ class TestPartitionCountStaysFixed(PipelineE2EBase):
             "--limits",
             '{"ram": 512000000000, "files": 65536, "threads": 32}',
         )
+        # compose kept the recorded counts, the build had none to add
         self.assertEqual(layout_file.read_bytes(), composed)
+        self.assertIn("(published shard)", log.stdout + log.stderr)
 
         updated = json.loads((self.tmp / "build" / "index.json").read_text())["index"]
         for name, props in registry.items():
