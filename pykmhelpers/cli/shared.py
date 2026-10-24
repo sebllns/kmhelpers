@@ -198,7 +198,7 @@ _task_option = click.option(
     help="⚙   Run only what matches these names or glob patterns (repeatable or "
     "comma-separated): a shard or its task (<shard>_<session>) runs all its "
     "jobs; a job runs alone: '<shard>_j<k>' (some chunks, see `plan "
-    "--chunks-per-job`) or '<shard>_merge'. E.g. 'idx_g0_*', '*_merge'.",
+    "--chunks-per-job`) or '<shard>_publish'. E.g. 'idx_g0_*', '*_publish'.",
 )
 replan_option = click.option(
     "--replan",
@@ -238,8 +238,8 @@ chunks_per_job_option = click.option(
     default=0,
     show_default=True,
     help="⚙   Chunks of a shard one job builds: 0 for one job per shard (its "
-    "chunks, then its merge); else jobs '<shard>_j<k>' of up to N chunks, then "
-    "a job '<shard>_merge'.",
+    "chunks, then its publish step); else jobs '<shard>_j<k>' of up to N chunks, then "
+    "a job '<shard>_publish'.",
 )
 _threads_option = click.option(
     "--threads",

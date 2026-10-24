@@ -71,11 +71,11 @@ def run_status(results: Iterable[str | None]) -> ApplyStatus:
     return ApplyStatus.NONE
 
 
-def merge_status(results: Iterable[str | None]) -> ApplyStatus:
-    """Status of a merge target from the results of its parts.
+def publish_status(results: Iterable[str | None]) -> ApplyStatus:
+    """Status of a published target from the results of its parts.
 
-    Unlike ``run_status``, a single failed part makes the merge PARTIAL,
-    and a merge with no recorded part counts as SUCCESS.
+    Unlike ``run_status``, a single failed part makes the target PARTIAL,
+    and a target with no recorded part counts as SUCCESS.
     """
     entries = list(results)
     if entries and all(r == FAILED for r in entries):
@@ -284,7 +284,7 @@ class RunReport:
                 info["cpu_efficiency"] = round(info["max_cpu_pct"] / (100 * threads), 2)
             entries[run] = info
 
-    def record_merge(self, target: str, info: dict) -> None:
+    def record_publish(self, target: str, info: dict) -> None:
         """How ``target`` was published (``IndexExecutor.publish_details``)."""
         info = dict(info)
         if "disk_bytes" in info:
@@ -303,7 +303,7 @@ class RunReport:
         result: str | None = self._shards.get(name, {}).get("result")
         return result
 
-    def fold_merge(self, target: str, parts: list[str]) -> None:
+    def fold_publish(self, target: str, parts: list[str]) -> None:
         """Move the entries of ``parts`` under ``target`` and derive its status."""
         entry: dict = {"result": SUCCESS}
         for part in parts:
@@ -312,7 +312,7 @@ class RunReport:
         published = self._shards.pop(target, {})
         entry.update({k: v for k, v in published.items() if k != "result"})
         part_results = [v.get("result") for v in self._parts(entry)]
-        entry["result"] = merge_status(part_results).value
+        entry["result"] = publish_status(part_results).value
         self._shards[target] = entry
 
     def fail(self, e: Exception, msg: str, key: str | None, abort: bool) -> bool:

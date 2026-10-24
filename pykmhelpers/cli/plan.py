@@ -83,17 +83,17 @@ def make_plan(
     work_dir = os.path.realpath(work_dir)
     refuse_under_active_jobs(input_file, work_dir)
     cluster = None
-    merge_limits = None
+    publish_limits = None
     if cluster_file:
         if limits:
             raise click.ClickException(
                 "--limits and --cluster both set the resources: give the job "
-                "resources in the cluster file (jobs.build, jobs.merge)"
+                "resources in the cluster file (jobs.build, jobs.publish)"
             )
         cluster = load_cluster(cluster_file)
         limits = limits_for(cluster, "build", safety_margin)
-        merge_limits = limits_for(cluster, "merge", safety_margin)
-        logger.info(f"Resources from {cluster_file}: build {limits}, merge {merge_limits}")
+        publish_limits = limits_for(cluster, "publish", safety_margin)
+        logger.info(f"Resources from {cluster_file}: build {limits}, publish {publish_limits}")
     # Only an explicit --base-path overrides the sample root; otherwise each
     # definition resolves paths against its JSONL header's root_path.
     if base_path and not offline:
@@ -118,7 +118,7 @@ def make_plan(
             max_chunks=max_chunks,
             chunk_budget=chunk_budget,
             chunks_per_job=chunks_per_job,
-            merge_limits=merge_limits,
+            publish_limits=publish_limits,
         )
     )
     logger.info(f"Plan {input_file}...")

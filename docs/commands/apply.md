@@ -2,7 +2,7 @@
 
 ## Synopsis
 
-Run the plan written by [`plan`](plan.md): build, merge and register the indices.
+Run the plan written by [`plan`](plan.md): build and publish the indices.
 
 !!! abstract "USAGE"
     ```
@@ -24,7 +24,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 ## Advanced Options
 | Option | Description |
 |--------|-------------|
-| `--task TEXT` | Run only what matches these names or glob patterns (repeatable or comma-separated): a shard (`idx_g0`) or its task (`idx_g0_initial`) runs all its jobs; a job runs alone, `<shard>_j<k>` (some of its chunks) or `<shard>_merge` (see [plan - Jobs](plan.md#jobs) and [Selecting what runs](#selecting-what-runs)) |
+| `--task TEXT` | Run only what matches these names or glob patterns (repeatable or comma-separated): a shard (`idx_g0`) or its task (`idx_g0_initial`) runs all its jobs; a job runs alone, `<shard>_j<k>` (some of its chunks) or `<shard>_publish` (see [plan - Jobs](plan.md#jobs) and [Selecting what runs](#selecting-what-runs)) |
 | `--pending` | Print the jobs not done yet, one per line, and run nothing |
 | `--status` | Print the status of every step, per shard, write it to `progress.yaml`, and run nothing; with `--notify`, mail it (see [Progress](#progress)) |
 | `--sp, --show-progress` | One line per shard: progress bar of its steps, steps running, colored end status (see [Following a build](#following-a-build)); with `--status`, follow a cluster build until it ends |
@@ -43,9 +43,9 @@ Then it runs the selected jobs (all by default), in order. Each step is checked 
 
 - a shard is **done** when it is registered and holds every sample of the plan's chunks: its jobs do nothing;
 - a **chunk** is skipped when its kmtricks run is complete (`reused`), else its script deletes what an earlier attempt left and builds it;
-- a **merge** needs every chunk of its shard complete; it checks that the registry is as `plan` saw it (`expects`), or as an interrupted run of this same merge leaves it, and refuses otherwise.
+- a **publish** step needs every chunk of its shard complete; it checks that the registry is as `plan` saw it (`expects`), or as an interrupted run of this same publish step leaves it, and refuses otherwise.
 
-A failed step stops its shard; the other shards go on, unless `--fail-fast`. Logs are in `BUILD_DIR/logs/<shard>/` (`<run>.log` with the `kmtricks` output and its resource use, `merge.log`).
+A failed step stops its shard; the other shards go on, unless `--fail-fast`. Logs are in `BUILD_DIR/logs/<shard>/` (`<run>.log` with the `kmtricks` output and its resource use, `publish.log`).
 
 ### Following a build
 
@@ -53,13 +53,13 @@ A failed step stops its shard; the other shards go on, unless `--fail-fast`. Log
 
 ```
 ⣾ idx_g0  [■■■■■■      ] 6/11 (8m3s)   8 running: chunk2 (4m10s), chunk5 (3m12s), chunk8 (52s), ...
-⣽ idx_g1  [■■■■■■■■■■■ ] 10/11 (12m40s) merge (3m4s)
+⣽ idx_g1  [■■■■■■■■■■■ ] 10/11 (12m40s) publish (3m4s)
 ✔ idx_g2  [■■■■■■■■■■■■] 8/8  (25m14s) SUCCESS
 ✘ idx_g3  [■■■         ] 3/9  (6m2s)   FAILED chunk3 (log: logs/idx_g3/idx_g3_initial_chunk3.log), 2 still running
 ```
 
 - the bar and the count are the steps of the shard done: its kmtricks runs (`chunk<N>`, or
-  `run` when it is built in one run) and its `merge`; the time is the shard's, since its
+  `run` when it is built in one run) and its `publish` step; the time is the shard's, since its
   first step started;
 - several chunks of a shard run at once on a cluster with `plan --chunks-per-job N` (one
   per array task): the line shows how many, and the 3 oldest with their time;
@@ -92,7 +92,7 @@ Each step `apply` runs is recorded in `BUILD_DIR/assets/SESSION/<shard>/state/<s
 
 `--status` exits 0 whatever the status; the summary line gives the overall one (`SUCCESS`, `FAILED`, `RUNNING`, `PENDING`).
 
-**Report** - `BUILD_DIR/logs/kmhelpers_apply_<timestamp>.yaml`: per shard, for each kmtricks run whether it was built, reused or already published, its duration, peak RSS, CPU efficiency and share of the RAM limit (from its log); the merge, its duration and size on disk. It is written after each job, with status `RUNNING` until the end, so a running or killed apply leaves its report so far. See [build - Report](build.md#report).
+**Report** - `BUILD_DIR/logs/kmhelpers_apply_<timestamp>.yaml`: per shard, for each kmtricks run whether it was built, reused or already published, its duration, peak RSS, CPU efficiency and share of the RAM limit (from its log); how it was published, its duration and size on disk. It is written after each job, with status `RUNNING` until the end, so a running or killed apply leaves its report so far. See [build - Report](build.md#report).
 
 ### Selecting what runs
 
@@ -103,20 +103,20 @@ Each step `apply` runs is recorded in `BUILD_DIR/assets/SESSION/<shard>/state/<s
 | `idx_g0` or `idx_g0_initial` | every job of that shard (shard or task name) |
 | `'idx_g0_*'` | every job of the group-0 shards |
 | `idx_g0_j1` | that one job |
-| `'idx_g0_j*'` | the shard's chunk jobs, not its merge |
-| `'*_merge'` | every merge |
+| `'idx_g0_j*'` | the shard's chunk jobs, not its publish job |
+| `'*_publish'` | every publish job |
 
 A pattern that matches nothing is a warning; only no match at all is an error (`No task matches ...`). Job names are listed in `plan.yaml` (`jobs:` of each task), and `--pending` prints those not done yet.
 
 ### Running jobs separately
 
-With `plan --chunks-per-job N`, the chunks of a shard are split into jobs that can run at the same time, e.g. as the tasks of a SLURM array, then the merge job of the shard. `plan --cluster` writes the SLURM files submitting them (see [plan - Cluster](plan.md#cluster)); by hand:
+With `plan --chunks-per-job N`, the chunks of a shard are split into jobs that can run at the same time, e.g. as the tasks of a SLURM array, then the publish job of the shard. `plan --cluster` writes the SLURM files submitting them (see [plan - Cluster](plan.md#cluster)); by hand:
 
 ```bash
 kmhelpers plan coli_db -o coli_build/ --chunks-per-job 4
 kmhelpers apply coli_db -o coli_build/ --pending          # the jobs to run
 kmhelpers apply coli_db -o coli_build/ --task coli_g0_j0  # one per array task
-kmhelpers apply coli_db -o coli_build/ --task coli_g0_merge
+kmhelpers apply coli_db -o coli_build/ --task coli_g0_publish
 ```
 
 ## Examples

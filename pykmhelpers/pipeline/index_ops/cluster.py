@@ -13,12 +13,12 @@ The file describes the scheduler and the resources of each kind of job::
     extra: []                         # other sbatch options, as is
     jobs:
       build: {cpus: 24, mem: 120G}
-      merge: {cpus: 24, mem: 120G}
+      publish: {cpus: 24, mem: 120G}
       check: {cpus: 1, mem: 4G, time: "1:00:00"}
     limits: {files: 131072, maps: 65530}   # compute-node limits, optional
 
 The plan is sized from it: chunks from ``jobs.build`` (threads = cpus, ram =
-mem), merges from ``jobs.merge``, plus ``limits`` (else detected on the node
+mem), merges from ``jobs.publish``, plus ``limits`` (else detected on the node
 ``plan`` runs on). ``write_slurm`` writes ``assets/<session>/slurm/``.
 """
 
@@ -30,11 +30,11 @@ from typing import Optional
 
 import yaml
 
-from pykmhelpers.pipeline.index_ops.plan_file import MERGE
+from pykmhelpers.pipeline.index_ops.plan_file import PUBLISH
 
 # Cluster types, each with the writer of its submission files (WRITERS, below)
 SCHEDULERS = ("slurm",)
-JOB_KINDS = ("build", "merge", "check")
+JOB_KINDS = ("build", "publish", "check")
 # Keys a job kind may set, also accepted at the top level as defaults
 JOB_KEYS = {"partition", "time", "exclude", "account", "qos", "constraint", "cpus", "mem", "extra"}
 TOP_KEYS = JOB_KEYS | {"type", "max_parallel", "output", "setup", "jobs", "limits"}
@@ -165,12 +165,12 @@ def write_slurm(
     """Write the SLURM files of ``plan`` to ``slurm_dir``; return their paths.
 
     ``jobs.txt`` (build jobs), ``build.sbatch`` (an array task runs one of
-    them), ``merge.sbatch``, ``finish.sbatch`` (after every job: checks the
+    them), ``publish.sbatch``, ``finish.sbatch`` (after every job: checks the
     registry when everything is done, writes ``progress.yaml``, mails it with
     ``notify``) and ``submit.sh``, which submits what ``apply --pending``
     lists, skipping the jobs still queued: safe to run again.
 
-    With ``notify_level`` ``shard``, the build and merge jobs mail the end of
+    With ``notify_level`` ``shard``, the build and publish jobs mail the end of
     their shard (a failed chunk, or the published shard).
     """
     os.makedirs(slurm_dir, exist_ok=True)
@@ -190,11 +190,11 @@ def write_slurm(
     # a failed dependency cancels the job, so finish always runs
     no_wait = ["#SBATCH --kill-on-invalid-dep=yes"]
 
-    build_jobs, merges = [], {}
+    build_jobs, publishes = [], {}
     for task in plan["tasks"].values():
         for job, steps in task["jobs"].items():
-            if steps == [MERGE]:
-                merges[task["shard"]] = job
+            if steps == [PUBLISH]:
+                publishes[task["shard"]] = job
             else:
                 build_jobs.append(job)
     name = os.path.basename(build_dir.rstrip("/"))
@@ -222,12 +222,12 @@ def write_slurm(
                 f'{apply} --task "$JOB"{shard_mail}',
             ]
         ),
-        "merge.sbatch": "\n".join(
+        "publish.sbatch": "\n".join(
             head
-            + _sbatch_lines(cluster["jobs"]["merge"], None, single)
+            + _sbatch_lines(cluster["jobs"]["publish"], None, single)
             + no_wait
             + body_head
-            + ["# $1: a merge job of the plan (<shard>_merge)", f'{apply} --task "$1"{shard_mail}']
+            + ["# $1: a publish job of the plan (<shard>_publish)", f'{apply} --task "$1"{shard_mail}']
         ),
         "finish.sbatch": "\n".join(
             head
@@ -236,7 +236,7 @@ def write_slurm(
             + body_head
             + finish_cmds
         ),
-        "submit.sh": _submit_script(apply, setup, build_dir, merges, cluster),
+        "submit.sh": _submit_script(apply, setup, build_dir, publishes, cluster),
     }
     # an older plan's check.sbatch is replaced by finish.sbatch
     old = os.path.join(slurm_dir, "check.sbatch")
@@ -253,13 +253,13 @@ def write_slurm(
     return written
 
 
-def _submit_script(apply: str, setup: str, build_dir: str, merges: dict, cluster: dict) -> str:
+def _submit_script(apply: str, setup: str, build_dir: str, publishes: dict, cluster: dict) -> str:
     throttle = int(cluster.get("max_parallel") or 0)
     pct = f"%{throttle}" if throttle else ""
-    shards = " ".join(shlex.quote(s) for s in merges)
+    shards = " ".join(shlex.quote(s) for s in publishes)
     logs = shlex.quote(os.path.dirname(os.path.join(build_dir, cluster["output"])))
     return f"""#!/usr/bin/env bash
-# Submit the plan: build array, one merge job per shard after its own array
+# Submit the plan: build array, one publish job per shard after its own array
 # tasks, then a finish job after everything (progress.yaml, check, mail).
 # Safe to run again: only the jobs `apply --pending` lists are submitted (it
 # refuses a stale plan), and a job still queued or running is not submitted
@@ -288,7 +288,7 @@ while read -r JOB; do
     if [ -n "$ACTIVE" ]; then
         ID_OF[$JOB]=$ACTIVE
         echo "$JOB: still queued or running (job $ACTIVE), not submitted again"
-    elif ! grep -qxF "$JOB" <(printf '%s\n' {' '.join(shlex.quote(m) for m in merges.values()) or "''"}); then
+    elif ! grep -qxF "$JOB" <(printf '%s\n' {' '.join(shlex.quote(m) for m in publishes.values()) or "''"}); then
         echo "$JOB" >> "$DIR/pending_build.txt"
     fi
 done < "$DIR/pending.txt"
@@ -314,22 +314,22 @@ for ((OFFSET = 0; OFFSET < N; OFFSET += MAX)); do
     echo "build array $ARRAY: $COUNT task(s)"
 done
 
-# 2. One merge job per shard, after the build jobs of that shard only
+# 2. One publish job per shard, after the build jobs of that shard only
 for SHARD in {shards}; do
-    MERGE="${{SHARD}}_merge"
-    grep -qxF "$MERGE" "$DIR/pending.txt" || continue
-    if [ -n "${{ID_OF[$MERGE]:-}}" ]; then ALL+=("${{ID_OF[$MERGE]}}"); continue; fi
+    PUBLISH="${{SHARD}}_publish"
+    grep -qxF "$PUBLISH" "$DIR/pending.txt" || continue
+    if [ -n "${{ID_OF[$PUBLISH]:-}}" ]; then ALL+=("${{ID_OF[$PUBLISH]}}"); continue; fi
     DEP=""
     for JOB in "${{!ID_OF[@]}}"; do
         [[ "$JOB" =~ ^${{SHARD}}_j[0-9]+$ ]] && DEP+=":${{ID_OF[$JOB]}}"
     done
-    ID=$(sbatch --parsable -J "$MERGE" ${{DEP:+--dependency=afterok$DEP}} \
-        "$DIR/merge.sbatch" "$MERGE")
+    ID=$(sbatch --parsable -J "$PUBLISH" ${{DEP:+--dependency=afterok$DEP}} \
+        "$DIR/publish.sbatch" "$PUBLISH")
     ID=${{ID%%;*}}
     ALL+=("$ID")
     NEW=$((NEW + 1))
-    printf '%s\t%s\n' "$MERGE" "$ID" >> "$SUBMITTED"
-    echo "merge $SHARD: job $ID ${{DEP:+after${{DEP//:/ }}}}"
+    printf '%s\t%s\n' "$PUBLISH" "$ID" >> "$SUBMITTED"
+    echo "publish $SHARD: job $ID ${{DEP:+after${{DEP//:/ }}}}"
 done
 for JOB in "${{!ID_OF[@]}}"; do ALL+=("${{ID_OF[$JOB]}}"); done
 

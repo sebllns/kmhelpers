@@ -55,7 +55,7 @@ See [compose - Sharding](../commands/compose.md#description) and
 ## On a cluster
 
 With `--hpc cluster.yaml`, `plan` sizes the build for the jobs of a SLURM cluster, and the
-jobs run the plan: chunks on several nodes at once, then one merge per shard. See
+jobs run the plan: chunks on several nodes at once, then one publish job per shard. See
 [build - On a cluster](../commands/build.md#on-a-cluster).
 
 ```mermaid
@@ -64,7 +64,7 @@ sequenceDiagram
     participant B as build
     participant SL as SLURM
     participant A as array
-    participant M as merge
+    participant M as publish
     participant F as finish
     U->>B: --hpc cluster.yaml
     B->>B: plan:<br/>chunks, jobs

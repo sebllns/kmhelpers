@@ -28,7 +28,7 @@ Steps run internally by [`build`](build.md):
 | Command | Description |
 |---------|-------------|
 | [`plan`](plan.md) | Step 1 - validate paths, decide the whole build and write the plan (scripts, jobs, SLURM files) |
-| [`apply`](apply.md) | Step 2 - run the plan: build, merge and register the indices |
+| [`apply`](apply.md) | Step 2 - run the plan: build and publish the indices |
 
 ## Utilities
 

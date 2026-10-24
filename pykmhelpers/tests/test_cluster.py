@@ -28,7 +28,7 @@ CLUSTER = {
     "setup": "export PATH=/opt/kmhelpers/bin:$PATH\n",
     "jobs": {
         "build": {"cpus": 24, "mem": "120G"},
-        "merge": {"cpus": 8, "mem": "64G", "partition": "mem"},
+        "publish": {"cpus": 8, "mem": "64G", "partition": "mem"},
         "check": {"time": "1:00:00"},
     },
     "limits": {"files": 131072, "maps": 65530},
@@ -49,9 +49,9 @@ class ClusterCase(unittest.TestCase):
 class TestLoadCluster(ClusterCase):
     def test_job_kinds_inherit_the_top_level(self):
         cluster = self.load(CLUSTER)
-        build, merge, check = (cluster["jobs"][k] for k in ("build", "merge", "check"))
+        build, publish, check = (cluster["jobs"][k] for k in ("build", "publish", "check"))
         self.assertEqual((build["partition"], build["time"]), ("compute", "2-00:00:00"))
-        self.assertEqual(merge["partition"], "mem")
+        self.assertEqual(publish["partition"], "mem")
         self.assertEqual((check["cpus"], check["mem"], check["time"]), (1, "4G", "1:00:00"))
         self.assertEqual(build["exclude"], ["node01"])
 
@@ -59,7 +59,7 @@ class TestLoadCluster(ClusterCase):
         cluster = self.load(CLUSTER)
         build = json.loads(limits_for(cluster, "build", 0.5))
         self.assertEqual(build, {"ram": 60 << 30, "threads": 24, "files": 131072, "maps": 65530})
-        self.assertEqual(json.loads(limits_for(cluster, "merge"))["threads"], 8)
+        self.assertEqual(json.loads(limits_for(cluster, "publish"))["threads"], 8)
 
     def test_errors(self):
         for data, msg in [
@@ -115,16 +115,16 @@ class TestWriteSlurm(ClusterCase):
                      "#SBATCH --exclude=node01", "export PATH=/opt/kmhelpers/bin:$PATH"):
             self.assertIn(line, build)
         self.assertIn('--task "$JOB"', build)
-        merge = (out / "merge.sbatch").read_text()
-        self.assertIn("#SBATCH -p mem", merge)
-        self.assertIn("#SBATCH -c 8", merge)
+        publish = (out / "publish.sbatch").read_text()
+        self.assertIn("#SBATCH -p mem", publish)
+        self.assertIn("#SBATCH -c 8", publish)
         finish = (out / "finish.sbatch").read_text()
         self.assertIn("#SBATCH -t 1:00:00", finish)
         self.assertIn("--status", finish)
         self.assertIn("manage -r", finish)
         self.assertFalse((out / "check.sbatch").exists())
-        # a failed dependency cancels merge and finish, never the build tasks
-        self.assertIn("--kill-on-invalid-dep=yes", merge)
+        # a failed dependency cancels publish and finish, never the build tasks
+        self.assertIn("--kill-on-invalid-dep=yes", publish)
         self.assertIn("--kill-on-invalid-dep=yes", finish)
         self.assertNotIn("--kill-on-invalid-dep", build)
         submit = (out / "submit.sh").read_text()
@@ -146,13 +146,13 @@ class TestWriteSlurm(ClusterCase):
 
         out = self.write(3, "me@example.com")
         self.assertNotIn("--notify", (out / "build.sbatch").read_text())
-        self.assertNotIn("--notify", (out / "merge.sbatch").read_text())
+        self.assertNotIn("--notify", (out / "publish.sbatch").read_text())
         self.assertIn("--status --notify me@example.com", (out / "finish.sbatch").read_text())
 
         out = self.write(3, "me@example.com", "shard")
         shard = "--notify me@example.com --notify-level shard --no-notify-final"
         self.assertIn(shard, (out / "build.sbatch").read_text())
-        self.assertIn(shard, (out / "merge.sbatch").read_text())
+        self.assertIn(shard, (out / "publish.sbatch").read_text())
         self.assertIn("--status --notify me@example.com", (out / "finish.sbatch").read_text())
 
     def run_submit(self, pending, alive):
@@ -182,16 +182,16 @@ class TestWriteSlurm(ClusterCase):
         return calls.read_text().splitlines(), out
 
     def test_rerun_keeps_a_pending_finish_job(self):
-        _, out = self.run_submit(["idx_g0_j0", "idx_g0_merge"], [])
+        _, out = self.run_submit(["idx_g0_j0", "idx_g0_publish"], [])
         submitted = (out / "submitted.tsv").read_text()
         finish = submitted.strip().splitlines()[-1].split("\t")[1]
         ids = [ln.split("\t")[1] for ln in submitted.strip().splitlines()]
         # everything still queued: nothing submitted, the finish job kept
-        calls, _ = self.run_submit(["idx_g0_j0", "idx_g0_merge"], ids)
+        calls, _ = self.run_submit(["idx_g0_j0", "idx_g0_publish"], ids)
         self.assertEqual(calls, [])
         # the build job ended without its chunks: resubmitted, finish replaced
         alive = [i for i in ids if not i.endswith("_0")]
-        calls, _ = self.run_submit(["idx_g0_j0", "idx_g0_merge"], alive)
+        calls, _ = self.run_submit(["idx_g0_j0", "idx_g0_publish"], alive)
         self.assertEqual(sum(c.startswith("sbatch") and "--array" in c for c in calls), 1)
         self.assertIn(f"scancel {finish}", calls)
         self.assertTrue(calls[-1].startswith("sbatch") and "finish.sbatch" in calls[-1])
@@ -205,10 +205,10 @@ class TestWriteSlurm(ClusterCase):
             write_submission(self.plan(3), {**cluster, "type": "pbs"}, str(self.tmp / "x"))
         self.assertFalse((self.tmp / "x").exists())
 
-    def test_whole_shard_jobs_have_no_merge_job(self):
+    def test_whole_shard_jobs_have_no_publish_job(self):
         out = self.write(0)
         self.assertEqual((out / "jobs.txt").read_text().split(), ["idx_g0", "idx_g1"])
-        self.assertNotIn("_merge", (out / "submit.sh").read_text().split("for SHARD in")[1].split(";")[0])
+        self.assertNotIn("_publish", (out / "submit.sh").read_text().split("for SHARD in")[1].split(";")[0])
 
 
 if __name__ == "__main__":

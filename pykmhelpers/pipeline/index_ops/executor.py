@@ -99,7 +99,7 @@ class IndexExecutor:
         self.publish_details: dict[str, dict] = {}
 
     def set_task(self, task_dir: str, target: str) -> None:
-        """Record the next runs and merge into ``assets/<session>/<task_dir>/``,
+        """Record the next runs and publish step into ``assets/<session>/<task_dir>/``,
         for the index ``target``."""
         self._task_dir = task_dir
         self._target = target
@@ -140,7 +140,7 @@ class IndexExecutor:
         A publish interrupted after its moves: nothing is left to build or
         merge, only the runs of ``parts`` (and their chunks) to delete.
         """
-        self._script.select(ScriptRecorder.merge_group(self.task_dir))
+        self._script.select(ScriptRecorder.publish_group(self.task_dir))
         self.publish_details[target] = {"publish": {"mode": "register"}}
         self._locked(self._register(target), f"register {target}")
         runs = [self._paths.run(p) for p in parts]
@@ -302,7 +302,7 @@ class IndexExecutor:
     ) -> None:
         """Publish the runs built for ``target`` as the index ``BUILD_DIR/<target>``.
 
-        Recorded in the merge script of the task, run after its builds:
+        Recorded in the publish script of the task, run after its builds:
 
         1. check that every run is complete (else stop before touching anything);
         2. a single new run: move it in place and register it;
@@ -334,7 +334,7 @@ class IndexExecutor:
             or os.path.exists(final_done)
         )
 
-        self._script.select(ScriptRecorder.merge_group(self.task_dir))
+        self._script.select(ScriptRecorder.publish_group(self.task_dir))
 
         shard = paths.shard(target)
         single = len(names) == 1 and not existing
@@ -471,11 +471,11 @@ class IndexExecutor:
         """
         paths = self._paths
         partitions = params.partitions
-        # a merge job may have other resources than the build jobs (--cluster)
-        merge_limits = self._config.merge_limits or self._config.limits
-        merge_cpus = json.loads(merge_limits or "{}").get("threads")
+        # a publish job may have other resources than the build jobs (--cluster)
+        publish_limits = self._config.publish_limits or self._config.limits
+        merge_cpus = json.loads(publish_limits or "{}").get("threads")
         threads = merge_threads(min(params.threads, merge_cpus or params.threads), partitions)
-        limits = MergeLimits.resolve(merge_limits, self._config.safety_margin)
+        limits = MergeLimits.resolve(publish_limits, self._config.safety_margin)
         k, binding = max_inputs(limits, partitions, params.minim_size, threads)
         steps = merge_tree(target, list(inputs), k)
         step_details: list[dict] = []
@@ -569,7 +569,7 @@ class IndexExecutor:
         return shlex.join(["kmindex", *args, "--verbose", "info"])
 
     def _locked(self, cmd: str, label: str) -> None:
-        """Run ``cmd`` holding the registry lock: merge jobs may publish at once."""
+        """Run ``cmd`` holding the registry lock: publish jobs may run at once."""
         self._sh(f"flock {_q(self._paths.lock)} -c {_q(cmd)}", label)
 
     def _sh(self, cmd: str, label: str) -> None:
@@ -577,8 +577,8 @@ class IndexExecutor:
         self._script.add(cmd, label)
 
     def _write_tsv(self, file_name: str, entries: dict[str, str]) -> str:
-        """Write ``name<TAB>path`` lines to ``<task dir>/merge/``; return the file path."""
-        path = os.path.join(self._paths.task(self.task_dir), "merge", file_name)
+        """Write ``name<TAB>path`` lines to ``<task dir>/publish/``; return the file path."""
+        path = os.path.join(self._paths.task(self.task_dir), "publish", file_name)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w") as f:
             f.writelines(f"{name}\t{p}\n" for name, p in entries.items())

@@ -70,17 +70,17 @@ coli_build/                       BUILD_DIR (build -o, query -r): the kmindex re
 │   ├── initial/                  one folder per SESSION
 │   │   ├── plan.yaml             the plan, run by apply (see plan)
 │   │   ├── slurm/                with plan --cluster
-│   │   └── coli_g0_p0/           one folder per shard: <part>[_chunk<N>].sh and .fof, merge.sh, merge/
+│   │   └── coli_g0_p0/           one folder per shard: <part>[_chunk<N>].sh and .fof, publish.sh, publish/
 │   └── update/
 └── logs/
     ├── kmhelpers_plan_<timestamp>.yaml    plan report, see Report below
     ├── kmhelpers_apply_<timestamp>.yaml   apply report
-    └── coli_g0_p0/                        <run>.log of each kmtricks run, merge.log
+    └── coli_g0_p0/                        <run>.log of each kmtricks run, publish.log
 ```
 
 Reuse the same `BUILD_DIR` for every session of an index. Each index keeps one folder, `BUILD_DIR/<name>/`, for its whole life; a session only uses `BUILD_DIR/work/SESSION/` while it is built, and deletes it when it is done. Index names cannot be `work`, `assets`, `logs`, or start with `.`.
 
-Building a session again resumes it: complete kmtricks runs are kept, incomplete ones are rebuilt, finished merges are not redone, and parts whose samples are already in their index are skipped. A finished session built again changes nothing. A run of `<shard>/merge.sh` interrupted at any point is finished by running it again (or `apply`): until the new version of a sub-index is registered, the sub-index is either registered with its previous folder or not registered at all, never registered with other data.
+Building a session again resumes it: complete kmtricks runs are kept, incomplete ones are rebuilt, finished merges are not redone, and parts whose samples are already in their index are skipped. A finished session built again changes nothing. A run of `<shard>/publish.sh` interrupted at any point is finished by running it again (or `apply`): until the new version of a sub-index is registered, the sub-index is either registered with its previous folder or not registered at all, never registered with other data.
 
 ## Description
 
@@ -103,12 +103,12 @@ kmhelpers apply coli_db -o coli_build/ --status --sp     # one line per shard, u
 With `--hpc FILE` (see [plan - Cluster](plan.md#cluster)), `build` plans for the jobs of `FILE`, runs the generated `slurm/submit.sh`, and exits: the SLURM jobs build the indices. Nothing is submitted when the plan is `FAILED` or `PARTIAL`. The jobs are:
 
 1. the **build array**: one task per build job (a shard, or `--chunks-per-job` chunks of it);
-2. one **merge** job per shard, after the array tasks of that shard;
+2. one **publish** job per shard, after the array tasks of that shard;
 3. a **finish** job, after every job, successful or not: it checks the registry when everything is built, writes `progress.yaml`, and sends the final mail.
 
 A failed job cancels the jobs waiting on it (`--kill-on-invalid-dep=yes`), so the finish job always runs. Once the jobs have ended, run the same `build` command again (or `slurm/submit.sh`) to resubmit what is not done, with the same plan: finished work is kept, and there is one finish job. While jobs are still queued or running, `build` follows them (see [Running build again](#running-build-again)). `slurm/submit.sh` can be run again at any time: it never submits a job still queued or running twice, keeps a finish job still pending when it submits nothing new, and replaces it otherwise.
 
-**Progress** - `apply --status` prints, per shard, the status of each kmtricks run and merge, and writes it to `BUILD_DIR/assets/SESSION/progress.yaml` (also rewritten by every job, after each step):
+**Progress** - `apply --status` prints, per shard, the status of each kmtricks run and of its publish step, and writes it to `BUILD_DIR/assets/SESSION/progress.yaml` (also rewritten by every job, after each step):
 
 ```yaml
 idx_g0:
@@ -116,7 +116,7 @@ idx_g0:
   idx_g0_initial_chunk1: FAILED (log: logs/idx_g0/idx_g0_initial_chunk1.log, idx_g0_initial_chunk1.sh failed (exit 1): ...)
   idx_g0_initial_chunk2: RUNNING (job 18001_2, node12, since 10:02)
   idx_g0_initial_chunk3: PENDING (job 18001_3)
-  merge: PENDING (job 18002)
+  publish: PENDING (job 18002)
 ```
 
 See [apply - Progress](apply.md#progress) for the statuses.
@@ -167,14 +167,14 @@ chunks. With the default budgets, a full shard fits 64 chunks (`2**43 = 64 x 2**
 Every sub-index is built as unregistered `kmtricks` runs, then published:
 
 1. **Build** - each part of the sub-index (its samples of this session) is built with `kmtricks pipeline` into `BUILD_DIR/work/SESSION/runs/<part>/`, not registered. When one `kmtricks` build cannot hold all the samples of a part (open files, `--chunk-budget` and `--max-chunks`, see [Shards and chunks](#shards-and-chunks)), the part is built in chunks, `<part>_chunk<N>/`. Each run has its script, `assets/SESSION/<shard>/<run>.sh`, which can be run anywhere, e.g. as a SLURM array task (see [plan - Jobs](plan.md#jobs)).
-2. **Check** - `assets/SESSION/<shard>/merge.sh` starts by checking every run: `run_infos.txt` (written by kmtricks only when it finishes), `kmtricks.fof`, `options.txt`, and all partition matrices present, non-empty and of equal size. If one run is incomplete, the script stops before registering or merging anything; rebuild that run and run the merge script again.
+2. **Check** - `assets/SESSION/<shard>/publish.sh` starts by checking every run: `run_infos.txt` (written by kmtricks only when it finishes), `kmtricks.fof`, `options.txt`, and all partition matrices present, non-empty and of equal size. If one run is incomplete, the script stops before registering or merging anything; rebuild that run and run the publish script again.
 3. **Publish a single run** - a new sub-index built in one run is moved in place (`kmindex register --mode move`): no copy, no merge.
 4. **Merge** - otherwise the runs, plus the current version of the sub-index when it is already registered (see [Updating an index](#updating-an-index)), are merged. Each `kmindex merge` runs in a throwaway registry, `BUILD_DIR/work/SESSION/merges/<name>/<step>/`, holding only its inputs. `kmindex merge` loads the repartition table of every registered sub-index (2 MiB each at minimizer size 10), so a registry limited to the inputs keeps its memory proportional to what is merged. Merges get at most one thread per partition.
 5. **Sub-shards** - one merge can take at most `k` inputs: `ram / (2 * 4^m)` (anonymous memory), `(maps - 1000) / threads` (`vm.max_map_count`) and `files / threads - 1` (open files), with the values of `--limits`. More inputs are merged in balanced groups of at most `k` (`<name>__sub1_<i>`), then these are merged, and so on. Each level reads and writes the data once more.
 6. **Swap** - holding the lock `BUILD_DIR/.registry.lock` (several merge jobs may publish at once): the sub-index is unregistered, its current version is moved to `work/SESSION/previous/`, the merge result is moved to `BUILD_DIR/<name>/`, and registered. Queries see the previous version until the swap; during it (a second or so) the sub-index is not queryable. Moves are renames (an internal `kmhelpers manage move-dir`), so they take the same time whatever the size; they fail instead of copying if `work/` is on another filesystem.
 7. **Check, then clean up** - `kmhelpers manage check --shard <name>` checks the published sub-index; only then are the runs, merges and previous version deleted. A failed check stops the script with everything kept.
 
-`apply` runs the run scripts of a shard, then its `merge.sh`. The plan logs, for each merge, its number of inputs, the limit that sets `k`, and its expected memory: the anonymous part must fit in RAM, while the mapped inputs are page cache that the kernel reclaims when they exceed it. The same merge plan is in the [report](#report), under `publish.steps`.
+`apply` runs the run scripts of a shard, then its `publish.sh`. The plan logs, for each merge, its number of inputs, the limit that sets `k`, and its expected memory: the anonymous part must fit in RAM, while the mapped inputs are page cache that the kernel reclaims when they exceed it. The same merge plan is in the [report](#report), under `publish.steps`.
 
 ### Report
 
@@ -254,7 +254,7 @@ Every sub-index is built as unregistered `kmtricks` runs, then published:
               ram_limit_use: 0.193
               threads: 24
               cpu_efficiency: 1.0
-        publish: {mode: move, duration_s: 4.1, log: .../logs/idx_g0/merge.log}
+        publish: {mode: move, duration_s: 4.1, log: .../logs/idx_g0/publish.log}
         disk_size: 1.40GB
       idx_g1:
         ...

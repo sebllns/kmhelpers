@@ -46,7 +46,7 @@ flowchart TB
 | **part** (task) | the samples a session adds to one shard | `coli_g0_initial`, `coli_g0_update` | `compose` |
 | **chunk** | one kmtricks run building some samples of a part; a part too large for one run is built in chunks, then merged | `coli_g0_initial_chunk3` | `--cb`, the open-files limit (see [build](../commands/build.md#shards-and-chunks)) |
 | **plan** | every build decision, and the scripts running them, written before anything is built | `coli_build/assets/initial/plan.yaml` | [`plan`](../commands/plan.md) |
-| **job** | the unit `apply` runs, and a SLURM task: a shard, some of its chunks, or its merge | `coli_g0`, `coli_g0_j1`, `coli_g0_merge` | `--chunks-per-job` (see [plan](../commands/plan.md#jobs)) |
-| **step** | one kmtricks run or one merge, with its status (`SUCCESS`, `FAILED`, ...) | `chunk3`, `merge` | see [apply](../commands/apply.md#progress) |
+| **job** | the unit `apply` runs, and a SLURM task: a shard, some of its chunks, or its publish step | `coli_g0`, `coli_g0_j1`, `coli_g0_publish` | `--chunks-per-job` (see [plan](../commands/plan.md#jobs)) |
+| **step** | one kmtricks run or the publish step of a shard, with its status (`SUCCESS`, `FAILED`, ...) | `chunk3`, `publish` | see [apply](../commands/apply.md#progress) |
 
 See [How an index is structured](kmindex-index.md) and [How an index is built](building.md).

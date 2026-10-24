@@ -136,8 +136,8 @@ class TestRunReport(unittest.TestCase):
         report.dump()
         self.assertEqual(self.load()["summary"]["status"], "RUNNING")
 
-        report.record_merge("idx_g0", {"publish": {"mode": "move"}, "disk_bytes": 2048})
-        report.fold_merge("idx_g0", ["idx_g0_s1"])
+        report.record_publish("idx_g0", {"publish": {"mode": "move"}, "disk_bytes": 2048})
+        report.fold_publish("idx_g0", ["idx_g0_s1"])
         report.finish()
         report.close()
         data = self.load()

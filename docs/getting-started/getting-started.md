@@ -134,14 +134,14 @@ Review the plan in `coli_build/assets/initial/` (`plan.yaml` and one folder of s
 
 **Manual build**
 
-The plan is made of plain bash scripts, in `OUTPUT_DIR/assets/SESSION/<shard>/`: one per kmtricks run (`<part>.sh`, or `<part>_chunk<N>.sh`), then `merge.sh` (check, publish, cleanup). They can be run by hand for a fully hands-on build, runs first, then the merge:
+The plan is made of plain bash scripts, in `OUTPUT_DIR/assets/SESSION/<shard>/`: one per kmtricks run (`<part>.sh`, or `<part>_chunk<N>.sh`), then `publish.sh` (check, publish, cleanup). They can be run by hand for a fully hands-on build, runs first, then `publish.sh`:
 
 ??? example "Commands"
     ```bash
     kmhelpers plan coli_db -o coli_build/
     for shard in coli_build/assets/initial/*/; do
-        for run in "$shard"*.sh; do [ "$run" = "${shard}merge.sh" ] || bash "$run"; done
-        bash "${shard}merge.sh"
+        for run in "$shard"*.sh; do [ "$run" = "${shard}publish.sh" ] || bash "$run"; done
+        bash "${shard}publish.sh"
     done
     ```
 

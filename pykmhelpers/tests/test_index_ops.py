@@ -1,7 +1,7 @@
 """Unit tests for the index_ops components that do not need kmindex.
 
 Covers status aggregation, build parameter sizing, input source filtering,
-sample resolution and script export. The full build/merge flow is covered by
+sample resolution and script export. The full build/publish flow is covered by
 ``test_pipeline_e2e.py``.
 """
 
@@ -20,14 +20,14 @@ from pykmhelpers.pipeline.index_ops.layout import LayoutStore
 from pykmhelpers.pipeline.index_ops.ops import IndexOps
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths, check_index_name
 from pykmhelpers.pipeline.index_ops.plan_file import (
-    MERGE,
+    PUBLISH,
     check_fresh,
     job_names,
     load_plan,
     new_plan,
     write_plan,
 )
-from pykmhelpers.pipeline.index_ops.report import merge_status, run_status
+from pykmhelpers.pipeline.index_ops.report import publish_status, run_status
 from pykmhelpers.pipeline.index_ops.runner import PlanRunner
 from pykmhelpers.pipeline.index_ops.samples import SampleResolver
 from pykmhelpers.pipeline.index_ops.script import ScriptRecorder
@@ -93,12 +93,12 @@ class TestStatus(unittest.TestCase):
         self.assertIs(run_status([F, S]), ApplyStatus.PARTIAL)
         self.assertIs(run_status([P, S]), ApplyStatus.PARTIAL)
 
-    def test_merge_status(self):
-        self.assertIs(merge_status([]), ApplyStatus.SUCCESS)
-        self.assertIs(merge_status([F, F]), ApplyStatus.FAILED)
-        self.assertIs(merge_status([F, N]), ApplyStatus.PARTIAL)
-        self.assertIs(merge_status([N, N]), ApplyStatus.NONE)
-        self.assertIs(merge_status([S, N]), ApplyStatus.SUCCESS)
+    def test_publish_status(self):
+        self.assertIs(publish_status([]), ApplyStatus.SUCCESS)
+        self.assertIs(publish_status([F, F]), ApplyStatus.FAILED)
+        self.assertIs(publish_status([F, N]), ApplyStatus.PARTIAL)
+        self.assertIs(publish_status([N, N]), ApplyStatus.NONE)
+        self.assertIs(publish_status([S, N]), ApplyStatus.SUCCESS)
 
 
 class TestResolveBuildParams(unittest.TestCase):
@@ -533,20 +533,20 @@ class TestJobNames(unittest.TestCase):
 
     def test_one_job_per_task_by_default(self):
         self.assertEqual(
-            job_names("t", self.chunks, True, 0), {"t": self.chunks + [MERGE]}
+            job_names("t", self.chunks, True, 0), {"t": self.chunks + [PUBLISH]}
         )
 
     def test_fewer_chunks_than_per_job(self):
-        self.assertEqual(job_names("t", self.chunks, True, 7), {"t": self.chunks + [MERGE]})
+        self.assertEqual(job_names("t", self.chunks, True, 7), {"t": self.chunks + [PUBLISH]})
 
-    def test_chunks_split_then_merge(self):
+    def test_chunks_split_then_publish(self):
         jobs = job_names("t", self.chunks, True, 3)
-        self.assertEqual(list(jobs), ["t_j0", "t_j1", "t_j2", "t_merge"])
+        self.assertEqual(list(jobs), ["t_j0", "t_j1", "t_j2", "t_publish"])
         self.assertEqual(jobs["t_j2"], ["t_s1_chunk6"])
-        self.assertEqual(jobs["t_merge"], [MERGE])
+        self.assertEqual(jobs["t_publish"], [PUBLISH])
 
-    def test_merge_only(self):
-        self.assertEqual(job_names("t", [], True, 3), {"t": [MERGE]})
+    def test_publish_only(self):
+        self.assertEqual(job_names("t", [], True, 3), {"t": [PUBLISH]})
 
 
 class TestTaskFilter(unittest.TestCase):
@@ -570,14 +570,14 @@ class TestTaskFilter(unittest.TestCase):
         self.assertEqual(len(self.names()), 8)
 
     def test_a_shard_or_its_task_selects_all_its_jobs(self):
-        expected = ["idx_g0_j0", "idx_g0_j1", "idx_g0_j2", "idx_g0_merge"]
+        expected = ["idx_g0_j0", "idx_g0_j1", "idx_g0_j2", "idx_g0_publish"]
         self.assertEqual(self.names("idx_g0"), expected)
         self.assertEqual(self.names("idx_g0_s1"), expected)
 
     def test_jobs(self):
         self.assertEqual(self.names("idx_g0_j1"), ["idx_g0_j1"])
         self.assertEqual(self.names("idx_g1_j*"), ["idx_g1_j0", "idx_g1_j1", "idx_g1_j2"])
-        self.assertEqual(self.names("*_merge"), ["idx_g0_merge", "idx_g1_merge"])
+        self.assertEqual(self.names("*_publish"), ["idx_g0_publish", "idx_g1_publish"])
 
     def test_no_match_is_refused(self):
         with self.assertRaisesRegex(ValueError, "No task matches"):
@@ -702,13 +702,13 @@ class TestScriptRecorder(unittest.TestCase):
     def lines(self, name):
         return (self.assets / name).read_text().splitlines()
 
-    def test_one_script_per_run_and_merge_in_task_dirs(self):
+    def test_one_script_per_run_and_publish_in_task_dirs(self):
         rec = ScriptRecorder(str(self.tmp))
         rec.select("b/b_p0")
         rec.add(f"build {self.tmp}/b_p0", "build b_p0")
         rec.select("a/a_p0")
         rec.add("build a_p0", "build a_p0")
-        rec.select(ScriptRecorder.merge_group("b"))
+        rec.select(ScriptRecorder.publish_group("b"))
         rec.add("merge b", "merge b_p0 -> b")
         written = rec.write(str(self.assets))
 
@@ -730,13 +730,13 @@ class TestScriptRecorder(unittest.TestCase):
             ],
         )
         self.assertEqual(
-            self.lines("b/merge.sh"),
+            self.lines("b/publish.sh"),
             header
-            + [f'echo "{ts} [merge] merge b_p0 -> b"', "merge b", f'echo "{ts} [merge] done"'],
+            + [f'echo "{ts} [publish] merge b_p0 -> b"', "merge b", f'echo "{ts} [publish] done"'],
         )
         self.assertEqual(
             [Path(p).relative_to(self.assets).as_posix() for p in written],
-            ["b/b_p0.sh", "a/a_p0.sh", "b/merge.sh"],
+            ["b/b_p0.sh", "a/a_p0.sh", "b/publish.sh"],
         )
         self.assertFalse((self.assets / "kmhelpers_apply.sh").exists())
 

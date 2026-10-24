@@ -257,11 +257,11 @@ kmhelpers plan coli_db -o coli_build/ --cb 0
 
     ??? tip "The plan in `coli_build/assets/initial/`"
         - **`plan.yaml`** -- what `apply` runs: one task per sub-index, its kmtricks runs,
-          its merge and its jobs (see [plan](../commands/plan.md#description)).
+          its publish step and its jobs (see [plan](../commands/plan.md#description)).
         - **`coli_g<span>/coli_g<span>_initial.sh`** -- one script per kmtricks run (or chunk)
           of the sub-index (`coli_g0`, `coli_g1`), with Bloom-filter size, k-mer size,
           partitions and threads pre-filled, next to its sample list (`.fof`).
-        - **`coli_g<span>/merge.sh`** -- checks the runs, publishes them as the sub-index
+        - **`coli_g<span>/publish.sh`** -- checks the runs, publishes them as the sub-index
           (moved in place, or merged), checks it, then deletes the runs. Each script stops
           at the first failing command and can be run again; see
           [build - Builds and merges](../commands/build.md#builds-and-merges).
@@ -293,7 +293,7 @@ kmhelpers plan coli_db -o coli_build/ --cb 0
     ```bash
     for shard in coli_g0 coli_g1; do
         bash coli_build/assets/initial/$shard/${shard}_initial.sh
-        bash coli_build/assets/initial/$shard/merge.sh
+        bash coli_build/assets/initial/$shard/publish.sh
     done
     ```
 

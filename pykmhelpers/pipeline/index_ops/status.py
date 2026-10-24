@@ -1,7 +1,7 @@
 """Where a build stands: step states, and ``BUILD_DIR/assets/<session>/progress.yaml``.
 
 ``apply`` (``runner.PlanRunner``) records each step it runs in a state file,
-``assets/<session>/<shard>/state/<step>.json`` (``<run>`` or ``merge``), one per
+``assets/<session>/<shard>/state/<step>.json`` (``<run>`` or ``publish``), one per
 step, so the tasks of a SLURM array never write the same file. The status of a
 step comes from the build directory first, then from its state file, then from
 the submissions of ``submit.sh`` (``slurm/submitted.tsv``):
@@ -28,7 +28,7 @@ import yaml
 
 from pykmhelpers.core.kmindex_paths import chunk_problems
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths
-from pykmhelpers.pipeline.index_ops.plan_file import MERGE
+from pykmhelpers.pipeline.index_ops.plan_file import PUBLISH
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +153,7 @@ class BuildState:
     ) -> tuple[str, str]:
         """``(status, detail)`` of one step; ``alive(job) -> bool | None`` checks
         that a RUNNING job still exists (None: not checked)."""
-        if self.task_done(task) or (step != MERGE and self.chunk_complete(task, step)):
+        if self.task_done(task) or (step != PUBLISH and self.chunk_complete(task, step)):
             return SUCCESS, ""
         state = self.read_state(task, step)
         status = state.get("status")
@@ -188,7 +188,7 @@ class BuildState:
                 for job, steps in (task.get("jobs") or {}).items()
                 for step in steps
             }
-            steps = list(task["chunks"]) + ([MERGE] if task.get("merge") else [])
+            steps = list(task["chunks"]) + ([PUBLISH] if task.get("publish") else [])
             entry: dict[str, str] = {}
             statuses = []
             for step in steps:
@@ -240,7 +240,7 @@ def active_jobs(state: "BuildState") -> list[str]:
                 active.append(jid)
     host = socket.gethostname()
     for task in state.tasks.values():
-        steps = list(task.get("chunks") or {}) + ([MERGE] if task.get("merge") else [])
+        steps = list(task.get("chunks") or {}) + ([PUBLISH] if task.get("publish") else [])
         for step in steps:
             recorded = state.read_state(task, step)
             job = recorded.get("job") or ""
@@ -351,7 +351,7 @@ def shard_progress(state: "BuildState", task: dict, alive=None, submitted=None) 
         for job, steps in (task.get("jobs") or {}).items()
         for step in steps
     }
-    steps = list(task["chunks"]) + ([MERGE] if task.get("merge") else [])
+    steps = list(task["chunks"]) + ([PUBLISH] if task.get("publish") else [])
     p = ShardProgress(task["shard"], PENDING, 0, len(steps))
     starts, ends = [], []
     for step in steps:
@@ -383,9 +383,9 @@ def shard_progress(state: "BuildState", task: dict, alive=None, submitted=None) 
 
 
 def short_step(step: str) -> str:
-    """``chunk5``, ``merge``, or ``run`` for a part built in one run."""
-    if step == MERGE:
-        return MERGE
+    """``chunk5``, ``publish``, or ``run`` for a part built in one run."""
+    if step == PUBLISH:
+        return PUBLISH
     m = _CHUNK.search(step)
     return m.group(0) if m else "run"
 

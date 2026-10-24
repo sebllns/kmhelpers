@@ -14,7 +14,7 @@ from pykmhelpers.pipeline.index_ops.executor import IndexExecutor, validate_defi
 from pykmhelpers.pipeline.index_ops.layout import LayoutStore
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths, check_index_name
 from pykmhelpers.pipeline.index_ops.plan_file import (
-    MERGE,
+    PUBLISH,
     job_names,
     new_plan,
     write_plan,
@@ -141,7 +141,7 @@ class IndexOps:
         """Write the scripts of the last ``run()`` and ``plan.yaml``; return its path.
 
         Under ``assets/<session>/``, one directory per task (``<shard>/``):
-        one script per kmtricks run, ``merge.sh`` (publication and cleanup),
+        one script per kmtricks run, ``publish.sh`` (publication and cleanup),
         their sample lists and merge inputs. With ``cluster`` (a loaded
         ``--cluster`` file), also ``slurm/``: the files submitting the jobs,
         mailing ``notify`` at ``notify_level`` (``global`` or ``shard``).
@@ -163,10 +163,10 @@ class IndexOps:
         groups = set(self._script.groups)
         per_job = self.config.chunks_per_job
         for task in self._tasks.values():
-            has_merge = ScriptRecorder.merge_group(task["dir"]) in groups
-            if not has_merge:
-                task.pop("merge", None)
-            task["jobs"] = job_names(task["shard"], list(task["chunks"]), has_merge, per_job)
+            has_publish = ScriptRecorder.publish_group(task["dir"]) in groups
+            if not has_publish:
+                task.pop("publish", None)
+            task["jobs"] = job_names(task["shard"], list(task["chunks"]), has_publish, per_job)
         options = {
             "limits": self._limits,
             "chunks_per_job": per_job,
@@ -213,7 +213,7 @@ class IndexOps:
             mode: ``PLAN``, or ``DRY_RUN`` to skip the sample file checks.
             report_path: Where to write the YAML report, updated as the run
                 goes (after each definition and each publish) and at the end.
-            fail_on_error: Abort this run on the first build or merge error
+            fail_on_error: Abort this run on the first build or publish error
                 instead of continuing and returning ``PARTIAL``.
 
         Returns:
@@ -312,7 +312,7 @@ class IndexOps:
             except Exception as e:
                 msg = f"Failed to plan the publication of '{target}'"
                 if target in executor.publish_details:
-                    report.record_merge(target, executor.publish_details[target])
+                    report.record_publish(target, executor.publish_details[target])
                 if report.fail(e, msg, target, fail_on_error):
                     return samples
             report.dump()
@@ -470,11 +470,11 @@ class IndexOps:
                 f"Cannot publish '{target}': {summarize_names(failed)} failed to plan"
             )
             if parts != [target]:
-                report.fold_merge(target, parts)
+                report.fold_publish(target, parts)
             return
 
         registered = executor.has_index(target)
-        # What the merge script assumes of the registry; checked by apply
+        # What the publish script assumes of the registry; checked by apply
         expects = {
             "registered": registered,
             "samples": len(executor.index_samples(target)) if registered else 0,
@@ -509,19 +509,19 @@ class IndexOps:
         details = dict(executor.publish_details.get(target, {}))
         if details:
             task_dir = executor.task_dir
-            details["merge_script"] = os.path.join(
-                self._paths.task(task_dir), f"{MERGE}.sh"
+            details["publish_script"] = os.path.join(
+                self._paths.task(task_dir), f"{PUBLISH}.sh"
             )
-            report.record_merge(target, details)
+            report.record_publish(target, details)
             part = next((p for p in parts if p in self._tasks), parts[0])
             task = self._tasks.setdefault(
                 part,
                 {"shard": target, "dir": task_dir, "samples": 0, "chunks": {}},
             )
             publish = details.get("publish", {})
-            task["merge"] = {"script": f"{MERGE}.sh", "expects": expects, **publish}
+            task["publish"] = {"script": f"{PUBLISH}.sh", "expects": expects, **publish}
         if parts != [target]:
-            report.fold_merge(target, parts)
+            report.fold_publish(target, parts)
 
 
 def _task_entry(task: dict) -> dict:

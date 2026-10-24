@@ -520,11 +520,11 @@ class TestInterruptedPublish(UpdateSessionBase):
                 # plan the update, build its runs, then stop the swap after `stop`
                 self.run_cli("plan", upd_session, "-o", name)
                 scripts = build / "assets" / "upd" / target
-                merge_script = scripts / "merge.sh"
+                publish_script = scripts / "publish.sh"
                 for run in sorted(scripts.glob("*.sh")):
-                    if run != merge_script:
+                    if run != publish_script:
                         self.bash(run)
-                lines = merge_script.read_text().splitlines()
+                lines = publish_script.read_text().splitlines()
                 publish = next(ln for ln in lines if ln.startswith("flock "))
                 swap = shlex.split(publish)[3].split(" && ")
                 self.assertEqual(len(swap), 4, swap)
@@ -538,7 +538,7 @@ class TestInterruptedPublish(UpdateSessionBase):
                 self.assertEqual((build / target).exists(), stop != 2)
 
                 if rerun == "script":
-                    self.bash(merge_script)
+                    self.bash(publish_script)
                 else:
                     self.run_cli("apply", upd_session, "-o", name)
 
@@ -603,15 +603,15 @@ class TestStepByStepDesignAndBuild(PipelineE2EBase):
         # and checked before anything is deleted; plan touches no registry
         task_dirs = [scripts / t["dir"] for t in plan["tasks"].values()]
         builds = "".join(
-            p.read_text() for d in task_dirs for p in d.glob("*.sh") if p.name != "merge.sh"
+            p.read_text() for d in task_dirs for p in d.glob("*.sh") if p.name != "publish.sh"
         )
-        merges = "".join((d / "merge.sh").read_text() for d in task_dirs)
+        publishes = "".join((d / "publish.sh").read_text() for d in task_dirs)
         self.assertIn("kmtricks pipeline", builds)
         self.assertIn("${WORKDIR}/work/initial/runs/", builds)
         self.assertNotIn("kmindex build", builds)
-        self.assertIn("flock", merges)
-        self.assertIn("manage move-dir", merges)
-        self.assertLess(merges.index("check --shard"), merges.index("cleanup"))
+        self.assertIn("flock", publishes)
+        self.assertIn("manage move-dir", publishes)
+        self.assertLess(publishes.index("check --shard"), publishes.index("cleanup"))
         registry = json.loads((self.tmp / "build2" / "index.json").read_text())
         self.assertEqual(registry["index"], {}, "plan registered something")
         # the written scripts build the index on their own: runs, then merge
@@ -619,7 +619,7 @@ class TestStepByStepDesignAndBuild(PipelineE2EBase):
         env["PATH"] = os.path.dirname(sys.executable) + os.pathsep + env["PATH"]
         for task in plan["tasks"].values():
             directory = scripts / task["dir"]
-            for script in [f"{r}.sh" for r in task["chunks"]] + ["merge.sh"]:
+            for script in [f"{r}.sh" for r in task["chunks"]] + ["publish.sh"]:
                 proc = subprocess.run(
                     ["bash", str(directory / script)],
                     capture_output=True,
@@ -797,7 +797,7 @@ class TestShardedBuild(PipelineE2EBase):
         self.assertEqual(sorted(p.name for p in assets.iterdir() if p.is_dir()), sorted(shards))
         for shard in shards:
             scripts = sorted(p.name for p in (assets / shard).glob("*.sh"))
-            self.assertEqual(scripts, sorted([f"{shard}_initial.sh", "merge.sh"]))
+            self.assertEqual(scripts, sorted([f"{shard}_initial.sh", "publish.sh"]))
         self.assertFalse(list(assets.glob("*.sh")), "scripts outside the shard dirs")
 
         # samples stay queryable through their shard
@@ -880,7 +880,7 @@ class TestChunkedBuild(PipelineE2EBase):
 
         # one script per chunk, and the merge in its own script
         task = build / "assets" / "initial" / name
-        text = (task / "merge.sh").read_text()
+        text = (task / "publish.sh").read_text()
         self.assertIn("incomplete run", text)
         self.assertIn("kmindex register --global-index", text)
         self.assertIn("--from-file", text)
@@ -907,7 +907,7 @@ class TestChunkedBuild(PipelineE2EBase):
         self.chunked_apply('{"files": 5}')
         self.assert_merged_and_clean()
 
-    def test_jobs_build_chunks_then_merge(self):
+    def test_jobs_build_chunks_then_publish(self):
         """--chunks-per-job splits the chunks into jobs; the merge waits for them."""
         session_file = self.design()
         self.run_cli(
@@ -916,9 +916,9 @@ class TestChunkedBuild(PipelineE2EBase):
         )
         pending = self.run_cli("apply", session_file, "-o", "build", "--pending")
         jobs = pending.stdout.split()
-        self.assertTrue(jobs[-1].endswith("_merge"), jobs)
-        merge_job = jobs[-1]
-        shard = merge_job[: -len("_merge")]
+        self.assertTrue(jobs[-1].endswith("_publish"), jobs)
+        publish_job = jobs[-1]
+        shard = publish_job[: -len("_publish")]
         self.assertEqual(jobs[0], f"{shard}_j0")
         self.assertGreater(len(jobs), 2, jobs)
 
@@ -932,7 +932,7 @@ class TestChunkedBuild(PipelineE2EBase):
 
         # the merge refuses to run before every chunk is built
         early = self.run_cli(
-            "apply", session_file, "-o", "build", "--task", merge_job,
+            "apply", session_file, "-o", "build", "--task", publish_job,
             expect_success=False,
         )
         self.assertIn("runs not built", early.stdout + early.stderr)
@@ -951,7 +951,7 @@ class TestChunkedBuild(PipelineE2EBase):
             "--chunks-per-job", "1",
         )
         jobs = self.run_cli("apply", session_file, "-o", "build", "--pending").stdout.split()
-        shard = jobs[-1][: -len("_merge")]
+        shard = jobs[-1][: -len("_publish")]
         task_dir = self.tmp / "build" / "assets" / "initial" / shard
         chunk1 = next(task_dir.glob("*_chunk1.sh"))
         chunk1.write_text(chunk1.read_text().replace(
@@ -968,7 +968,7 @@ class TestChunkedBuild(PipelineE2EBase):
         self.assertTrue(status.startswith("FAILED: 0/1 shard(s) done, 1 failed"), status)
         self.assertIn("_chunk0: SUCCESS", lines[f"{chunk1.stem[:-1]}0"])
         self.assertIn("exit 4): simulated failure", lines[chunk1.stem])
-        self.assertIn("merge: PENDING", lines["merge"])
+        self.assertIn("publish: PENDING", lines["publish"])
         progress = yaml.safe_load((task_dir.parent / "progress.yaml").read_text())
         self.assertEqual(progress["summary"]["failed"], 1)
         state = json.loads((task_dir / "state" / f"{chunk1.stem}.json").read_text())
@@ -1011,7 +1011,7 @@ class TestChunkedBuild(PipelineE2EBase):
         cluster = self.tmp / "cluster.yaml"
         cluster.write_text(yaml.safe_dump({
             "type": "slurm", "partition": "compute",
-            "jobs": {"build": {"cpus": 2, "mem": "4G"}, "merge": {"cpus": 2, "mem": "4G"}},
+            "jobs": {"build": {"cpus": 2, "mem": "4G"}, "publish": {"cpus": 2, "mem": "4G"}},
             "limits": {"files": 5},
         }))
         env = dict(os.environ, PATH=f"{fake}{os.pathsep}{os.environ['PATH']}")
@@ -1021,7 +1021,7 @@ class TestChunkedBuild(PipelineE2EBase):
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         calls = (fake / "calls").read_text().splitlines()
         self.assertTrue(calls[0].startswith("--parsable --array=0-"), calls)
-        self.assertIn("merge.sbatch", calls[-2])
+        self.assertIn("publish.sbatch", calls[-2])
         self.assertIn("--dependency=afterany:", calls[-1])
         self.assertIn("finish.sbatch", calls[-1])
         self.assertFalse((self.tmp / "build" / "index.json").exists() and json.loads(

@@ -3,7 +3,7 @@ import os
 
 logger = logging.getLogger(__name__)
 
-MERGE_SCRIPT = "merge"
+PUBLISH_SCRIPT = "publish"
 
 
 def _echo(msg: str) -> str:
@@ -11,11 +11,11 @@ def _echo(msg: str) -> str:
 
 
 class ScriptRecorder:
-    """Collects build/merge commands into replayable shell scripts.
+    """Collects build/publish commands into replayable shell scripts.
 
     Commands are grouped per script, named ``<task dir>/<name>``: one script
-    per kmtricks run (``<dir>/<run>.sh``) and one for the merge of the task
-    (``<dir>/merge.sh``, see ``merge_group``). ``write`` emits one script per
+    per kmtricks run (``<dir>/<run>.sh``) and one to publish the task
+    (``<dir>/publish.sh``, see ``publish_group``). ``write`` emits one script per
     group under the session's assets folder.
     """
 
@@ -35,13 +35,13 @@ class ScriptRecorder:
         return list(self._groups)
 
     @staticmethod
-    def merge_group(task_dir: str) -> str:
-        """Script holding the merge of the task written to ``task_dir``.
+    def publish_group(task_dir: str) -> str:
+        """Script publishing the task written to ``task_dir``.
 
-        The merge has its own script, run after the builds of the task, so
+        Publishing has its own script, run after the builds of the task, so
         that it can wait for builds done elsewhere (e.g. a SLURM array).
         """
-        return f"{task_dir}/{MERGE_SCRIPT}"
+        return f"{task_dir}/{PUBLISH_SCRIPT}"
 
     def select(self, name: str) -> None:
         """Make ``name`` the script receiving the next commands."""
@@ -69,7 +69,7 @@ class ScriptRecorder:
 
     def _write_file(self, path: str, lines: list[str]) -> None:
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        # Stop at the first failure, so cleanup only runs after a successful merge
+        # Stop at the first failure, so cleanup only runs after a successful publish
         header = [
             "#!/usr/bin/env bash",
             "set -euo pipefail",

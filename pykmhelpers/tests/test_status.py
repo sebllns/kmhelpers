@@ -15,7 +15,7 @@ import yaml
 
 from pykmhelpers.cli.notify import ExitNotifier
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths
-from pykmhelpers.pipeline.index_ops.plan_file import MERGE
+from pykmhelpers.pipeline.index_ops.plan_file import PUBLISH
 from pykmhelpers.pipeline.index_ops.progress import ShardDisplay
 from pykmhelpers.pipeline.index_ops.status import (
     CANCELLED,
@@ -48,11 +48,11 @@ class StatusCase(unittest.TestCase):
             "dir": "idx_g0/",
             "partitions": PARTITIONS,
             "chunks": {"idx_g0_s1_chunk0": {"samples": 1}, "idx_g0_s1_chunk1": {"samples": 1}},
-            "merge": {"script": "merge.sh"},
+            "publish": {"script": "publish.sh"},
             "jobs": {
                 "idx_g0_j0": ["idx_g0_s1_chunk0"],
                 "idx_g0_j1": ["idx_g0_s1_chunk1"],
-                "idx_g0_merge": [MERGE],
+                "idx_g0_publish": [PUBLISH],
             },
         }
         self.plan = {"tasks": {"idx_g0_s1": self.task}}
@@ -93,11 +93,11 @@ class TestStepStatus(StatusCase):
         self.state.write_state(self.task, "idx_g0_s1_chunk0", FAILED, error="old")
         self.complete_run("idx_g0_s1_chunk0")
         self.assertEqual(self.status("idx_g0_s1_chunk0")[0], SUCCESS)
-        self.assertEqual(self.status(MERGE)[0], PENDING)
+        self.assertEqual(self.status(PUBLISH)[0], PENDING)
 
     def test_published_task_is_success(self):
         self.publish(["s0", "s1"])
-        self.assertEqual(self.status(MERGE)[0], SUCCESS)
+        self.assertEqual(self.status(PUBLISH)[0], SUCCESS)
         self.assertEqual(self.status("idx_g0_s1_chunk1")[0], SUCCESS)
 
     def test_failed_and_cancelled(self):
@@ -106,8 +106,8 @@ class TestStepStatus(StatusCase):
         status, detail = self.status("idx_g0_s1_chunk0")
         self.assertEqual(status, FAILED)
         self.assertEqual(detail, "log: logs/idx_g0/idx_g0_s1_chunk0.log, exit 3")
-        self.state.write_state(self.task, MERGE, CANCELLED, error="SIGTERM")
-        self.assertEqual(self.status(MERGE), (CANCELLED, "SIGTERM"))
+        self.state.write_state(self.task, PUBLISH, CANCELLED, error="SIGTERM")
+        self.assertEqual(self.status(PUBLISH), (CANCELLED, "SIGTERM"))
 
     def test_running_then_lost(self):
         with mock.patch.dict(os.environ, {"SLURM_ARRAY_JOB_ID": "18", "SLURM_ARRAY_TASK_ID": "1"}):
@@ -127,13 +127,13 @@ class TestProgress(StatusCase):
         self.state.write_state(self.task, "idx_g0_s1_chunk1", FAILED, error="boom")
         sub = Path(self.paths.assets) / "slurm"
         sub.mkdir(parents=True)
-        (sub / "submitted.tsv").write_text("idx_g0_merge\t17\nidx_g0_merge\t19\n")
+        (sub / "submitted.tsv").write_text("idx_g0_publish\t17\nidx_g0_publish\t19\n")
 
         tree = self.state.write_progress()
         steps = tree["shards"]["idx_g0"]
         self.assertEqual(steps["idx_g0_s1_chunk0"], SUCCESS)
         self.assertEqual(steps["idx_g0_s1_chunk1"], "FAILED (boom)")
-        self.assertEqual(steps[MERGE], "PENDING (job 19)")  # the last submission
+        self.assertEqual(steps[PUBLISH], "PENDING (job 19)")  # the last submission
         self.assertEqual(tree["summary"]["failed"], 1)
         self.assertEqual(overall(tree), FAILED)
         on_disk = yaml.safe_load((Path(self.paths.assets) / "progress.yaml").read_text())
@@ -141,7 +141,7 @@ class TestProgress(StatusCase):
 
         text = render(tree)
         self.assertTrue(text.startswith("FAILED: 0/1 shard(s) done, 1 failed"))
-        self.assertIn("  merge: PENDING (job 19)", text)
+        self.assertIn("  publish: PENDING (job 19)", text)
         self.assertNotIn("idx_g0", render(tree, ["other"]).split("\n", 1)[-1])
 
     def test_done(self):
@@ -178,10 +178,10 @@ class TestShardLine(StatusCase):
         self.assertIn("(10m0s)", line)
         self.assertIn("5 running: chunk2 (9m0s), chunk1 (5m0s), chunk3 (4m0s), ...", line)
 
-    def test_line_merge_success_failure(self):
+    def test_line_publish_success_failure(self):
         now = datetime(2026, 1, 1, 12, 0, 0)
-        merging = ShardProgress("g", RUNNING, 10, 11, [("merge", now - timedelta(seconds=184))])
-        self.assertTrue(shard_line(merging, 1, now).endswith("merge (3m4s)"))
+        publishing = ShardProgress("g", RUNNING, 10, 11, [("publish", now - timedelta(seconds=184))])
+        self.assertTrue(shard_line(publishing, 1, now).endswith("publish (3m4s)"))
         done = ShardProgress("g", SUCCESS, 2, 2, started=now - timedelta(hours=1, minutes=2),
                              finished=now)
         self.assertIn("✔ g  [■■■■■■■■■■■■] 2/2", shard_line(done, 1, now))
@@ -196,7 +196,7 @@ class TestShardLine(StatusCase):
 
     def test_short_step(self):
         self.assertEqual(short_step("idx_g0_s1_chunk12"), "chunk12")
-        self.assertEqual(short_step("merge"), "merge")
+        self.assertEqual(short_step("publish"), "publish")
         self.assertEqual(short_step("idx_g0_s1"), "run")
         self.assertEqual((duration(52), duration(483), duration(3725)), ("52s", "8m3s", "1h02m"))
 

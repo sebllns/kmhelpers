@@ -1,4 +1,4 @@
-"""Run the plan written by `plan`: build, merge and register the indices."""
+"""Run the plan written by `plan`: build and publish the indices."""
 
 import logging
 import os
@@ -130,7 +130,7 @@ def apply(
     notify_final,
     fail_on_error,
 ):
-    """Run the plan of a definition file: build, merge and register the indices.
+    """Run the plan of a definition file: build and publish the indices.
 
     \b
     Input:  the INPUT and BUILD_DIR (-o) given to `plan`, which wrote
@@ -150,9 +150,9 @@ def apply(
     kmhelpers apply coli_db -o coli_build
 
     \b
-    # Run one job (e.g. a SLURM array task), then the merge of its shard
+    # Run one job (e.g. a SLURM array task), then the publish job of its shard
     kmhelpers apply coli_db -o coli_build --task coli_g0_j3
-    kmhelpers apply coli_db -o coli_build --task coli_g0_merge
+    kmhelpers apply coli_db -o coli_build --task coli_g0_publish
 
     \b
     # List the jobs not done yet, or where every shard and step stands

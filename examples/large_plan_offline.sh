@@ -55,7 +55,7 @@ kmhelpers plan db \
 # 4. What plan produced
 echo
 echo "Shards: $(ls -d build/assets/initial/*/ | wc -l)"
-echo "kmtricks runs: $(ls build/assets/initial/*/*.sh | grep -vc '/merge.sh$')"
-echo "kmindex merge commands: $(grep -ho 'kmindex merge' build/assets/initial/*/merge.sh | wc -l)"
+echo "kmtricks runs: $(ls build/assets/initial/*/*.sh | grep -vc '/publish.sh$')"
+echo "kmindex merge commands: $(grep -ho 'kmindex merge' build/assets/initial/*/publish.sh | wc -l)"
 echo "Plan: build/assets/initial/plan.yaml (run it with: kmhelpers apply db -o build/)"
 echo "Plan report: $(ls build/logs/kmhelpers_plan_*.yaml)"

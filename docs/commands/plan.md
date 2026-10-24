@@ -27,7 +27,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 |--------|-------------|
 | `--bp, --base-path DIR` | Base path to resolve relative sample paths |
 | `--sh, --shard TEXT` | Shards to plan, as names or glob patterns (repeatable or comma-separated, e.g. `idx_g0_p1`, `'idx_g0_*'`); a part name (`<shard>_<session>`) plans that part as its own index |
-| `--cpj, --chunks-per-job INT` | Chunks of a shard one job builds: 0 (default) for one job per shard, its chunks then its merge; else jobs `<shard>_j<k>` of up to N chunks, then a job `<shard>_merge` (see [Jobs](#jobs)) |
+| `--cpj, --chunks-per-job INT` | Chunks of a shard one job builds: 0 (default) for one job per shard, its chunks then its publish step; else jobs `<shard>_j<k>` of up to N chunks, then a job `<shard>_publish` (see [Jobs](#jobs)) |
 | `--replan` | Plan again a session that already has a plan: its folder `BUILD_DIR/assets/SESSION/` is removed first (the indexes, built runs and logs stay); refused while its jobs run |
 | `--hpc, --cluster FILE` | YAML file of the scheduler and the resources of each kind of job: sizes the plan from them (instead of `--limits`) and writes the SLURM files (see [Cluster](#cluster)) |
 | `--threads INT` | Hidden. Force the number of kmtricks threads instead of sizing them from `--limits` |
@@ -50,8 +50,8 @@ BUILD_DIR/assets/SESSION/
   slurm/                        with --cluster
   <shard>/
     <part>.sh, <part>.fof       one script per kmtricks run (or <part>_chunk<N>.sh)
-    merge.sh                    the merge of the shard: check, merge, publish, check, clean
-    merge/                      the run list and the inputs of each merge step
+    publish.sh                  publishes the shard: check, merge or move, swap, check, clean
+    publish/                    the run list and the inputs of each merge step
 ```
 
 A session is planned once: `plan` refuses a session that already has a plan (run it with `apply`), unless `--replan`, which removes `BUILD_DIR/assets/SESSION/` first and plans it as new. Both refuse while jobs of the current plan are still queued or running: follow them with `apply --status --sp`, or cancel them first. Every script can be run again after an interruption: a run script does nothing when its samples are already published or its run is complete, and deletes and rebuilds an incomplete run.
@@ -73,8 +73,8 @@ tasks:
     minim_size: 10
     threads: 24
     chunks: {idx_g0_initial_chunk0: {samples: 64}, ...}
-    merge:
-      script: merge.sh
+    publish:
+      script: publish.sh
       expects: {registered: false, samples: 0}   # the registry as plan saw it
       mode: merge             # move: a single run and no current version
       max_inputs: 4
@@ -82,7 +82,7 @@ tasks:
     jobs:
       idx_g0_j0: [idx_g0_initial_chunk0, idx_g0_initial_chunk1, idx_g0_initial_chunk2]
       ...
-      idx_g0_merge: [merge]
+      idx_g0_publish: [publish]
 ```
 
 The **fingerprint** holds the input files the plan was made from: the definition, its shard files, `layout.yaml`, the sample lists and the `--cluster` file. `apply` refuses the plan when one of them changed, or when it was made by another kmhelpers version.
@@ -95,7 +95,7 @@ The **fingerprint** holds the input files the plan was made from: the definition
 
 ### Jobs
 
-A job is what `apply --task <job>` and a SLURM array task run. With `--chunks-per-job 0` (default), a shard is one job, named after it: its chunks one after the other, then its merge. With `--chunks-per-job N`, a shard of more than N chunks gets `ceil(chunks / N)` jobs `<shard>_j<k>` of up to N chunks, which can run at the same time on several nodes, then `<shard>_merge`, which runs once they are all done.
+A job is what `apply --task <job>` and a SLURM array task run. With `--chunks-per-job 0` (default), a shard is one job, named after it: its chunks one after the other, then its publish step. With `--chunks-per-job N`, a shard of more than N chunks gets `ceil(chunks / N)` jobs `<shard>_j<k>` of up to N chunks, which can run at the same time on several nodes, then `<shard>_publish`, which runs once they are all done.
 
 ### Cluster
 
@@ -113,13 +113,13 @@ setup: |                        # run before kmhelpers in every job
 extra: []                       # other sbatch options, as is
 jobs:                           # resources per kind of job
   build: {cpus: 24, mem: 120G}
-  merge: {cpus: 24, mem: 120G}
+  publish: {cpus: 24, mem: 120G}
   check: {cpus: 1, mem: 4G, time: "1:00:00"}
 limits: {files: 131072, maps: 65530}   # optional, see below
 ```
 
 - Keys under `jobs.<kind>` (`partition`, `time`, `exclude`, `account`, `qos`, `constraint`, `cpus`, `mem`, `extra`) override the top-level ones for that kind of job. Unknown keys are an error.
-- Chunks are sized from `jobs.build` (threads = `cpus`, RAM = `mem` x `--safety-margin`), merges from `jobs.merge`. `--limits` with `--cluster` is an error.
+- Chunks are sized from `jobs.build` (threads = `cpus`, RAM = `mem` x `--safety-margin`), merges from `jobs.publish`. `--limits` with `--cluster` is an error.
 - `limits.files` and `limits.maps` are node settings, not part of an allocation: without them, they are detected on the node `plan` runs on. Set them when the compute nodes differ: `files` is the **hard** open-files limit (`ulimit -Hn`; kmhelpers and its scripts raise the soft limit to it), `maps` is `vm.max_map_count`. Read them on a compute node with `srun -p <partition> -c 1 --mem=1G -t 5 bash -c 'ulimit -Hn; cat /proc/sys/vm/max_map_count'`.
 
 `plan` writes `BUILD_DIR/assets/SESSION/slurm/`:
@@ -128,12 +128,12 @@ limits: {files: 131072, maps: 65530}   # optional, see below
 |------|------|
 | `jobs.txt` | the build jobs, one per line |
 | `build.sbatch` | an array task: one build job (`apply --task`) |
-| `merge.sbatch` | one merge job (`apply --task <shard>_merge`) |
+| `publish.sbatch` | one publish job (`apply --task <shard>_publish`) |
 | `finish.sbatch` | after every job (`afterany`): `manage check` of the registry when nothing is pending, then `apply --status` (writes `progress.yaml`, mails it with `build --notify`); fails when the build is not done |
-| `submit.sh` | submits the jobs `apply --pending` lists: the build array (`%max_parallel`, split at the cluster `MaxArraySize`), each merge job after the array tasks of its own shard, then the finish job. Safe to run again: only what is not done is submitted, never a job still queued or running; a finish job still pending is kept, or replaced when new jobs are submitted |
+| `submit.sh` | submits the jobs `apply --pending` lists: the build array (`%max_parallel`, split at the cluster `MaxArraySize`), each publish job after the array tasks of its own shard, then the finish job. Safe to run again: only what is not done is submitted, never a job still queued or running; a finish job still pending is kept, or replaced when new jobs are submitted |
 | `submitted.tsv` | written by `submit.sh`: each job of the plan and its SLURM id, read by `apply --status` |
 
-Merge and finish jobs are cancelled when a job they wait on fails (`--kill-on-invalid-dep=yes`): nothing stays pending forever, and the finish job reports the failure. [`build --hpc`](build.md#on-a-cluster) plans and submits in one command, and takes `--notify`.
+Publish and finish jobs are cancelled when a job they wait on fails (`--kill-on-invalid-dep=yes`): nothing stays pending forever, and the finish job reports the failure. [`build --hpc`](build.md#on-a-cluster) plans and submits in one command, and takes `--notify`.
 
 ## Examples
 

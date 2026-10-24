@@ -103,7 +103,7 @@ This typical lifecycle breaks down into four steps, shown below:
 
 ## Performance
 
-Most `kmhelpers` commands (`design`, `plan`, `query`, `compose`, ...) complete in a few seconds, since they mainly manipulate metadata and small files. The exception is **`build`** (and the underlying `apply` build/merge steps): actual k-mer counting and Bloom-filter construction are CPU- and I/O-bound, so runtime scales with sample count and data size - expect build/merge steps to take anywhere from seconds to hours depending on dataset size, `--threads`, and storage speed.
+Most `kmhelpers` commands (`design`, `plan`, `query`, `compose`, ...) complete in a few seconds, since they mainly manipulate metadata and small files. The exception is **`build`** (and the underlying `apply` build/publish steps): actual k-mer counting and Bloom-filter construction are CPU- and I/O-bound, so runtime scales with sample count and data size - expect build/publish steps to take anywhere from seconds to hours depending on dataset size, `--threads`, and storage speed.
 
 ## Quick links
 

@@ -11,11 +11,11 @@ name::
         dir: <shard>/                 scripts and fofs, under assets/<session>/
         samples, partitions, minim_size, threads, ...
         chunks: {<run>: {samples: n}} kmtricks runs, <dir>/<run>.sh
-        merge: {script: merge.sh, expects, mode, steps, ...}
-        jobs: {<job>: [<run>..., merge]}
+        publish: {script: publish.sh, expects, mode, steps, ...}
+        jobs: {<job>: [<run>..., publish]}
 
 A **job** is what ``apply --task <job>`` and a SLURM array task run: some chunks of
-one task, or its merge (``MERGE``).
+one task, or its publish step (``PUBLISH``).
 """
 
 import hashlib
@@ -32,23 +32,23 @@ import pykmhelpers
 logger = logging.getLogger(__name__)
 
 PLAN_TYPE = "plan"
-MERGE = "merge"
+PUBLISH = "publish"
 
 
-def job_names(shard: str, chunks: list[str], has_merge: bool, per_job: int) -> dict:
-    """Jobs of one task: ``{job: [runs..., MERGE]}``.
+def job_names(shard: str, chunks: list[str], has_publish: bool, per_job: int) -> dict:
+    """Jobs of one task: ``{job: [runs..., PUBLISH]}``.
 
     ``per_job`` 0 (or at least the chunk count): one job ``<shard>``, its
-    chunks then its merge. Else ``<shard>_j<k>`` jobs of up to ``per_job``
-    chunks, then ``<shard>_merge``, run after all of them.
+    chunks then its publish step. Else ``<shard>_j<k>`` jobs of up to ``per_job``
+    chunks, then ``<shard>_publish``, run after all of them.
     """
     if per_job <= 0 or len(chunks) <= per_job:
-        return {shard: list(chunks) + ([MERGE] if has_merge else [])}
+        return {shard: list(chunks) + ([PUBLISH] if has_publish else [])}
     jobs: dict[str, list[str]] = {}
     for k in range(math.ceil(len(chunks) / per_job)):
         jobs[f"{shard}_j{k}"] = list(chunks[k * per_job : (k + 1) * per_job])
-    if has_merge:
-        jobs[f"{shard}_merge"] = [MERGE]
+    if has_publish:
+        jobs[f"{shard}_publish"] = [PUBLISH]
     return jobs
 
 

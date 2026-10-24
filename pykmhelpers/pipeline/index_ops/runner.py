@@ -7,8 +7,8 @@ is checked before it runs, so a job can be run again after an interruption:
 - a task is **done** when its shard is registered and holds every sample of
   its chunks;
 - a chunk is done when its task is, or when its kmtricks run is complete;
-- before a merge, the registry must still be as ``plan`` saw it (``expects``),
-  or as the merge itself leaves it when it was interrupted.
+- before publishing, the registry must still be as ``plan`` saw it (``expects``),
+  or as the publish step itself leaves it when it was interrupted.
 
 Each step it runs is recorded in a state file, and ``progress.yaml`` is
 rewritten after each one (see ``status``).
@@ -26,7 +26,7 @@ from pykmhelpers.core.kmindex_paths import chunk_problems
 from pykmhelpers.core.utils import matches_any, select_matching
 from pykmhelpers.core.wrapper import Wrapper
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths
-from pykmhelpers.pipeline.index_ops.plan_file import MERGE, check_fresh, load_plan
+from pykmhelpers.pipeline.index_ops.plan_file import PUBLISH, check_fresh, load_plan
 from pykmhelpers.pipeline.index_ops.progress import ShardDisplay
 from pykmhelpers.pipeline.index_ops.report import RunReport, dir_bytes
 from pykmhelpers.pipeline.index_ops.run_log import parse_kmtricks_log
@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 class Job:
     name: str
     task: str  # part name, key of plan["tasks"]
-    steps: tuple[str, ...]  # run names, and MERGE
+    steps: tuple[str, ...]  # run names, and PUBLISH
 
 
 class PlanRunner:
@@ -79,9 +79,9 @@ class PlanRunner:
         """Jobs of the plan, in order: every job, or those matching ``patterns``.
 
         A job is selected when a glob pattern matches its name (``<shard>``,
-        ``<shard>_j<k>``, ``<shard>_merge``), its task (``<shard>_<session>``)
+        ``<shard>_j<k>``, ``<shard>_publish``), its task (``<shard>_<session>``)
         or its shard: ``idx_g0`` selects every job of that shard,
-        ``'idx_g0_j*'`` its chunk jobs, ``'*_merge'`` every merge.
+        ``'idx_g0_j*'`` its chunk jobs, ``'*_publish'`` every publish job.
         """
         jobs = [
             Job(job, task, tuple(steps))
@@ -105,7 +105,7 @@ class PlanRunner:
         task = self._tasks[job.task]
         if self._task_done(task):
             return True
-        if MERGE in job.steps:
+        if PUBLISH in job.steps:
             return False
         return all(self._chunk_complete(task, run) for run in job.steps)
 
@@ -168,7 +168,7 @@ class PlanRunner:
         return report.result
 
     def _ends_task(self, job: Job) -> bool:
-        """``job`` is the last job of its task (its merge, or its only job)."""
+        """``job`` is the last job of its task (its publish job, or its only job)."""
         jobs = list(self._tasks[job.task].get("jobs") or {})
         return bool(jobs) and jobs[-1] == job.name
 
@@ -216,11 +216,11 @@ class PlanRunner:
         task = self._tasks[job.task]
         shard = task["shard"]
         runs: dict[str, dict] = {}
-        merged = False
+        published = False
         try:
             for step in job.steps:
-                if step == MERGE:
-                    merged = self._run_merge(report, job.task, task, show_progress)
+                if step == PUBLISH:
+                    published = self._run_publish(report, job.task, task, show_progress)
                 else:
                     runs[step] = self._run_chunk(task, step, show_progress)
         finally:
@@ -233,7 +233,7 @@ class PlanRunner:
                     {k: task.get(k) for k in ("partitions", "minim_size", "threads")},
                 )
         if report.result_of(shard) in (None, ApplyStatus.NONE.value):
-            built = merged or any(r["action"] == "built" for r in runs.values())
+            built = published or any(r["action"] == "built" for r in runs.values())
             report.record(shard, ApplyStatus.SUCCESS if built else ApplyStatus.NONE)
 
     def _run_chunk(self, task: dict, run: str, show_progress: bool) -> dict:
@@ -260,16 +260,16 @@ class PlanRunner:
             info["log"] = log
         return {**info, "action": "built"}
 
-    def _run_merge(
+    def _run_publish(
         self, report: RunReport, part: str, task: dict, show_progress: bool
     ) -> bool:
-        """Run the merge of ``task``; False when there was nothing to do."""
+        """Publish ``task``; False when there was nothing to do."""
         shard = task["shard"]
-        merge = task.get("merge") or {}
-        details = {k: v for k, v in merge.items() if k not in ("script", "expects")}
+        publish = task.get("publish") or {}
+        details = {k: v for k, v in publish.items() if k not in ("script", "expects")}
         if self._task_done(task):
             logger.info(f"  └── '{shard}' already holds the samples of '{part}'")
-            report.record_merge(shard, {"publish": {**details, "action": "done"}})
+            report.record_publish(shard, {"publish": {**details, "action": "done"}})
             return False
         missing = [r for r in task["chunks"] if not self._chunk_complete(task, r)]
         if missing:
@@ -277,24 +277,24 @@ class PlanRunner:
                 j for j, steps in task["jobs"].items() if set(steps) & set(missing)
             ]
             raise RuntimeError(
-                f"Cannot merge '{shard}': runs not built ({', '.join(missing)}); "
+                f"Cannot publish '{shard}': runs not built ({', '.join(missing)}); "
                 f"run job(s) {', '.join(jobs)} first"
             )
-        self._check_expects(shard, merge.get("expects") or {})
+        self._check_expects(shard, publish.get("expects") or {})
 
-        log = os.path.join(self._paths.task_logs(task["dir"].rstrip("/")), "merge.log")
+        log = os.path.join(self._paths.task_logs(task["dir"].rstrip("/")), "publish.log")
         logger.info(f"  └── Publishing '{shard}'...")
         start = time.monotonic()
 
-        def publish() -> None:
-            self._script(task, merge.get("script", f"{MERGE}.sh"), log, shard, show_progress)
+        def run_script() -> None:
+            self._script(task, publish.get("script", f"{PUBLISH}.sh"), log, shard, show_progress)
             if not self._task_done(task):
                 raise RuntimeError(f"'{shard}' does not hold the samples of '{part}'")
 
-        self._step(task, MERGE, log, publish)
+        self._step(task, PUBLISH, log, run_script)
         details["duration_s"] = round(time.monotonic() - start, 1)
         details["log"] = log
-        report.record_merge(
+        report.record_publish(
             shard, {"publish": details, "disk_bytes": dir_bytes(self._paths.shard(shard))}
         )
         report.record(shard, ApplyStatus.SUCCESS)
@@ -318,10 +318,10 @@ class PlanRunner:
     # STATE
 
     def _check_expects(self, shard: str, expects: dict) -> None:
-        """Refuse a registry changed since ``plan`` in a way this merge does not explain."""
+        """Refuse a registry changed since ``plan`` in a way this publish step does not explain."""
         registered = self._registered(shard)
         if not registered:
-            # new shard, or a swap of this merge interrupted after the unregister
+            # new shard, or a swap of this publish step interrupted after the unregister
             return
         if not expects.get("registered"):
             raise ValueError(
@@ -348,9 +348,9 @@ class PlanRunner:
 
 
 def describe(job: Job) -> str:
-    steps = [s for s in job.steps if s != MERGE]
+    steps = [s for s in job.steps if s != PUBLISH]
     parts = [f"{len(steps)} run(s)"] if steps else []
-    if MERGE in job.steps:
-        parts.append("merge")
+    if PUBLISH in job.steps:
+        parts.append("publish")
     return f"{job.name}: {' + '.join(parts) or 'nothing'}"
 

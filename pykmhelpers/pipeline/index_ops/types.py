@@ -104,8 +104,8 @@ class IndexOpsConfig:
             ``False``.
         chunks_per_job: Chunks of a task one job runs (``plan.yaml`` jobs).
             ``0`` (default): one job per task, its chunks then its merge.
-        merge_limits: JSON line of the resources of a merge job, when they
-            differ from ``limits`` (``--cluster`` ``jobs.merge``). ``None``:
+        publish_limits: JSON line of the resources of a merge job, when they
+            differ from ``limits`` (``--cluster`` ``jobs.publish``). ``None``:
             merges are sized from ``limits``.
     """
 
@@ -121,4 +121,4 @@ class IndexOpsConfig:
     chunk_budget: int = CHUNK_BUDGET
     keep_previous: bool = False
     chunks_per_job: int = 0
-    merge_limits: Optional[str] = None
+    publish_limits: Optional[str] = None
