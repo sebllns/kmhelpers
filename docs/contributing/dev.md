@@ -21,7 +21,10 @@ pykmhelpers/
   pipeline/     # Pipeline execution engine
 ```
 
-Each CLI command in `cli/` is a thin layer that delegates to `operations/` or `core/`.
+Each CLI command in `cli/` is a thin layer that delegates to `pipeline/` or `core/`.
+See the [architecture overview](../api/index.md#architecture) for how the
+packages depend on each other, and [index_ops](../api/pipeline/index_ops.md)
+for the build engine (including [adding a SLURM job kind](../api/pipeline/index_ops.md#adding-a-job-kind)).
 
 ## Running tests
 
