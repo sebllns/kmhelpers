@@ -627,6 +627,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -745,6 +749,62 @@
     
   
     Update an existing index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/ecoli_api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/ecoli_api_advanced/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API (advanced)
   
 
     
@@ -2185,6 +2245,8 @@
       
         
       
+        
+      
     
     
     
@@ -2359,6 +2421,34 @@
     
   
     query_report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipeline/sample_lister/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    sample_lister
   
 
     
@@ -2970,7 +3060,7 @@
 </table>
 <p><code>apply</code> takes no sizing option (<code>--limits</code>, <code>--chunk-budget</code>, ...): they are decisions of the plan.</p>
 <h2 id="description">Description</h2>
-<p><code>apply</code> loads the plan and refuses it when it is stale: an input file changed since <code>plan</code> (definition, shard files, <code>layout.yaml</code>, sample lists, <code>--cluster</code> file), or another kmhelpers version made it. Run <code>plan</code> again then.</p>
+<p><code>apply</code> loads the plan and refuses it when it is stale: an input file changed since <code>plan</code> (definition, shard files, sample lists, <code>--cluster</code> file; not <code>layout.yaml</code>, which <code>compose</code> and <code>apply</code> update), or another kmhelpers version made it. Run <code>plan</code> again then.</p>
 <p>Then it runs the selected jobs (all by default), in order. Each step is checked before it runs, so a job can be run again after an interruption, or by several processes in turn:</p>
 <ul>
 <li>a shard is <strong>done</strong> when it is registered and holds every sample of the plan's chunks: its jobs do nothing;</li>

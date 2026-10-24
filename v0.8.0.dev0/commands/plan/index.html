@@ -627,6 +627,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -745,6 +749,62 @@
     
   
     Update an existing index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/ecoli_api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/ecoli_api_advanced/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API (advanced)
   
 
     
@@ -2163,6 +2223,8 @@
       
         
       
+        
+      
     
     
     
@@ -2337,6 +2399,34 @@
     
   
     query_report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipeline/sample_lister/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    sample_lister
   
 
     
@@ -2985,7 +3075,7 @@
 <a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">...</span>
 <a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a><span class="w">      </span><span class="nt">idx_g0_publish</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">publish</span><span class="p p-Indicator">]</span>
 </code></pre></div>
-<p>The <strong>fingerprint</strong> holds the input files the plan was made from: the definition, its shard files, <code>layout.yaml</code>, the sample lists and the <code>--cluster</code> file. <code>apply</code> refuses the plan when one of them changed, or when it was made by another kmhelpers version.</p>
+<p>The <strong>fingerprint</strong> holds the input files the plan was made from: the definition, its shard files, the sample lists and the <code>--cluster</code> file. <code>layout.yaml</code> is not part of it: each <code>compose</code> session rewrites it and <code>apply</code> records the partition count of the shards it publishes, which must not make pending plans stale. <code>apply</code> refuses the plan when one of them changed, or when it was made by another kmhelpers version.</p>
 <p><strong>Report</strong> - <code>BUILD_DIR/logs/kmhelpers_plan_&lt;timestamp&gt;.yaml</code>: per shard and part, the build parameters (with where the partition count comes from), the kmtricks runs and chunks planned, the merge steps and their expected memory, and the scripts; plus the limits the sizing used, the host and the SLURM job. See <a href="../build/#report">build - Report</a>.</p>
 <p><strong>Offline mode</strong> - use <code>--offline</code> to skip local path validation when generating scripts destined for another machine.</p>
 <p><strong>Filtering</strong> - <code>--shard</code> selects shards (all by default) by name or glob pattern: <code>--shard 'idx_g0_*'</code> selects every shard of group 0. A pattern that matches no shard is a warning; only no match at all is an error. The plan then holds only these shards.</p>
@@ -3036,7 +3126,7 @@
 </tr>
 <tr>
 <td><code>finish.sbatch</code></td>
-<td>after every job (<code>afterany</code>): <code>manage check</code> of the registry when nothing is pending, then <code>apply --status</code> (writes <code>progress.yaml</code>, mails it with <code>build --notify</code>); fails when the build is not done</td>
+<td>after every job (<code>afterany</code>): <code>manage check</code> of the registry when nothing is pending, then, when it passed, <code>apply --cleanup</code> (hidden: removes the lock files no process holds), then <code>apply --status</code> (writes <code>progress.yaml</code>, mails it with <code>build --notify</code>); fails when the build is not done</td>
 </tr>
 <tr>
 <td><code>submit.sh</code></td>

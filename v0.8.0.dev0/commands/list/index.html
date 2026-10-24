@@ -627,6 +627,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -745,6 +749,62 @@
     
   
     Update an existing index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/ecoli_api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/ecoli_api_advanced/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API (advanced)
   
 
     
@@ -1392,6 +1452,17 @@
     <span class="md-ellipsis">
       
         Advanced Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-to-use-a-sample-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to use a sample list
       
     </span>
   </a>
@@ -2196,6 +2267,8 @@
       
         
       
+        
+      
     
     
     
@@ -2370,6 +2443,34 @@
     
   
     query_report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipeline/sample_lister/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    sample_lister
   
 
     
@@ -2732,6 +2833,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#when-to-use-a-sample-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to use a sample list
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#input-formats" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2985,6 +3097,25 @@
 </tr>
 </tbody>
 </table>
+<h2 id="when-to-use-a-sample-list">When to use a sample list</h2>
+<p>Scanning a directory is the simplest input: every sequence file becomes a sample
+named after the file (or one sample per leaf folder with <code>--leaf-grouping</code>, or
+one per read pair with <code>--paired</code>), and k-mers are counted with ntcard. A sample
+list replaces this automatic listing when you need control over it:</p>
+<ul>
+<li><strong>Precomputed k-mer counts</strong> - give <code>kmer_count</code> and ntcard is skipped for that
+  sample, which saves hours on large collections already counted elsewhere.</li>
+<li><strong>Custom sample names</strong> - use your own IDs (accessions, patient IDs) instead of
+  names derived from file names.</li>
+<li><strong>Explicit multi-file samples</strong> - pairs, lanes or several assemblies per sample,
+  when neither <code>--paired</code> nor <code>--leaf-grouping</code> matches your layout.</li>
+<li><strong>Files from several locations</strong> - mix directories, absolute paths or shared
+  storage, or select a subset of a directory.</li>
+<li><strong>Any rule of your own</strong> - generate the list with a script, for example from a
+  metadata table.</li>
+</ul>
+<p>A YAML list also carries its top-level keys (other than <code>samples</code>) into the
+output header.</p>
 <h2 id="input-formats">Input formats</h2>
 <h3 id="plain-text-txt">Plain text (<code>.txt</code>)</h3>
 <p>One sample per line. Lines starting with <code>#</code> and empty lines are ignored.</p>
@@ -3013,7 +3144,7 @@
 </code></pre></div>
 <h2 id="description">Description</h2>
 <p><code>INPUT</code> can be a directory (scanned recursively for sequence files) or a sample list file (plain text or YAML) - the type is detected automatically. K-mer counts are parsed or computed for each sample and written to the JSONL manifest.</p>
-<p><strong>Grouping</strong> - by default, each file is treated as its own sample. Use <code>--leaf-grouping</code> to group files by leaf folder, where each leaf directory becomes one sample whose ID is the folder name.</p>
+<p><strong>Grouping</strong> - by default, each file is treated as its own sample. Use <code>--leaf-grouping</code> to group files by leaf folder, where each leaf directory becomes one sample whose ID is the folder name. For any other grouping or naming, use a sample list (see <a href="#when-to-use-a-sample-list">When to use a sample list</a>).</p>
 <p><strong>Paired reads</strong> - use <code>--paired</code> to group mate files into one sample. The last match of a regex is removed from each file name (without extension), and files of the same directory with the same result form one sample named after it. The default regex <code>[._][Rr]?[12](?=[._]|$)</code> matches mate tokens such as <code>_R1</code>, <code>_R2</code>, <code>_1</code>, <code>.2</code>:</p>
 <ul>
 <li><code>S1_R1_clean.fastq.gz</code> + <code>S1_R2_clean.fastq.gz</code> -&gt; <code>S1_clean</code></li>

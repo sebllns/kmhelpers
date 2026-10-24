@@ -744,6 +744,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -862,6 +866,62 @@
     
   
     Update an existing index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tutorials/ecoli_api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tutorials/ecoli_api_advanced/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API (advanced)
   
 
     
@@ -2135,6 +2195,8 @@
       
         
       
+        
+      
     
     
     
@@ -2309,6 +2371,34 @@
     
   
     query_report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/pipeline/sample_lister/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    sample_lister
   
 
     
@@ -2748,7 +2838,7 @@
 <div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">1 - DESIGN</label><label for="__tabbed_1_2">2 - BUILD</label><label for="__tabbed_1_3">3 - QUERY</label><label for="__tabbed_1_4">4 - UPDATE</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<p><div class="termy" data-termynal data-ty-macos data-ty-title="bash"><span data-ty="input" data-ty-prompt="$">kmhelpers design coli_10.txt -o coli_db/ -n coli -s initial -k 25 -b 1.1 -g 2</span><span data-ty><br>Listed 10 samples -&gt; coli_db/list/samples_20260706_173255.jsonl<br>SUCCESS ('list')<br>SUCCESS ('profile')<br>Composed 10 samples into 2 indices<br>  coli_g0: 5 samples → 14.7MB<br>  coli_g1: 5 samples → 34.6MB<br>SUCCESS ('compose')<br>Done in 25.97s<br></span></div></p>
+<p><div class="termy" data-termynal data-ty-macos data-ty-title="bash"><span data-ty="input" data-ty-prompt="$">kmhelpers design coli_dataset/ -o coli_db/ -n coli -s initial -k 25 -b 1.1 -g 2</span><span data-ty><br>Listed 10 samples -&gt; coli_db/list/samples_20260706_173255.jsonl<br>SUCCESS ('list')<br>SUCCESS ('profile')<br>Composed 10 samples into 2 indices<br>  coli_g0: 5 samples → 14.7MB<br>  coli_g1: 5 samples → 34.6MB<br>SUCCESS ('compose')<br>Done in 25.97s<br></span></div></p>
 </div>
 <div class="tabbed-block">
 <p><div class="termy" data-termynal data-ty-macos data-ty-title="bash"><span data-ty="input" data-ty-prompt="$">kmhelpers build coli_db -o coli_build/ --show-progress</span><span data-ty><br>SUCCESS ('plan')<br>Building index 'coli_g161_initial_p0'...<br>Building index 'coli_g170_initial_p0'...<br>Merging ['coli_g161_initial_p0'] into 'coli_g0'<br>Merging ['coli_g170_initial_p0'] into 'coli_g1'<br>SUCCESS ('apply')<br>Done in 18.22s<br></span></div></p>

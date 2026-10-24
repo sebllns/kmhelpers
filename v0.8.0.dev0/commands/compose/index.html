@@ -627,6 +627,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -745,6 +749,62 @@
     
   
     Update an existing index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/ecoli_api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/ecoli_api_advanced/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API (advanced)
   
 
     
@@ -2135,6 +2195,8 @@
       
         
       
+        
+      
     
     
     
@@ -2309,6 +2371,34 @@
     
   
     query_report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/pipeline/sample_lister/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    sample_lister
   
 
     
@@ -2905,12 +2995,19 @@ merged with updates built with the same N. By default <code>compose</code> leave
    other value is ignored, with a warning;</li>
 <li>a part whose kmtricks runs are already started in <code>BUILD_DIR/work/SESSION/</code> keeps theirs
    (<code>apply</code> after <code>plan</code>, a resumed build);</li>
+<li>the count the layout records for the shard, once published;</li>
 <li>the count fixed at design with <code>-P</code>;</li>
 <li>otherwise, a count sized from the resource limits (<code>--limits</code>) for a full shard.</li>
 </ol>
 <p><code>plan</code>, <code>apply</code> and <code>build</code> have no <code>-P</code>: they never write the design, and each machine sizes the
 shards it builds first. Fixing <code>-P</code> at design is inherited by every later session and is no longer
-adapted to the system limits.</p>
+adapted to the system limits; a shard already published keeps its own count (with a warning).</p>
+<p>When <code>apply</code> publishes a shard, it records the count the shard is built with (the registry's)
+under the shard in the layout, <code>map.&lt;span&gt;.shards[].partition_count</code>; the span's
+<code>partition_count</code> stays the design value (<code>-P</code>, 0 when left open). A recorded count is never
+changed, and an <code>apply</code> finding a shard already published records it if missing. <code>compose</code> and
+the publish jobs update the layout under a lock (<code>layout.yaml.lock</code>) and replace it atomically; a
+<code>compose</code> session keeps the counts recorded while it ran.</p>
 <p><strong>k-mer ratio</strong> - kmtricks holds every k-mer <em>occurrence</em> of a sample partition in memory
 before it filters them (<code>--hard-min</code>), about <code>occurrences / partitions × 8 bytes</code> per thread.
 The Bloom filter capacity counts distinct k-mers (solid ones for raw reads), so <code>plan</code> sizes
