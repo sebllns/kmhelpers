@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/kmhelpers-logo-v1.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -2923,6 +2923,10 @@
 <td>Partition Bloom Filters into <code>N</code> storage-balanced groups and overlay on plot; 0 chooses <code>N</code> (default: 0): one group when the built index takes at most 4 GB, else as <code>profile -g 0</code>. Tuned by the <code>KMHELPERS_AUTO_GROUP_*</code> environment variables, see <a href="../profile/#description">profile - Grouping</a></td>
 </tr>
 <tr>
+<td><code>--redesign</code></td>
+<td>Design the index again: remove its previous design (<code>DESIGN_DIR/compose/NAME/</code>, <code>DESIGN_DIR/profile/</code>) first; the sample list stays. An index built from the previous design cannot be updated with the new one: build into a new <code>BUILD_DIR</code></td>
+</tr>
+<tr>
 <td><code>--ngp, --no-grouping</code></td>
 <td>One group, no grouping strategy: every sample gets the Bloom filter of the largest one; not with <code>-g N</code></td>
 </tr>
@@ -2990,7 +2994,7 @@
 <p><strong>Step 2 - profile:</strong> reads k-mer counts from the manifest, assigns each sample to a Bloom-filter span, computes a storage-balanced grouping, and writes <code>profile.yaml</code>, <code>baseline.csv</code>, and <code>groups.png</code> to <code>DESIGN_DIR/profile/</code>. This step is <strong>skipped automatically</strong> if a layout file already exists at <code>DESIGN_DIR/compose/NAME/layout.yaml</code> (re-run scenario).</p>
 <p><strong>Groups</strong> - with <code>-g 0</code>, <code>design</code> keeps one group when the built index takes at most 4 GB: <code>profile</code> compares its presence/absence sizes with 4 GB / bitw (1.33 GB with <code>--ab 3</code>). Larger indexes are grouped as <a href="../profile/#description"><code>profile -g 0</code></a> does. <code>KMHELPERS_AUTO_GROUP_SINGLE_MAX</code> changes the 4 GB (<code>0</code> turns the rule off), <code>-g N</code> forces <code>N</code> groups, and <code>--no-grouping</code> keeps one group whatever the size.</p>
 <p><strong>Step 3 - compose:</strong> reads the manifest and the profile to generate the index definition file <code>DESIGN_DIR/compose/NAME/SESSION/index.yaml</code>.</p>
-<p><strong>Updates</strong> - if the compose layout file already exists from a previous run, the profile step is skipped and the existing layout is used directly. This allows re-running <code>design</code> with a new <code>-s</code> to add samples to an existing index without re-profiling, then building the new session into the same <code>BUILD_DIR</code>. The new session is merged with the existing index at build time, which keeps both versions on disk - see <a href="../build/#updating-an-index"><code>build</code> - Updating an index</a>.</p>
+<p><strong>Updates</strong> - if the compose layout file already exists from a previous run, the profile step is skipped and the existing layout is used directly: a warning says so, with the groups and shards it keeps (<code>-g</code>, <code>-b</code>, <code>--sb</code>, <code>--ab</code> are not used). A session already in the layout is refused (its samples would be counted twice): an update needs a new session name. To design the index again instead, pass <code>--redesign</code>. This allows re-running <code>design</code> with a new <code>-s</code> to add samples to an existing index without re-profiling, then building the new session into the same <code>BUILD_DIR</code>. The new session is merged with the existing index at build time, which keeps both versions on disk - see <a href="../build/#updating-an-index"><code>build</code> - Updating an index</a>.</p>
 <p><strong>False-positive rate</strong> - a higher rate reduces Bloom-filter size and disk footprint. At query time the <a href="https://doi.org/10.1007/978-3-030-86692-1_13">findere</a> algorithm compensates by querying <span class="arithmatex">\((k+z)\)</span>-mers, reducing the effective FP rate to <span class="arithmatex">\(p^z\)</span>. Recommended: build with <code>--fp 0.25</code> (default), query with <code>-z 6</code>, giving <span class="arithmatex">\(0.25^6 \approx 0.024\,\%\)</span> effective FP rate.</p>
 <h2 id="examples">Examples</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Full pipeline from a directory, then build</span>
@@ -3130,10 +3134,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       

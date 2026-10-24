@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/kmhelpers-logo-v1.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -2860,14 +2860,14 @@ its <strong>k-mers</strong> are spread over partitions.</p>
 </tr>
 <tr>
 <td><strong>job</strong></td>
-<td>the unit <code>apply</code> runs, and a SLURM task: a shard, some of its chunks, or its merge</td>
-<td><code>coli_g0</code>, <code>coli_g0_j1</code>, <code>coli_g0_merge</code></td>
+<td>the unit <code>apply</code> runs, and a SLURM task: a shard, some of its chunks, or its publish step</td>
+<td><code>coli_g0</code>, <code>coli_g0_j1</code>, <code>coli_g0_publish</code></td>
 <td><code>--chunks-per-job</code> (see <a href="../../commands/plan/#jobs">plan</a>)</td>
 </tr>
 <tr>
 <td><strong>step</strong></td>
-<td>one kmtricks run or one merge, with its status (<code>SUCCESS</code>, <code>FAILED</code>, ...)</td>
-<td><code>chunk3</code>, <code>merge</code></td>
+<td>one kmtricks run or the publish step of a shard, with its status (<code>SUCCESS</code>, <code>FAILED</code>, ...)</td>
+<td><code>chunk3</code>, <code>publish</code></td>
 <td>see <a href="../../commands/apply/#progress">apply</a></td>
 </tr>
 </tbody>
@@ -2974,10 +2974,10 @@ its <strong>k-mers</strong> are spread over partitions.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       

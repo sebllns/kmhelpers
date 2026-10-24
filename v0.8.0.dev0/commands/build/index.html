@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/kmhelpers-logo-v1.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -1280,6 +1280,17 @@
     <span class="md-ellipsis">
       
         Notifications
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-build-again" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running build again
       
     </span>
   </a>
@@ -2799,6 +2810,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#running-build-again" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running build again
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#shards-and-chunks" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3044,6 +3066,10 @@
 <td>Build on a cluster: plan for the jobs of <code>FILE</code>, submit them, and exit (see <a href="#on-a-cluster">On a cluster</a>)</td>
 </tr>
 <tr>
+<td><code>--replan</code></td>
+<td>Plan again a session that already has a plan (see <a href="#running-build-again">Running build again</a>)</td>
+</tr>
+<tr>
 <td><code>--notify EMAIL</code></td>
 <td>Send email notifications (requires sendmail), see <a href="#notifications">Notifications</a></td>
 </tr>
@@ -3083,15 +3109,15 @@
 <a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>│   ├── initial/                  one folder per SESSION
 <a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>│   │   ├── plan.yaml             the plan, run by apply (see plan)
 <a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>│   │   ├── slurm/                with plan --cluster
-<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>│   │   └── coli_g0_p0/           one folder per shard: &lt;part&gt;[_chunk&lt;N&gt;].sh and .fof, merge.sh, merge/
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>│   │   └── coli_g0_p0/           one folder per shard: &lt;part&gt;[_chunk&lt;N&gt;].sh and .fof, publish.sh, publish/
 <a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>│   └── update/
 <a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>└── logs/
 <a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>    ├── kmhelpers_plan_&lt;timestamp&gt;.yaml    plan report, see Report below
 <a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a>    ├── kmhelpers_apply_&lt;timestamp&gt;.yaml   apply report
-<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>    └── coli_g0_p0/                        &lt;run&gt;.log of each kmtricks run, merge.log
+<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>    └── coli_g0_p0/                        &lt;run&gt;.log of each kmtricks run, publish.log
 </code></pre></div>
 <p>Reuse the same <code>BUILD_DIR</code> for every session of an index. Each index keeps one folder, <code>BUILD_DIR/&lt;name&gt;/</code>, for its whole life; a session only uses <code>BUILD_DIR/work/SESSION/</code> while it is built, and deletes it when it is done. Index names cannot be <code>work</code>, <code>assets</code>, <code>logs</code>, or start with <code>.</code>.</p>
-<p>Building a session again resumes it: complete kmtricks runs are kept, incomplete ones are rebuilt, finished merges are not redone, and parts whose samples are already in their index are skipped. A finished session built again changes nothing. A run of <code>&lt;shard&gt;/merge.sh</code> interrupted at any point is finished by running it again (or <code>apply</code>): until the new version of a sub-index is registered, the sub-index is either registered with its previous folder or not registered at all, never registered with other data.</p>
+<p>Building a session again resumes it: complete kmtricks runs are kept, incomplete ones are rebuilt, finished merges are not redone, and parts whose samples are already in their index are skipped. A finished session built again changes nothing. A run of <code>&lt;shard&gt;/publish.sh</code> interrupted at any point is finished by running it again (or <code>apply</code>): until the new version of a sub-index is registered, the sub-index is either registered with its previous folder or not registered at all, never registered with other data.</p>
 <h2 id="description">Description</h2>
 <p><code>build</code> chains <a href="../plan/"><code>plan</code></a> and <a href="../apply/"><code>apply</code></a> into a single invocation. It is equivalent to running the two commands in sequence.</p>
 <p><strong>Step 1 - plan:</strong> validates all sample paths upfront, takes every build decision and writes the plan to <code>BUILD_DIR/assets/SESSION/</code>: <code>plan.yaml</code> and one folder of scripts per shard (see <a href="../plan/"><code>plan</code></a>), and the plan <a href="#report">report</a> to <code>BUILD_DIR/logs/</code>. Fix any path errors before the build starts rather than discovering them mid-run.</p>
@@ -3105,17 +3131,17 @@
 <p>With <code>--hpc FILE</code> (see <a href="../plan/#cluster">plan - Cluster</a>), <code>build</code> plans for the jobs of <code>FILE</code>, runs the generated <code>slurm/submit.sh</code>, and exits: the SLURM jobs build the indices. Nothing is submitted when the plan is <code>FAILED</code> or <code>PARTIAL</code>. The jobs are:</p>
 <ol>
 <li>the <strong>build array</strong>: one task per build job (a shard, or <code>--chunks-per-job</code> chunks of it);</li>
-<li>one <strong>merge</strong> job per shard, after the array tasks of that shard;</li>
+<li>one <strong>publish</strong> job per shard, after the array tasks of that shard;</li>
 <li>a <strong>finish</strong> job, after every job, successful or not: it checks the registry when everything is built, writes <code>progress.yaml</code>, and sends the final mail.</li>
 </ol>
-<p>A failed job cancels the jobs waiting on it (<code>--kill-on-invalid-dep=yes</code>), so the finish job always runs. Run the same <code>build</code> command again (or <code>slurm/submit.sh</code>) to resubmit what is not done: finished work is kept, and a job still queued or running is not submitted twice.</p>
-<p><strong>Progress</strong> - <code>apply --status</code> prints, per shard, the status of each kmtricks run and merge, and writes it to <code>BUILD_DIR/assets/SESSION/progress.yaml</code> (also rewritten by every job, after each step):</p>
+<p>A failed job cancels the jobs waiting on it (<code>--kill-on-invalid-dep=yes</code>), so the finish job always runs. Once the jobs have ended, run the same <code>build</code> command again (or <code>slurm/submit.sh</code>) to resubmit what is not done, with the same plan: finished work is kept, and there is one finish job. While jobs are still queued or running, <code>build</code> follows them (see <a href="#running-build-again">Running build again</a>). <code>slurm/submit.sh</code> can be run again at any time: it never submits a job still queued or running twice, keeps a finish job still pending when it submits nothing new, and replaces it otherwise.</p>
+<p><strong>Progress</strong> - <code>apply --status</code> prints, per shard, the status of each kmtricks run and of its publish step, and writes it to <code>BUILD_DIR/assets/SESSION/progress.yaml</code> (also rewritten by every job, after each step):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">idx_g0</span><span class="p">:</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">idx_g0_initial_chunk0</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SUCCESS</span>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">idx_g0_initial_chunk1: FAILED (log</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">logs/idx_g0/idx_g0_initial_chunk1.log, idx_g0_initial_chunk1.sh failed (exit 1)</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">...)</span>
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">idx_g0_initial_chunk2</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">RUNNING (job 18001_2, node12, since 10:02)</span>
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="nt">idx_g0_initial_chunk3</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">PENDING (job 18001_3)</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="nt">merge</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">PENDING (job 18002)</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="nt">publish</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">PENDING (job 18002)</span>
 </code></pre></div>
 <p>See <a href="../apply/#progress">apply - Progress</a> for the statuses.</p>
 <h3 id="notifications">Notifications</h3>
@@ -3139,6 +3165,36 @@
 </tbody>
 </table>
 <p>Locally, the mails are sent by the <code>build</code> process, with the log file and the apply <a href="#report">report</a> attached. On a cluster, the jobs ending a shard send the shard mails, and the finish job the final one, with <code>progress.yaml</code> attached. SLURM's own mails remain available through <code>extra:</code> in the cluster file (<code>--mail-user</code>, <code>--mail-type</code>).</p>
+<h3 id="running-build-again">Running build again</h3>
+<p>A session is planned once. Running <code>build</code> again on it does not plan it again:</p>
+<table>
+<thead>
+<tr>
+<th>The session's plan</th>
+<th><code>build</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>none yet</td>
+<td>plans it, then builds (or submits, with <code>--hpc</code>)</td>
+</tr>
+<tr>
+<td>jobs still queued or running</td>
+<td>follows them, as <code>apply --status --sp</code> (prints their status once outside a terminal); nothing planned nor submitted</td>
+</tr>
+<tr>
+<td>everything built</td>
+<td><code>NOTHING TO DO</code>: shows the status</td>
+</tr>
+<tr>
+<td>something left to build</td>
+<td>runs the existing plan: resumes it here, or submits what is not done with <code>--hpc</code></td>
+</tr>
+</tbody>
+</table>
+<p>Options that take build decisions (<code>--limits</code>, <code>--chunks-per-job</code>, <code>--hpc FILE</code>, <code>--notify</code> for a cluster plan...) are then not used: a warning lists them. A plan that is stale (its inputs changed), or not made for how it is run (<code>--hpc</code> or not), is refused.</p>
+<p><code>--replan</code> plans the session again: its folder <code>BUILD_DIR/assets/SESSION/</code> (plan, scripts, SLURM files, progress) is removed first, then the session is planned as new. The indexes, the runs already built in <code>work/</code> (reused by the new plan) and the logs stay. It is refused while jobs of the plan are still queued or running: cancel them first.</p>
 <h3 id="shards-and-chunks">Shards and chunks</h3>
 <p>A shard is fixed at design: a span is split into shards of at most <code>ceil8(shard_budget / base^s)</code>
 samples, see <a href="../compose/#description">compose - Sharding</a>. Each build then splits the new
@@ -3156,14 +3212,14 @@ chunks. With the default budgets, a full shard fits 64 chunks (<code>2**43 = 64 
 <p>Every sub-index is built as unregistered <code>kmtricks</code> runs, then published:</p>
 <ol>
 <li><strong>Build</strong> - each part of the sub-index (its samples of this session) is built with <code>kmtricks pipeline</code> into <code>BUILD_DIR/work/SESSION/runs/&lt;part&gt;/</code>, not registered. When one <code>kmtricks</code> build cannot hold all the samples of a part (open files, <code>--chunk-budget</code> and <code>--max-chunks</code>, see <a href="#shards-and-chunks">Shards and chunks</a>), the part is built in chunks, <code>&lt;part&gt;_chunk&lt;N&gt;/</code>. Each run has its script, <code>assets/SESSION/&lt;shard&gt;/&lt;run&gt;.sh</code>, which can be run anywhere, e.g. as a SLURM array task (see <a href="../plan/#jobs">plan - Jobs</a>).</li>
-<li><strong>Check</strong> - <code>assets/SESSION/&lt;shard&gt;/merge.sh</code> starts by checking every run: <code>run_infos.txt</code> (written by kmtricks only when it finishes), <code>kmtricks.fof</code>, <code>options.txt</code>, and all partition matrices present, non-empty and of equal size. If one run is incomplete, the script stops before registering or merging anything; rebuild that run and run the merge script again.</li>
+<li><strong>Check</strong> - <code>assets/SESSION/&lt;shard&gt;/publish.sh</code> starts by checking every run: <code>run_infos.txt</code> (written by kmtricks only when it finishes), <code>kmtricks.fof</code>, <code>options.txt</code>, and all partition matrices present, non-empty and of equal size. If one run is incomplete, the script stops before registering or merging anything; rebuild that run and run the publish script again.</li>
 <li><strong>Publish a single run</strong> - a new sub-index built in one run is moved in place (<code>kmindex register --mode move</code>): no copy, no merge.</li>
 <li><strong>Merge</strong> - otherwise the runs, plus the current version of the sub-index when it is already registered (see <a href="#updating-an-index">Updating an index</a>), are merged. Each <code>kmindex merge</code> runs in a throwaway registry, <code>BUILD_DIR/work/SESSION/merges/&lt;name&gt;/&lt;step&gt;/</code>, holding only its inputs. <code>kmindex merge</code> loads the repartition table of every registered sub-index (2 MiB each at minimizer size 10), so a registry limited to the inputs keeps its memory proportional to what is merged. Merges get at most one thread per partition.</li>
 <li><strong>Sub-shards</strong> - one merge can take at most <code>k</code> inputs: <code>ram / (2 * 4^m)</code> (anonymous memory), <code>(maps - 1000) / threads</code> (<code>vm.max_map_count</code>) and <code>files / threads - 1</code> (open files), with the values of <code>--limits</code>. More inputs are merged in balanced groups of at most <code>k</code> (<code>&lt;name&gt;__sub1_&lt;i&gt;</code>), then these are merged, and so on. Each level reads and writes the data once more.</li>
 <li><strong>Swap</strong> - holding the lock <code>BUILD_DIR/.registry.lock</code> (several merge jobs may publish at once): the sub-index is unregistered, its current version is moved to <code>work/SESSION/previous/</code>, the merge result is moved to <code>BUILD_DIR/&lt;name&gt;/</code>, and registered. Queries see the previous version until the swap; during it (a second or so) the sub-index is not queryable. Moves are renames (an internal <code>kmhelpers manage move-dir</code>), so they take the same time whatever the size; they fail instead of copying if <code>work/</code> is on another filesystem.</li>
 <li><strong>Check, then clean up</strong> - <code>kmhelpers manage check --shard &lt;name&gt;</code> checks the published sub-index; only then are the runs, merges and previous version deleted. A failed check stops the script with everything kept.</li>
 </ol>
-<p><code>apply</code> runs the run scripts of a shard, then its <code>merge.sh</code>. The plan logs, for each merge, its number of inputs, the limit that sets <code>k</code>, and its expected memory: the anonymous part must fit in RAM, while the mapped inputs are page cache that the kernel reclaims when they exceed it. The same merge plan is in the <a href="#report">report</a>, under <code>publish.steps</code>.</p>
+<p><code>apply</code> runs the run scripts of a shard, then its <code>publish.sh</code>. The plan logs, for each merge, its number of inputs, the limit that sets <code>k</code>, and its expected memory: the anonymous part must fit in RAM, while the mapped inputs are page cache that the kernel reclaims when they exceed it. The same merge plan is in the <a href="#report">report</a>, under <code>publish.steps</code>.</p>
 <h3 id="report">Report</h3>
 <p><code>plan</code> and <code>apply</code> each write a YAML report to <code>BUILD_DIR/logs/</code>: <code>kmhelpers_plan_&lt;timestamp&gt;.yaml</code> and <code>kmhelpers_apply_&lt;timestamp&gt;.yaml</code> (<code>build</code> writes <code>kmhelpers_plan_*</code> and <code>kmhelpers_build_*</code>). Both are organised by shard: <code>plan</code> records what will be built, <code>apply</code> what happened.</p>
 <ul>
@@ -3241,7 +3297,7 @@ chunks. With the default budgets, a full shard fits 64 chunks (<code>2**43 = 64 
 <a id="__codelineno-4-66" name="__codelineno-4-66" href="#__codelineno-4-66"></a><span class="w">          </span><span class="nt">ram_limit_use</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.193</span>
 <a id="__codelineno-4-67" name="__codelineno-4-67" href="#__codelineno-4-67"></a><span class="w">          </span><span class="nt">threads</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">24</span>
 <a id="__codelineno-4-68" name="__codelineno-4-68" href="#__codelineno-4-68"></a><span class="w">          </span><span class="nt">cpu_efficiency</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
-<a id="__codelineno-4-69" name="__codelineno-4-69" href="#__codelineno-4-69"></a><span class="w">    </span><span class="nt">publish</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="nv">move</span><span class="p p-Indicator">,</span><span class="nt"> duration_s</span><span class="p">:</span><span class="w"> </span><span class="nv">4.1</span><span class="p p-Indicator">,</span><span class="nt"> log</span><span class="p">:</span><span class="w"> </span><span class="nv">.../logs/idx_g0/merge.log</span><span class="p p-Indicator">}</span>
+<a id="__codelineno-4-69" name="__codelineno-4-69" href="#__codelineno-4-69"></a><span class="w">    </span><span class="nt">publish</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="nv">move</span><span class="p p-Indicator">,</span><span class="nt"> duration_s</span><span class="p">:</span><span class="w"> </span><span class="nv">4.1</span><span class="p p-Indicator">,</span><span class="nt"> log</span><span class="p">:</span><span class="w"> </span><span class="nv">.../logs/idx_g0/publish.log</span><span class="p p-Indicator">}</span>
 <a id="__codelineno-4-70" name="__codelineno-4-70" href="#__codelineno-4-70"></a><span class="w">    </span><span class="nt">disk_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.40GB</span>
 <a id="__codelineno-4-71" name="__codelineno-4-71" href="#__codelineno-4-71"></a><span class="w">  </span><span class="nt">idx_g1</span><span class="p">:</span>
 <a id="__codelineno-4-72" name="__codelineno-4-72" href="#__codelineno-4-72"></a><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">...</span>
@@ -3431,10 +3487,10 @@ chunks. With the default budgets, a full shard fits 64 chunks (<code>2**43 = 64 
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       

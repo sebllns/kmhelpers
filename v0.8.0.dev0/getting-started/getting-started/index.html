@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/kmhelpers-logo-v1.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -2955,13 +2955,13 @@
 </code></pre></div>
 </details>
 <p><strong>Manual build</strong></p>
-<p>The plan is made of plain bash scripts, in <code>OUTPUT_DIR/assets/SESSION/&lt;shard&gt;/</code>: one per kmtricks run (<code>&lt;part&gt;.sh</code>, or <code>&lt;part&gt;_chunk&lt;N&gt;.sh</code>), then <code>merge.sh</code> (check, publish, cleanup). They can be run by hand for a fully hands-on build, runs first, then the merge:</p>
+<p>The plan is made of plain bash scripts, in <code>OUTPUT_DIR/assets/SESSION/&lt;shard&gt;/</code>: one per kmtricks run (<code>&lt;part&gt;.sh</code>, or <code>&lt;part&gt;_chunk&lt;N&gt;.sh</code>), then <code>publish.sh</code> (check, publish, cleanup). They can be run by hand for a fully hands-on build, runs first, then <code>publish.sh</code>:</p>
 <details class="example">
 <summary>Commands</summary>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>kmhelpers<span class="w"> </span>plan<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="k">for</span><span class="w"> </span>shard<span class="w"> </span><span class="k">in</span><span class="w"> </span>coli_build/assets/initial/*/<span class="p">;</span><span class="w"> </span><span class="k">do</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span>run<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">"</span><span class="nv">$shard</span><span class="s2">"</span>*.sh<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">"</span><span class="nv">$run</span><span class="s2">"</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">shard</span><span class="si">}</span><span class="s2">merge.sh"</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">||</span><span class="w"> </span>bash<span class="w"> </span><span class="s2">"</span><span class="nv">$run</span><span class="s2">"</span><span class="p">;</span><span class="w"> </span><span class="k">done</span>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span>bash<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">shard</span><span class="si">}</span><span class="s2">merge.sh"</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span>run<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">"</span><span class="nv">$shard</span><span class="s2">"</span>*.sh<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">"</span><span class="nv">$run</span><span class="s2">"</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">shard</span><span class="si">}</span><span class="s2">publish.sh"</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">||</span><span class="w"> </span>bash<span class="w"> </span><span class="s2">"</span><span class="nv">$run</span><span class="s2">"</span><span class="p">;</span><span class="w"> </span><span class="k">done</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span>bash<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">shard</span><span class="si">}</span><span class="s2">publish.sh"</span>
 <a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="k">done</span>
 </code></pre></div>
 </details>
@@ -3083,10 +3083,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       

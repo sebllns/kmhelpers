@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/kmhelpers-logo-v1.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -4743,28 +4743,34 @@
 <h2 id="unreleased">[Unreleased]</h2>
 <h3 id="added">Added</h3>
 <ul>
-<li><strong><code>plan --cluster FILE</code></strong>: a YAML file (<code>type: slurm</code>) of the partition, time, excluded nodes, setup lines and the resources of each kind of job (<code>jobs.build</code>, <code>jobs.merge</code>, <code>jobs.check</code>); the plan is sized from these resources (<code>--limits</code> with <code>--cluster</code> is refused), and <code>BUILD_DIR/assets/SESSION/slurm/</code> gets <code>build.sbatch</code> (an array task per build job), <code>merge.sbatch</code>, <code>check.sbatch</code> and <code>submit.sh</code></li>
-<li><code>submit.sh</code> submits what <code>apply --pending</code> lists: the build array (<code>max_parallel</code>, split at <code>MaxArraySize</code>), each merge job after the array tasks of its own shard, then <code>manage check</code> after everything; safe to run again</li>
-<li><strong><code>plan --chunks-per-job N</code></strong>: the chunks of a shard are split into jobs <code>&lt;shard&gt;_j&lt;k&gt;</code> of up to N chunks, then a job <code>&lt;shard&gt;_merge</code>; 0 (default) keeps one job per shard</li>
+<li><strong><code>plan --cluster FILE</code></strong>: a YAML file (<code>type: slurm</code>) of the partition, time, excluded nodes, setup lines and the resources of each kind of job (<code>jobs.build</code>, <code>jobs.publish</code>, <code>jobs.check</code>); the plan is sized from these resources (<code>--limits</code> with <code>--cluster</code> is refused), and <code>BUILD_DIR/assets/SESSION/slurm/</code> gets <code>build.sbatch</code> (an array task per build job), <code>publish.sbatch</code>, <code>check.sbatch</code> and <code>submit.sh</code></li>
+<li><code>submit.sh</code> submits what <code>apply --pending</code> lists: the build array (<code>max_parallel</code>, split at <code>MaxArraySize</code>), each publish job after the array tasks of its own shard, then <code>manage check</code> after everything; safe to run again</li>
+<li><strong><code>plan --chunks-per-job N</code></strong>: the chunks of a shard are split into jobs <code>&lt;shard&gt;_j&lt;k&gt;</code> of up to N chunks, then a job <code>&lt;shard&gt;_publish</code>; 0 (default) keeps one job per shard</li>
 <li><strong><code>build --hpc FILE</code></strong> (<code>--cluster</code>): plans for the jobs of the cluster file, runs the generated <code>submit.sh</code> and exits; nothing is submitted for a <code>FAILED</code> or <code>PARTIAL</code> plan</li>
 <li><strong>Progress</strong>: <code>apply</code> records each step in <code>assets/SESSION/&lt;shard&gt;/state/&lt;step&gt;.json</code> and rewrites <code>assets/SESSION/progress.yaml</code> after each one; <strong><code>apply --status</code></strong> prints it per shard and step: <code>SUCCESS</code>, <code>FAILED</code> (log and error), <code>CANCELLED</code> (SIGTERM), <code>RUNNING</code> (job, node, start), <code>LOST</code> (running job gone from <code>squeue</code>), <code>PENDING</code> (with its SLURM job once submitted)</li>
-<li><strong><code>--show-progress</code> / <code>--sp</code></strong> (<code>apply</code>, <code>build</code>): one line per started shard, a progress bar of its steps (chunks and merge), its time, the steps running (how many, and the 3 oldest with their time) and a colored end status (SUCCESS, FAILED with step and log, LOST, CANCELLED); redrawn in a terminal, printed at each step end otherwise. <code>apply --status --sp</code> (and <code>build --hpc --sp</code>) follows a cluster build every <code>--interval</code> seconds until it ends, exiting 0 on SUCCESS</li>
+<li><strong><code>--show-progress</code> / <code>--sp</code></strong> (<code>apply</code>, <code>build</code>): one line per started shard, a progress bar of its steps (chunks and publish), its time, the steps running (how many, and the 3 oldest with their time) and a colored end status (SUCCESS, FAILED with step and log, LOST, CANCELLED); redrawn in a terminal, printed at each step end otherwise. <code>apply --status --sp</code> (and <code>build --hpc --sp</code>) follows a cluster build every <code>--interval</code> seconds until it ends, exiting 0 on SUCCESS</li>
+<li><strong><code>apply --status --task PATTERN</code></strong> (and <code>--status --sp --task</code>, <code>apply --sp --task</code>): only the matching shards and steps, in detail: job and node, time, RAM of a running step (<code>sstat</code> MaxRSS against the job's <code>--mem</code> on SLURM, psutil against the plan's RAM limit for a local <code>apply</code>; colored at 80 % and 95 %) and its current kmtricks phase (<code>Count partitions 63%</code>, read from the tail of its log); live, one line per running step under its shard. The global status is unchanged</li>
+<li>The logs of the steps of <code>apply</code> are written as the step runs (stdout first, then stderr and the resource usage, under <code>--- RESOURCES ---</code>, at the end), so a running step can be followed</li>
 <li><strong><code>--notify-level global|shard</code></strong> (<code>apply</code>, <code>build</code>): <code>shard</code> also mails each shard when it ends; the mails carry the progress tree. On a cluster, the jobs ending a shard send the shard mails and the finish job the final one</li>
-<li>SLURM files: a <strong>finish</strong> job replaces the check job, after every job (<code>afterany</code>): checks the registry when all is built, writes <code>progress.yaml</code>, mails it with <code>build --notify</code>; merge and finish jobs get <code>--kill-on-invalid-dep=yes</code>, so a failure never leaves jobs pending; <code>submit.sh</code> records submissions in <code>slurm/submitted.tsv</code> and never submits again a job still queued or running</li>
+<li>SLURM files: a <strong>finish</strong> job replaces the check job, after every job (<code>afterany</code>): checks the registry when all is built, writes <code>progress.yaml</code>, mails it with <code>build --notify</code>; publish and finish jobs get <code>--kill-on-invalid-dep=yes</code>, so a failure never leaves jobs pending; <code>submit.sh</code> records submissions in <code>slurm/submitted.tsv</code> and never submits again a job still queued or running</li>
+<li><strong><code>design --redesign</code></strong>: removes the previous design of the index (<code>compose/NAME/</code>, <code>profile/</code>) and designs it again; without it, <code>design</code> warns when it reuses an existing layout (an update: groups and shards kept, <code>-g</code>, <code>-b</code>, <code>--sb</code>, <code>--ab</code> not used)</li>
+<li><code>design</code> / <code>compose</code> refuse a session already in the layout: its samples were counted twice</li>
+<li><strong>A session is planned once</strong>: <code>build</code> on a session that already has a plan runs it (resumes it, or submits what is not done with <code>--hpc</code>; <code>NOTHING TO DO</code> when everything is built) instead of planning again, warning about the options it does not use; <code>plan</code> refuses it. <strong><code>--replan</code></strong> (<code>plan</code>, <code>build</code>) removes <code>BUILD_DIR/assets/SESSION/</code> and plans again (indexes, built runs and logs stay)</li>
+<li>While jobs of the current plan are still queued (<code>squeue</code>) or running (a local <code>apply</code>), <code>build</code> follows them (as <code>apply --status --sp</code>, or prints their status once outside a terminal) instead of planning again, and <code>plan</code> refuses: planning rewrites the scripts and states under them; <code>submit.sh</code> keeps a finish job still pending when it submits nothing new, and replaces it otherwise (one final mail)</li>
 <li><strong>One group for small indexes</strong>: <code>-g 0</code> keeps one group when one group takes at most a size, whatever a 2nd one would save in proportion: <code>design</code> uses 4 GB of built index (4 GB / bitw of profile size), <code>profile</code> no size by default (<code>--auto-group-single-max SIZE</code>, env <code>KMHELPERS_AUTO_GROUP_SINGLE_MAX</code>, <code>0</code> turns it off); recorded as <code>single_max</code> and <code>single_size</code> under <code>auto_group</code> in <code>profile.yaml</code></li>
 <li><strong><code>profile</code>/<code>design --no-grouping, --ngp</code></strong>: one group, no grouping strategy (<code>grouping: none</code> in <code>profile.yaml</code>); refused with <code>-g N</code></li>
 <li><code>profile.md</code>: the sizes of <code>profile.yaml</code> are for presence/absence, times bitw for an abundance index</li>
-<li><strong><code>apply --task PATTERN</code></strong> runs part of the plan: a shard or its task (<code>&lt;shard&gt;_&lt;session&gt;</code>) runs all its jobs, a job (<code>&lt;shard&gt;_j&lt;k&gt;</code>, <code>&lt;shard&gt;_merge</code>) runs alone; <strong><code>apply --pending</code></strong> lists the jobs not done yet</li>
+<li><strong><code>apply --task PATTERN</code></strong> runs part of the plan: a shard or its task (<code>&lt;shard&gt;_&lt;session&gt;</code>) runs all its jobs, a job (<code>&lt;shard&gt;_j&lt;k&gt;</code>, <code>&lt;shard&gt;_publish</code>) runs alone; <strong><code>apply --pending</code></strong> lists the jobs not done yet</li>
 </ul>
 <h3 id="changed">Changed</h3>
 <ul>
-<li><strong><code>plan</code> prepares, <code>apply</code> runs</strong>: <code>plan</code> takes every build decision and writes <code>BUILD_DIR/assets/SESSION/plan.yaml</code> (one task per part: its chunks, merge and jobs) and one directory of scripts per shard, <code>&lt;shard&gt;/</code> (<code>&lt;run&gt;.sh</code> and <code>.fof</code> per kmtricks run, <code>merge.sh</code>, <code>merge/</code>); <code>apply</code> runs these scripts, under monitoring, and builds nothing itself</li>
+<li><strong><code>plan</code> prepares, <code>apply</code> runs</strong>: <code>plan</code> takes every build decision and writes <code>BUILD_DIR/assets/SESSION/plan.yaml</code> (one task per part: its chunks, publish step and jobs) and one directory of scripts per shard, <code>&lt;shard&gt;/</code> (<code>&lt;run&gt;.sh</code> and <code>.fof</code> per kmtricks run, <code>publish.sh</code>, <code>publish/</code>); <code>apply</code> runs these scripts, under monitoring, and builds nothing itself</li>
 <li><code>apply</code> refuses a missing plan, and a stale one: an input changed since (definition, shard files, <code>layout.yaml</code>, sample lists, cluster file, hashed in <code>plan.yaml</code>) or another kmhelpers version made it</li>
 <li><code>apply --shard</code> is replaced by <code>apply --task</code></li>
 <li><code>apply</code> has no sizing option any more (<code>--limits</code>, <code>--safety-margin</code>, <code>--max-chunks</code>, <code>--chunk-budget</code>, <code>--threads</code>, <code>--base-path</code>, <code>--skip-compression</code>, <code>--keep-previous</code>): they are options of <code>plan</code> (and <code>build</code>)</li>
-<li>Before a merge, <code>apply</code> checks the registry is as <code>plan</code> saw it (<code>expects</code>), or as an interrupted run of the same merge leaves it</li>
+<li>Before publishing a shard, <code>apply</code> checks the registry is as <code>plan</code> saw it (<code>expects</code>), or as an interrupted run of the same publish step leaves it</li>
 <li>Each run script skips samples already published and complete runs, and deletes and rebuilds an incomplete run, so every script can be run again</li>
-<li>Logs per shard: <code>BUILD_DIR/logs/&lt;shard&gt;/&lt;run&gt;.log</code> and <code>merge.log</code></li>
+<li>Logs per shard: <code>BUILD_DIR/logs/&lt;shard&gt;/&lt;run&gt;.log</code> and <code>publish.log</code></li>
 <li>The plan/apply report records <code>kmhelpers.commit</code>, the git commit of the installed kmhelpers (<code>UNKNOWN</code> outside git), instead of <code>git_commit</code> from <code>$GIT_COMMIT</code>, which is no longer read</li>
 <li>Docs: <code>commands/index.md</code> lists every environment variable, and explains the configuration file (<code>-C</code>) and the precedence of command line, environment, configuration file and defaults</li>
 <li>
@@ -5858,10 +5864,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       

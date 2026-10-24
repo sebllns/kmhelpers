@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/kmhelpers-logo-v1.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -2537,6 +2537,42 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#commands-and-the-modules-they-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Commands and the modules they use
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -2627,6 +2663,76 @@
 </tr>
 </tbody>
 </table>
+<h2 id="architecture">Architecture</h2>
+<p>The package is organised in layers. The <code>cli</code> commands are thin: they parse
+options and call <code>pipeline</code> (or <code>core</code> directly). <code>core</code> wraps the external
+tools (kmtricks, kmindex) and holds the data structures.</p>
+<pre class="mermaid"><code>flowchart TD
+    cli["cli&lt;br/&gt;&lt;small&gt;Click commands&lt;/small&gt;"]
+    pipeline["pipeline&lt;br/&gt;&lt;small&gt;design, build (index_ops), query&lt;/small&gt;"]
+    operations["operations&lt;br/&gt;&lt;small&gt;IndexBuilder, fof validation&lt;/small&gt;"]
+    core["core&lt;br/&gt;&lt;small&gt;registry, Bloom filters, kmtricks / kmindex wrappers&lt;/small&gt;"]
+    vendor["vendor&lt;br/&gt;&lt;small&gt;kmparams&lt;/small&gt;"]
+
+    cli --&gt; pipeline
+    cli --&gt; core
+    pipeline --&gt; operations
+    pipeline --&gt; core
+    operations --&gt; core
+    operations -.-&gt;|"fof, query"| pipeline
+    core --&gt; vendor</code></pre>
+<p>The dashed arrow is a back-dependency: <code>operations/__init__.py</code> re-exports
+<code>pipeline.fof.FofManager</code> and <code>pipeline.query.KmindexQuery</code>.</p>
+<h3 id="commands-and-the-modules-they-use">Commands and the modules they use</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Modules</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>list</code></td>
+<td><code>pipeline.sample_lister</code></td>
+</tr>
+<tr>
+<td><code>profile</code></td>
+<td><code>pipeline.span_profiler</code></td>
+</tr>
+<tr>
+<td><code>compose</code></td>
+<td><code>pipeline.composer</code></td>
+</tr>
+<tr>
+<td><code>design</code></td>
+<td><code>pipeline.sample_lister</code>, <code>pipeline.span_profiler</code>, <code>pipeline.composer</code></td>
+</tr>
+<tr>
+<td><code>plan</code></td>
+<td><code>pipeline.index_ops</code> (<code>IndexOps</code>, <code>cluster</code>, <code>status</code>)</td>
+</tr>
+<tr>
+<td><code>apply</code></td>
+<td><code>pipeline.index_ops</code> (<code>runner</code>, <code>status</code>, <code>progress</code>)</td>
+</tr>
+<tr>
+<td><code>build</code></td>
+<td><code>plan</code> then <code>apply</code></td>
+</tr>
+<tr>
+<td><code>query</code></td>
+<td><code>pipeline.query</code> (<code>QueryRunner</code>), <code>core.index</code> (<code>KmindexRegistry</code>)</td>
+</tr>
+<tr>
+<td><code>compress</code>, <code>manage</code></td>
+<td><code>core.index</code> (<code>KmindexRegistry</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>The build side is detailed in <a href="pipeline/index_ops/">index_ops</a>, including
+the SLURM cluster file and how to add a job kind. For what a build does from
+the user's side, see <a href="../concepts/building/">How an index is built</a>.</p>
 
 
 
@@ -2728,10 +2834,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       

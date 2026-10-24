@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/kmhelpers-logo-v1.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -3146,11 +3146,11 @@ errors now rather than discovering them mid-build.</p>
 <summary>The plan in <code>coli_build/assets/initial/</code></summary>
 <ul>
 <li><strong><code>plan.yaml</code></strong> -- what <code>apply</code> runs: one task per sub-index, its kmtricks runs,
-  its merge and its jobs (see <a href="../../commands/plan/#description">plan</a>).</li>
+  its publish step and its jobs (see <a href="../../commands/plan/#description">plan</a>).</li>
 <li><strong><code>coli_g&lt;span&gt;/coli_g&lt;span&gt;_initial.sh</code></strong> -- one script per kmtricks run (or chunk)
   of the sub-index (<code>coli_g0</code>, <code>coli_g1</code>), with Bloom-filter size, k-mer size,
   partitions and threads pre-filled, next to its sample list (<code>.fof</code>).</li>
-<li><strong><code>coli_g&lt;span&gt;/merge.sh</code></strong> -- checks the runs, publishes them as the sub-index
+<li><strong><code>coli_g&lt;span&gt;/publish.sh</code></strong> -- checks the runs, publishes them as the sub-index
   (moved in place, or merged), checks it, then deletes the runs. Each script stops
   at the first failing command and can be run again; see
   <a href="../../commands/build/#builds-and-merges">build - Builds and merges</a>.</li>
@@ -3195,7 +3195,7 @@ errors now rather than discovering them mid-build.</p>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">for</span><span class="w"> </span>shard<span class="w"> </span><span class="k">in</span><span class="w"> </span>coli_g0<span class="w"> </span>coli_g1<span class="p">;</span><span class="w"> </span><span class="k">do</span>
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span>bash<span class="w"> </span>coli_build/assets/initial/<span class="nv">$shard</span>/<span class="si">${</span><span class="nv">shard</span><span class="si">}</span>_initial.sh
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span>bash<span class="w"> </span>coli_build/assets/initial/<span class="nv">$shard</span>/merge.sh
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span>bash<span class="w"> </span>coli_build/assets/initial/<span class="nv">$shard</span>/publish.sh
 <a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="k">done</span>
 </code></pre></div>
 <details class="abstract">
@@ -3311,10 +3311,10 @@ errors now rather than discovering them mid-build.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       
