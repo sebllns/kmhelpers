@@ -14,11 +14,20 @@ logger = logging.getLogger(__name__)
 
 # kmtricks silently raises any lower --nb-partitions value to this floor
 KMTRICKS_MIN_PARTITIONS = 4
+# Ceiling of an auto-sized partition count
+AUTO_MAX_PARTITIONS = 256
 
 
 def clamp_partitions(count: int) -> int:
     """Apply the kmtricks partition floor; 0 (auto) is left untouched."""
     return max(count, KMTRICKS_MIN_PARTITIONS) if count > 0 else count
+
+
+def round_auto_partitions(count: int) -> int:
+    """Round an auto-sized partition count up to the next power of 2, at most
+    ``AUTO_MAX_PARTITIONS``, with the kmtricks floor."""
+    count = clamp_partitions(max(count, 1))
+    return min(1 << (count - 1).bit_length(), AUTO_MAX_PARTITIONS)
 
 
 @dataclass(frozen=True)
@@ -128,7 +137,12 @@ def resolve_partitions(
     )
     if params.partitions is None:
         raise TypeError("expected auto_params() to set partitions")
-    partitions = clamp_partitions(params.partitions)
+    partitions = round_auto_partitions(params.partitions)
+    if partitions < params.partitions:
+        logger.warning(
+            f"  └── Auto-sized partition count {params.partitions} capped to "
+            f"{AUTO_MAX_PARTITIONS}: fewer threads or more chunks fit the limits"
+        )
     logger.info(
         f"  └── Partitions: {partitions} (auto from the limits, "
         f"k-mer ratio {i.kmer_ratio})"

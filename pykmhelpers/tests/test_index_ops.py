@@ -34,7 +34,11 @@ from pykmhelpers.pipeline.index_ops.report import publish_status, run_status
 from pykmhelpers.pipeline.index_ops.runner import PlanRunner
 from pykmhelpers.pipeline.index_ops.samples import SampleResolver
 from pykmhelpers.pipeline.index_ops.script import ScriptRecorder
-from pykmhelpers.pipeline.index_ops.sizing import BuildParams, resolve_build_params
+from pykmhelpers.pipeline.index_ops.sizing import (
+    BuildParams,
+    resolve_build_params,
+    round_auto_partitions,
+)
 from pykmhelpers.pipeline.index_ops.sources import (
     IndexDefinitionSource,
     IndexSessionSource,
@@ -189,6 +193,17 @@ class TestResolveBuildParams(unittest.TestCase):
         self.assertIsNone(params.chunk_size)
         self.assertGreaterEqual(params.partitions, 4)
         self.assertGreater(params.threads, 0)
+
+    def test_auto_partitions_power_of_two(self):
+        self.assertEqual(
+            [round_auto_partitions(n) for n in (0, 1, 4, 5, 27, 64, 65, 256, 300)],
+            [4, 4, 4, 8, 32, 64, 128, 256, 256],
+        )
+        config = make_config(limits='{"ram": 8000000000, "files": 4096, "threads": 16}')
+        params = resolve_build_params(
+            make_definition(bf_size=2**33, kmer_ratio=10), 7, config, self.layout()
+        )
+        self.assertEqual(params.partitions & (params.partitions - 1), 0)
 
     def test_kmer_ratio_scales_the_sizing(self):
         """Partitions, then threads at a fixed count, follow k-mer occurrences."""
