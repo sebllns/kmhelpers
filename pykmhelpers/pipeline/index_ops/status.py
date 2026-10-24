@@ -24,9 +24,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
+import psutil
 import yaml
 
 from pykmhelpers.core.kmindex_paths import chunk_problems
+from pykmhelpers.pipeline.index_ops.cluster import mem_bytes
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths
 from pykmhelpers.pipeline.index_ops.plan_file import PUBLISH
 
@@ -271,8 +273,13 @@ def overall(tree: dict) -> str:
     return RUNNING if s["running"] else PENDING
 
 
-def render(tree: dict, shards: Optional[list[str]] = None) -> str:
-    """The progress tree as text, for the terminal and the mails."""
+def render(
+    tree: dict,
+    shards: Optional[list[str]] = None,
+    details: Optional[dict[str, list["StepDetail"]]] = None,
+) -> str:
+    """The progress tree as text, for the terminal and the mails; the shards
+    of ``details`` (``step_details``) with their steps in detail."""
     s = tree["summary"]
     lines = [
         f"{overall(tree)}: {s['done']}/{s['shards']} shard(s) done, {s['failed']} failed, "
@@ -282,6 +289,10 @@ def render(tree: dict, shards: Optional[list[str]] = None) -> str:
         if shards and shard not in shards:
             continue
         lines.append(f"{shard}:")
+        if details and shard in details:
+            at = datetime.now()
+            lines += [f"  {d.step}: {detail_text(d, at)}" for d in details[shard]]
+            continue
         lines += [f"  {step}: {status}" for step, status in steps.items()]
     return "\n".join(lines)
 
@@ -430,3 +441,201 @@ def shard_line(
         code = _COLORS[p.state]
         icon, tail = f"\033[{code}m{icon}\033[0m", f"\033[{code}m{tail}\033[0m"
     return f"{icon} {p.shard:<{width}}  [{bar}] {count:<{5}} {elapsed:<9} {tail}".rstrip()
+
+
+# ---
+# DETAILED STATUS OF THE SELECTED SHARDS (--status --task, --sp --task)
+
+LOG_TAIL = 8192  # bytes of a log read for the current kmtricks phase
+RAM_WARN, RAM_HIGH = 0.8, 0.95  # RAM fractions colored yellow, red
+_ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+# a kmtricks bar: ``Count partitions [=========>     ] [03m:12s]``
+_BAR = re.compile(r"^([A-Za-z][A-Za-z ]*?)\s+\[([=> ]+)\]", re.M)
+# a marker of the step scripts: ``2026-10-24 00:40:34 [18SV9_g0_initial] build ...``
+_MARKER = re.compile(r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d \[[^\]]+\] (\S+)", re.M)
+_RSS = re.compile(r"^([\d.]+)([KMGTP]?)$")
+_RSS_UNITS = {"": 1 << 10, "K": 1 << 10, "M": 1 << 20, "G": 1 << 30, "T": 1 << 40, "P": 1 << 50}
+_slurm_mem: dict[str, Optional[int]] = {}  # job -> its --mem, read once
+
+
+@dataclass
+class StepDetail:
+    """One step of a shard, in detail: its job, node, times, RAM and kmtricks phase."""
+
+    step: str
+    status: str
+    detail: str = ""  # of step_status: log and error of a failure
+    job: str = ""
+    node: str = ""
+    log: str = ""
+    started: Optional[datetime] = None
+    finished: Optional[datetime] = None
+    ram: Optional[tuple[int, Optional[int]]] = None  # used, budget (bytes)
+    phase: Optional[tuple[str, Optional[int]]] = None  # name, percent
+
+
+def step_details(
+    state: BuildState,
+    task: dict,
+    steps: Optional[set[str]] = None,
+    alive=None,
+    submitted=None,
+    ram=None,
+) -> list[StepDetail]:
+    """The steps of ``task`` (those in ``steps``, or all), in detail;
+    ``ram(recorded) -> (used, budget) | None`` measures a running step."""
+    submitted = state.submitted() if submitted is None else submitted
+    job_of = {
+        step: submitted.get(job)
+        for job, job_steps in (task.get("jobs") or {}).items()
+        for step in job_steps
+    }
+    details = []
+    for step in list(task["chunks"]) + ([PUBLISH] if task.get("publish") else []):
+        if steps is not None and step not in steps:
+            continue
+        status, detail = state.step_status(task, step, job_of.get(step), alive)
+        recorded = state.read_state(task, step)
+        d = StepDetail(
+            step,
+            status,
+            detail if status in (FAILED, CANCELLED, LOST) else "",
+            job=recorded.get("job") or job_of.get(step) or "",
+            node=recorded.get("node") or "",
+            log=recorded.get("log") or "",
+            started=_when(recorded.get("started")),
+            finished=_when(recorded.get("finished")),
+        )
+        if status == RUNNING:
+            d.phase = kmtricks_phase(d.log)
+            d.ram = ram(recorded) if ram else None
+        details.append(d)
+    return details
+
+
+def kmtricks_phase(log: str) -> Optional[tuple[str, Optional[int]]]:
+    """What a running step is doing, from the tail of its log: the last kmtricks
+    bar (``Count partitions``, 63), or the last marker of its script (``build``)."""
+    try:
+        with open(log, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            f.seek(max(f.tell() - LOG_TAIL, 0))
+            text = f.read().decode(errors="replace")
+    except (OSError, TypeError):
+        return None
+    text = _ANSI.sub("", text).replace("\r", "\n")
+    bars, markers = list(_BAR.finditer(text)), list(_MARKER.finditer(text))
+    bar, marker = (bars[-1] if bars else None), (markers[-1] if markers else None)
+    if bar and (not marker or bar.start() > marker.start()):
+        inside = bar.group(2)
+        return bar.group(1).strip(), round(100 * inside.count("=") / len(inside))
+    return (marker.group(1), None) if marker else None
+
+
+def slurm_ram(job: str) -> Optional[tuple[int, Optional[int]]]:
+    """Peak RSS so far of the running SLURM ``job`` (``sstat``, its batch step),
+    and its ``--mem`` (``squeue``); None when sstat cannot tell (no accounting)."""
+    try:
+        r = subprocess.run(
+            ["sstat", "-n", "-P", "-j", f"{job}.batch", "--format=MaxRSS"],
+            capture_output=True, text=True, timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    used = _rss_bytes(r.stdout.strip().splitlines()[0]) if r.returncode == 0 and r.stdout.strip() else None
+    if used is None:
+        return None
+    if job not in _slurm_mem:
+        _slurm_mem[job] = _squeue_mem(job)
+    return used, _slurm_mem[job]
+
+
+def _rss_bytes(value: str) -> Optional[int]:
+    """``576880K`` (sstat; no unit: KB) -> bytes."""
+    m = _RSS.match(value.strip())
+    return int(float(m.group(1)) * _RSS_UNITS[m.group(2)]) if m else None
+
+
+def _squeue_mem(job: str) -> Optional[int]:
+    try:
+        r = subprocess.run(
+            ["squeue", "-h", "-j", job, "-o", "%m"], capture_output=True, text=True, timeout=30
+        )
+        return mem_bytes(r.stdout.strip()) if r.returncode == 0 and r.stdout.strip() else None
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+
+
+def process_rss(pid: int) -> Optional[int]:
+    """RSS (bytes) of process ``pid`` and its children; None when it is gone."""
+    try:
+        p = psutil.Process(pid)
+        return int(sum(q.memory_info().rss for q in [p] + p.children(recursive=True)))
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return None
+
+
+def ram_source(budget: Optional[int] = None):
+    """``ram(recorded)`` of ``step_details`` for a watch: a SLURM job by ``sstat``,
+    a local ``apply`` (``pid N`` on this host) by psutil, against ``budget``."""
+    host, has_sstat = socket.gethostname(), bool(shutil.which("sstat"))
+
+    def ram(recorded: dict) -> Optional[tuple[int, Optional[int]]]:
+        job = recorded.get("job") or ""
+        if job.startswith("pid "):
+            if recorded.get("node") != host or not job[4:].isdigit():
+                return None
+            used = process_rss(int(job[4:]))
+            return (used, budget) if used is not None else None
+        return slurm_ram(job) if job and has_sstat else None
+
+    return ram
+
+
+def human_bytes(n: float) -> str:
+    """``14.2G``, ``120G``, ``512M`` (1024 based, as SLURM)."""
+    for unit in ("", "K", "M", "G", "T"):
+        if abs(n) < 1024 or unit == "T":
+            break
+        n /= 1024
+    return f"{n:.0f}{unit}" if n >= 100 or not unit else f"{n:.1f}{unit}"
+
+
+def ram_text(ram: tuple[int, Optional[int]], color: bool = False) -> str:
+    """``RAM 14.2G/120G (12%)``, ``RAM 0.6G/700G (<1%)``; colored at RAM_WARN, RAM_HIGH."""
+    used, budget = ram
+    if not budget:
+        return f"RAM {human_bytes(used)}"
+    frac = used / budget
+    pct = "<1%" if 0 < frac < 0.005 else f"{frac:.0%}"
+    text = f"RAM {human_bytes(used)}/{human_bytes(budget)} ({pct})"
+    code = "31" if frac >= RAM_HIGH else "33" if frac >= RAM_WARN else None
+    return f"\033[{code}m{text}\033[0m" if color and code else text
+
+
+def phase_text(phase: tuple[str, Optional[int]], bar: bool = False) -> str:
+    """``Count partitions 63%``; ``bar``: ``Count partitions [■■■■■■■     ] 63%``."""
+    name, pct = phase
+    if pct is None:
+        return name
+    if bar:
+        filled = round(BAR_LEN * pct / 100)
+        return f"{name} [{'■' * filled}{' ' * (BAR_LEN - filled)}] {pct}%"
+    return f"{name} {pct}%"
+
+
+def detail_text(d: StepDetail, now: datetime, color: bool = False, live: bool = False) -> str:
+    """``RUNNING  job 179709_0 @node58  4m10s  RAM 14.2G/120G (12%)  Count partitions 63%``;
+    ``live``: without the status and the time (on the shard line already)."""
+    parts = [] if live else [d.status]
+    if d.job:
+        parts.append(f"job {d.job}" + (f" @{d.node}" if d.node else ""))
+    if d.started and not live:
+        parts.append(duration(((d.finished or now) - d.started).total_seconds()))
+    if d.ram:
+        parts.append(ram_text(d.ram, color))
+    if d.phase:
+        parts.append(phase_text(d.phase, bar=live))
+    if d.detail:
+        parts.append(d.detail)
+    return "  ".join(parts)

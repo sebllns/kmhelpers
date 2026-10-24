@@ -198,7 +198,9 @@ _task_option = click.option(
     help="⚙   Run only what matches these names or glob patterns (repeatable or "
     "comma-separated): a shard or its task (<shard>_<session>) runs all its "
     "jobs; a job runs alone: '<shard>_j<k>' (some chunks, see `plan "
-    "--chunks-per-job`) or '<shard>_publish'. E.g. 'idx_g0_*', '*_publish'.",
+    "--chunks-per-job`) or '<shard>_publish'. E.g. 'idx_g0_*', '*_publish'. "
+    "With --status (and --sp): only these shards and steps, in detail (job, "
+    "node, RAM, kmtricks phase).",
 )
 replan_option = click.option(
     "--replan",
@@ -213,7 +215,7 @@ status_option = click.option(
     is_flag=True,
     help="🚩  Print where the build stands, per shard and step (also written to "
     "BUILD_DIR/assets/SESSION/progress.yaml), and run nothing; with --notify, "
-    "mail it.",
+    "mail it. With --task, only the matching shards, their steps in detail.",
 )
 pending_option = click.option(
     "--pending",

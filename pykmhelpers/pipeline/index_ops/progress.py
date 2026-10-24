@@ -9,6 +9,12 @@
 Shards not started are not shown. In a terminal (``live``), the lines are
 redrawn in place, with colors; otherwise a shard's line is printed when it
 changes (a step starts or ends, the shard ends).
+
+``detailed`` (``--task``): in a terminal, each running step gets a line under
+its shard, with its job, its RAM and the current kmtricks phase::
+
+    ⣾ idx_g0  [■■■■■■      ] 6/11 (8m3s)   chunk5 (3m12s)
+        └ chunk5  job 179709_5 @node58  RAM 45.6G/120G (38%)  Count partitions [■■■■■■■     ] 63%
 """
 
 import logging
@@ -18,14 +24,21 @@ from datetime import datetime
 from typing import Callable, Optional
 
 from pykmhelpers.pipeline.index_ops.status import (
+    RUNNING,
     BuildState,
     ShardProgress,
+    StepDetail,
+    detail_text,
+    kmtricks_phase,
     shard_line,
     shard_progress,
+    short_step,
+    step_details,
 )
 
 SPINNER = ["⢿", "⣻", "⣽", "⣾", "⣷", "⣯", "⣟", "⡿"]
 TICK = 0.5  # seconds between two redraws in a terminal
+PHASE_TICKS = 4  # ticks between two reads of the logs of the running steps (detailed)
 
 
 class ShardDisplay:
@@ -33,7 +46,8 @@ class ShardDisplay:
 
     ``update()`` reads the steps again (after a state change, or each poll of
     a watch); in a terminal, a thread redraws every ``TICK`` the spinner and
-    the clocks from what was read last.
+    the clocks from what was read last. ``detailed``: the running steps too
+    (see ``step_details``; ``ram`` measures them, or ``set_ram`` is told).
     """
 
     def __init__(
@@ -43,6 +57,8 @@ class ShardDisplay:
         live: Optional[bool] = None,
         stream=None,
         alive: Optional[Callable[[str], Optional[bool]]] = None,
+        detailed: bool = False,
+        ram: Optional[Callable[[dict], Optional[tuple]]] = None,
     ) -> None:
         self.state = state
         self.tasks = [t for t in (tasks or list(state.tasks)) if t in state.tasks]
@@ -51,6 +67,10 @@ class ShardDisplay:
         self.alive = alive
         self.width = max((len(state.tasks[t]["shard"]) for t in self.tasks), default=0)
         self.shards: list[ShardProgress] = []
+        self.detailed = detailed
+        self.ram = ram
+        self.details: dict[str, list[StepDetail]] = {}  # shard -> running steps
+        self._pushed: dict[tuple[str, str], tuple] = {}  # (shard, step) -> set_ram
         self._printed: dict[str, tuple] = {}
         self._height = 0
         self._frame = 0
@@ -91,8 +111,21 @@ class ShardDisplay:
             shard_progress(self.state, self.state.tasks[t], self.alive, submitted)
             for t in self.tasks
         ]
+        details = {}
+        if self.detailed and self.live:
+            for t, p in zip(self.tasks, shards):
+                running = {s for s, _ in p.running}
+                if running:
+                    details[p.shard] = step_details(
+                        self.state, self.state.tasks[t], running, self.alive, submitted, self.ram
+                    )
         with self._lock:
             self.shards = shards
+            self.details = details
+            self._pushed = {
+                k: v for k, v in self._pushed.items()
+                if any(d.step == k[1] for d in details.get(k[0], []))
+            }
             if self.live:
                 self._redraw()
             else:
@@ -102,12 +135,23 @@ class ShardDisplay:
     def lines(self, now: Optional[datetime] = None) -> list[str]:
         now = now or datetime.now()
         spinner = SPINNER[self._frame % len(SPINNER)]
-        lines = [
-            shard_line(p, self.width, now, spinner, color=self.live)
-            for p in self.shards
-            if p.shown
-        ]
+        lines = []
+        for p in self.shards:
+            if not p.shown:
+                continue
+            lines.append(shard_line(p, self.width, now, spinner, color=self.live))
+            for d in self.details.get(p.shard, []):
+                if d.status != RUNNING:
+                    continue
+                d.ram = self._pushed.get((p.shard, d.step), d.ram)
+                text = detail_text(d, now, color=self.live, live=True)
+                lines.append(f"    └ {short_step(d.step)}  {text}".rstrip())
         return lines or [f"{spinner} {self.waiting_message()}"]
+
+    def set_ram(self, shard: str, step: str, used: int, budget: Optional[int] = None) -> None:
+        """RAM of a running step, measured by its runner; drawn at the next tick."""
+        with self._lock:
+            self._pushed[(shard, step)] = (used, budget)
 
     def waiting_message(self) -> str:
         """Shown while no shard has started (jobs queued, or about to run)."""
@@ -118,6 +162,9 @@ class ShardDisplay:
         while not self._stop.wait(TICK):
             with self._lock:
                 self._frame += 1
+                if self.details and self._frame % PHASE_TICKS == 0:
+                    for d in (d for ds in self.details.values() for d in ds):
+                        d.phase = kmtricks_phase(d.log) or d.phase
                 self._redraw()
 
     def _erase(self) -> None:

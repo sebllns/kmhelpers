@@ -72,6 +72,11 @@ class PlanRunner:
     def plan_path(self) -> str:
         return self._paths.plan
 
+    def ram_budget(self) -> Optional[int]:
+        """The RAM limit the plan was sized for (bytes), if it has one."""
+        ram = ((self.plan.get("options") or {}).get("limits") or {}).get("ram_bytes")
+        return int(ram) if ram else None
+
     # ---
     # SELECTION
 
@@ -119,12 +124,15 @@ class PlanRunner:
         show_progress: bool = False,
         report_path: Optional[str] = None,
         on_task_end: Optional[Callable[[str, str], None]] = None,
+        detailed: bool = False,
     ) -> ApplyResult:
         """Run ``jobs`` in order; return the overall result.
 
         A failed step stops its task (its later steps are not run); the other
         tasks go on, unless ``fail_on_error``. ``on_task_end(shard, status)``
         is called when a task ends here: its last step done, or a step failed.
+        ``detailed`` (with ``show_progress``): the running step in detail, its
+        RAM against the plan's RAM limit.
         """
         mode = ApplyMode.APPLY_SHOW_PROGRESS if show_progress else ApplyMode.APPLY
         report = RunReport(self._input, mode, None, report_path)
@@ -135,7 +143,7 @@ class PlanRunner:
         previous = self._on_sigterm()
         if show_progress:
             tasks = list(dict.fromkeys(j.task for j in jobs))
-            self._display = ShardDisplay(self.state, tasks).start()
+            self._display = ShardDisplay(self.state, tasks, detailed=detailed).start()
         try:
             for job in jobs:
                 if job.task in failed_tasks:
@@ -287,7 +295,7 @@ class PlanRunner:
         start = time.monotonic()
 
         def run_script() -> None:
-            self._script(task, publish.get("script", f"{PUBLISH}.sh"), log, shard, show_progress)
+            self._script(task, publish.get("script", f"{PUBLISH}.sh"), log, PUBLISH, show_progress)
             if not self._task_done(task):
                 raise RuntimeError(f"'{shard}' does not hold the samples of '{part}'")
 
@@ -301,11 +309,20 @@ class PlanRunner:
         return True
 
     def _script(
-        self, task: dict, script: str, log: str, name: str, show_progress: bool
+        self, task: dict, script: str, log: str, step: str, show_progress: bool
     ) -> None:
         path = os.path.join(self._paths.task(task["dir"].rstrip("/")), script)
         os.makedirs(os.path.dirname(log), exist_ok=True)
-        result = self._shell._monitor_cmd(["bash", path], log_file=log, log_errors_only=False)
+        on_sample = None
+        if show_progress and self._display and self._display.detailed:
+            display, shard, budget = self._display, task["shard"], self.ram_budget()
+
+            def on_sample(rss: int) -> None:
+                display.set_ram(shard, step, rss, budget)
+
+        result = self._shell._monitor_cmd(
+            ["bash", path], log_file=log, log_errors_only=False, on_sample=on_sample
+        )
         code = (result or {}).get("return_code", -1)
         if code != 0:
             stderr = [ln for ln in str((result or {}).get("stderr") or "").splitlines() if ln.strip()]

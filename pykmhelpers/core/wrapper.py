@@ -4,13 +4,15 @@ import shutil
 import subprocess
 import threading
 import time
-from typing import Any, List, Optional
+from typing import Any, Callable, List, Optional
 
 import psutil
 
 from pykmhelpers.core.utils import Toolbox
 
 logger = logging.getLogger(__name__)
+
+SAMPLE_EVERY = 1.0  # seconds between two calls of the on_sample of _monitor_cmd
 
 
 # class BinNotFoundError(FileNotFoundError):
@@ -150,13 +152,19 @@ class Wrapper:
         print_trace: Optional[bool] = None,
         log_file: Optional[str] = None,
         log_errors_only: Optional[bool] = None,
+        on_sample: Optional[Callable[[int], None]] = None,
     ) -> Optional[dict]:
         """
         Run a command and monitor its resource usage.
         Args:
             cmd: Command and arguments as a list
             print_trace: Whether to print trace output. If None, computed from logger level (True if DEBUG).
-            log_file: Optional path to write stdout/stderr to
+            log_file: Optional path to write stdout/stderr to. With stdout logged
+                (not ``log_errors_only``), stdout is written as it comes, so the
+                log can be read while the command runs; stderr and the resource
+                usage are appended at the end.
+            on_sample: Called with the RSS (bytes) of the process tree, every
+                ``SAMPLE_EVERY`` seconds while it runs
         Returns:
             Tuple of (stdout, resource_stats) where resource_stats contains:
                 - start_time: Command start timestamp
@@ -179,6 +187,8 @@ class Wrapper:
         if log_errors_only is None:
             log_errors_only = logger.getEffectiveLevel() >= logging.WARNING
 
+        # the log stdout is written to as it comes, if any
+        stream = log_file if log_file and not log_errors_only else None
         max_cpu = 0.0
         max_memory = 0.0
         monitoring = True
@@ -186,6 +196,7 @@ class Wrapper:
 
         def monitor_resources(process):
             nonlocal max_cpu, max_memory
+            last_sample = 0.0
             try:
                 psutil_process = psutil.Process(process.pid)
                 psutil_process.cpu_percent(interval=0.1)
@@ -204,6 +215,13 @@ class Wrapper:
                             max_cpu = max(max_cpu, cpu_percent)
                             max_memory = max(max_memory, memory_mb)
 
+                        if on_sample and time.monotonic() - last_sample >= SAMPLE_EVERY:
+                            last_sample = time.monotonic()
+                            try:
+                                on_sample(memory_bytes)
+                            except Exception as e:
+                                logger.debug(f"Monitoring callback: {e}")
+
                         time.sleep(0.1)
                     except (psutil.NoSuchProcess, psutil.AccessDenied):
                         break
@@ -221,7 +239,10 @@ class Wrapper:
             monitor_thread.start()
             time.sleep(0.01)
 
-            stdout, stderr = result.communicate()
+            if stream:
+                stdout, stderr = self._stream_to_log(result, stream, _cmd)
+            else:
+                stdout, stderr = result.communicate()
             end_time = time.time()
             monitoring = False
             monitor_thread.join(timeout=1)
@@ -241,14 +262,25 @@ class Wrapper:
                     output["stdout"] = stdout
                 output["stderr"] = stderr
 
-            # Build output content
-            output_lines = [
-                f"Command: {output['command']}",
+            usage = [
                 f"Execution time: {output['execution_time_s']:.2f}s",
                 f"Max CPU: {output['max_cpu_percent']}%",
                 f"Max Memory: {output['max_memory_mb']} MB",
                 f"Return code: {output['return_code']}",
             ]
+
+            if stream:
+                # stdout is in the log already: stderr, then the usage
+                tail = ["\n--- STDERR ---", stderr] if stderr.strip() else []
+                tail += ["\n--- RESOURCES ---", *usage]
+                with open(stream, "a") as f:
+                    f.write("\n".join(tail) + "\n")
+                if print_trace:
+                    logger.debug("\n".join(usage))
+                return output
+
+            # Build output content
+            output_lines = [f"Command: {output['command']}", *usage]
 
             if not log_errors_only:
                 output_lines.extend(["\n--- STDOUT ---", stdout])
@@ -273,3 +305,23 @@ class Wrapper:
         except Exception as e:
             logger.error(f"Failed to start process: {e}")
             return None
+
+    @staticmethod
+    def _stream_to_log(process, log_file: str, cmd: List[str]) -> tuple[str, str]:
+        """Write the stdout of ``process`` to ``log_file`` as it comes (``apply
+        --status --task`` reads its tail), keep its stderr; both, once it ends."""
+        err: list[str] = []
+        # read apart: a full stderr pipe would block the process
+        reader = threading.Thread(target=lambda: err.append(process.stderr.read()), daemon=True)
+        reader.start()
+        out: list[str] = []
+        with open(log_file, "w") as f:
+            f.write(f"Command: {' '.join(cmd)}\n\n--- STDOUT ---\n")
+            f.flush()
+            for line in process.stdout:
+                out.append(line)
+                f.write(line)
+                f.flush()
+        process.wait()
+        reader.join()
+        return "".join(out), "".join(err)

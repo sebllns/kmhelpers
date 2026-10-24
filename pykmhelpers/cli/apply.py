@@ -19,8 +19,10 @@ from pykmhelpers.pipeline.index_ops.status import (
     RUNNING,
     SUCCESS,
     overall,
+    ram_source,
     render,
     squeue_alive,
+    step_details,
 )
 
 logger = logging.getLogger(__name__)
@@ -52,18 +54,41 @@ def run_plan(
         show_progress=show_progress,
         report_path=report_path,
         on_task_end=notifier.shard_end,
+        detailed=bool(task_ids),
     )
     notifier.status = result.status.value
     logger.info(f"Result details written to {report_path}")
     return result
 
 
-def show_status(input_file: str, work_dir: str, notify: str | None = None) -> str:
+def selected_steps(runner: PlanRunner, task_ids) -> dict[str, set[str]]:
+    """The steps of the jobs matching ``task_ids`` (``--task``), per task."""
+    steps: dict[str, set[str]] = {}
+    for job in runner.jobs(shared.split_names(task_ids)):
+        steps.setdefault(job.task, set()).update(job.steps)
+    return steps
+
+
+def show_status(
+    input_file: str, work_dir: str, notify: str | None = None, task_ids=None
+) -> str:
     """Print the progress tree of the plan (refreshing progress.yaml, checking
-    that RUNNING jobs are still in squeue); with ``notify``, mail it."""
+    that RUNNING jobs are still in squeue); with ``notify``, mail it. With
+    ``task_ids``, only the shards of the matching jobs, their steps in detail
+    (job, node, time, RAM and kmtricks phase of a running step)."""
     runner = PlanRunner(work_dir, input_file)
     tree = runner.state.write_progress(check_jobs=True)
-    text = render(tree)
+    if task_ids:
+        state = runner.state
+        alive = squeue_alive if shutil.which("squeue") else None
+        ram = ram_source(runner.ram_budget())
+        details = {
+            state.tasks[t]["shard"]: step_details(state, state.tasks[t], steps, alive, ram=ram)
+            for t, steps in selected_steps(runner, task_ids).items()
+        }
+        text = render(tree, list(details), details)
+    else:
+        text = render(tree)
     click.echo(text)
     result = overall(tree)
     if notify:
@@ -78,13 +103,21 @@ def show_status(input_file: str, work_dir: str, notify: str | None = None) -> st
     return result
 
 
-def watch(input_file: str, work_dir: str, interval: float) -> int:
+def watch(input_file: str, work_dir: str, interval: float, task_ids=None) -> int:
     """Draw one line per shard of a cluster build, read again every ``interval``
     seconds, until no shard is running or waiting on a job; 0 when every
-    shard is SUCCESS, else 1. Ctrl-C only stops watching."""
+    shard is SUCCESS, else 1. Ctrl-C only stops watching. With ``task_ids``,
+    only the shards of the matching jobs, their running steps in detail."""
     runner = PlanRunner(work_dir, input_file)
     alive = squeue_alive if shutil.which("squeue") else None
-    display = ShardDisplay(runner.state, alive=alive)
+    tasks = list(selected_steps(runner, task_ids)) if task_ids else None
+    display = ShardDisplay(
+        runner.state,
+        tasks,
+        alive=alive,
+        detailed=bool(task_ids),
+        ram=ram_source(runner.ram_budget()),
+    )
     try:
         display.start()
         while any(p.state == RUNNING or p.waiting for p in display.shards):
@@ -96,6 +129,9 @@ def watch(input_file: str, work_dir: str, interval: float) -> int:
         display.close()
     tree = runner.state.write_progress(check_jobs=True)
     click.echo(render(tree).splitlines()[0])
+    if tasks:
+        # the shards drawn are those of the selected jobs
+        return 0 if all(p.state == SUCCESS for p in display.shards) else 1
     return 0 if overall(tree) == SUCCESS else 1
 
 
@@ -162,13 +198,19 @@ def apply(
     \b
     # Follow a cluster build: one line per shard, until it ends
     kmhelpers apply coli_db -o coli_build --status --sp
+
+    \b
+    # One shard in detail: job, node, RAM and kmtricks phase of each step
+    kmhelpers apply coli_db -o coli_build --status --task coli_g0
+    kmhelpers apply coli_db -o coli_build --status --sp --task coli_g0
+    kmhelpers apply coli_db -o coli_build --status --task 'coli_g*'   # quoted: no shell glob
     """
     input_file = shared.resolve_definition(input_file, session)
     if status:
         try:
             if show_progress:
-                ctx.exit(watch(input_file, work_dir, interval))
-            show_status(input_file, work_dir, notify)
+                ctx.exit(watch(input_file, work_dir, interval, task_ids))
+            show_status(input_file, work_dir, notify, task_ids)
         except (ValueError, FileNotFoundError) as e:
             raise click.ClickException(str(e))
         return

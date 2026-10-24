@@ -6,6 +6,8 @@ import os
 import shutil
 import socket
 import tempfile
+import threading
+import time
 import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -14,9 +16,12 @@ from unittest import mock
 import yaml
 
 from pykmhelpers.cli.notify import ExitNotifier
+from pykmhelpers.core.wrapper import Wrapper
+from pykmhelpers.pipeline.index_ops import status as status_mod
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths
 from pykmhelpers.pipeline.index_ops.plan_file import PUBLISH
 from pykmhelpers.pipeline.index_ops.progress import ShardDisplay
+from pykmhelpers.pipeline.index_ops.run_log import parse_kmtricks_log
 from pykmhelpers.pipeline.index_ops.status import (
     CANCELLED,
     FAILED,
@@ -26,14 +31,23 @@ from pykmhelpers.pipeline.index_ops.status import (
     SUCCESS,
     BuildState,
     ShardProgress,
+    StepDetail,
+    _rss_bytes,
     active_jobs,
+    detail_text,
     duration,
+    human_bytes,
+    kmtricks_phase,
     overall,
+    ram_text,
     render,
     shard_line,
     shard_progress,
     short_step,
+    slurm_ram,
+    step_details,
 )
+
 
 PARTITIONS = 2
 
@@ -233,6 +247,148 @@ class TestShardLine(StatusCase):
         display.update()
         display.update()
         self.assertIn("\033[1F\033[J", out.getvalue())
+
+
+# the tail of a running chunk log, as kmtricks draws its bars
+CHUNK_LOG = (
+    "Command: bash idx_g0_s1_chunk0.sh\n\n--- STDOUT ---\n"
+    "2026-10-24 00:40:34 [idx_g0_s1_chunk0] prepare\n"
+    "2026-10-24 00:40:34 [idx_g0_s1_chunk0] build idx_g0_s1_chunk0\n"
+    "\nCompute SuperK   [==================================================] [15m:10s] \n"
+    "\nCount partitions [===============================>                  ] [03m:12s] \n"
+    "\x1b[A\x1b[A\n"
+)
+
+
+class TestDetails(StatusCase):
+    def log(self, text):
+        path = self.tmp / "chunk0.log"
+        path.write_text(text)
+        return str(path)
+
+    def running(self, step, log, job="179709_0"):
+        started = (datetime.now() - timedelta(minutes=4)).isoformat(timespec="seconds")
+        path = Path(self.state.state_path(self.task, step))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(
+            {"status": RUNNING, "job": job, "node": "node58", "log": log, "started": started}
+        ))
+
+    def test_phase_from_the_last_bar_or_marker(self):
+        self.assertEqual(kmtricks_phase(self.log(CHUNK_LOG)), ("Count partitions", 62))
+        self.assertEqual(kmtricks_phase(self.log(CHUNK_LOG.split("\nCompute")[0])), ("build", None))
+        done = CHUNK_LOG + "2026-10-24 00:57:37 [idx_g0_s1_chunk0] done\n"
+        self.assertEqual(kmtricks_phase(self.log(done)), ("done", None))
+        self.assertIsNone(kmtricks_phase(self.log("")))
+        self.assertIsNone(kmtricks_phase(str(self.tmp / "missing.log")))
+        self.assertIsNone(kmtricks_phase(""))
+
+    def test_slurm_ram(self):
+        def run(cmd, **_):
+            out = {"sstat": "576880K\n", "squeue": "4G\n"}[cmd[0]]
+            return mock.Mock(returncode=0, stdout=out, stderr="")
+
+        status_mod._slurm_mem.clear()
+        with mock.patch.object(status_mod.subprocess, "run", side_effect=run) as m:
+            self.assertEqual(slurm_ram("10_1"), (576880 << 10, 4 << 30))
+            slurm_ram("10_1")  # --mem read once
+            self.assertEqual([c.args[0][0] for c in m.call_args_list], ["sstat", "squeue", "sstat"])
+        empty = mock.Mock(returncode=0, stdout="", stderr="")
+        with mock.patch.object(status_mod.subprocess, "run", return_value=empty):
+            self.assertIsNone(slurm_ram("10_2"))
+        with mock.patch.object(status_mod.subprocess, "run", side_effect=OSError):
+            self.assertIsNone(slurm_ram("10_3"))
+        self.assertEqual((_rss_bytes("2G"), _rss_bytes("12"), _rss_bytes("?")), (2 << 30, 12 << 10, None))
+
+    def test_ram_text(self):
+        self.assertEqual(human_bytes(14.2 * (1 << 30)), "14.2G")
+        self.assertEqual(human_bytes(120 << 30), "120G")
+        self.assertEqual(ram_text((12 << 30, 100 << 30)), "RAM 12.0G/100G (12%)")
+        self.assertEqual(ram_text((589756 << 10, 700 << 30)), "RAM 576M/700G (<1%)")
+        self.assertIn("\033[33m", ram_text((85, 100), color=True))
+        self.assertIn("\033[31m", ram_text((96, 100), color=True))
+        self.assertNotIn("\033", ram_text((10, 100), color=True))
+        self.assertEqual(ram_text((512 << 20, None)), "RAM 512M")
+
+    def test_step_details_and_render(self):
+        self.complete_run("idx_g0_s1_chunk1")
+        self.running("idx_g0_s1_chunk0", self.log(CHUNK_LOG))
+        ram = mock.Mock(return_value=(12 << 30, 100 << 30))
+        details = step_details(self.state, self.task, ram=ram)
+        self.assertEqual([d.status for d in details], [RUNNING, SUCCESS, PENDING])
+        running = details[0]
+        self.assertEqual((running.job, running.node), ("179709_0", "node58"))
+        self.assertEqual(running.phase, ("Count partitions", 62))
+        ram.assert_called_once()
+        text = detail_text(running, datetime.now())
+        self.assertIn("RUNNING  job 179709_0 @node58  4m", text)
+        self.assertIn("RAM 12.0G/100G (12%)  Count partitions 62%", text)
+        only = step_details(self.state, self.task, {"idx_g0_s1_chunk1"})
+        self.assertEqual([d.step for d in only], ["idx_g0_s1_chunk1"])
+
+        tree = self.state.progress()
+        out = render(tree, ["idx_g0"], {"idx_g0": details})
+        self.assertIn("  idx_g0_s1_chunk0: RUNNING  job 179709_0 @node58", out)
+        self.assertIn("  publish: PENDING", out)
+        self.assertNotIn("job", render(tree).split("chunk1")[1])
+
+    def test_failed_step_shows_its_log(self):
+        path = Path(self.state.state_path(self.task, "idx_g0_s1_chunk0"))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"status": FAILED, "job": "1_0", "log": "/x.log", "error": "exit 1"}))
+        d = step_details(self.state, self.task, {"idx_g0_s1_chunk0"})[0]
+        self.assertIn("FAILED  job 1_0", detail_text(d, datetime.now()))
+        self.assertIn("exit 1", d.detail)
+
+    def test_display_detailed_sub_lines(self):
+        self.running("idx_g0_s1_chunk0", self.log(CHUNK_LOG))
+        out = io.StringIO()
+        display = ShardDisplay(self.state, live=True, stream=out, detailed=True)
+        display.update()
+        display.set_ram("idx_g0", "idx_g0_s1_chunk0", 96, 100)
+        lines = display.lines()
+        self.assertEqual(len(lines), 2, lines)
+        self.assertTrue(lines[1].startswith("    └ chunk0  job 179709_0 @node58  "), lines[1])
+        self.assertIn("\033[31mRAM 96/100 (96%)", lines[1])
+        self.assertIn("Count partitions [■■■■■■■", lines[1])
+        # not detailed: one line per shard
+        plain = ShardDisplay(self.state, live=True, stream=io.StringIO())
+        plain.update()
+        self.assertEqual(len(plain.lines()), 1)
+
+
+class TestMonitorLog(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+
+    def test_stdout_is_written_while_the_command_runs(self):
+        log = self.tmp / "run.log"
+        samples = []
+        script = "echo first; sleep 1.5; echo oops >&2; echo second"
+        result = {}
+
+        def run():
+            result.update(Wrapper("bash")._monitor_cmd(
+                ["bash", "-c", script], log_file=str(log), log_errors_only=False,
+                on_sample=samples.append,
+            ))
+
+        t = threading.Thread(target=run)
+        t.start()
+        time.sleep(0.8)
+        self.assertIn("first", log.read_text())  # before the end
+        t.join()
+        text = log.read_text()
+        self.assertTrue(text.startswith("Command: bash -c"))
+        self.assertLess(text.index("second"), text.index("--- STDERR ---"))
+        self.assertLess(text.index("oops"), text.index("--- RESOURCES ---"))
+        self.assertEqual(result["return_code"], 0)
+        self.assertEqual(result["stdout"], "first\nsecond\n")
+        self.assertTrue(samples and all(s > 0 for s in samples))
+        info = parse_kmtricks_log(str(log))
+        self.assertEqual(info["return_code"], 0)
+        self.assertGreater(info["duration_s"], 1)
 
 
 class TestActiveJobs(StatusCase):
