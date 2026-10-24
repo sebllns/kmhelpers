@@ -52,6 +52,22 @@ Manage k-mer index registries.
 |--------|-------------|
 | `--sh, --shard TEXT` | Check only these shards (repeatable, default: all); fails if one is not registered |
 | `-v, --verbose` | Show detailed validation output |
+| `--nq, --no-query` | Skip the query check |
+| `-z, --zvalue INT` | Z-value of the query check (default: 6) |
+
+After the structure checks, `check` takes 10 random (k+z)-mers from the first sample of each shard
+(from the sample file listed first in the shard's `kmtricks.fof`) and queries them all in one
+kmindex query against the registry. It then prints that sample's score on its own (k+z)-mers:
+
+```
+Query check (z=6, 10 (k+z)-mers of each shard's first sample):
+  idx_g0_p0: sample_0 mean 1.000, min 1.000, 10/10 perfect
+  idx_g0_p1: skipped (sample file not found: /data/S5.fa.gz)
+```
+
+The score is only reported. A shard built with `--ab` > 1 can miss k-mers that appear in its raw
+sample file. A failed kmindex query fails the check. `apply` runs `check` after each publish and in
+the finish job, so the query check runs there too.
 
 ### `info`
 
@@ -106,8 +122,11 @@ kmhelpers manage info --sh my_index
 # Show info as JSON
 kmhelpers manage info --sh my_index --json
 
-# Check consistency
+# Check consistency (structure, then a query of each shard's first sample)
 kmhelpers manage check
+
+# Structure only
+kmhelpers manage check --nq
 
 # Remove an index (keep files)
 kmhelpers manage remove --sh my_index

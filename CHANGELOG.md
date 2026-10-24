@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Query check in `manage check`**: after the structure checks, 10 random (k+z)-mers of each shard's first sample are queried in one kmindex query against the registry, and the sample's score is printed per shard (reported only, a failing query fails the check); `--no-query` / `--nq` skips it, `-z` sets z (default 6). `apply` runs it after each publish and in the finish job
 - **`plan --cluster FILE`**: a YAML file (`type: slurm`) of the partition, time, excluded nodes, setup lines and the resources of each kind of job (`jobs.build`, `jobs.publish`, `jobs.check`); the plan is sized from these resources (`--limits` with `--cluster` is refused), and `BUILD_DIR/assets/SESSION/slurm/` gets `build.sbatch` (an array task per build job), `publish.sbatch`, `check.sbatch` and `submit.sh`
   - `submit.sh` submits what `apply --pending` lists: the build array (`max_parallel`, split at `MaxArraySize`), each publish job after the array tasks of its own shard, then `manage check` after everything; safe to run again
 - **`plan --chunks-per-job N`**: the chunks of a shard are split into jobs `<shard>_j<k>` of up to N chunks, then a job `<shard>_publish`; 0 (default) keeps one job per shard

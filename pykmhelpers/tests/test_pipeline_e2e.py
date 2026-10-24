@@ -208,6 +208,13 @@ class TestDesignBuildQueryUpdateQuery(PipelineE2EBase):
         self.assertTrue(index_json.is_file(), "build did not produce index.json")
         self.assert_in_place("build")
 
+        # the check queries (k+z)-mers of each shard's first sample: all found
+        check = self.run_cli("manage", "-r", "build", "check")
+        self.assertIn("Query check", check.stdout)
+        self.assertIn("10/10 perfect", check.stdout)
+        no_query = self.run_cli("manage", "-r", "build", "check", "--nq")
+        self.assertNotIn("Query check", no_query.stdout)
+
         # 3. query a substring of sample_0 -> perfect match
         q0, q0_header = self.write_query("s0", sample_idx=0)
         self.run_cli("query", q0, "-r", "build", "-o", "results", "-f", "json")

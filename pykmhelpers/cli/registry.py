@@ -9,6 +9,10 @@ import click
 from pykmhelpers import KmindexRegistry, KmtricksIndex
 from pykmhelpers.core.bloom_filter import BloomFilterSpecs
 from pykmhelpers.core.byte import ByteCounter
+from pykmhelpers.pipeline.query_check import query_check
+
+# (k+z)-mers queried per shard by `check`
+QUERY_CHECK_COUNT = 10
 
 
 @click.group("manage")
@@ -280,9 +284,29 @@ def registry_info(obj, index_id, output_json):
     multiple=True,
     help="Check only these shards (default: all); fails if one is not registered",
 )
+@click.option(
+    "--no-query",
+    "--nq",
+    "no_query",
+    is_flag=True,
+    help="Skip the query check (random (k+z)-mers of each shard's first sample)",
+)
+@click.option(
+    "--zvalue",
+    "-z",
+    type=click.IntRange(min=0),
+    default=6,
+    show_default=True,
+    help="Z-value of the query check; its (k+z)-mers are taken from the samples",
+)
 @click.pass_obj
-def registry_check(obj, verbose, index_ids):
-    """Validate registry consistency and check all index structures."""
+def registry_check(obj, verbose, index_ids, no_query, zvalue):
+    """Validate registry consistency and check all index structures.
+
+    Then, unless --no-query, queries 10 random (k+z)-mers of each shard's first
+    sample against the registry and reports that sample's score. The score is
+    only reported; a failing query fails the check.
+    """
     registry_path = obj["registry_path"]
 
     try:
@@ -317,10 +341,27 @@ def registry_check(obj, verbose, index_ids):
                 errors.append((idx_name, str(e)))
                 click.echo(f"✗ {idx_name}: {e}", err=True)
 
+        failed = {name for name, _ in errors}
+        queried = [i for i in indices if i not in failed]
+        if not no_query and queried:
+            click.echo(
+                f"\nQuery check (z={zvalue}, {QUERY_CHECK_COUNT} (k+z)-mers of each "
+                "shard's first sample):"
+            )
+            try:
+                checks = query_check(registry, queried, zvalue, QUERY_CHECK_COUNT)
+                for name in queried:
+                    click.echo(f"  {name}: {checks[name].summary()}")
+            except Exception as e:
+                errors.append(("query", str(e)))
+                click.echo(f"✗ query check failed: {e}", err=True)
+
         click.echo()
         if errors:
+            query_failed = " (query check failed)" if len(errors) > len(failed) else ""
             click.echo(
-                f"Validation complete: {len(indices) - len(errors)} OK, {len(errors)} FAILED",
+                f"Validation complete: {len(indices) - len(failed)} OK, "
+                f"{len(failed)} FAILED{query_failed}",
                 err=True,
             )
             raise click.ClickException(
