@@ -4,8 +4,10 @@ import datetime
 import logging
 import os
 import shutil
+import time
 
 import click
+import yaml
 
 from pykmhelpers.cli.shared import (
     auto_group_options,
@@ -18,6 +20,7 @@ from pykmhelpers.cli.shared import (
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.constants import AUTO_GROUP_SINGLE_MAX, DEFAULT_PAIR_REGEX
 from pykmhelpers.core.log import Log
+from pykmhelpers.core.run_record import CommandLog
 from pykmhelpers.core.utils import Toolbox
 from pykmhelpers.pipeline.composer import (
     check_new_session,
@@ -30,6 +33,29 @@ from pykmhelpers.pipeline.sample_lister import SampleLister
 from pykmhelpers.pipeline.span_profiler import SpanProfiler
 
 logger = logging.getLogger(__name__)
+
+
+def design_summary(session_file: str, layout_file: str) -> dict:
+    """Samples, size and shards of the designed session, for its report."""
+    summary: dict = {}
+    try:
+        with open(session_file) as f:
+            session = yaml.safe_load(f) or {}
+        summary["samples"] = (session.get("total") or {}).get("samples")
+        summary["size"] = (session.get("total") or {}).get("size")
+        with open(layout_file) as f:
+            layout = (yaml.safe_load(f) or {}).get("data") or {}
+    except (OSError, yaml.YAMLError) as e:
+        logger.debug(f"No design summary: {e}")
+        return summary
+    groups = {}
+    for group in (layout.get("map") or {}).values():
+        groups[group.get("name")] = {
+            sh.get("name"): sh.get("samples") for sh in group.get("shards") or []
+        }
+    summary["groups"] = groups
+    summary["shards"] = sum(len(g) for g in groups.values())
+    return summary
 
 
 @click.command(name="design")
@@ -297,120 +323,144 @@ def design(
     profiles_file = os.path.join(profile_dir, "profile.yaml")
     auto_layout = layout_path(compose_dir, name)
 
-    if redesign:
-        # the list stays: its counts are reused
-        for d in (os.path.join(compose_dir, name), profile_dir):
-            if os.path.isdir(d):
-                logger.info(f"--redesign: removing {d}")
-                shutil.rmtree(d)
-        os.makedirs(profile_dir, exist_ok=True)
-        logger.warning(
-            f"An index built from the previous design of '{name}' cannot be updated "
-            "with this one: build it into a new BUILD_DIR"
-        )
-    elif os.path.isfile(auto_layout):
-        try:
-            check_new_session(auto_layout, session_id)
-        except ValueError as e:
-            raise click.ClickException(str(e))
-        logger.warning(
-            f"Layout of '{name}' found ({describe_layout(auto_layout)}): session "
-            f"'{session_id}' is added to it, its groups and shards are kept (-g, -b, "
-            "--sb, --ab... not used). To design the index again: --redesign"
-        )
-
-    session_file = os.path.join(compose_dir, name, session_id, f"{SESSION_FILE}.yaml")
-
-    force = (ctx.obj or {}).get("yes", False)
-
-    if os.path.isfile(session_file) and not force:
-        if not click.confirm(
-            f"Session file already exists at {session_file}. Overwrite it?",
-            default=False,
-        ):
-            raise click.Abort()
-
-    if input_is_jsonl:
-        logger.debug(
-            f"Input is already a JSONL sample index, skipping 'list': {jsonl_path}"
-        )
-    else:
-        try:
-            SampleLister(
-                output_file=jsonl_path,
-                input_dir=input_dir,
-                input_list=input_list,
-                kmer_size=kmer_size,
-                is_assembled=is_assembled,
-                do_count=not no_count,
-                do_grouping=leaf_grouping,
-                pair_regex=pair_regex,
-                autorename=autorename,
-                ntcard_threads=ntcard_threads,
-            ).run()
-            logger.info("SUCCESS ('list')")
-        except (FileNotFoundError, NotADirectoryError, ValueError) as e:
-            raise click.ClickException(f"FAILED ('list'): {e}")
-        except Exception as e:
-            Log.handle_exception(logger, e, "FAILED ('list')")
-            raise
-
-    layout_file = None
-    if os.path.isfile(auto_layout):
-        layout_file = auto_layout
-        profiles_file = None
-        logger.info("Found existing layout file, updating existing index")
-    else:
-        # The size is of the built index: profile compares presence/absence sizes
-        single_max = (
-            AUTO_GROUP_SINGLE_MAX if auto_group_single_max is None else auto_group_single_max
-        )
-        single_max = single_max // max(bitw or 1, 1) if single_max else None
-        try:
-            SpanProfiler(
-                input_file=Toolbox.get_canonical_path(jsonl_path),
-                output_dir=profile_dir,
-                false_positive_rate=false_positive_rate,
-                n_groups=n_groups,
-                base=base,
-                auto_group_samples=auto_group_samples,
-                auto_group_max=auto_group_max,
-                auto_group_min_gain=auto_group_min_gain,
-                auto_group_single_max=single_max,
-                no_grouping=no_grouping,
-            ).run()
-            logger.info("SUCCESS ('profile')")
-        except (FileNotFoundError, ValueError) as e:
-            raise click.ClickException(f"FAILED ('profile'): {e}")
-        except Exception as e:
-            Log.handle_exception(logger, e, "FAILED ('profile')")
-            raise
-
+    # the report of this design, and its line in DESIGN_DIR/logs/history.tsv
+    dlog = CommandLog(os.path.join(output_dir, "logs"), "design", ctx)
+    status, error = "FAILED", None
     try:
-        IndexComposer(
-            profiles_file=profiles_file,
-            layout_file=layout_file,
-            selected_profile=None,
-            name=name,
-            no_merge=False,
-            shard_size=shard_size,
-            partition_count=partition_count,
-            minim_size=minim_size,
-            bitw=bitw,
-            shard_budget=shard_budget,
-            # a list written by design is per session and never rewritten
-            copy_list=input_is_jsonl and not no_copy_list,
-            kmer_ratio=kmer_ratio,
-        ).run(
-            input_file=jsonl_path,
-            output_dir=compose_dir,
-            run_id=session_id,
-        )
-        logger.info("SUCCESS ('compose')")
-        logger.info(
-            f"Next step: kmhelpers build {output_dir} -o BUILD_DIR -s {session_id}"
-        )
-    except Exception as e:
-        Log.handle_exception(logger, e, "FAILED ('compose')")
-        raise click.ClickException("FAILED ('compose')")
+        if redesign:
+            # the list stays: its counts are reused
+            for d in (os.path.join(compose_dir, name), profile_dir):
+                if os.path.isdir(d):
+                    logger.info(f"--redesign: removing {d}")
+                    shutil.rmtree(d)
+            os.makedirs(profile_dir, exist_ok=True)
+            logger.warning(
+                f"An index built from the previous design of '{name}' cannot be updated "
+                "with this one: build it into a new BUILD_DIR"
+            )
+        elif os.path.isfile(auto_layout):
+            try:
+                check_new_session(auto_layout, session_id)
+            except ValueError as e:
+                raise click.ClickException(str(e))
+            logger.warning(
+                f"Layout of '{name}' found ({describe_layout(auto_layout)}): session "
+                f"'{session_id}' is added to it, its groups and shards are kept (-g, -b, "
+                "--sb, --ab... not used). To design the index again: --redesign"
+            )
+
+        session_file = os.path.join(compose_dir, name, session_id, f"{SESSION_FILE}.yaml")
+
+        force = (ctx.obj or {}).get("yes", False)
+
+        if os.path.isfile(session_file) and not force:
+            if not click.confirm(
+                f"Session file already exists at {session_file}. Overwrite it?",
+                default=False,
+            ):
+                raise click.Abort()
+
+        dlog.begin("list")
+        if input_is_jsonl:
+            logger.debug(
+                f"Input is already a JSONL sample index, skipping 'list': {jsonl_path}"
+            )
+            dlog.step("list", "SKIPPED", reason="INPUT is a JSONL sample index")
+        else:
+            try:
+                SampleLister(
+                    output_file=jsonl_path,
+                    input_dir=input_dir,
+                    input_list=input_list,
+                    kmer_size=kmer_size,
+                    is_assembled=is_assembled,
+                    do_count=not no_count,
+                    do_grouping=leaf_grouping,
+                    pair_regex=pair_regex,
+                    autorename=autorename,
+                    ntcard_threads=ntcard_threads,
+                ).run()
+                logger.info("SUCCESS ('list')")
+                dlog.step("list", "SUCCESS", output=jsonl_path)
+            except (FileNotFoundError, NotADirectoryError, ValueError) as e:
+                raise click.ClickException(f"FAILED ('list'): {e}")
+            except Exception as e:
+                Log.handle_exception(logger, e, "FAILED ('list')")
+                raise
+
+        layout_file = None
+        dlog.begin("profile")
+        if os.path.isfile(auto_layout):
+            layout_file = auto_layout
+            profiles_file = None
+            logger.info("Found existing layout file, updating existing index")
+            dlog.step("profile", "SKIPPED", reason=f"existing layout: {auto_layout}")
+        else:
+            # The size is of the built index: profile compares presence/absence sizes
+            single_max = (
+                AUTO_GROUP_SINGLE_MAX if auto_group_single_max is None else auto_group_single_max
+            )
+            single_max = single_max // max(bitw or 1, 1) if single_max else None
+            try:
+                SpanProfiler(
+                    input_file=Toolbox.get_canonical_path(jsonl_path),
+                    output_dir=profile_dir,
+                    false_positive_rate=false_positive_rate,
+                    n_groups=n_groups,
+                    base=base,
+                    auto_group_samples=auto_group_samples,
+                    auto_group_max=auto_group_max,
+                    auto_group_min_gain=auto_group_min_gain,
+                    auto_group_single_max=single_max,
+                    no_grouping=no_grouping,
+                ).run()
+                logger.info("SUCCESS ('profile')")
+                dlog.step("profile", "SUCCESS", output=profiles_file)
+            except (FileNotFoundError, ValueError) as e:
+                raise click.ClickException(f"FAILED ('profile'): {e}")
+            except Exception as e:
+                Log.handle_exception(logger, e, "FAILED ('profile')")
+                raise
+
+        dlog.begin("compose")
+        try:
+            IndexComposer(
+                profiles_file=profiles_file,
+                layout_file=layout_file,
+                selected_profile=None,
+                name=name,
+                no_merge=False,
+                shard_size=shard_size,
+                partition_count=partition_count,
+                minim_size=minim_size,
+                bitw=bitw,
+                shard_budget=shard_budget,
+                # a list written by design is per session and never rewritten
+                copy_list=input_is_jsonl and not no_copy_list,
+                kmer_ratio=kmer_ratio,
+            ).run(
+                input_file=jsonl_path,
+                output_dir=compose_dir,
+                run_id=session_id,
+            )
+            logger.info("SUCCESS ('compose')")
+            dlog.step("compose", "SUCCESS", output=session_file)
+            logger.info(
+                f"Next step: kmhelpers build {output_dir} -o BUILD_DIR -s {session_id}"
+            )
+        except Exception as e:
+            Log.handle_exception(logger, e, "FAILED ('compose')")
+            raise click.ClickException("FAILED ('compose')")
+        status = "SUCCESS"
+    except (click.Abort, KeyboardInterrupt):
+        status = "CANCELLED"
         raise
+    except click.ClickException as e:
+        error = e.format_message()
+        raise
+    except Exception as e:
+        error = f"{type(e).__name__}: {e}"
+        raise
+    finally:
+        summary = design_summary(session_file, auto_layout) if status == "SUCCESS" else {}
+        dlog.close(status, error, **summary)

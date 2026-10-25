@@ -256,6 +256,65 @@ class TestDesignBuildQueryUpdateQuery(PipelineE2EBase):
         self.assert_in_place("build")
 
 
+class TestRunRecords(PipelineE2EBase):
+    """design, plan and apply record their command; pipeline runs a report again."""
+
+    def report(self, folder, kind):
+        path = next((self.tmp / folder / "logs").glob(f"kmhelpers_{kind}_*.yaml"))
+        return yaml.safe_load(path.read_text()), path
+
+    def history(self, folder):
+        lines = (self.tmp / folder / "logs" / "history.tsv").read_text().splitlines()
+        return [line.split("\t") for line in lines[1:]]
+
+    def test_design_build_and_replay(self):
+        self.run_cli("design", self.samples_txt, "-o", "db", "-n", "idx", "-s", "initial",
+                     "-k", KMER_SIZE, "-g", "1", "--sb", "2**20")
+        design, design_path = self.report("db", "design")
+        run = design["run"]
+        self.assertIn("design", run["command"])
+        self.assertIn("--sb '2**20'", run["command"])
+        self.assertEqual(run["cwd"], str(self.tmp))
+        self.assertEqual(run["globals"], {"verbose": 1})  # -V of run_cli
+        step = run["step"][0]["design"]
+        self.assertEqual((step["output_dir"], step["shard_budget"], step["n_groups"]), ("db", "2**20", 1))
+        self.assertNotIn("base", step)
+        self.assertEqual(run["defaults"]["base"], 1.1)
+        self.assertEqual(design["summary"]["status"], "SUCCESS")
+        self.assertEqual(design["summary"]["samples"], N_SAMPLES)
+        self.assertEqual(list(design["steps"]), ["list", "profile", "compose"])
+        self.assertEqual([h[1:3] for h in self.history("db")], [["design", "SUCCESS"]])
+
+        self.run_cli("build", "db", "-o", "build")
+        for kind in ("plan", "build"):  # the apply report of build is kmhelpers_build_*
+            report, _ = self.report("build", kind)
+            self.assertEqual(report["run"]["step"], [{"build": {"input_file": "db", "work_dir": "build"}}])
+        self.assertEqual([h[1:3] for h in self.history("build")], [["plan", "SUCCESS"], ["apply", "SUCCESS"]])
+
+        # the design report runs again, here into another folder
+        self.run_cli("pipeline", design_path, "-x", "output_dir", "db2")
+        again, again_path = self.report("db2", "design")
+        self.assertEqual(again["summary"]["groups"], design["summary"]["groups"])
+        # run by the pipeline: the pipeline is the record, no step of its own
+        self.assertEqual(again["run"]["pipeline"], str(design_path))
+        self.assertNotIn("step", again["run"])
+        self.assertIn("kmhelpers -V pipeline", self.history("db2")[0][4])
+        proc = self.run_cli("pipeline", again_path, expect_success=False)
+        self.assertIn("run that pipeline again", proc.stdout + proc.stderr)
+
+    def test_failed_design_is_recorded(self):
+        listed = self.tmp / "missing.txt"  # its sample does not exist: the list step fails
+        listed.write_text(str(self.tmp / "nope.fasta") + "\n")
+        self.run_cli("design", listed, "-o", "bad", "-n", "idx", "-s", "initial", "-k", KMER_SIZE,
+                     expect_success=False)
+        report, _ = self.report("bad", "design")
+        self.assertEqual(report["summary"]["status"], "FAILED")
+        failed = [n for n, st in report["steps"].items() if st["status"] == "FAILED"]
+        self.assertEqual(len(failed), 1, report["steps"])
+        self.assertIn(f"FAILED ('{failed[0]}')", report["steps"][failed[0]]["error"])
+        self.assertEqual([h[1:3] for h in self.history("bad")], [["design", "FAILED"]])
+
+
 class TestDesignAutoGroups(PipelineE2EBase):
     """design -g 0 keeps one group when the built index takes at most 4GB."""
 

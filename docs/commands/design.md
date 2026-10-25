@@ -37,6 +37,9 @@ DESIGN_DIR/                            -> INPUT of build/plan/apply (-s SESSION)
 │   ├── profile.yaml                   intermediate: span profile (input for compose)
 │   ├── baseline.csv                   intermediate: natural distribution
 │   └── groups.png                     distribution plot
+├── logs/
+│   ├── kmhelpers_design_<timestamp>.yaml  report of each design: command, options, steps, shards (see below)
+│   └── history.tsv                    one line per design run here: time, status, duration, command
 └── compose/                           COMPOSE_DIR
     └── NAME/                          the index
         ├── layout.yaml                state of the index: groups, shard budget, shards, partitions, bitw, sessions
@@ -83,6 +86,12 @@ Set `-s` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 ## Description
 
 `design` chains [`list`](list.md), [`profile`](profile.md), and [`compose`](compose.md) into a single invocation. It is equivalent to running the three commands in sequence with the intermediate files automatically routed between steps.
+
+**Report** - each run writes `DESIGN_DIR/logs/kmhelpers_design_<timestamp>.yaml`, as it goes, and adds a line to `DESIGN_DIR/logs/history.tsv`:
+
+- `summary`: status, times, and for a design done the samples, size, groups and shards (samples per shard); a failed design gives its `error`
+- `run`: how it was run, see [pipeline - Running a command again](pipeline.md#running-a-command-again)
+- `steps`: `list`, `profile`, `compose`: status (`SUCCESS`, `SKIPPED` with the reason, `FAILED` with the error), duration, output
 
 **Step 1 - list:** scans `INPUT` recursively for sequence files (or imports a sample list), counts k-mers with ntcard, and writes a JSONL manifest to `DESIGN_DIR/list/`. This step is **skipped** if `INPUT` is already a JSONL sample index (`.jsonl`); it is used directly as the manifest for the remaining steps.
 

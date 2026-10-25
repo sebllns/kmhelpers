@@ -16,6 +16,7 @@ from pykmhelpers.core.constants import KMHELPERS_COMMIT
 from pykmhelpers.core.kmindex_wrapper import KmindexWrapper
 from pykmhelpers.core.log import Log
 from pykmhelpers.core.resources import get_ulimit
+from pykmhelpers.core.run_record import append_history, run_record
 from pykmhelpers.pipeline.index_ops.merging import MergeLimits
 from pykmhelpers.pipeline.index_ops.types import (
     ApplyInputType,
@@ -175,6 +176,8 @@ class RunReport:
         wrapper = KmindexWrapper(dry_run=False)
         self._dump_path = dump_path
         self._start = time.monotonic()
+        # the command line and options of the CLI command running, if any
+        run = run_record()
         self.result = ApplyResult(
             status=ApplyStatus.NONE,
             input_type=ApplyInputType.UNKNOWN,
@@ -186,6 +189,7 @@ class RunReport:
                     "input_type": ApplyInputType.UNKNOWN.value,
                     "started": datetime.now().isoformat(timespec="seconds"),
                 },
+                **({"run": run} if run else {}),
                 "input_file": path,
                 "build_dir": {},
                 "kmindex": {
@@ -334,6 +338,13 @@ class RunReport:
         """Fill the summary with the final status, then dump the report."""
         self._fill_summary(final=True)
         self.dump()
+        run = self.result.details.get("run")
+        if self._dump_path and run:
+            summary = self._summary
+            append_history(
+                os.path.dirname(self._dump_path), summary["command"], summary["status"],
+                summary["duration_s"], run["command"],
+            )
         return self.result
 
     def dump(self) -> None:

@@ -6,6 +6,7 @@ import click
 import yaml
 
 from pykmhelpers.core.log import Log
+from pykmhelpers.core.run_record import step_of
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,9 @@ def pipeline(ctx, pipeline_file, extra):
     """Run a sequence of commands defined in a YAML pipeline file.
 
     PIPELINE_FILE maps command names to their arguments. Steps execute in order.
+    It can also be the report of a command (DESIGN_DIR/logs/ or BUILD_DIR/logs/
+    kmhelpers_*.yaml): its command is run again, with the options it was given
+    (its "run.step"), from the current folder: cd to its "run.cwd" first.
 
     \b
     Dict format (simple, no repeated commands):
@@ -75,6 +79,21 @@ def pipeline(ctx, pipeline_file, extra):
     """
     with open(pipeline_file) as f:
         steps = yaml.safe_load(f)
+    # a kmhelpers report (design, plan, apply): run its command again
+    run = steps.get("run") if isinstance(steps, dict) else None
+    if isinstance(run, dict) and run.get("pipeline"):
+        raise click.ClickException(
+            f"{pipeline_file} is the report of a command a pipeline ran: "
+            f"run that pipeline again, {run['pipeline']}"
+        )
+    replayed = step_of(steps)
+    if replayed is not None:
+        logger.info(f"Running again: {steps['run'].get('command', '')}")
+        options = steps["run"].get("globals")
+        if options:
+            # set before this command: logging, prompts... are this run's
+            logger.info(f"It was run with the kmhelpers options {options}: pass them again if needed")
+        steps = replayed
 
     if not steps:
         logger.warning("Pipeline file is empty, nothing to do.")

@@ -75,6 +75,7 @@ coli_build/                       BUILD_DIR (build -o, query -r): the kmindex re
 └── logs/
     ├── kmhelpers_plan_<timestamp>.yaml    plan report, see Report below
     ├── kmhelpers_apply_<timestamp>.yaml   apply report
+    ├── history.tsv                        one line per plan, apply or build run here: time, report, status, duration, command
     └── coli_g0_p0/                        <run>.log of each kmtricks run, publish.log
 ```
 
@@ -179,7 +180,7 @@ Every sub-index is built as unregistered `kmtricks` runs, then published:
 
 ### Report
 
-`plan` and `apply` each write a YAML report to `BUILD_DIR/logs/`: `kmhelpers_plan_<timestamp>.yaml` and `kmhelpers_apply_<timestamp>.yaml` (`build` writes `kmhelpers_plan_*` and `kmhelpers_build_*`). Both are organised by shard: `plan` records what will be built, `apply` what happened.
+`plan` and `apply` each write a YAML report to `BUILD_DIR/logs/`: `kmhelpers_plan_<timestamp>.yaml` and `kmhelpers_apply_<timestamp>.yaml` (`build` writes `kmhelpers_plan_*` and `kmhelpers_build_*`). Both are organised by shard: `plan` records what will be built, `apply` what happened. Both start with `run`: the command line and its options (see [pipeline - Running a command again](pipeline.md#running-a-command-again)); a build gives its own command line to both. Each report also adds a line to `BUILD_DIR/logs/history.tsv` when it ends.
 
 - `plan` writes its report once done; every run is `planned`.
 - `apply` writes it after each job, with `summary.status: RUNNING` until the end: a running or killed apply leaves its report so far. The `--notify` mail attaches it.
