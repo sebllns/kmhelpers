@@ -75,3 +75,7 @@ jobs:
       - name: Run API example
         shell: bash -el {0}
         run: python examples/pipeline_api.py
+
+      - name: Run large offline plan example
+        shell: bash -el {0}
+        run: bash examples/large_plan_offline.sh "$RUNNER_TEMP/large_plan"

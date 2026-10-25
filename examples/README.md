@@ -26,7 +26,7 @@ Run them from the repository root. Unless said otherwise, they need `kmhelpers`,
 
 ## Continuous integration
 
-`pipeline_cli.sh` and `pipeline_api.py` run in [`tests.yml`](../.github/workflows/tests.yml), and
+`pipeline_cli.sh`, `pipeline_api.py` and `large_plan_offline.sh` run in [`tests.yml`](../.github/workflows/tests.yml), and
 `tuto_ecoli_e2e.sh` runs in [`tutorial.yml`](../.github/workflows/tutorial.yml). Keep them working
 when you change the CLI or the API.
 
