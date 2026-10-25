@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Large-scale planning example on a fake sample list (no sequence data):
-#   create-list (200K samples) -> design -> plan --offline
-# Shows how a 200K-sample collection is split into sub-indexes, and the
+#   create-list (300K samples) -> design -> plan --offline
+# Shows how a 300K-sample collection is split into sub-indexes, and the
 # build scripts plan would export for a cluster node. Nothing is built.
 # Requires kmhelpers on PATH (kmindex is only used to read its version).
 set -euo pipefail
@@ -19,9 +19,10 @@ LIMITS='{"ram": 64000000000, "files": 65536, "threads": 32}'
 # Number of storage-balanced groups the spans are gathered into
 NB_GROUPS=5
 
-# Maximum size of one shard: a span holding more is split into independent
-# shards. Empty for a single unlimited index per span.
-SHARD_SIZE=100GB
+# Shard budget: about how many k-mers a shard holds, summed over its samples.
+# A group holding more is split into independent shards (here 13 of up to
+# ~100GB each). 0 for no limit: one index per group.
+SHARD_BUDGET='2**38'
 
 # 1. Fake manifest of 300K bacterial-like assemblies: median 5M distinct
 #    25-mers, spread of 1 span. Only the JSONL is written, no FASTA.
@@ -43,7 +44,7 @@ kmhelpers design db/list/bact.jsonl \
     -s initial \
     -k 25 \
     -g "$NB_GROUPS" \
-    ${SHARD_SIZE:+-si "$SHARD_SIZE"}
+    --sb "$SHARD_BUDGET"
 
 # 3. Plan offline: sample files are not checked (they do not exist), and
 #    the plan and the scripts of every shard are written to build/assets/initial/
