@@ -358,6 +358,9 @@ class PlanRunner:
     ) -> None:
         path = os.path.join(self._paths.task(task["dir"].rstrip("/")), script)
         os.makedirs(os.path.dirname(log), exist_ok=True)
+        if os.path.exists(log):
+            # a retry: keep the log of the attempt before (cancelled, failed)
+            os.replace(log, f"{log}.prev")
         on_sample = None
         if show_progress and self._display and self._display.detailed:
             display, shard, budget = self._display, task["shard"], self.ram_budget()

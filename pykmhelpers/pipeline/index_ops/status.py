@@ -43,6 +43,15 @@ PENDING = "PENDING"
 
 PROGRESS_FILE = "progress.yaml"
 SUBMITTED_FILE = os.path.join("slurm", "submitted.tsv")
+SLURM_TAIL = 4096  # bytes of a SLURM log read for why its job ended
+# why a SLURM job ended, from the end of its log; the first match wins
+_SLURM_ENDS = [
+    (re.compile(r"DUE TO TIME LIMIT"), "reached its time limit"),
+    (re.compile(r"DUE TO NODE FAILURE|NODE_FAIL"), "lost its node"),
+    (re.compile(r"DUE TO PREEMPTION"), "was preempted"),
+    (re.compile(r"oom[-_]kill|Out Of Memory|OUT_OF_MEMORY", re.I), "ran out of memory"),
+    (re.compile(r"CANCELLED AT"), "was cancelled (scancel)"),
+]
 
 
 def now() -> str:
@@ -134,13 +143,46 @@ class BuildState:
             return {}
 
     def write_state(self, task: dict, step: str, status: str, **fields) -> None:
+        """Record ``status`` of ``step``. A step started again keeps its attempts
+        before (``attempts``, oldest first: job, node, times, how it ended)."""
+        before = self.read_state(task, step)
         state = {"status": status, "job": job_id(), "node": socket.gethostname(), **fields}
+        attempts = list(before.get("attempts") or [])
         if status == RUNNING:
             state["started"] = now()
+            if before.get("status"):
+                # only the last attempt has its log, as <log>.prev (runner)
+                attempts = [{k: v for k, v in a.items() if k != "log"} for a in attempts]
+                attempts.append(self._attempt(before))
         else:
-            state["started"] = self.read_state(task, step).get("started")
+            state["started"] = before.get("started")
             state["finished"] = now()
+        if attempts:
+            state["attempts"] = attempts
         _atomic_write(self.state_path(task, step), json.dumps(state) + "\n")
+
+    def _attempt(self, state: dict) -> dict:
+        """An attempt of a step, from the state it left: how it ended."""
+        job = state.get("job") or ""
+        finished = state.get("finished")
+        status = state.get("status")
+        if status == RUNNING:
+            # its job ended without writing a status: ask its SLURM log why
+            log = self.slurm_log(job) if job and not job.startswith("pid ") else None
+            end = (slurm_end(log) if log else None) or "ended without a status"
+            if log and not finished:
+                finished = datetime.fromtimestamp(os.path.getmtime(log)).isoformat(timespec="seconds")
+        elif status == FAILED:
+            end = "failed" + (f": {state['error']}" if state.get("error") else "")
+        elif status == CANCELLED:
+            end = "was cancelled"
+        else:
+            end = str(status).lower()
+        attempt = {"job": job, "node": state.get("node"), "started": state.get("started"),
+                   "finished": finished, "end": end}
+        if state.get("log"):
+            attempt["log"] = self._relative(f"{state['log']}.prev")
+        return attempt
 
     # --- submissions
 
@@ -177,7 +219,7 @@ class BuildState:
         if status == RUNNING:
             job = state.get("job", "?")
             if alive is not None and job and not job.startswith("pid ") and alive(job) is False:
-                return LOST, f"job {job} ended without a status: out of memory or node failure, see its SLURM log"
+                return LOST, self._lost(job)
             since = (state.get("started") or "")[11:16]
             return RUNNING, f"job {job}, {state.get('node', '?')}, since {since}"
         if job_of:
@@ -186,6 +228,27 @@ class BuildState:
                 return PENDING, f"job {job_of} ended without running it: submit again"
             return PENDING, f"job {job_of}"
         return PENDING, ""
+
+    def _lost(self, job: str) -> str:
+        """Why the SLURM ``job`` ended without a status, from its log if any."""
+        log = self.slurm_log(job)
+        reason = slurm_end(log) if log else None
+        if reason:
+            return f"job {job} {reason}, see {self._relative(log)}"
+        return f"job {job} ended without a status: out of memory or node failure, see its SLURM log"
+
+    def slurm_log(self, job: str) -> Optional[str]:
+        """The SLURM log of ``job`` (``<name>_<id>.out`` of the plan's
+        ``cluster.output`` folder), None when there is none."""
+        output = (self.plan.get("cluster") or {}).get("output")
+        if not output:
+            return None
+        folder = os.path.dirname(os.path.join(self.paths.build_dir, output))
+        try:
+            names = [n for n in os.listdir(folder) if n.endswith(f"_{job}.out")]
+        except OSError:
+            return None
+        return os.path.join(folder, sorted(names)[-1]) if names else None
 
     def progress(self, check_jobs: bool = False) -> dict:
         """The progress tree: per shard, the status of each step."""
@@ -204,6 +267,9 @@ class BuildState:
             statuses = []
             for step in steps:
                 status, detail = self.step_status(task, step, job_of.get(step), alive)
+                tries = len(self.read_state(task, step).get("attempts") or [])
+                if tries:
+                    detail = f"{detail}, attempt {tries + 1}" if detail else f"attempt {tries + 1}"
                 statuses.append(status)
                 entry[step] = f"{status} ({detail})" if detail else status
             shards[task["shard"]] = entry
@@ -273,13 +339,27 @@ def _pid_alive(pid: str) -> bool:
 
 
 def overall(tree: dict) -> str:
-    """Overall status of a progress tree: SUCCESS, FAILED, RUNNING or PENDING."""
+    """Overall status of a progress tree: SUCCESS, RUNNING (while a shard runs,
+    even with others failed), FAILED or PENDING."""
     s = tree["summary"]
     if s["done"] == s["shards"]:
         return SUCCESS
-    if s["failed"]:
-        return FAILED
-    return RUNNING if s["running"] else PENDING
+    if s["running"]:
+        return RUNNING
+    return FAILED if s["failed"] else PENDING
+
+
+def slurm_end(log: str) -> Optional[str]:
+    """Why a SLURM job ended (``was cancelled (scancel)``, ``ran out of
+    memory``...), from the end of its log; None when it does not say."""
+    try:
+        with open(log, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            f.seek(max(f.tell() - SLURM_TAIL, 0))
+            text = f.read().decode(errors="replace")
+    except OSError:
+        return None
+    return next((reason for pattern, reason in _SLURM_ENDS if pattern.search(text)), None)
 
 
 def render(
@@ -300,7 +380,9 @@ def render(
         lines.append(f"{shard}:")
         if details and shard in details:
             at = datetime.now()
-            lines += [f"  {d.step}: {detail_text(d, at)}" for d in details[shard]]
+            for d in details[shard]:
+                lines.append(f"  {d.step}: {detail_text(d, at)}")
+                lines += [f"    {attempt_text(i, a)}" for i, a in enumerate(d.attempts, 1)]
             continue
         lines += [f"  {step}: {status}" for step, status in steps.items()]
     return "\n".join(lines)
@@ -464,7 +546,8 @@ _BAR = re.compile(r"^([A-Za-z][A-Za-z ]*?)\s+\[([=> ]+)\]", re.M)
 _MARKER = re.compile(r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d \[[^\]]+\] (\S+)", re.M)
 _RSS = re.compile(r"^([\d.]+)([KMGTP]?)$")
 _RSS_UNITS = {"": 1 << 10, "K": 1 << 10, "M": 1 << 20, "G": 1 << 30, "T": 1 << 40, "P": 1 << 50}
-_slurm_mem: dict[str, Optional[int]] = {}  # job -> its --mem, read once
+# job -> its raw id and --mem, read once
+_slurm_job: dict[str, tuple[str, Optional[int]]] = {}
 
 
 @dataclass
@@ -481,6 +564,7 @@ class StepDetail:
     finished: Optional[datetime] = None
     ram: Optional[tuple[int, Optional[int]]] = None  # used, budget (bytes)
     phase: Optional[tuple[str, Optional[int]]] = None  # name, percent
+    attempts: list[dict] = field(default_factory=list)  # before this one, oldest first
 
 
 def step_details(
@@ -514,6 +598,7 @@ def step_details(
             log=recorded.get("log") or "",
             started=_when(recorded.get("started")),
             finished=_when(recorded.get("finished")),
+            attempts=list(recorded.get("attempts") or []),
         )
         if status == RUNNING:
             d.phase = kmtricks_phase(d.log)
@@ -544,19 +629,21 @@ def kmtricks_phase(log: str) -> Optional[tuple[str, Optional[int]]]:
 def slurm_ram(job: str) -> Optional[tuple[int, Optional[int]]]:
     """Peak RSS so far of the running SLURM ``job`` (``sstat``, its batch step),
     and its ``--mem`` (``squeue``); None when sstat cannot tell (no accounting)."""
+    if job not in _slurm_job:
+        found = _squeue_job(job)
+        if found is None:
+            return None
+        _slurm_job[job] = found
+    raw, mem = _slurm_job[job]
     try:
         r = subprocess.run(
-            ["sstat", "-n", "-P", "-j", f"{job}.batch", "--format=MaxRSS"],
+            ["sstat", "-n", "-P", "-j", f"{raw}.batch", "--format=MaxRSS"],
             capture_output=True, text=True, timeout=30,
         )
     except (OSError, subprocess.SubprocessError):
         return None
     used = _rss_bytes(r.stdout.strip().splitlines()[0]) if r.returncode == 0 and r.stdout.strip() else None
-    if used is None:
-        return None
-    if job not in _slurm_mem:
-        _slurm_mem[job] = _squeue_mem(job)
-    return used, _slurm_mem[job]
+    return None if used is None else (used, mem)
 
 
 def _rss_bytes(value: str) -> Optional[int]:
@@ -565,14 +652,25 @@ def _rss_bytes(value: str) -> Optional[int]:
     return int(float(m.group(1)) * _RSS_UNITS[m.group(2)]) if m else None
 
 
-def _squeue_mem(job: str) -> Optional[int]:
+def _squeue_job(job: str) -> Optional[tuple[str, Optional[int]]]:
+    """Raw id and ``--mem`` of ``job``, None when squeue does not know it.
+
+    sstat needs the raw id of an array task: given ``179717_0``, SLURM 20.11
+    answers for the array job ``179717``, i.e. its last task."""
     try:
         r = subprocess.run(
-            ["squeue", "-h", "-j", job, "-o", "%m"], capture_output=True, text=True, timeout=30
+            ["squeue", "-h", "-j", job, "-o", "%A %m"], capture_output=True, text=True, timeout=30
         )
-        return mem_bytes(r.stdout.strip()) if r.returncode == 0 and r.stdout.strip() else None
-    except (OSError, subprocess.SubprocessError, ValueError):
+    except (OSError, subprocess.SubprocessError):
         return None
+    fields = r.stdout.split() if r.returncode == 0 else []
+    if not fields:
+        return None
+    try:
+        mem = mem_bytes(fields[1]) if len(fields) > 1 else None
+    except ValueError:
+        mem = None
+    return fields[0], mem
 
 
 def process_rss(pid: int) -> Optional[int]:
@@ -647,4 +745,20 @@ def detail_text(d: StepDetail, now: datetime, color: bool = False, live: bool = 
         parts.append(phase_text(d.phase, bar=live))
     if d.detail:
         parts.append(d.detail)
+    if d.attempts:
+        parts.append(f"attempt {len(d.attempts) + 1}")
     return "  ".join(parts)
+
+
+def attempt_text(n: int, attempt: dict) -> str:
+    """``attempt 1: job 179717_0 @node58 was cancelled (scancel) after 1h16m, log: ...``"""
+    text = f"attempt {n}: job {attempt.get('job') or '?'}"
+    if attempt.get("node"):
+        text += f" @{attempt['node']}"
+    text += f" {attempt.get('end') or 'ended'}"
+    started, finished = _when(attempt.get("started")), _when(attempt.get("finished"))
+    if started and finished:
+        text += f" after {duration((finished - started).total_seconds())}"
+    if attempt.get("log"):
+        text += f", log: {attempt['log']}"
+    return text

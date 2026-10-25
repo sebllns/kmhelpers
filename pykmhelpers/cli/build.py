@@ -105,12 +105,19 @@ def build(
     active = active_plan_jobs(input_file, work_dir)
     if active and replan:
         remove_session_plan(input_file, work_dir)  # refuses: jobs still active
-    if active:
+    if active and cluster_file:
+        # submit.sh skips the jobs still queued or running: submit the others
+        # (a cancelled or lost job), then follow them all
+        logger.info(
+            f"{len(active)} job(s) of this plan still queued or running "
+            f"({shown_jobs(active)}): not submitted again"
+        )
+    elif active:
         # rerunning the build of running jobs: follow them, do not plan again
         logger.warning(
             f"{len(active)} job(s) of this plan still queued or running "
             f"({shown_jobs(active)}): following them, nothing planned nor submitted; "
-            "cancel them (scancel) to plan again"
+            "pass --hpc to submit the others, cancel them (scancel) to plan again"
         )
         if sys.stdout.isatty():
             ctx.exit(watch(input_file, work_dir, WATCH_INTERVAL))

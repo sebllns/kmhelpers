@@ -222,7 +222,10 @@ def write_slurm(
             + body_head
             + [
                 "# Array task i runs line OFFSET + i + 1 of the job list $1",
-                'JOB=$(sed -n "$((${2:-0} + SLURM_ARRAY_TASK_ID + 1))p" "$1")',
+                'LINE=$((${2:-0} + SLURM_ARRAY_TASK_ID + 1))',
+                'JOB=$(sed -n "${LINE}p" "$1")',
+                "# an empty --task would run every job of the plan",
+                '[ -n "$JOB" ] || { echo "No job on line $LINE of $1" >&2; exit 1; }',
                 f'{apply} --task "$JOB"{shard_mail}',
             ]
         ),
@@ -284,7 +287,10 @@ active() {{
 }}
 
 {apply} --pending > "$DIR/pending.txt"
-: > "$DIR/pending_build.txt"
+# The build jobs of this run. Its array tasks read their line when they start,
+# so the list of each run is a file of its own, never written again
+mkdir -p "$DIR/lists"
+LIST=$(mktemp "$DIR/lists/build.XXXXXX")
 declare -A ID_OF  # job of the plan -> SLURM id it waits on
 while read -r JOB; do
     [ -n "$JOB" ] || continue
@@ -293,25 +299,26 @@ while read -r JOB; do
         ID_OF[$JOB]=$ACTIVE
         echo "$JOB: still queued or running (job $ACTIVE), not submitted again"
     elif ! grep -qxF "$JOB" <(printf '%s\n' {' '.join(shlex.quote(m) for m in publishes.values()) or "''"}); then
-        echo "$JOB" >> "$DIR/pending_build.txt"
+        echo "$JOB" >> "$LIST"
     fi
 done < "$DIR/pending.txt"
 
 # 1. Build arrays, split at the cluster MaxArraySize
 MAX=$(scontrol show config 2>/dev/null | awk '/^MaxArraySize/ {{print $3}}')
 MAX=${{MAX:-1001}}
-N=$(wc -l < "$DIR/pending_build.txt")
+N=$(wc -l < "$LIST")
+[ "$N" -gt 0 ] || rm -f "$LIST"
 ALL=()
 NEW=0  # jobs submitted by this run
 for ((OFFSET = 0; OFFSET < N; OFFSET += MAX)); do
     COUNT=$(( N - OFFSET < MAX ? N - OFFSET : MAX ))
     ARRAY=$(sbatch --parsable --array=0-$((COUNT - 1)){pct} "$DIR/build.sbatch" \
-        "$DIR/pending_build.txt" "$OFFSET")
+        "$LIST" "$OFFSET")
     ARRAY=${{ARRAY%%;*}}
     ALL+=("$ARRAY")
     NEW=$((NEW + COUNT))
     for ((i = 0; i < COUNT; i++)); do
-        JOB=$(sed -n "$((OFFSET + i + 1))p" "$DIR/pending_build.txt")
+        JOB=$(sed -n "$((OFFSET + i + 1))p" "$LIST")
         ID_OF[$JOB]="${{ARRAY}}_$i"
         printf '%s\t%s\n' "$JOB" "${{ARRAY}}_$i" >> "$SUBMITTED"
     done

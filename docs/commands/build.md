@@ -106,7 +106,7 @@ With `--hpc FILE` (see [plan - Cluster](plan.md#cluster)), `build` plans for the
 2. one **publish** job per shard, after the array tasks of that shard;
 3. a **finish** job, after every job, successful or not: it checks the registry when everything is built, removes the lock files once the check passed, writes `progress.yaml`, and sends the final mail.
 
-A failed job cancels the jobs waiting on it (`--kill-on-invalid-dep=yes`), so the finish job always runs. Once the jobs have ended, run the same `build` command again (or `slurm/submit.sh`) to resubmit what is not done, with the same plan: finished work is kept, and there is one finish job. While jobs are still queued or running, `build` follows them (see [Running build again](#running-build-again)). `slurm/submit.sh` can be run again at any time: it never submits a job still queued or running twice, keeps a finish job still pending when it submits nothing new, and replaces it otherwise.
+A failed job cancels the jobs waiting on it (`--kill-on-invalid-dep=yes`), so the finish job always runs. Once the jobs have ended, run the same `build` command again (or `slurm/submit.sh`) to resubmit what is not done, with the same plan: finished work is kept, and there is one finish job. While jobs are still queued or running, `build --hpc` submits only the others, such as a cancelled job (see [Running build again](#running-build-again)). `slurm/submit.sh` can be run again at any time: it never submits a job still queued or running twice, keeps a finish job still pending when it submits nothing new, and replaces it otherwise.
 
 **Progress** - `apply --status` prints, per shard, the status of each kmtricks run and of its publish step, and writes it to `BUILD_DIR/assets/SESSION/progress.yaml` (also rewritten by every job, after each step):
 
@@ -139,7 +139,8 @@ A session is planned once. Running `build` again on it does not plan it again:
 | The session's plan | `build` |
 |--------------------|---------|
 | none yet | plans it, then builds (or submits, with `--hpc`) |
-| jobs still queued or running | follows them, as `apply --status --sp` (prints their status once outside a terminal); nothing planned nor submitted |
+| jobs still queued or running, with `--hpc` | submits the jobs that are not (cancelled, lost), as `slurm/submit.sh`; the others are not submitted again |
+| jobs still queued or running, without `--hpc` | follows them, as `apply --status --sp` (prints their status once outside a terminal); nothing planned nor submitted |
 | everything built | `NOTHING TO DO`: shows the status |
 | something left to build | runs the existing plan: resumes it here, or submits what is not done with `--hpc` |
 

@@ -1048,6 +1048,21 @@ class TestChunkedBuild(PipelineE2EBase):
             (self.tmp / "build" / "index.json").read_text())["index"], "built locally")
         submitted = (self.tmp / "build" / "assets" / "initial" / "slurm" / "submitted.tsv")
         self.assertIn("finish\t", submitted.read_text())
+        # build again while the jobs are queued: nothing submitted twice
+        (fake / "squeue").write_text(f"#!/usr/bin/env bash\n[ -e {fake}/alive ] && echo RUNNING; exit 0\n")
+        (fake / "alive").write_text("")
+        before = len((fake / "calls").read_text().splitlines())
+        proc = subprocess.run(cmd, cwd=self.tmp, capture_output=True, text=True, env=env)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("not submitted again", proc.stdout + proc.stderr)
+        self.assertEqual(len((fake / "calls").read_text().splitlines()), before)
+        # all of them cancelled: build submits them again, without --replan
+        (fake / "alive").unlink()
+        proc = subprocess.run(cmd, cwd=self.tmp, capture_output=True, text=True, env=env)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        again = (fake / "calls").read_text().splitlines()[before:]
+        self.assertTrue(any("--array=0-" in c for c in again), again)
+        self.assertIn("finish.sbatch", again[-1])
         # --limits is a decision of the cluster file
         cmd += ["--replan", "--limits", "{}"]
         proc = subprocess.run(cmd, cwd=self.tmp, capture_output=True, text=True, env=env)
@@ -1077,6 +1092,12 @@ class TestChunkedBuild(PipelineE2EBase):
         script = next((self.tmp / "bad" / "assets" / "initial").glob("*/*_initial.sh"))
         script.write_text(script.read_text().replace("kmtricks pipeline", "exit 2; kmtricks", 1))
         self.run_cli("apply", session_file, "-o", "bad", expect_success=False)
+        # a retry keeps the log of the attempt before
+        log = next((self.tmp / "bad" / "logs").glob("*/*_initial.log"))
+        log.write_text(log.read_text() + "first attempt\n")
+        self.run_cli("apply", session_file, "-o", "bad", expect_success=False)
+        self.assertIn("first attempt", Path(f"{log}.prev").read_text())
+        self.assertNotIn("first attempt", log.read_text())
         watch = self.run_cli(
             "apply", session_file, "-o", "bad", "--status", "--sp", "--interval", "1",
             expect_success=False,
@@ -1130,6 +1151,10 @@ class TestChunkedBuild(PipelineE2EBase):
             expect_success=False,
         )
         self.assertIn("No task matches nope*", result.stdout + result.stderr)
+        # an empty --task (an empty line of a job list) selects nothing
+        result = self.run_cli("apply", session_file, "-o", "build", "--task", "", expect_success=False)
+        self.assertIn("--task is empty", result.stdout + result.stderr)
+        self.assertFalse(list((self.tmp / "build").glob("**/state/*.json")))
 
     def test_apply_needs_a_fresh_plan(self):
         session_file = self.design()

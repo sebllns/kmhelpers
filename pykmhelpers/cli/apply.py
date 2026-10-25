@@ -231,6 +231,9 @@ def apply(
     kmhelpers apply coli_db -o coli_build --status --task 'coli_g*'   # quoted: no shell glob
     """
     input_file = shared.resolve_definition(input_file, session)
+    if task_ids and not shared.split_names(task_ids):
+        # --task "" (an empty line of a job list) would select every job
+        raise click.UsageError("--task is empty: give a shard, task or job name")
     if do_cleanup:
         try:
             cleanup(PlanRunner(work_dir, input_file))

@@ -134,6 +134,73 @@ class TestStepStatus(StatusCase):
         self.assertEqual(status, LOST)
         self.assertIn("job 18_1 ended without a status", detail)
 
+    def test_lost_says_why_from_the_slurm_log(self):
+        with mock.patch.dict(os.environ, {"SLURM_ARRAY_JOB_ID": "18", "SLURM_ARRAY_TASK_ID": "1"}):
+            self.state.write_state(self.task, "idx_g0_s1_chunk1", RUNNING)
+        self.state.plan["cluster"] = {"output": "logs/slurm/%x_%A_%a.out"}
+        slurm = Path(self.paths.build_dir) / "logs" / "slurm"
+        slurm.mkdir(parents=True)
+        log = slurm / "idx_build_18_1.out"
+        (slurm / "idx_build_118_1.out").write_text("*** JOB 118 CANCELLED AT 2026-10-25 ***\n")
+        cases = [
+            ("", "ended without a status"),  # the log does not say
+            ("slurmstepd: error: *** JOB 18 ON n1 CANCELLED AT 2026-10-25T02:17:52 ***\n",
+             "job 18_1 was cancelled (scancel), see logs/slurm/idx_build_18_1.out"),
+            ("*** JOB 18 ON n1 CANCELLED AT 2026-10-25T02:17:52 DUE TO TIME LIMIT ***\n",
+             "reached its time limit"),
+            ("slurmstepd: error: Detected 1 oom-kill event(s) in StepId=18.batch\n", "ran out of memory"),
+            ("*** JOB 18 ON n1 CANCELLED AT 2026-10-25 DUE TO NODE FAILURE ***\n", "lost its node"),
+        ]
+        for text, expected in cases:
+            with self.subTest(expected):
+                log.write_text("kmtricks output\n" * 1000 + text)
+                status, detail = self.status("idx_g0_s1_chunk1", alive=lambda job: False)
+                self.assertEqual(status, LOST)
+                self.assertIn(expected, detail)
+
+
+class TestAttempts(StatusCase):
+    STEP = "idx_g0_s1_chunk1"
+
+    def start(self, job, task_id="0", **fields):
+        with mock.patch.dict(os.environ, {"SLURM_ARRAY_JOB_ID": job, "SLURM_ARRAY_TASK_ID": task_id}):
+            self.state.write_state(self.task, self.STEP, RUNNING, **fields)
+
+    def test_a_step_started_again_keeps_its_attempts(self):
+        self.state.plan["cluster"] = {"output": "logs/slurm/%x_%A_%a.out"}
+        slurm = Path(self.paths.build_dir) / "logs" / "slurm"
+        slurm.mkdir(parents=True)
+        (slurm / "idx_build_18_1.out").write_text("*** JOB 18 ON n1 CANCELLED AT 2026-10-25T02:17:52 ***\n")
+        log = str(Path(self.paths.build_dir) / "logs" / "idx_g0" / f"{self.STEP}.log")
+        self.start("18", "1", log=log)  # cancelled: no status written
+        self.start("19", log=log)
+        with mock.patch.dict(os.environ, {"SLURM_ARRAY_JOB_ID": "19", "SLURM_ARRAY_TASK_ID": "0"}):
+            self.state.write_state(self.task, self.STEP, FAILED, log=log, error="boom")
+        self.start("20", log=log)
+        state = self.state.read_state(self.task, self.STEP)
+        self.assertEqual(state["job"], "20_0")
+        first, second = state["attempts"]
+        self.assertEqual((first["job"], first["end"]), ("18_1", "was cancelled (scancel)"))
+        self.assertTrue(first["finished"])  # from the SLURM log
+        self.assertNotIn("log", first)  # its .prev was replaced by the next attempt
+        self.assertEqual((second["job"], second["end"]), ("19_0", "failed: boom"))
+        self.assertEqual(second["log"], f"logs/idx_g0/{self.STEP}.log.prev")
+        # the end of the step keeps them
+        self.state.write_state(self.task, self.STEP, SUCCESS, log=log)
+        self.assertEqual(len(self.state.read_state(self.task, self.STEP)["attempts"]), 2)
+
+    def test_attempts_are_shown(self):
+        self.start("18", "1")
+        self.start("19")
+        self.assertIn("attempt 2", self.state.progress()["shards"]["idx_g0"][self.STEP])
+        details = step_details(self.state, self.task, {self.STEP})
+        self.assertIn("attempt 2", detail_text(details[0], datetime.now()))
+        text = render(self.state.progress(), ["idx_g0"], {"idx_g0": details})
+        self.assertIn("    attempt 1: job 18_1 @", text)
+        self.assertIn("ended without a status", text)
+        # a step never started again has no attempt
+        self.assertNotIn("attempt", self.state.progress()["shards"]["idx_g0"]["idx_g0_s1_chunk0"])
+
 
 class TestProgress(StatusCase):
     def test_tree_and_file(self):
@@ -161,6 +228,14 @@ class TestProgress(StatusCase):
     def test_done(self):
         self.publish(["s0", "s1"])
         self.assertEqual(overall(self.state.progress()), SUCCESS)
+
+    def test_overall_is_running_while_a_shard_runs(self):
+        tree = {"summary": {"shards": 3, "done": 0, "failed": 1, "running": 1, "pending": 1}}
+        self.assertEqual(overall(tree), RUNNING)
+        tree["summary"].update(running=0)
+        self.assertEqual(overall(tree), FAILED)
+        tree["summary"].update(failed=0)
+        self.assertEqual(overall(tree), PENDING)
 
 
 class TestShardLine(StatusCase):
@@ -285,14 +360,16 @@ class TestDetails(StatusCase):
 
     def test_slurm_ram(self):
         def run(cmd, **_):
-            out = {"sstat": "576880K\n", "squeue": "4G\n"}[cmd[0]]
+            out = {"sstat": "576880K\n", "squeue": "19 4G\n"}[cmd[0]]
             return mock.Mock(returncode=0, stdout=out, stderr="")
 
-        status_mod._slurm_mem.clear()
+        status_mod._slurm_job.clear()
         with mock.patch.object(status_mod.subprocess, "run", side_effect=run) as m:
             self.assertEqual(slurm_ram("10_1"), (576880 << 10, 4 << 30))
-            slurm_ram("10_1")  # --mem read once
-            self.assertEqual([c.args[0][0] for c in m.call_args_list], ["sstat", "squeue", "sstat"])
+            slurm_ram("10_1")  # raw id and --mem read once
+            self.assertEqual([c.args[0][0] for c in m.call_args_list], ["squeue", "sstat", "sstat"])
+            # sstat is asked for the raw id of the array task, not 10_1
+            self.assertIn("19.batch", m.call_args_list[1].args[0])
         empty = mock.Mock(returncode=0, stdout="", stderr="")
         with mock.patch.object(status_mod.subprocess, "run", return_value=empty):
             self.assertIsNone(slurm_ram("10_2"))

@@ -235,6 +235,44 @@ class TestWriteSlurm(ClusterCase):
         self.assertIn(f"scancel {finish}", calls)
         self.assertTrue(calls[-1].startswith("sbatch") and "finish.sbatch" in calls[-1])
 
+    def test_each_run_has_its_own_job_list(self):
+        """Queued array tasks read their line when they start: a later run of
+        submit.sh must not change the list they were given."""
+        calls, out = self.run_submit(["idx_g0_j0", "idx_g0_j1", "idx_g0_publish"], [])
+        first = next(c for c in calls if "--array" in c).split()[-2]
+        self.assertEqual(Path(first).parent, out / "lists")
+        self.assertEqual(Path(first).read_text().split(), ["idx_g0_j0", "idx_g0_j1"])
+        ids = [ln.split("\t")[1] for ln in (out / "submitted.tsv").read_text().splitlines()]
+        # everything still queued: no new list
+        self.run_submit(["idx_g0_j0", "idx_g0_j1", "idx_g0_publish"], ids)
+        self.assertEqual(list((out / "lists").iterdir()), [Path(first)])
+        # j1 cancelled: a new list with it only, the first one unchanged
+        alive = [i for i in ids if not i.endswith("_1")]
+        calls, _ = self.run_submit(["idx_g0_j0", "idx_g0_j1", "idx_g0_publish"], alive)
+        second = next(c for c in calls if "--array" in c).split()[-2]
+        self.assertNotEqual(second, first)
+        self.assertEqual(Path(second).read_text().split(), ["idx_g0_j1"])
+        self.assertEqual(Path(first).read_text().split(), ["idx_g0_j0", "idx_g0_j1"])
+
+    def test_array_task_without_a_job_fails(self):
+        out = self.write(3)
+        fake = self.tmp / "fake"
+        fake.mkdir()
+        (fake / "kmhelpers").write_text(f'#!/usr/bin/env bash\necho "$*" >> {fake}/calls\n')
+        (fake / "kmhelpers").chmod(0o755)
+        jobs = self.tmp / "jobs.txt"
+        jobs.write_text("idx_g0_j0\n")
+        env = dict(os.environ, PATH=f"{fake}{os.pathsep}{os.environ['PATH']}")
+        for task, ok in (("0", True), ("1", False)):
+            proc = subprocess.run(
+                ["bash", str(out / "build.sbatch"), str(jobs), "0"],
+                capture_output=True, text=True, env=dict(env, SLURM_ARRAY_TASK_ID=task),
+            )
+            self.assertEqual(proc.returncode == 0, ok, proc.stdout + proc.stderr)
+        self.assertIn("No job on line 2", proc.stderr)
+        # the task without a job ran nothing (not every job of the plan)
+        self.assertEqual(len((fake / "calls").read_text().splitlines()), 1)
+
     def test_submission_files_follow_the_type(self):
         cluster = self.load(CLUSTER)
         written = write_submission(self.plan(3), cluster, str(self.tmp / "assets"))

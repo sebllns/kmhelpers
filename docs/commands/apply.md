@@ -87,10 +87,15 @@ Each step `apply` runs is recorded in `BUILD_DIR/assets/SESSION/<shard>/state/<s
 | `FAILED` | the step failed: its log and the last line of its error |
 | `CANCELLED` | the job got `SIGTERM` (`scancel`, time limit) during the step |
 | `RUNNING` | started by a job (`job`, node, start time) |
-| `LOST` | recorded as running, but its job is no longer in `squeue`: it ended without a status (out of memory, node failure); see its SLURM log |
+| `LOST` | recorded as running, but its job is no longer in `squeue`: it ended without a status. Why, when the end of its SLURM log says it: cancelled (`scancel`), time limit, out of memory, node failure or preemption, with the path of that log |
 | `PENDING` | not run yet; `(job X)` when `submit.sh` submitted it, `ended without running it` when that job is gone (a step before it failed, or a dependency was cancelled): submit again |
 
-`--status` exits 0 whatever the status; the summary line gives the overall one (`SUCCESS`, `FAILED`, `RUNNING`, `PENDING`).
+`--status` exits 0 whatever the status; the summary line gives the overall one (`SUCCESS`, `FAILED`, `RUNNING`, `PENDING`): `RUNNING` while a shard runs, even with others failed. A step run again keeps its attempts before in its state file (`attempts`: job, node, times, how it ended, e.g. `was cancelled (scancel)` from its SLURM log), and the log of the last one as `<step>.log.prev`. `--status` adds `attempt N` to the step; with `--task`, one line per attempt before:
+
+```
+metav_g0_p0_initial_chunk0: RUNNING  job 179726_0 @node56  8m48s  RAM 1.0G/120G (1%)  Compute SuperK 0%  attempt 2
+    attempt 1: job 179717_0 @node58 was cancelled (scancel) after 1h16m, log: logs/metav_g0_p0/metav_g0_p0_initial_chunk0.log.prev
+```
 
 **Report** - `BUILD_DIR/logs/kmhelpers_apply_<timestamp>.yaml`: per shard, for each kmtricks run whether it was built, reused or already published, its duration, peak RSS, CPU efficiency and share of the RAM limit (from its log); how it was published, its duration and size on disk. It is written after each job, with status `RUNNING` until the end, so a running or killed apply leaves its report so far. See [build - Report](build.md#report).
 
