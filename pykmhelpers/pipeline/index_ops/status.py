@@ -563,7 +563,7 @@ class StepDetail:
     started: Optional[datetime] = None
     finished: Optional[datetime] = None
     ram: Optional[tuple[int, Optional[int]]] = None  # used, budget (bytes)
-    phase: Optional[tuple[str, Optional[int]]] = None  # name, percent
+    phase: Optional[list[tuple[str, Optional[int]]]] = None  # name, percent of each bar
     attempts: list[dict] = field(default_factory=list)  # before this one, oldest first
 
 
@@ -607,9 +607,11 @@ def step_details(
     return details
 
 
-def kmtricks_phase(log: str) -> Optional[tuple[str, Optional[int]]]:
-    """What a running step is doing, from the tail of its log: the last kmtricks
-    bar (``Count partitions``, 63), or the last marker of its script (``build``)."""
+def kmtricks_phase(log: str) -> Optional[list[tuple[str, Optional[int]]]]:
+    """What a running step is doing, from the tail of its log: the kmtricks bars
+    not complete yet, each at its last value (``Compute SuperK``, 80 and ``Count
+    partitions``, 63: kmtricks runs them together), else the last bar, or the
+    last marker of its script (``build``)."""
     try:
         with open(log, "rb") as f:
             f.seek(0, os.SEEK_END)
@@ -618,12 +620,17 @@ def kmtricks_phase(log: str) -> Optional[tuple[str, Optional[int]]]:
     except (OSError, TypeError):
         return None
     text = _ANSI.sub("", text).replace("\r", "\n")
-    bars, markers = list(_BAR.finditer(text)), list(_MARKER.finditer(text))
-    bar, marker = (bars[-1] if bars else None), (markers[-1] if markers else None)
-    if bar and (not marker or bar.start() > marker.start()):
+    markers = list(_MARKER.finditer(text))
+    marker = markers[-1] if markers else None
+    # the bars after the last marker, by name in order of first appearance
+    last: dict[str, int] = {}
+    for bar in _BAR.finditer(text, marker.end() if marker else 0):
         inside = bar.group(2)
-        return bar.group(1).strip(), round(100 * inside.count("=") / len(inside))
-    return (marker.group(1), None) if marker else None
+        last[bar.group(1).strip()] = round(100 * inside.count("=") / len(inside))
+    if last:
+        running = [(name, pct) for name, pct in last.items() if pct < 100]
+        return running or [list(last.items())[-1]]
+    return [(marker.group(1), None)] if marker else None
 
 
 def slurm_ram(job: str) -> Optional[tuple[int, Optional[int]]]:
@@ -720,15 +727,19 @@ def ram_text(ram: tuple[int, Optional[int]], color: bool = False) -> str:
     return f"\033[{code}m{text}\033[0m" if color and code else text
 
 
-def phase_text(phase: tuple[str, Optional[int]], bar: bool = False) -> str:
-    """``Count partitions 63%``; ``bar``: ``Count partitions [■■■■■■■     ] 63%``."""
-    name, pct = phase
-    if pct is None:
-        return name
-    if bar:
-        filled = round(BAR_LEN * pct / 100)
-        return f"{name} [{'■' * filled}{' ' * (BAR_LEN - filled)}] {pct}%"
-    return f"{name} {pct}%"
+def phase_text(phase: list[tuple[str, Optional[int]]], bar: bool = False) -> str:
+    """``Compute SuperK 80% · Count partitions 63%``; ``bar``:
+    ``Count partitions [■■■■■■■     ] 63%``."""
+    texts = []
+    for name, pct in phase:
+        if pct is None:
+            texts.append(name)
+        elif bar:
+            filled = round(BAR_LEN * pct / 100)
+            texts.append(f"{name} [{'■' * filled}{' ' * (BAR_LEN - filled)}] {pct}%")
+        else:
+            texts.append(f"{name} {pct}%")
+    return " · ".join(texts)
 
 
 def detail_text(d: StepDetail, now: datetime, color: bool = False, live: bool = False) -> str:

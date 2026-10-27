@@ -39,6 +39,7 @@ from pykmhelpers.pipeline.index_ops.status import (
     human_bytes,
     kmtricks_phase,
     overall,
+    phase_text,
     ram_text,
     render,
     shard_line,
@@ -350,13 +351,34 @@ class TestDetails(StatusCase):
         ))
 
     def test_phase_from_the_last_bar_or_marker(self):
-        self.assertEqual(kmtricks_phase(self.log(CHUNK_LOG)), ("Count partitions", 62))
-        self.assertEqual(kmtricks_phase(self.log(CHUNK_LOG.split("\nCompute")[0])), ("build", None))
+        self.assertEqual(kmtricks_phase(self.log(CHUNK_LOG)), [("Count partitions", 62)])
+        self.assertEqual(kmtricks_phase(self.log(CHUNK_LOG.split("\nCompute")[0])), [("build", None)])
         done = CHUNK_LOG + "2026-10-24 00:57:37 [idx_g0_s1_chunk0] done\n"
-        self.assertEqual(kmtricks_phase(self.log(done)), ("done", None))
+        self.assertEqual(kmtricks_phase(self.log(done)), [("done", None)])
         self.assertIsNone(kmtricks_phase(self.log("")))
         self.assertIsNone(kmtricks_phase(str(self.tmp / "missing.log")))
         self.assertIsNone(kmtricks_phase(""))
+
+    def test_phase_of_the_bars_running_together(self):
+        # superk and count run together: their bars are redrawn in turn
+        log = self.log(
+            "2026-10-24 00:40:34 [idx_g0_s1_chunk0] build idx_g0_s1_chunk0\n"
+            "Compute SuperK   [========================>                         ] [00m:12s] \n"
+            "Count partitions [==========>                                       ] [00m:12s] \n"
+            "\x1b[A\x1b[A\r"
+            "Compute SuperK   [========================================>         ] [00m:20s] \n"
+            "Count partitions [====================>                             ] [00m:20s] \n"
+        )
+        self.assertEqual(kmtricks_phase(log), [("Compute SuperK", 80), ("Count partitions", 40)])
+        self.assertEqual(
+            phase_text(kmtricks_phase(log)), "Compute SuperK 80% · Count partitions 40%"
+        )
+        # all complete: the last one
+        merged = self.log(
+            "Count partitions [==================================================] [01m:00s] \n"
+            "Merge partitions [==================================================] [00m:30s] \n"
+        )
+        self.assertEqual(kmtricks_phase(merged), [("Merge partitions", 100)])
 
     def test_slurm_ram(self):
         def run(cmd, **_):
@@ -395,7 +417,7 @@ class TestDetails(StatusCase):
         self.assertEqual([d.status for d in details], [RUNNING, SUCCESS, PENDING])
         running = details[0]
         self.assertEqual((running.job, running.node), ("179709_0", "node58"))
-        self.assertEqual(running.phase, ("Count partitions", 62))
+        self.assertEqual(running.phase, [("Count partitions", 62)])
         ram.assert_called_once()
         text = detail_text(running, datetime.now())
         self.assertIn("RUNNING  job 179709_0 @node58  4m", text)
