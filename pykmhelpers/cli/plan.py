@@ -207,15 +207,20 @@ def plan(
     kmhelpers plan coli_db -o coli_build --cluster cluster.yaml
     bash coli_build/assets/initial/slurm/submit.sh
     """
+    given_input = input_file
     input_file = shared.resolve_definition(input_file, session)
     paths = BuildPaths.for_input(os.path.realpath(work_dir), input_file)
+    # The input as typed; -s pins the session, as the last one composed can change.
+    apply_cmd = f"kmhelpers apply {given_input} -o {work_dir}"
+    if os.path.isdir(given_input):
+        apply_cmd += f" -s {paths.session}"
     refuse_under_active_jobs(input_file, work_dir)
     if replan:
         remove_session_plan(input_file, work_dir)
     elif os.path.isfile(paths.plan):
         raise click.ClickException(
             f"Session '{paths.session}' already has a plan ({paths.plan}): run it with "
-            f"`kmhelpers apply {input_file} -o {work_dir}`, or pass --replan to plan again"
+            f"`{apply_cmd}`, or pass --replan to plan again"
         )
     try:
         result, plan_path, _ = make_plan(
@@ -248,5 +253,5 @@ def plan(
     if plan_path is None:
         logger.info("NOTHING TO DO ('plan'): the session is already built")
         return
-    logger.info(f"Run it with: kmhelpers apply {input_file} -o {work_dir}")
+    logger.info(f"Run it with: {apply_cmd}")
     logger.info("SUCCESS ('plan')")
