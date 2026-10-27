@@ -521,6 +521,49 @@ class TestActiveJobs(StatusCase):
             self.assertEqual(active_jobs(self.state), [])
 
 
+class TestFinishJob(StatusCase):
+    def setUp(self):
+        super().setUp()
+        sub = Path(self.paths.assets) / "slurm"
+        sub.mkdir(parents=True, exist_ok=True)
+        (sub / "submitted.tsv").write_text("idx_g0_j0\t10_0\nfinish\t11\nfinish\t12\n")
+
+    def finish(self, squeue):
+        with mock.patch("pykmhelpers.pipeline.index_ops.status.shutil.which", return_value="/x/squeue"), \
+                mock.patch("pykmhelpers.pipeline.index_ops.status.squeue_state", return_value=squeue), \
+                mock.patch.dict(os.environ, {"SLURM_JOB_ID": "99"}):
+            return self.state.progress(check_jobs=True).get("finish")
+
+    def test_last_finish_job_and_its_state(self):
+        self.assertEqual(self.finish("PENDING (gh-dev, Priority)"), "job 12 PENDING (gh-dev, Priority)")
+        self.assertEqual(self.finish(None), "job 12")
+        self.assertEqual(self.finish(""), "job 12 ended")
+
+    def test_rendered_under_the_summary(self):
+        with mock.patch.dict(os.environ, {"SLURM_JOB_ID": "99"}):
+            lines = render(self.state.progress()).splitlines()
+        self.assertEqual(lines[1], "finish: job 12")
+
+    def test_not_shown_inside_the_finish_job(self):
+        with mock.patch.dict(os.environ, {"SLURM_JOB_ID": "12"}):
+            self.assertNotIn("finish", self.state.progress())
+
+    def test_none_submitted(self):
+        (Path(self.paths.assets) / "slurm" / "submitted.tsv").unlink()
+        self.assertNotIn("finish", self.state.progress())
+
+    def test_squeue_state(self):
+        def run(out="", err="", code=0):
+            done = mock.Mock(stdout=out, stderr=err, returncode=code)
+            with mock.patch("pykmhelpers.pipeline.index_ops.status.subprocess.run", return_value=done):
+                return status_mod.squeue_state("12")
+        self.assertEqual(run("PENDING|gh-dev|(Priority)\n"), "PENDING (gh-dev, Priority)")
+        self.assertEqual(run("RUNNING|gh-dev|c610-001\n"), "RUNNING (c610-001)")
+        self.assertEqual(run(""), "")
+        self.assertEqual(run(err="slurm_load_jobs error: Invalid job id specified", code=1), "")
+        self.assertIsNone(run(err="timeout", code=1))
+
+
 class TestNotifier(unittest.TestCase):
     def notifier(self, level, final=True):
         with mock.patch("pykmhelpers.cli.notify.atexit.register") as register:

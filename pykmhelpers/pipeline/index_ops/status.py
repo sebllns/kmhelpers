@@ -281,11 +281,32 @@ class BuildState:
                 counts["running"] += 1
             else:
                 counts["pending"] += 1
-        return {
+        tree = {
             "updated": now(),
             "summary": {"shards": len(shards), **counts},
             "shards": shards,
         }
+        finish = self.finish_status(check_jobs and shutil.which("squeue") is not None)
+        if finish:
+            tree["finish"] = finish
+        return tree
+
+    def finish_status(self, check_job: bool = False) -> Optional[str]:
+        """The finish job ``submit.sh`` submitted last: ``job N PENDING
+        (partition, reason)``, ``job N RUNNING (node)`` or ``job N ended``
+        (with its log); None when none was submitted, or inside that job."""
+        job = self.submitted().get("finish")
+        if not job or job == os.environ.get("SLURM_JOB_ID"):
+            return None
+        if not check_job:
+            return f"job {job}"
+        state = squeue_state(job)
+        if state:
+            return f"job {job} {state}"
+        if state is None:
+            return f"job {job}"
+        log = self.slurm_log(job)
+        return f"job {job} ended, see {self._relative(log)}" if log else f"job {job} ended"
 
     def write_progress(self, check_jobs: bool = False) -> dict:
         """Write ``progress.yaml`` (atomically: concurrent jobs each write a
@@ -374,6 +395,8 @@ def render(
         f"{overall(tree)}: {s['done']}/{s['shards']} shard(s) done, {s['failed']} failed, "
         f"{s['running']} running, {s['pending']} pending ({tree['updated']})"
     ]
+    if tree.get("finish"):
+        lines.append(f"finish: {tree['finish']}")
     for shard, steps in tree["shards"].items():
         if shards and shard not in shards:
             continue
@@ -386,6 +409,28 @@ def render(
             continue
         lines += [f"  {step}: {status}" for step, status in steps.items()]
     return "\n".join(lines)
+
+
+def squeue_state(job: str) -> Optional[str]:
+    """``PENDING (partition, reason)`` or ``RUNNING (node)`` while ``job`` is
+    queued or running, "" once it has ended, None when squeue cannot tell."""
+    try:
+        r = subprocess.run(
+            ["squeue", "-h", "-j", job, "-o", "%T|%P|%R"],
+            capture_output=True, text=True, timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if r.returncode != 0:
+        return "" if "Invalid job id" in r.stderr else None
+    line = r.stdout.strip().splitlines()[0] if r.stdout.strip() else ""
+    if not line:
+        return ""
+    state, partition, reason = (line.split("|") + ["", ""])[:3]
+    reason = reason.strip("()")  # squeue writes a pending reason as "(Priority)"
+    if state == PENDING:
+        return f"{state} ({partition}, {reason})"
+    return f"{state} ({reason})" if reason else state
 
 
 def squeue_alive(job: str) -> Optional[bool]:

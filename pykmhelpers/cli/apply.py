@@ -144,6 +144,8 @@ def watch(input_file: str, work_dir: str, interval: float, task_ids=None) -> int
         display.close()
     tree = runner.state.write_progress(check_jobs=True)
     click.echo(render(tree).splitlines()[0])
+    if tree.get("finish"):
+        click.echo(f"finish: {tree['finish']}")
     if tasks:
         # the shards drawn are those of the selected jobs
         return 0 if all(p.state == SUCCESS for p in display.shards) else 1
