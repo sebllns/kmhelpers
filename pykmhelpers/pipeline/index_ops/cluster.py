@@ -286,6 +286,22 @@ active() {{
     return 0
 }}
 
+# sbatch --parsable: its SLURM id. Some sites print a banner or a refusal on
+# stdout (TACC): keep the id line only, and on failure show what sbatch said
+submit() {{
+    local out id
+    if ! out=$(sbatch --parsable "$@"); then
+        echo "sbatch failed: $out" >&2
+        exit 1
+    fi
+    id=$(printf '%s\n' "$out" | grep -E '^[0-9]+(;|$)' | tail -n 1)
+    if [ -z "$id" ]; then
+        echo "sbatch printed no job id: $out" >&2
+        exit 1
+    fi
+    echo "$id"
+}}
+
 {apply} --pending > "$DIR/pending.txt"
 # The build jobs of this run. Its array tasks read their line when they start,
 # so the list of each run is a file of its own, never written again
@@ -312,7 +328,7 @@ ALL=()
 NEW=0  # jobs submitted by this run
 for ((OFFSET = 0; OFFSET < N; OFFSET += MAX)); do
     COUNT=$(( N - OFFSET < MAX ? N - OFFSET : MAX ))
-    ARRAY=$(sbatch --parsable --array=0-$((COUNT - 1)){pct} "$DIR/build.sbatch" \
+    ARRAY=$(submit --array=0-$((COUNT - 1)){pct} "$DIR/build.sbatch" \
         "$LIST" "$OFFSET")
     ARRAY=${{ARRAY%%;*}}
     ALL+=("$ARRAY")
@@ -334,7 +350,7 @@ for SHARD in {shards}; do
     for JOB in "${{!ID_OF[@]}}"; do
         [[ "$JOB" =~ ^${{SHARD}}_j[0-9]+$ ]] && DEP+=":${{ID_OF[$JOB]}}"
     done
-    ID=$(sbatch --parsable -J "$PUBLISH" ${{DEP:+--dependency=afterok$DEP}} \
+    ID=$(submit -J "$PUBLISH" ${{DEP:+--dependency=afterok$DEP}} \
         "$DIR/publish.sbatch" "$PUBLISH")
     ID=${{ID%%;*}}
     ALL+=("$ID")
@@ -356,7 +372,7 @@ elif [ -n "$PREVIOUS" ]; then
 fi
 if [ ${{#ALL[@]}} -gt 0 ]; then
     DEPS=$(printf '%s\n' "${{ALL[@]}}" | sort -u | paste -sd: -)
-    ID=$(sbatch --parsable --dependency="afterany:$DEPS" "$DIR/finish.sbatch")
+    ID=$(submit --dependency="afterany:$DEPS" "$DIR/finish.sbatch")
     ID=${{ID%%;*}}
     printf '%s\t%s\n' finish "$ID" >> "$SUBMITTED"
     echo "finish: job $ID"
