@@ -40,6 +40,8 @@ class ShardQueryCheck:
         if self.skipped:
             return f"skipped ({self.skipped})"
         scores = self.scores or []
+        if not scores:
+            return f"{self.sample}: no score"
         return (
             f"{self.sample} mean {sum(scores) / len(scores):.3f}, min {min(scores):.3f}, "
             f"{self.perfect}/{len(scores)} perfect"
@@ -134,7 +136,7 @@ def query_check(
             if not picked:
                 raise ValueError(f"no {index.kmer_size + z}-mer in {path}")
         except Exception as e:
-            checks[name] = ShardQueryCheck(skipped=str(e))
+            checks[name] = ShardQueryCheck(skipped=str(e) or type(e).__name__)
             continue
         checks[name] = ShardQueryCheck(sample=sample)
         windows[name] = picked

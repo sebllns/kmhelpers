@@ -1,6 +1,7 @@
 import bz2
 import fnmatch
 import gzip
+import io
 import logging
 import lzma
 import os
@@ -38,7 +39,10 @@ def open_decompressed(path: str) -> BinaryIO:
     if path.endswith(".xz"):
         return lzma.open(path, "rb")
     if path.endswith(".zst"):
-        return zstandard.ZstdDecompressor().stream_reader(open(path, "rb"), closefd=True)
+        # buffered, as the other formats: the zstd reader has no readline nor line iteration
+        return io.BufferedReader(
+            zstandard.ZstdDecompressor().stream_reader(open(path, "rb"), closefd=True)
+        )
     if path.endswith(".zip"):
         raise ValueError(f"Unsupported compression (zip): {path}")
     return open(path, "rb")

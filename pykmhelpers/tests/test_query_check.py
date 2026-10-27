@@ -7,6 +7,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import zstandard
+
 from pykmhelpers.pipeline.query_check import (
     ShardQueryCheck,
     first_sample_file,
@@ -47,6 +49,14 @@ class TestRandomWindows(unittest.TestCase):
         for w in windows:
             self.assertTrue(any(w in r for r in reads), w)
 
+    def test_fasta_zst(self):
+        path = self.tmp / "s.unitigs.fa.zst"
+        path.write_bytes(zstandard.ZstdCompressor().compress(f">s\n{self.seq}\n".encode()))
+        windows = self.windows(path)
+        self.assertEqual(len(windows), 10)
+        for w in windows:
+            self.assertIn(w, self.seq)
+
     def test_skips_n_and_short_records(self):
         path = self.tmp / "s.fa"
         # one 10-base ACGT run between Ns (1 window), a 12-base record (3 windows)
@@ -79,6 +89,7 @@ class TestSummary(unittest.TestCase):
         check = ShardQueryCheck(sample="S1", scores=[1.0, 0.5])
         self.assertEqual(check.summary(), "S1 mean 0.750, min 0.500, 1/2 perfect")
         self.assertEqual(ShardQueryCheck(skipped="x").summary(), "skipped (x)")
+        self.assertEqual(ShardQueryCheck(sample="S1", scores=[]).summary(), "S1: no score")
 
 
 if __name__ == "__main__":

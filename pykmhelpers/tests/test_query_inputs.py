@@ -54,6 +54,8 @@ class TestHelpers(QueryInputsBase):
         for name in ("q.fa", "q.fa.gz", "q.fa.bz2", "q.fa.xz", "q.fa.zst"):
             with open_decompressed(self.write(name)) as f:
                 self.assertEqual(f.read(), FASTA, name)
+            with open_decompressed(self.write(name)) as f:
+                self.assertEqual(b"".join(f), FASTA, name)  # line by line
 
     def test_zip_rejected(self):
         with self.assertRaises(ValueError):
