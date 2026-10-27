@@ -305,14 +305,15 @@ class IndexExecutor:
         Recorded in the publish script of the task, run after its builds:
 
         1. check that every run is complete (else stop before touching anything);
-        2. a single new run: move it in place and register it;
+        2. a single new run: check it (structure and query, in a throwaway
+           registry), then move it in place and register it;
         3. otherwise merge the runs, plus the current version of ``target`` if
            there is one, in a balanced tree of merges of at most ``k`` inputs
            (``max_inputs``), each in a throwaway registry holding only its
-           inputs; then, under the registry lock: unregister ``target``, move
-           its current version to ``work/<session>/previous/``, move the result
-           in place, register it;
-        4. check the published index (before deleting anything);
+           inputs; check the result as in 2; then, under the registry lock:
+           unregister ``target``, move its current version to
+           ``work/<session>/previous/``, move the result in place, register it;
+        4. check the published index again (before deleting anything);
         5. delete the runs, the merges and the previous version.
 
         Every step can be run again after an interruption: a merge step whose
@@ -361,6 +362,7 @@ class IndexExecutor:
 
         if single:
             # 2. nothing to merge
+            self._precheck(target, run)
             self._locked(
                 f"{self._move(run, shard)} && {self._register(target)}",
                 f"publish {target}",
@@ -375,6 +377,7 @@ class IndexExecutor:
                 inputs[current] = shard
                 samples[current] = len(self.index_samples(target))
             out = self._merge(i, target, inputs, samples, params, details)
+            self._precheck(target, out)
 
             previous = paths.previous(target)
             # the entry's folder is moved below
@@ -392,6 +395,32 @@ class IndexExecutor:
             self._locked(" && ".join(swap), f"publish {target}")
 
         self._check_and_clean(target, list(run_dirs.values()))
+
+    def _precheck(self, target: str, folder: str) -> None:
+        """Check ``folder`` (structure and query) before it is published as
+        ``target``, in a throwaway registry holding only it: a broken index
+        never reaches the registry. Skipped once ``folder`` is moved in place."""
+        paths = self._paths
+        registry = os.path.join(paths.merges(target), "precheck")
+        published = f"[ ! -e {_q(folder)} ] && [ -e {_q(paths.shard(target))} ]"
+        check = " && ".join(
+            [
+                # kmindex creates the registry; it must not exist without index.json
+                f"rm -rf {_q(registry)}",
+                f"mkdir -p {_q(paths.merges(target))}",
+                self._kmindex(
+                    "register", "--global-index", registry,
+                    "--name", target, "--index-path", folder,
+                ),
+                shlex.join(
+                    ["kmhelpers", "manage", "-r", registry, "check", "--shard", target]
+                ),
+            ]
+        )
+        self._sh(
+            f"if {published}; then echo 'already published'; else {check}; fi",
+            f"precheck {target}",
+        )
 
     def _check_and_clean(self, target: str, run_dirs: list[str]) -> None:
         """Check the published ``target``, then delete what built it."""

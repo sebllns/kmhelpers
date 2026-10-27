@@ -905,6 +905,11 @@ class TestChunkedBuild(PipelineE2EBase):
         self.assertIn("kmindex register --global-index", text)
         self.assertIn("--from-file", text)
         self.assertIn("kmindex merge", text)
+        # the merge result is checked before it is published, and again after
+        precheck = text.index("[publish] precheck")
+        self.assertLess(text.index("kmindex merge"), precheck)
+        self.assertLess(precheck, text.index(f"[publish] publish {name}"))
+        self.assertLess(text.index(f"[publish] publish {name}"), text.rindex(f"[publish] check {name}"))
         chunks = sorted(task.glob("*_chunk*.sh"))
         self.assertGreater(len(chunks), 1, "not chunked")
         for chunk in chunks:
