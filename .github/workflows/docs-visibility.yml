@@ -1,0 +1,71 @@
+name: Docs version visibility
+
+# Hides a docs version from the version menu (or shows it again). Its pages
+# stay online, so existing links keep working. To delete a version, use the
+# delete_version input of the "Deploy docs" workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Docs version (e.g. 0.7.2)"
+        required: true
+      action:
+        description: "hide or show in the version menu"
+        type: choice
+        options:
+          - hide
+          - show
+        default: hide
+
+# Shares the deploy group: all write to gh-pages
+concurrency:
+  group: docs-deploy
+  cancel-in-progress: false
+
+jobs:
+  visibility:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # gh-pages has no mkdocs.yml, so mike needs no docs plugins
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install mike
+        run: python -m pip install --upgrade pip "mike>=2.0"
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Update version properties
+        env:
+          VERSION: ${{ inputs.version }}
+          ACTION: ${{ inputs.action }}
+        run: |
+          git_args=(-r origin -b gh-pages)
+          info=$(mike list "${git_args[@]}" --json "$VERSION") || exit 1
+          hidden=$(jq -r '.properties.hidden // false' <<<"$info")
+          if [ "$ACTION" = "hide" ]; then
+            # A hidden latest would leave the menu without the version shown
+            if jq -e '.aliases | index("latest")' <<<"$info" >/dev/null; then
+              echo "Refusing to hide $VERSION: it holds the latest alias" >&2
+              exit 1
+            fi
+            mike props "${git_args[@]}" --push --set hidden=true "$VERSION"
+          elif [ "$hidden" = "true" ]; then
+            mike props "${git_args[@]}" --push --delete hidden "$VERSION"
+          else
+            echo "$VERSION is not hidden"
+          fi
+          mike list "${git_args[@]}"

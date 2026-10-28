@@ -67,6 +67,16 @@ This builds the docs, pushes them to `gh-pages` under `/<version>/`, and updates
 mike list
 ```
 
+### Hide a version from the menu
+
+The pages stay online, so existing links keep working. Run the "Docs version visibility" workflow, or:
+
+```bash
+gh workflow run docs-visibility.yml -f version=0.7.2 -f action=hide   # or action=show
+```
+
+The version holding `latest` cannot be hidden.
+
 ### Preview versioned docs locally
 
 ```bash
