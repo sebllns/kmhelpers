@@ -2,6 +2,7 @@
 
 import logging
 import os
+import shutil
 import subprocess
 import sys
 from typing import Optional
@@ -15,6 +16,7 @@ import pykmhelpers.pipeline.index_ops as ops
 from pykmhelpers.cli.apply import run_plan, show_status, watch
 from pykmhelpers.cli.notify import ExitNotifier
 from pykmhelpers.cli.plan import active_plan_jobs, make_plan, remove_session_plan, shown_jobs
+from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths
 from pykmhelpers.pipeline.index_ops.plan_file import check_fresh, load_plan
 from pykmhelpers.pipeline.index_ops.runner import PlanRunner
@@ -146,7 +148,7 @@ def build(
         return
     if cluster_file:
         _build_on_cluster(
-            input_file, work_dir, base_path, threads, limits, safety_margin,
+            ctx, input_file, work_dir, base_path, threads, limits, safety_margin,
             max_chunks, chunk_budget, chunks_per_job, skip_compression,
             keep_previous, cluster_file, notify, notify_level, show_progress,
         )
@@ -196,6 +198,10 @@ def build(
         logger.error("PARTIAL ('plan')")
         raise PartialError("PARTIAL ('plan')")
     logger.info("SUCCESS ('plan')")
+    _show_summary(result, input_file, work_dir)
+    if not shared.confirm(ctx, "Build it?", default=True, unattended=True):
+        notifier.recipient = None
+        _decline(input_file, work_dir)
 
     # --- Step 2: apply ---
     _apply_locally(input_file, work_dir, notifier, show_progress)
@@ -228,7 +234,7 @@ def _apply_locally(input_file: str, work_dir: str, notifier: ExitNotifier, show_
 
 
 def _build_on_cluster(
-    input_file, work_dir, base_path, threads, limits, safety_margin, max_chunks,
+    ctx, input_file, work_dir, base_path, threads, limits, safety_margin, max_chunks,
     chunk_budget, chunks_per_job, skip_compression, keep_previous, cluster_file,
     notify, notify_level, show_progress=False,
 ) -> None:
@@ -270,11 +276,47 @@ def _build_on_cluster(
         _already_built(input_file, work_dir)
         return
     logger.info("SUCCESS ('plan')")
+    _show_summary(result, input_file, work_dir, on_cluster=True)
+    if not shared.confirm(ctx, "Submit it?", default=True, unattended=True):
+        _decline(input_file, work_dir)
     _submit(
         input_file, work_dir,
         os.path.join(os.path.dirname(plan_path), "slurm", "submit.sh"),
         show_progress,
     )
+
+
+def _show_summary(result, input_file: str, work_dir: str, on_cluster: bool = False) -> None:
+    """What the new plan builds: shards, samples, runs and estimated size, against
+    the free space of BUILD_DIR."""
+    summary = result.details.get("summary", {})
+    totals = summary.get("totals", {})
+    if not totals:
+        return
+    logger.info(
+        f"To build: {totals['shards']} shard(s), {totals['samples']} sample(s), "
+        f"{totals['runs']} kmtricks run(s), estimated size {totals['est_size']}"
+    )
+    for span, s in summary.get("spans", {}).items():
+        logger.info(f"  span {span}: {s['shards']} shard(s), {s['samples']} sample(s), {s['est_size']}")
+    if on_cluster:
+        jobs = PlanRunner(work_dir, input_file).jobs()
+        logger.info(f"  {len(jobs)} build/publish job(s), then a finish job")
+    free = shutil.disk_usage(work_dir).free
+    est = shared.parse_size(totals["est_size"], "estimated size")
+    logger.info(f"Free space in {work_dir}: {ByteCounter.auto(free)}")
+    if est > free:
+        logger.warning(
+            "The estimated size is over the free space, and merges need more "
+            "than the final size while they run"
+        )
+
+
+def _decline(input_file: str, work_dir: str) -> None:
+    """Build declined: remove the new plan, so that a later build plans and asks again."""
+    remove_session_plan(input_file, work_dir)
+    logger.info("Nothing built")
+    raise click.Abort()
 
 
 def _submit(input_file: str, work_dir: str, submit: str, watching: bool = False) -> None:

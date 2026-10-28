@@ -29,9 +29,11 @@ All notable changes to this project will be documented in this file.
 - **`profile`/`design --no-grouping, --ngp`**: one group, no grouping strategy (`grouping: none` in `profile.yaml`); refused with `-g N`
 - `profile.md`: the sizes of `profile.yaml` are for presence/absence, times bitw for an abundance index
 - **`apply --task PATTERN`** runs part of the plan: a shard or its task (`<shard>_<session>`) runs all its jobs, a job (`<shard>_j<k>`, `<shard>_publish`) runs alone; **`apply --pending`** lists the jobs not done yet
+- **`build` summary**: after a new plan, `build` prints the shards, samples, kmtricks runs (jobs with `--hpc`) and estimated size, per span and in total, against the free space of `BUILD_DIR` (warning when over it), then asks `Build it?` / `Submit it?`; no removes the plan. Skipped with `-Y` or without a terminal
 
 ### Changed
 
+- Confirmation prompts are asked only on a terminal, in the foreground; otherwise they refuse with a hint to pass `-Y` instead of a bare `Aborted!` or waiting for an answer that cannot come
 - Auto-sized partition counts (`plan`, no `-P` and no published count) are rounded up to the next power of 2, at most 256; a count fixed by `-P` or recorded for a published shard is kept as is
 - `plan` warns when a partition count leaves even one thread over the RAM limit (the build still runs with 1 thread)
 - **`plan` prepares, `apply` runs**: `plan` takes every build decision and writes `BUILD_DIR/assets/SESSION/plan.yaml` (one task per part: its chunks, publish step and jobs) and one directory of scripts per shard, `<shard>/` (`<run>.sh` and `.fof` per kmtricks run, `publish.sh`, `publish/`); `apply` runs these scripts, under monitoring, and builds nothing itself

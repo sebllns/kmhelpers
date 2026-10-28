@@ -61,6 +61,8 @@ These options are available on the root `kmhelpers` command and apply to all sub
 
 Also honors `KMHELPERS_LOG_LEVEL`: default log level 0-4 (0=CRITICAL, 4=DEBUG) before `-V`/`-Q` adjustments. Default: 3 (INFO).
 
+**Confirmations** - a prompt is asked only when stdin and stdout are a terminal and the command runs in the foreground. Otherwise (batch job, output redirected, background job), a prompt guarding an overwrite or a deletion refuses with a hint to pass `-Y`, while the summary of [`build`](build.md#description) proceeds.
+
 ## Configuration file
 
 `-C, --config FILE` (or `KMHELPERS_CONFIG=FILE`) reads default option values from a YAML file, for every command:

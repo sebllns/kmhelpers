@@ -7,6 +7,7 @@ import os
 import click
 
 from pykmhelpers.cli.shared import (
+    confirm,
     kmer_ratio_option,
     no_copy_list_option,
     parse_shard_rule,
@@ -176,13 +177,10 @@ def compose(
                 )
         else:
             auto_layout = layout_path(output_dir, name)
-            force = (ctx.obj or {}).get("yes", False)
-            if os.path.isfile(auto_layout) and not force:
-                if not click.confirm(
-                    f"Layout file already exists at {auto_layout}. Overwrite it?",
-                    default=False,
-                ):
-                    raise click.Abort()
+            if os.path.isfile(auto_layout) and not confirm(
+                ctx, f"Layout file already exists at {auto_layout}. Overwrite it?"
+            ):
+                raise click.Abort()
 
         # if partition_count < 0:
         #     raise click.BadParameter(

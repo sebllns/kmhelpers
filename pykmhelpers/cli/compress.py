@@ -3,7 +3,7 @@ import logging
 import click
 
 from pykmhelpers import KmindexRegistry
-from pykmhelpers.cli.shared import select_shards
+from pykmhelpers.cli.shared import confirm, select_shards
 from pykmhelpers.core.log import Log
 
 logger = logging.getLogger(__name__)
@@ -126,13 +126,12 @@ def kmindex_compress(
     if not index_ids:
         raise click.UsageError(f"No shard in registry {registry_path}")
 
-    if delete and not (ctx.obj or {}).get("yes", False):
-        if not click.confirm(
-            f"Delete the uncompressed matrices of {len(index_ids)} shard(s) "
-            f"({', '.join(index_ids)}) after compression?",
-            default=False,
-        ):
-            raise click.Abort()
+    if delete and not confirm(
+        ctx,
+        f"Delete the uncompressed matrices of {len(index_ids)} shard(s) "
+        f"({', '.join(index_ids)}) after compression?",
+    ):
+        raise click.Abort()
 
     logger.info(f"Compressing {len(index_ids)} shard(s) of {registry_path}")
     logger.info(f"  Compression level: {cpr_level}")

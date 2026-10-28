@@ -6,7 +6,7 @@ import time
 import click
 
 from pykmhelpers import KmindexRegistry, QueryRunner, QueryRunnerConfig
-from pykmhelpers.cli.shared import select_shards
+from pykmhelpers.cli.shared import confirm, select_shards
 
 logger = logging.getLogger(__name__)
 
@@ -239,8 +239,8 @@ def query(
     force = (ctx.obj or {}).get("yes", False)
 
     if existing == "delete" and not force:
-        if not click.confirm(
-            "Proceed with 'delete' on existing output directories?", default=True
+        if not confirm(
+            ctx, "Proceed with 'delete' on existing output directories?", default=True
         ):
             raise click.Abort()
         force = True

@@ -11,6 +11,7 @@ import urllib.request
 
 import click
 
+from pykmhelpers.cli.shared import confirm
 from pykmhelpers.core.log import Log
 
 logger = logging.getLogger(__name__)
@@ -182,8 +183,7 @@ def install_deps(
     ]
     if (
         existing
-        and not (ctx.obj or {}).get("yes", False)
-        and not click.confirm(f"Overwrite {', '.join(existing)}?", default=True)
+        and not confirm(ctx, f"Overwrite {', '.join(existing)}?", default=True)
     ):
         raise click.Abort()
 

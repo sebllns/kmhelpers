@@ -55,7 +55,7 @@ def remove_session_plan(input_file: str, work_dir: str) -> None:
     refuse_under_active_jobs(input_file, work_dir)
     assets = BuildPaths.for_input(os.path.realpath(work_dir), input_file).assets
     if os.path.isdir(assets):
-        logger.info(f"--replan: removing the previous plan {assets}")
+        logger.info(f"Removing the plan of the session: {assets}")
         shutil.rmtree(assets)
 
 

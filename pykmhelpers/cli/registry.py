@@ -7,6 +7,7 @@ import os
 import click
 
 from pykmhelpers import KmindexRegistry, KmtricksIndex
+from pykmhelpers.cli.shared import confirm
 from pykmhelpers.core.bloom_filter import BloomFilterSpecs
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.pipeline.query_check import query_check
@@ -401,11 +402,10 @@ def registry_check(obj, verbose, index_ids, no_query, zvalue):
     is_flag=True,
     help="Only edit index.json: leave a symlinked entry in place",
 )
-@click.pass_obj
-def registry_remove(obj, index_ids, delete_files, missing_ok, keep_link):
+@click.pass_context
+def registry_remove(ctx, index_ids, delete_files, missing_ok, keep_link):
     """Remove index from registry (optionally delete files)."""
-    registry_path = obj["registry_path"]
-    yes = obj.get("yes", False)
+    registry_path = ctx.obj["registry_path"]
 
     try:
         registry = KmindexRegistry(registry_path, auto_create=False)
@@ -420,23 +420,23 @@ def registry_remove(obj, index_ids, delete_files, missing_ok, keep_link):
                         f"Index '{index_id}' not found in registry"
                     )
 
-                # Confirm unless the global -Y
-                if not yes:
-                    msg = f"Remove '{index_id}' from registry"
-                    if delete_files:
-                        msg += " and delete index files"
-                    msg += "?"
-
-                    if not click.confirm(msg):
-                        click.echo("Operation cancelled")
-                        continue
+                msg = f"Remove '{index_id}' from registry"
+                if delete_files:
+                    msg += " and delete index files"
+                if not confirm(ctx, msg + "?"):
+                    click.echo("Operation cancelled")
+                    continue
                 registry.remove_index(
                     index_id, delete_files=delete_files, keep_link=keep_link
                 )
                 click.echo(f"✓ Removed '{index_id}' from registry")
 
+            except (click.ClickException, click.Abort):
+                raise
             except Exception as e:
                 raise click.ClickException(f"Failed to remove index: {e}")
+    except (click.ClickException, click.Abort):
+        raise
     except Exception as e:
         raise click.ClickException(f"Remove command failed: {e}")
 

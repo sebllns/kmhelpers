@@ -9,6 +9,7 @@ import click
 
 from pykmhelpers.cli.shared import (
     auto_group_options,
+    confirm,
     kmer_ratio_option,
     no_copy_list_option,
     no_grouping_option,
@@ -321,14 +322,10 @@ def design(
 
     session_file = os.path.join(compose_dir, name, session_id, f"{SESSION_FILE}.yaml")
 
-    force = (ctx.obj or {}).get("yes", False)
-
-    if os.path.isfile(session_file) and not force:
-        if not click.confirm(
-            f"Session file already exists at {session_file}. Overwrite it?",
-            default=False,
-        ):
-            raise click.Abort()
+    if os.path.isfile(session_file) and not confirm(
+        ctx, f"Session file already exists at {session_file}. Overwrite it?"
+    ):
+        raise click.Abort()
 
     if input_is_jsonl:
         logger.debug(

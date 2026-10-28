@@ -2,6 +2,8 @@
 
 import json
 import logging
+import os
+import sys
 from typing import Any
 
 import click
@@ -110,6 +112,28 @@ def force_verbose_mode():
         for handler in root_logger.handlers:
             if handler.level > logging.INFO:
                 handler.setLevel(logging.INFO)
+
+
+def interactive() -> bool:
+    """A prompt can be seen and answered: stdin and stdout on a terminal, in the foreground."""
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        return False
+    try:
+        return os.tcgetpgrp(sys.stdin.fileno()) == os.getpgrp()
+    except OSError:
+        return False
+
+
+def confirm(ctx, message: str, default: bool = False, unattended: bool = False) -> bool:
+    """Ask for confirmation; the global -Y answers yes. Without a terminal, return
+    ``unattended`` when it is True, otherwise refuse with a hint to pass -Y."""
+    if (ctx.find_root().obj or {}).get("yes", False):
+        return True
+    if not interactive():
+        if unattended:
+            return True
+        raise click.ClickException(f"{message} No terminal to confirm: pass -Y (kmhelpers -Y ...)")
+    return click.confirm(message, default=default)
 
 
 def split_names(values) -> list[str] | None:

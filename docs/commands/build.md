@@ -88,6 +88,8 @@ Building a session again resumes it: complete kmtricks runs are kept, incomplete
 
 **Step 1 - plan:** validates all sample paths upfront, takes every build decision and writes the plan to `BUILD_DIR/assets/SESSION/`: `plan.yaml` and one folder of scripts per shard (see [`plan`](plan.md)), and the plan [report](#report) to `BUILD_DIR/logs/`. Fix any path errors before the build starts rather than discovering them mid-run.
 
+**Confirmation:** after a new plan, `build` prints what it will build (shards, samples, kmtricks runs, jobs with `--hpc`, estimated size per span and in total) and the free space of `BUILD_DIR`, with a warning when the estimate is over it (merges need more than the final size while they run). It then asks `Build it?` (`Submit it?` with `--hpc`). Answering no removes the plan (`BUILD_DIR/assets/SESSION/`): nothing is built, and the next `build` plans and asks again. The global `-Y` skips the question, and so does a run without a terminal (batch job, output redirected), which builds. Running an existing plan does not ask again.
+
 **Step 2 - apply:** runs the plan, registers all completed indices in `BUILD_DIR/index.json`, and writes the apply [report](#report) as it goes.
 
 **Filtering** - `build` always processes every shard of the session. Use [`plan`](plan.md) with `--shard` (names or glob patterns), then [`apply`](apply.md) (`--task`), to build a subset or to spread the jobs over several nodes.
