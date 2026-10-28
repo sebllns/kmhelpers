@@ -128,7 +128,7 @@ Most `kmhelpers` commands (`design`, `plan`, `query`, `compose`, ...) complete i
 | [kmtricks](https://github.com/tlemane/kmtricks) | ≥ 1.6.0 |
 | [ntCard](https://github.com/bcgsc/ntCard) | ≥ 1.2.2 |
 
-See [Installation](getting-started/installation.md) for build instructions.
+See [Installation](getting-started/installation.md) to install them, or to use other versions.
 
 ## License
 
