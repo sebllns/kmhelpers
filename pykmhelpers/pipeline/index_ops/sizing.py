@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from pykmhelpers.core.bloom_filter import bf_max_kmers
-from pykmhelpers.core.build_params import auto_params, params_for_partitions
+from pykmhelpers.core.build_params import _resolve_limits, auto_params, params_for_partitions
 from pykmhelpers.pipeline.composer import budget_samples_for
 from pykmhelpers.pipeline.index_db import IndexDefinition
 from pykmhelpers.pipeline.index_ops.layout import LayoutStore
@@ -150,6 +150,38 @@ def resolve_partitions(
     return partitions
 
 
+def budget_text(budget: int) -> str:
+    """``2**37`` for a power of two, else the number."""
+    if budget > 1 and budget & (budget - 1) == 0:
+        return f"2**{budget.bit_length() - 1}"
+    return f"{budget:,}"
+
+
+def chunk_bound(
+    i: IndexDefinition,
+    chunk_size: int,
+    sample_count: int,
+    config: IndexOpsConfig,
+    max_chunk_samples: Optional[int],
+) -> str:
+    """What bounds a kmtricks chunk of ``i`` at ``chunk_size`` samples, for the
+    splitting message (``_chunk_size``): the chunk budget, the ``--max-chunks``
+    cap raising the chunk, or the open files of the merge stage."""
+    if max_chunk_samples and chunk_size == max_chunk_samples:
+        return (
+            f"the chunk budget allows at span {i.span} "
+            f"({budget_text(config.chunk_budget)} k-mers, --chunk-budget)"
+        )
+    _, files, threads, _ = _resolve_limits(config.limits or "{}", config.safety_margin)
+    if config.max_chunks and chunk_size == math.ceil(sample_count / config.max_chunks) \
+            and chunk_size > files // threads - 1:
+        return f"--max-chunks {config.max_chunks} asks for"
+    return (
+        f"the open-files limit allows ({files} files at {threads} threads: "
+        "the merge stage opens threads x (samples + 1))"
+    )
+
+
 def resolve_build_params(
     i: IndexDefinition,
     sample_count: int,
@@ -201,8 +233,8 @@ def resolve_build_params(
     if chunk_size is not None:
         logger.info(
             f"  └── '{i.name}' has {sample_count} samples, exceeding the "
-            f"{chunk_size} a single kmtricks build can fit under the current "
-            f"limits; splitting into {math.ceil(sample_count / chunk_size)} chunks"
+            f"{chunk_size} {chunk_bound(i, chunk_size, sample_count, config, max_chunk_samples)}; "
+            f"splitting into {math.ceil(sample_count / chunk_size)} chunks"
         )
 
     logger.info(f"  └── Auto-sized: threads={params.threads}, partitions={partitions}")

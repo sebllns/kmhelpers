@@ -269,6 +269,24 @@ class TestResolveBuildParams(unittest.TestCase):
         )
         self.assertEqual(params, BuildParams(3, 8, 200, 10))
 
+    def test_splitting_message_names_the_bound(self):
+        limits = '{"ram": 8000000000, "files": 4096, "threads": 64}'
+        cases = [
+            # 4096 // 64 - 1 = 63 samples: the merge stage
+            (make_config(limits=limits, max_chunks=0),
+             "the 63 the open-files limit allows (4096 files at 64 threads"),
+            (make_config(limits=limits, max_chunks=4), "the 250 --max-chunks 4 asks for"),
+            # ceil8(220 / 1.1**1) = 200
+            (make_config(limits=limits, max_chunks=4, chunk_budget=220),
+             "the 200 the chunk budget allows at span 1 (220 k-mers, --chunk-budget)"),
+            (make_config(limits=limits, max_chunks=4, chunk_budget=2**8),
+             "the 240 the chunk budget allows at span 1 (2**8 k-mers"),
+        ]
+        for config, expected in cases:
+            with self.assertLogs("pykmhelpers.pipeline.index_ops.sizing", "INFO") as logs:
+                resolve_build_params(make_definition(), 1000, config, self.layout())
+            self.assertIn(expected, "\n".join(logs.output))
+
     def test_limits_too_low_for_the_partition_count(self):
         """kmtricks needs at least one open file per partition, plus one."""
         config = make_config(limits='{"ram": 8000000000, "files": 4, "threads": 4}')
