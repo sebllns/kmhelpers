@@ -382,8 +382,8 @@ class IndexExecutor:
             previous = paths.previous(target)
             # the entry's folder is moved below
             unregister = shlex.join(
-                ["kmhelpers", "manage", "-r", paths.registry, "remove"]
-                + ["--shard", target, "-y", "--missing-ok"]
+                ["kmhelpers", "-Y", "manage", "-r", paths.registry, "remove"]
+                + ["--shard", target, "--missing-ok"]
             )
             swap = [
                 unregister,

@@ -392,12 +392,6 @@ def registry_check(obj, verbose, index_ids, no_query, zvalue):
     help="Also delete index files from disk (destructive!)",
 )
 @click.option(
-    "--yes",
-    "-y",
-    is_flag=True,
-    help="Skip confirmation prompt",
-)
-@click.option(
     "--missing-ok",
     is_flag=True,
     help="Skip shards that are not registered instead of failing",
@@ -408,9 +402,10 @@ def registry_check(obj, verbose, index_ids, no_query, zvalue):
     help="Only edit index.json: leave a symlinked entry in place",
 )
 @click.pass_obj
-def registry_remove(obj, index_ids, delete_files, yes, missing_ok, keep_link):
+def registry_remove(obj, index_ids, delete_files, missing_ok, keep_link):
     """Remove index from registry (optionally delete files)."""
     registry_path = obj["registry_path"]
+    yes = obj.get("yes", False)
 
     try:
         registry = KmindexRegistry(registry_path, auto_create=False)
@@ -425,7 +420,7 @@ def registry_remove(obj, index_ids, delete_files, yes, missing_ok, keep_link):
                         f"Index '{index_id}' not found in registry"
                     )
 
-                # Confirm if not yes
+                # Confirm unless the global -Y
                 if not yes:
                     msg = f"Remove '{index_id}' from registry"
                     if delete_files:

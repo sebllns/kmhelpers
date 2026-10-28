@@ -82,9 +82,10 @@ the finish job, so the query check runs there too.
 |--------|-------------|
 | `--sh, --shard TEXT` | Shard(s) to remove (required, repeatable) |
 | `-d, --delete-files` | Also delete index files from disk |
-| `-y, --yes` | Skip confirmation prompt |
 | `--missing-ok` | Skip index IDs that are not registered instead of failing |
 | `--keep-link` | Only edit `index.json`: leave a symlinked entry in place |
+
+Each shard is removed after confirmation, skipped with the global `-Y` option.
 
 ### `rename`
 
@@ -135,7 +136,7 @@ kmhelpers manage remove --sh my_index
 kmhelpers manage remove --sh my_index -d
 
 # Remove multiple indices without confirmation
-kmhelpers manage remove --sh idx1 --sh idx2 -y
+kmhelpers -Y manage remove --sh idx1 --sh idx2
 
 # Rename an index
 kmhelpers manage rename -f old_name -t new_name

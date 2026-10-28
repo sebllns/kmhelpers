@@ -52,6 +52,7 @@ All notable changes to this project will be documented in this file.
 
 ### Removed
 
+- `manage remove -y, --yes`: use the global `-Y` (`kmhelpers -Y manage remove ...`), as every other confirmation
 - `plan`/`apply --run`: replaced by jobs (`plan --chunks-per-job`, `apply --task`)
 - `BUILD_DIR/assets/SESSION/kmhelpers_apply.sh` and the flat `<shard>.sh` / `<shard>_merge.sh` scripts: replaced by the per-shard directories
 - Support for build directories of older kmhelpers: parts registered on their own (merged in as they were), and symlinked index folders
