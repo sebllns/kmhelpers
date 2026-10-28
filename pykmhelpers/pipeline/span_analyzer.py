@@ -93,6 +93,9 @@ class SpanAnalyzer:
             "size_ratio": [s / total_size for s in span_sizes],
             "total_size": total_size,
             "bytes_per_sample": total_size // self.get_total_sample_count(),
+            "group_bytes_per_sample": [
+                s // n if n else 0 for s, n in zip(span_sizes, sample_dist)
+            ],
         }
 
         if len(span_list) < len(self._profiles[self._default_profile]["span_list"]):
@@ -119,6 +122,10 @@ class SpanAnalyzer:
             res["bytes_per_sample"] = ByteCounter.auto(
                 self._profiles[name]["bytes_per_sample"]
             ).to_str()
+            res["group_bytes_per_sample"] = FlowList(
+                ByteCounter.auto(s).to_str()
+                for s in self._profiles[name]["group_bytes_per_sample"]
+            )
         return res
 
     def serialize_profiles(self):
