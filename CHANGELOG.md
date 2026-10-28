@@ -2,23 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.7.2] - 2026-10-19
+## [0.7.2] - 2026-10-28
 
 ### Added
 
-- **`query --export` (`-x`)**: writes a Markdown or HTML report beside the data results
+- **`query --export` (`-x`)**: also writes a Markdown or HTML report beside the data results (in development); `--page-size` sets the sequences per page (default 100, 0 disables paging) and `--top` the samples listed per sequence (default 100)
 - **`query -f none`**: keeps only the raw kmindex results
-- **Query statistics**: `sequence_stats.tsv` (one row per query sequence) and `sample_stats.tsv` (one row per matched sample), with match count, perfect matches and mean and median scores; `--no-stats` skips them
+- **Query statistics**: `sequence_stats.tsv` (per query sequence: matched samples) and `sample_stats.tsv` (per matched sample: matching queries), with perfect matches (count and percentage) and mean and median scores; `--no-stats` skips them
 - **`.zenodo.json`**: archive metadata (title, authors, ORCIDs, license) matching the JOSS paper
 
 ### Changed
 
-- **`query`**: the query module is split into runner, result and report; `-f md` and `-f html` are deprecated in favor of `--export`
-- **Paper**: JOSS review fixes (affiliation, typo, inline citation, BibTeX case protection)
+- **`query`**: `-f md` and `-f html` are replaced by `--export md|html`; the Python API still accepts `output_format="md"` or `"html"` with a deprecation warning, and writes TSV plus the report
+- **`query`**: the query module is split into runner (`query`), result (`query_result`) and report (`query_report`)
+- **`query`**: the results are no longer printed to the console (debug log only)
+- **Release**: the release workflow installs the published version from PyPI on Python 3.8 and 3.11 and checks `kmhelpers --version`
+- **Docs**: `pip install` is the first installation method; pipeline figure updated
+- **Paper**: JOSS review fixes (affiliation, typo, inline citation, BibTeX case protection, pipeline figure)
 
 ### Fixed
 
 - **`query`**: results were lost when kmindex wrote one output per batch (`batch_N/`); an empty result is no longer treated as a failure
+- **`query`**: the execution time is shown in seconds (it was labeled ms)
 
 ## [0.7.1] - 2026-10-07
 
