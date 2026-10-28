@@ -950,3 +950,54 @@ class TestScriptRecorder(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestBuildRunScript(unittest.TestCase):
+    """A chunk script resumes an interrupted run, else rebuilds it."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.bin = self.tmp / "bin"
+        self.bin.mkdir()
+        paths = BuildPaths(str(self.tmp / "build"), "s")
+        recorder = ScriptRecorder(str(self.tmp))
+        builder = SimpleNamespace(
+            create_subindex=lambda **kw: {"command": f"touch {self.tmp}/built"}
+        )
+        executor = IndexExecutor(builder, make_config(), recorder, paths)
+        executor.set_task("t", "t")
+        definition = SimpleNamespace(
+            **vars(make_definition("t")), abundance_min=1, bitw=0, kmer_size=25
+        )
+        fof = FofManager(samples={"s0": ["s0.fa"]})
+        executor._build_run("t_chunk0", fof, definition, BuildParams(4, 8, None, 10))
+        (self.script,) = recorder.write(str(self.tmp / "assets"))
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def run_with_resume_status(self, rc):
+        """Run the script with a ``kmhelpers`` exiting with ``rc``."""
+        fake = self.bin / "kmhelpers"
+        fake.write_text(f"#!/usr/bin/env bash\necho \"$@\" > {self.tmp}/resume_args\nexit {rc}\n")
+        fake.chmod(0o755)
+        env = {"PATH": f"{self.bin}:/usr/bin:/bin"}
+        return subprocess.run(
+            ["bash", self.script], env=env, capture_output=True, text=True, check=False
+        )
+
+    def test_resumed_run_is_not_rebuilt(self):
+        self.assertEqual(self.run_with_resume_status(0).returncode, 0)
+        self.assertFalse((self.tmp / "built").exists())
+        args = (self.tmp / "resume_args").read_text()
+        self.assertIn("manage resume-run", args)
+        self.assertIn("--partitions 8 --kmer-size 25", args)
+        self.assertIn("--threads 4 --cpr", args)
+
+    def test_unresumable_run_is_rebuilt(self):
+        self.assertEqual(self.run_with_resume_status(3).returncode, 0)
+        self.assertTrue((self.tmp / "built").exists())
+
+    def test_failed_resume_stops(self):
+        self.assertEqual(self.run_with_resume_status(1).returncode, 1)
+        self.assertFalse((self.tmp / "built").exists())

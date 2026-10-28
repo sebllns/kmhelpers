@@ -3,6 +3,9 @@
 import errno
 import json
 import os
+import subprocess
+import sys
+from pathlib import Path
 
 import click
 
@@ -10,6 +13,12 @@ from pykmhelpers import KmindexRegistry, KmtricksIndex
 from pykmhelpers.cli.shared import confirm
 from pykmhelpers.core.bloom_filter import BloomFilterSpecs
 from pykmhelpers.core.byte import ByteCounter
+from pykmhelpers.core.kmtricks_resume import (
+    NOT_RESUMABLE,
+    RunResumer,
+    RunSpec,
+    plan_resume,
+)
 from pykmhelpers.pipeline.query_check import query_check
 
 # (k+z)-mers queried per shard by `check`
@@ -539,3 +548,56 @@ def registry_move(source, destination, missing_ok):
             )
         raise click.ClickException(f"Move failed: {e}")
     click.echo(f"✓ Moved {source} -> {destination}")
+
+
+# Internal: used by the build scripts written by plan, not listed in --help
+@registry.command(name="resume-run", hidden=True)
+@click.argument("run_dir", type=click.Path(path_type=Path))
+@click.option("--fof", required=True, type=click.Path(exists=True, path_type=Path))
+@click.option("--partitions", required=True, type=int)
+@click.option("--kmer-size", required=True, type=int)
+@click.option("--minim-size", required=True, type=int)
+@click.option("--bloom-size", required=True, type=int)
+@click.option("--hard-min", required=True, type=int)
+@click.option("--bitw", type=int, default=None)
+@click.option("--cpr", is_flag=True, help="The run compresses intermediate files")
+@click.option("--threads", "-t", default=1, show_default=True, type=int)
+@click.option(
+    "--threads-per-sample",
+    default=16,
+    show_default=True,
+    type=int,
+    help="Threads of each superk/count; samples run threads/this at a time",
+)
+def registry_resume_run(
+    run_dir, fof, partitions, kmer_size, minim_size, bloom_size, hard_min, bitw, cpr,
+    threads, threads_per_sample,
+):
+    """Finish the interrupted kmtricks run RUN_DIR, built from FOF.
+
+    Runs superk, count and merge only for the parts left unfinished. Exits
+    with status 3, changing nothing, when the run cannot be resumed (no
+    repart yet, other samples or options): it must then be rebuilt.
+    """
+    spec = RunSpec(
+        run_dir=run_dir,
+        fof=fof,
+        partitions=partitions,
+        kmer_size=kmer_size,
+        minim_size=minim_size,
+        bloom_size=bloom_size,
+        hard_min=hard_min,
+        bitw=bitw,
+        compress=cpr,
+    )
+    plan, reason = plan_resume(spec) if run_dir.is_dir() else (None, "no run")
+    if plan is None:
+        click.echo(f"Cannot resume {run_dir}: {reason}")
+        sys.exit(NOT_RESUMABLE)
+    click.echo(f"Resuming {run_dir}: {plan.summary()}")
+    jobs = max(1, threads // max(1, threads_per_sample))
+    try:
+        RunResumer(spec, threads=threads, jobs=jobs).resume(plan)
+    except (subprocess.CalledProcessError, RuntimeError) as e:
+        raise click.ClickException(f"Resume failed: {e}")
+    click.echo(f"Resumed {run_dir}")

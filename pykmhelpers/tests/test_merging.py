@@ -125,11 +125,13 @@ class TestChunkComplete(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp(prefix="kmhelpers_chunk_")
         os.makedirs(os.path.join(self.dir, "matrices"))
-        for name in ("run_infos.txt", "kmtricks.fof", "options.txt"):
+        os.makedirs(os.path.join(self.dir, "merge_infos"))
+        for name in ("kmtricks.fof", "options.txt"):
             with open(os.path.join(self.dir, name), "w") as f:
                 f.write("x\n")
         for p in range(4):
             self.write_matrix(p, 100)
+            open(os.path.join(self.dir, "merge_infos", f"partition{p}.merge_info"), "w").close()
 
     def tearDown(self):
         shutil.rmtree(self.dir, ignore_errors=True)
@@ -141,9 +143,9 @@ class TestChunkComplete(unittest.TestCase):
     def test_complete(self):
         self.assertTrue(chunk_complete(self.dir, 4))
 
-    def test_missing_run_infos(self):
-        os.remove(os.path.join(self.dir, "run_infos.txt"))
-        self.assertEqual(chunk_problems(self.dir, 4), ["missing run_infos.txt"])
+    def test_missing_merge_info(self):
+        os.remove(os.path.join(self.dir, "merge_infos", "partition1.merge_info"))
+        self.assertEqual(chunk_problems(self.dir, 4), ["missing partition1.merge_info"])
 
     def test_missing_matrix(self):
         os.remove(os.path.join(self.dir, "matrices", "matrix_2.cmbf"))

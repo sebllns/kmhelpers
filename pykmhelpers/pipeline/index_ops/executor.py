@@ -9,6 +9,7 @@ from typing import Optional
 
 from pykmhelpers.core.byte import ByteCounter, SizeFormat
 from pykmhelpers.core.kmindex_layout import load_options_file
+from pykmhelpers.core.kmtricks_resume import NOT_RESUMABLE
 from pykmhelpers.core.utils import summarize_names
 from pykmhelpers.operations.builder import IndexBuilder, backup_name
 from pykmhelpers.pipeline.fof import FofManager
@@ -44,15 +45,17 @@ def _fof_names(path: str) -> str:
 def _run_complete_cmd(run_dir: str, partitions: int) -> str:
     """Shell test, true when the kmtricks run ``run_dir`` is complete.
 
-    Same test as ``chunk_problems``: kmtricks writes ``run_infos.txt`` only
-    after its last stage; all ``partitions`` matrices must be non-empty and
-    of one size. Run in a subshell, so a failing command is only a false test.
+    Same test as ``chunk_problems``: kmtricks writes the ``merge_info`` of a
+    partition after its matrix; all ``partitions`` of them must exist, and the
+    matrices be non-empty and of one size. Run in a subshell, so a failing
+    command is only a false test.
     """
     d = _q(run_dir)
     return (
         f"( n=$(ls {d}/matrices/matrix_*.cmbf 2>/dev/null | wc -l); "
+        f"m=$(ls {d}/merge_infos/partition*.merge_info 2>/dev/null | wc -l); "
         f"sizes=$(stat -c %s {d}/matrices/matrix_*.cmbf 2>/dev/null | sort -u); "
-        f"[ -s {d}/run_infos.txt ] && [ -f {d}/kmtricks.fof ] && [ -f {d}/options.txt ] "
+        f"[ -f {d}/kmtricks.fof ] && [ -f {d}/options.txt ] && [ \"$m\" -eq {partitions} ] "
         f'&& [ "$n" -eq {partitions} ] && [ "$(echo "$sizes" | wc -l)" -eq 1 ] '
         '&& [ -n "$sizes" ] && [ "$sizes" != 0 ] )'
     )
@@ -250,7 +253,9 @@ class IndexExecutor:
         The script is ``<task dir>/<name>.sh``, its sample list
         ``<task dir>/<name>.fof``. It does nothing when the samples are
         already published in the target, keeps a complete run left by an
-        earlier attempt, and deletes and rebuilds an incomplete one.
+        earlier attempt, finishes an interrupted one with the kmtricks steps
+        left (``kmhelpers manage resume-run``), and deletes and rebuilds one
+        that cannot be resumed.
         """
         run_dir = self._paths.run(name)
         fof_path = os.path.join(self._paths.task(self.task_dir), f"{name}.fof")
@@ -269,11 +274,7 @@ class IndexExecutor:
             "echo 'complete run: skip'; exit 0; fi",
             f"reuse {name}",
         )
-        # kmtricks needs the parent of its run directory, not the run itself
-        self._script.add(
-            f"rm -rf {_q(run_dir)} && mkdir -p {_q(self._paths.runs)}", "prepare"
-        )
-
+        compress = not self._config.kmindex_skip_compression
         result = self._builder.create_subindex(
             name=name,
             samples=fof,
@@ -283,15 +284,40 @@ class IndexExecutor:
             n_partitions=params.partitions,
             n_threads=params.threads,
             auto_check=True,
-            compress_intermediate=not self._config.kmindex_skip_compression,
+            compress_intermediate=compress,
             minim_size=params.minim_size,
             dry_run=True,
             kmer_size=i.kmer_size,
             register=False,
             fof_path=fof_path,
         )
-        if result and "command" in result:
-            self._script.add(result["command"], f"build {name}")
+        if not (result and "command" in result):
+            return
+        resume = [
+            "kmhelpers", "manage", "resume-run", run_dir,
+            "--fof", fof_path,
+            "--partitions", str(params.partitions),
+            "--kmer-size", str(i.kmer_size),
+            "--minim-size", str(params.minim_size),
+            "--bloom-size", str(i.bf_size),
+            "--hard-min", str(i.abundance_min),
+            "--threads", str(params.threads),
+        ]
+        if i.bitw:
+            resume += ["--bitw", str(i.bitw)]
+        if compress:
+            resume.append("--cpr")
+        self._script.add(
+            f"rc=0; {shlex.join(resume)} || rc=$?; "
+            f'if [ "$rc" -eq 0 ]; then echo \'resumed run: done\'; exit 0; fi; '
+            f'if [ "$rc" -ne {NOT_RESUMABLE} ]; then exit "$rc"; fi',
+            f"resume {name}",
+        )
+        # kmtricks needs the parent of its run directory, not the run itself
+        self._script.add(
+            f"rm -rf {_q(run_dir)} && mkdir -p {_q(self._paths.runs)}", "prepare"
+        )
+        self._script.add(result["command"], f"build {name}")
 
     def publish(
         self,
@@ -617,17 +643,16 @@ class IndexExecutor:
     def _check_runs_cmd(runs_tsv: str, partitions: int) -> str:
         """Shell loop stopping the script when a kmtricks run is incomplete.
 
-        Same test as ``chunk_problems``: kmtricks writes ``run_infos.txt`` only
-        after its last stage; all ``partitions`` matrices must be non-empty and
-        of one size.
+        Same test as ``chunk_problems``: all ``partitions`` ``merge_info``
+        files must exist, and the matrices be non-empty and of one size.
         """
         return (
             "bad=0; while IFS=$'\\t' read -r name dir; do "
             'n=$(ls "$dir"/matrices/matrix_*.cmbf 2>/dev/null | wc -l); '
+            'm=$(ls "$dir"/merge_infos/partition*.merge_info 2>/dev/null | wc -l); '
             'sizes=$(stat -c %s "$dir"/matrices/matrix_*.cmbf 2>/dev/null | sort -u); '
-            'if [ ! -s "$dir/run_infos.txt" ] || [ ! -f "$dir/kmtricks.fof" ] '
-            '|| [ ! -f "$dir/options.txt" ] '
-            f'|| [ "$n" -ne {partitions} ] || [ "$(echo "$sizes" | wc -l)" -ne 1 ] '
+            'if [ ! -f "$dir/kmtricks.fof" ] || [ ! -f "$dir/options.txt" ] '
+            f'|| [ "$m" -ne {partitions} ] || [ "$n" -ne {partitions} ] || [ "$(echo "$sizes" | wc -l)" -ne 1 ] '
             '|| [ "$sizes" = 0 ]; then '
             'echo "incomplete run: $name ($dir)" >&2; bad=$((bad + 1)); fi; '
             f"done < {_q(runs_tsv)}; "

@@ -80,10 +80,12 @@ class StatusCase(unittest.TestCase):
     def complete_run(self, run):
         d = Path(self.paths.run(run))
         (d / "matrices").mkdir(parents=True)
-        for name in ("run_infos.txt", "kmtricks.fof", "options.txt"):
+        (d / "merge_infos").mkdir()
+        for name in ("kmtricks.fof", "options.txt"):
             (d / name).write_text("x\n")
         for p in range(PARTITIONS):
             (d / "matrices" / f"matrix_{p}.cmbf").write_bytes(b"\0" * 10)
+            (d / "merge_infos" / f"partition{p}.merge_info").touch()
 
     def publish(self, samples):
         Path(self.paths.build_dir, "index.json").write_text(json.dumps({"index": {"idx_g0": {}}}))
