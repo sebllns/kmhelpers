@@ -44,7 +44,8 @@ def refuse_under_active_jobs(input_file: str, work_dir: str) -> None:
         raise click.ClickException(
             f"{len(active)} job(s) of this plan still queued or running ({shown}): "
             f"follow them with `kmhelpers apply {input_file} -o {work_dir} --status --sp`, "
-            "or cancel them (scancel) before planning again"
+            f"or cancel them (`kmhelpers apply {input_file} -o {work_dir} --cancel`) "
+            "before planning again"
         )
 
 

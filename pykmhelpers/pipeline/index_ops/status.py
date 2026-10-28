@@ -18,6 +18,7 @@ import logging
 import os
 import re
 import shutil
+import signal
 import socket
 import subprocess
 from dataclasses import dataclass, field
@@ -347,6 +348,56 @@ def active_jobs(state: "BuildState") -> list[str]:
             if recorded.get("node") == host and _pid_alive(job[4:]):
                 active.append(job)
     return list(dict.fromkeys(active))
+
+
+def cancellable_jobs(
+    state: "BuildState", names: Optional[set[str]] = None
+) -> list[tuple[str, str, str]]:
+    """``(job, id, where)`` of the jobs of the plan still queued or running: the
+    SLURM jobs ``submit.sh`` submitted (``where``: ``squeue_state``), and the
+    local ``apply`` processes on this host running one of their steps (``pid N``).
+    ``names``: only these jobs of the plan, so never the finish job."""
+    found: dict[str, tuple[str, str, str]] = {}  # one per id
+    if shutil.which("squeue"):
+        for job, jid in state.submitted().items():
+            if names is None or job in names:
+                where = squeue_state(jid)
+                if where:
+                    found.setdefault(jid, (job, jid, where))
+    host = socket.gethostname()
+    for task in state.tasks.values():
+        for job, steps in (task.get("jobs") or {}).items():
+            if names is not None and job not in names:
+                continue
+            for step in steps:
+                recorded = state.read_state(task, step)
+                pid = recorded.get("job") or ""
+                if (
+                    recorded.get("status") == RUNNING and pid.startswith("pid ")
+                    and recorded.get("node") == host and _pid_alive(pid[4:])
+                ):
+                    found.setdefault(pid, (job, pid, f"{RUNNING} ({step})"))
+    return list(found.values())
+
+
+def cancel_jobs(ids: list[str]) -> None:
+    """``scancel`` the SLURM ``ids``, SIGTERM the local ``pid N`` ones: a running
+    step is then recorded CANCELLED by its ``apply``. A job already gone is no
+    error."""
+    slurm = [i for i in ids if not i.startswith("pid ")]
+    if slurm:
+        try:
+            r = subprocess.run(["scancel", *slurm], capture_output=True, text=True, timeout=60)
+        except (OSError, subprocess.SubprocessError) as e:
+            raise RuntimeError(f"scancel failed: {e}")
+        if r.returncode != 0 and "Invalid job id" not in r.stderr:
+            raise RuntimeError(f"scancel failed: {r.stderr.strip() or r.returncode}")
+    for i in ids:
+        if i.startswith("pid "):
+            try:
+                os.kill(int(i[4:]), signal.SIGTERM)
+            except ProcessLookupError:
+                pass
 
 
 def _pid_alive(pid: str) -> bool:

@@ -946,6 +946,10 @@ class TestChunkedBuild(PipelineE2EBase):
         shard = publish_job[: -len("_publish")]
         self.assertEqual(jobs[0], f"{shard}_j0")
         self.assertGreater(len(jobs), 2, jobs)
+        cancel = self.run_cli("apply", session_file, "-o", "build", "--cancel")
+        self.assertIn("Nothing to cancel", cancel.stdout)
+        self.run_cli("apply", session_file, "-o", "build", "--cancel", "--status",
+                     expect_success=False)
 
         self.run_cli("apply", session_file, "-o", "build", "--task", "*_j0")
         runs = sorted(p.name for p in (self.tmp / "build" / "work").rglob("*_chunk*"))

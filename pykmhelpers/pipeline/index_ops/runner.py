@@ -57,12 +57,15 @@ class Job:
 class PlanRunner:
     """Runs the jobs of the plan of ``input_file`` in ``build_dir``."""
 
-    def __init__(self, build_dir: str, input_file: str) -> None:
+    def __init__(self, build_dir: str, input_file: str, fresh: bool = True) -> None:
+        """``fresh``: refuse a plan made from other inputs (``check_fresh``);
+        False for what only reads or stops its jobs (``apply --cancel``)."""
         input_file = os.path.realpath(input_file)
         self._paths = BuildPaths.for_input(build_dir, input_file)
         self._input = input_file
         self.plan = load_plan(self._paths.plan)
-        check_fresh(self.plan, input_file)
+        if fresh:
+            check_fresh(self.plan, input_file)
         self._tasks: dict[str, dict] = self.plan.get("tasks") or {}
         self.state = BuildState(self.plan, self._paths)
         self._shell = Wrapper("bash")

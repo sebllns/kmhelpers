@@ -18,6 +18,8 @@ from pykmhelpers.pipeline.index_ops.status import (
     PROGRESS_FILE,
     RUNNING,
     SUCCESS,
+    cancel_jobs,
+    cancellable_jobs,
     overall,
     ram_source,
     render,
@@ -152,12 +154,50 @@ def watch(input_file: str, work_dir: str, interval: float, task_ids=None) -> int
     return 0 if overall(tree) == SUCCESS else 1
 
 
+def cancel(ctx, input_file: str, work_dir: str, task_ids=None) -> int:
+    """Cancel the jobs of the plan still queued or running, after a confirmation
+    (-Y); with ``task_ids``, only the matching jobs, the finish job kept. The
+    number of jobs cancelled."""
+    # a plan made from other inputs (or another kmhelpers) is cancelled too
+    runner = PlanRunner(work_dir, input_file, fresh=False)
+    names = None
+    if task_ids:
+        names = {j.name for j in runner.jobs(shared.split_names(task_ids))}
+    found = cancellable_jobs(runner.state, names)
+    if not found:
+        click.echo("Nothing to cancel: no job of this plan is queued or running")
+        return 0
+    for job, jid, where in found:
+        click.echo(f"{job}: {jid if jid.startswith('pid ') else f'job {jid}'}, {where}")
+    if not shared.confirm(ctx, f"Cancel these {len(found)} job(s)?"):
+        click.echo("Nothing cancelled")
+        return 0
+    cancel_jobs([jid for _, jid, _ in found])
+    submit = os.path.join(runner.state.paths.assets, "slurm", "submit.sh")
+    click.echo(
+        f"{len(found)} job(s) cancelled. Where the build stands: "
+        f"`kmhelpers apply {input_file} -o {work_dir} --status`; to submit what "
+        f"is not done again: `bash {submit}`"
+    )
+    return len(found)
+
+
 @click.command(name="apply")
 @click.argument("input_file", nargs=1, required=True, type=click.Path(exists=True))
 @shared.index_target_options
 @shared.task_option
 @shared.pending_option
 @shared.status_option
+@click.option(
+    "--cancel",
+    "do_cancel",
+    is_flag=True,
+    help="🚩  Cancel the jobs of the plan still queued or running (scancel the "
+    "SLURM jobs of submit.sh, SIGTERM a local apply on this host), after a "
+    "confirmation (-Y), and run nothing. With --task, only the matching jobs "
+    "(the finish job is kept; SLURM drops the publish job of a cancelled build "
+    "job). A cancelled step is recorded CANCELLED: submit.sh submits it again.",
+)
 @click.option(
     "--cleanup",
     "do_cleanup",
@@ -185,6 +225,7 @@ def apply(
     task_ids,
     pending,
     status,
+    do_cancel,
     do_cleanup,
     interval,
     show_progress,
@@ -231,11 +272,24 @@ def apply(
     kmhelpers apply coli_db -o coli_build --status --task coli_g0
     kmhelpers apply coli_db -o coli_build --status --sp --task coli_g0
     kmhelpers apply coli_db -o coli_build --status --task 'coli_g*'   # quoted: no shell glob
+
+    \b
+    # Cancel the jobs still queued or running: all, or one shard's
+    kmhelpers apply coli_db -o coli_build --cancel
+    kmhelpers apply coli_db -o coli_build --cancel --task coli_g1
     """
     input_file = shared.resolve_definition(input_file, session)
     if task_ids and not shared.split_names(task_ids):
         # --task "" (an empty line of a job list) would select every job
         raise click.UsageError("--task is empty: give a shard, task or job name")
+    if do_cancel and (status or pending or do_cleanup):
+        raise click.UsageError("--cancel runs alone: not with --status, --pending")
+    if do_cancel:
+        try:
+            cancel(ctx, input_file, work_dir, task_ids)
+        except (ValueError, FileNotFoundError, RuntimeError) as e:
+            raise click.ClickException(str(e))
+        return
     if do_cleanup:
         try:
             cleanup(PlanRunner(work_dir, input_file))

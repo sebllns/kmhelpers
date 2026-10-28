@@ -4,7 +4,9 @@ import io
 import json
 import os
 import shutil
+import signal
 import socket
+import subprocess
 import tempfile
 import threading
 import time
@@ -34,6 +36,8 @@ from pykmhelpers.pipeline.index_ops.status import (
     StepDetail,
     _rss_bytes,
     active_jobs,
+    cancel_jobs,
+    cancellable_jobs,
     detail_text,
     duration,
     human_bytes,
@@ -530,6 +534,62 @@ class TestActiveJobs(StatusCase):
             self.assertEqual(active_jobs(self.state), [])
             path.write_text(json.dumps({"status": RUNNING, "job": f"pid {os.getpid()}", "node": "other"}))
             self.assertEqual(active_jobs(self.state), [])
+
+
+class TestCancel(StatusCase):
+    def setUp(self):
+        super().setUp()
+        sub = Path(self.paths.assets) / "slurm"
+        sub.mkdir(parents=True)
+        (sub / "submitted.tsv").write_text(
+            "idx_g0_j0\t10_0\nidx_g0_j1\t10_1\nidx_g0_publish\t11\nfinish\t12\n"
+            "idx_g0_j1\t13_0\n"  # submitted again: its last id
+        )
+        self.queue = {"10_0": "RUNNING (node1)", "13_0": "PENDING (mem, Priority)",
+                      "11": "PENDING (mem, Dependency)", "12": ""}
+
+    def found(self, names=None):
+        with mock.patch("pykmhelpers.pipeline.index_ops.status.shutil.which", return_value="/x/squeue"), \
+                mock.patch("pykmhelpers.pipeline.index_ops.status.squeue_state", side_effect=self.queue.get):
+            return cancellable_jobs(self.state, names)
+
+    def test_slurm_jobs_still_queued_or_running(self):
+        self.assertEqual(self.found(), [
+            ("idx_g0_j0", "10_0", "RUNNING (node1)"),
+            ("idx_g0_j1", "13_0", "PENDING (mem, Priority)"),
+            ("idx_g0_publish", "11", "PENDING (mem, Dependency)"),
+        ])
+        self.queue["12"] = "PENDING (long, Dependency)"
+        self.assertIn(("finish", "12", "PENDING (long, Dependency)"), self.found())
+
+    def test_selected_jobs_only_never_finish(self):
+        self.queue["12"] = "PENDING (long, Dependency)"
+        self.assertEqual([j for j, _, _ in self.found({"idx_g0_j0"})], ["idx_g0_j0"])
+
+    def test_local_apply_on_this_host(self):
+        path = Path(self.state.state_path(self.task, "idx_g0_s1_chunk1"))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"status": RUNNING, "job": f"pid {os.getpid()}",
+                                    "node": socket.gethostname()}))
+        with mock.patch("pykmhelpers.pipeline.index_ops.status.shutil.which", return_value=None):
+            self.assertEqual(cancellable_jobs(self.state),
+                             [("idx_g0_j1", f"pid {os.getpid()}", "RUNNING (idx_g0_s1_chunk1)")])
+            self.assertEqual(cancellable_jobs(self.state, {"idx_g0_j0"}), [])
+
+    def test_cancel_jobs(self):
+        done = subprocess.CompletedProcess([], 0, "", "")
+        with mock.patch("pykmhelpers.pipeline.index_ops.status.subprocess.run", return_value=done) as run, \
+                mock.patch("pykmhelpers.pipeline.index_ops.status.os.kill") as kill:
+            cancel_jobs(["10_0", "pid 42", "11"])
+        self.assertEqual(run.call_args[0][0], ["scancel", "10_0", "11"])
+        kill.assert_called_once_with(42, signal.SIGTERM)
+        refused = subprocess.CompletedProcess([], 1, "", "scancel: error: Access denied")
+        with mock.patch("pykmhelpers.pipeline.index_ops.status.subprocess.run", return_value=refused):
+            with self.assertRaisesRegex(RuntimeError, "Access denied"):
+                cancel_jobs(["10_0"])
+        gone = subprocess.CompletedProcess([], 1, "", "scancel: error: Invalid job id 10_0")
+        with mock.patch("pykmhelpers.pipeline.index_ops.status.subprocess.run", return_value=gone):
+            cancel_jobs(["10_0"])
 
 
 class TestFinishJob(StatusCase):

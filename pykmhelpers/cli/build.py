@@ -119,7 +119,7 @@ def build(
         logger.warning(
             f"{len(active)} job(s) of this plan still queued or running "
             f"({shown_jobs(active)}): following them, nothing planned nor submitted; "
-            "pass --hpc to submit the others, cancel them (scancel) to plan again"
+            "pass --hpc to submit the others, cancel them (apply --cancel) to plan again"
         )
         if sys.stdout.isatty():
             ctx.exit(watch(input_file, work_dir, WATCH_INTERVAL))
