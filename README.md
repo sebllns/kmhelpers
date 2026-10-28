@@ -1,5 +1,7 @@
 # kmhelpers
 
+[![DOI](https://zenodo.org/badge/1219077365.svg)](https://doi.org/10.5281/zenodo.23730969)
+
 ---
 
 <img src="assets/kmhelpers-logo-v1.png" alt="Kmhelpers Logo" width="64" height="64">
