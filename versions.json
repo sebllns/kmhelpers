@@ -24,7 +24,10 @@
   {
     "version": "0.6.4",
     "title": "0.6.4",
-    "aliases": []
+    "aliases": [],
+    "properties": {
+      "hidden": true
+    }
   },
   {
     "version": "v0.8.0.dev0",
