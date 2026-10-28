@@ -1,7 +1,9 @@
 # kmhelpers
 
+[![License](https://img.shields.io/badge/license-GPL--3.0--only-blue)](https://github.com/sebllns/kmhelpers/blob/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/kmhelpers)](https://pypi.org/project/kmhelpers/)
 [![Bioconda](https://img.shields.io/conda/vn/bioconda/kmhelpers)](https://anaconda.org/bioconda/kmhelpers)
+[![Anaconda](https://img.shields.io/conda/p/bioconda/kmindex?logo=anaconda&label=bioconda%7Cplatform&color=green)](https://anaconda.org/bioconda/kmhelpers)
 [![Tests](https://github.com/sebllns/kmhelpers/actions/workflows/tests.yml/badge.svg)](https://github.com/sebllns/kmhelpers/actions/workflows/tests.yml)
 [![DOI](https://zenodo.org/badge/1219077365.svg)](https://doi.org/10.5281/zenodo.23730969)
 
