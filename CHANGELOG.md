@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.3] - 2026-10-28
+
+### Changed
+
+- **Python 3.10 or later is required** (was 3.8): type hints such as `tuple[str, str]` and `dict | None` made `import pykmhelpers` fail on 3.8 and 3.9 since at least 0.7.1
+- **CI**: the compile job installs the package and runs `kmhelpers --help` on Python 3.10 to 3.13; the release verifies the PyPI package on 3.10 and 3.13
+
+### Fixed
+
+- **Python 3.10**: `import pykmhelpers` needed `typing_extensions`, which is not a dependency (`typing.Self` is 3.11+)
+- **Python 3.10 and 3.11**: moving an index left the source in place, as `shutil.rmtree(onexc=...)` is 3.12+
+
 ## [0.7.2] - 2026-10-28
 
 ### Added

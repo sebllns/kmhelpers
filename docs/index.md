@@ -116,10 +116,10 @@ Most `kmhelpers` commands (`design`, `plan`, `query`, `compose`, ...) complete i
 ## Version & Requirements
 
 <!-- release-only -->
-**kmhelpers v@VERSION@**  · Python ≥ 3.8
+**kmhelpers v@VERSION@**  · Python ≥ 3.10
 <!-- /release-only -->
 <!-- dev-only -->
-**kmhelpers (development version)**  · Python ≥ 3.8
+**kmhelpers (development version)**  · Python ≥ 3.10
 <!-- /dev-only -->
 
 | Tool | Version |

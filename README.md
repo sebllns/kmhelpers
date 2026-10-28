@@ -160,7 +160,7 @@ For questions, bug reports, or contributions, please contact:
 
 ---
 
-**Version**: 0.7.2
+**Version**: 0.7.3
 **Status**: Development
 
 ## Changelog

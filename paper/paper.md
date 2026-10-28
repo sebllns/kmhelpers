@@ -87,7 +87,7 @@ An additional command, **`manage`**, lets users register several distinct indexe
 
 ## Implementation
 
-`kmhelpers` is implemented in Python ($\geq 3.8$) and distributed via Conda, which installs its bioinformatics dependencies (`kmindex`, `ntCard`) automatically. The CLI is built with `Click` [@click], and the package exposes a public Python API
+`kmhelpers` is implemented in Python ($\geq 3.10$) and distributed via Conda, which installs its bioinformatics dependencies (`kmindex`, `ntCard`) automatically. The CLI is built with `Click` [@click], and the package exposes a public Python API
 covering all CLI functionality. Together, the declarative YAML index-definition format and the `plan`/`apply` separation make $k$-mer indexing workflows accessible to researchers who are not experts in the underlying data structures, while remaining flexible enough for large-scale production use.
 
 # Research impact statement

@@ -520,7 +520,7 @@ class KmtricksIndex:
 
             logger.info(f"Destroying index: {self._index_id}")
             shutil.rmtree(
-                self.dir_path, onexc=lambda _f, p, _e: logger.error(f"Error: {p}")
+                self.dir_path, onerror=lambda _f, p, _e: logger.error(f"Error: {p}")
             )
             self._parent_dir = ""
             return True
