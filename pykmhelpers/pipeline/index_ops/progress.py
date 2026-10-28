@@ -2,11 +2,13 @@
 
 ::
 
-    ⣾ idx_g0  [■■■■■■      ] 6/11 (8m3s)   3 running: chunk2 (4m10s), chunk5 (3m12s), chunk8 (52s)
+    ⣾ idx_g0  [■■■■■■      ] 6/11 (8m3s)   3 running: chunk2 (4m10s), chunk5 (3m12s), chunk8 (52s), 2 queued
     ✔ idx_g1  [■■■■■■■■■■■■] 8/8  (25m14s) SUCCESS
     ✘ idx_g2  [■■■         ] 3/9  (6m2s)   FAILED chunk3 (log: logs/idx_g2/...)
+    ⣾ idx_g3  [            ] 0/6           6 queued
 
-Shards not started are not shown. In a terminal (``live``), the lines are
+``queued``: the steps waiting on a submitted job (SLURM queue or array
+throttle). Shards with nothing queued and not started are not shown. In a terminal (``live``), the lines are
 redrawn in place, with colors; otherwise a shard's line is printed when it
 changes (a step starts or ends, the shard ends).
 

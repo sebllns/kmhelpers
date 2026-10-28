@@ -474,8 +474,12 @@ class ShardProgress:
 
     @property
     def shown(self) -> bool:
-        """Started, or ended: a shard not started yet is not shown."""
-        return self.started is not None or self.state != PENDING or self.done > 0
+        """Started, ended, or with steps queued: a shard with nothing submitted
+        and not started yet is not shown."""
+        return (
+            self.started is not None or self.state != PENDING or self.done > 0
+            or self.waiting > 0
+        )
 
     def key(self) -> tuple:
         """What a printed (not redrawn) line follows: steps done, failure, end."""
@@ -549,7 +553,8 @@ def duration(seconds: float) -> str:
 def shard_line(
     p: ShardProgress, width: int, now: datetime, spinner: str = "⣾", color: bool = False
 ) -> str:
-    """``⣾ idx_g0  [■■■■■■      ] 6/11 (8m3s)  chunk5 (3m12s)``; ``width`` pads the name."""
+    """``⣾ idx_g0  [■■■■■■      ] 6/11 (8m3s)  chunk5 (3m12s), 4 queued``; ``width``
+    pads the name."""
     filled = round(BAR_LEN * p.done / p.total) if p.total else BAR_LEN
     bar = "■" * filled + " " * (BAR_LEN - filled)
     count = f"{p.done}/{p.total}"
@@ -570,6 +575,10 @@ def shard_line(
         else:
             tail = f"{len(shown)} running: " + ", ".join(shown[:MAX_RUNNING_SHOWN])
             tail += ", ..." if len(shown) > MAX_RUNNING_SHOWN else ""
+        if p.waiting:
+            tail += f", {p.waiting} queued"
+    elif p.waiting:
+        tail = f"{p.waiting} queued"
     else:
         tail = "waiting" if spinner else ""
     icon = _ICONS.get(p.state, spinner or "-")

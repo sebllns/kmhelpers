@@ -284,6 +284,17 @@ class TestShardLine(StatusCase):
         self.assertIn("FAILED chunk3 (log: x.log), 1 still running", line)
         self.assertNotIn("\033", line)
 
+    def test_line_shows_queued(self):
+        now = datetime(2026, 1, 1, 12, 0, 0)
+        running = [(f"idx_g0_s1_chunk{n}", now - timedelta(minutes=2)) for n in (0, 1)]
+        p = ShardProgress("idx_g0", RUNNING, 0, 5, running, waiting=3,
+                          started=now - timedelta(minutes=2))
+        self.assertIn("2 running: chunk0 (2m0s), chunk1 (2m0s), 3 queued", shard_line(p, 6, now, "⣾"))
+        queued = ShardProgress("idx_g1", PENDING, 0, 5, waiting=5)
+        self.assertTrue(queued.shown)
+        self.assertTrue(shard_line(queued, 6, now, "⣾").endswith("0/5             5 queued"))
+        self.assertFalse(ShardProgress("idx_g2", PENDING, 0, 5).shown)
+
     def test_short_step(self):
         self.assertEqual(short_step("idx_g0_s1_chunk12"), "chunk12")
         self.assertEqual(short_step("publish"), "publish")
