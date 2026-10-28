@@ -62,10 +62,16 @@ jobs:
               echo "Refusing to hide $VERSION: it holds the latest alias" >&2
               exit 1
             fi
-            mike props "${git_args[@]}" --push --set hidden=true "$VERSION"
+            if [ "$hidden" = "true" ]; then
+              echo "$VERSION is already hidden"
+            else
+              mike props "${git_args[@]}" --push --set hidden=true "$VERSION"
+            fi
           elif [ "$hidden" = "true" ]; then
             mike props "${git_args[@]}" --push --delete hidden "$VERSION"
           else
             echo "$VERSION is not hidden"
           fi
-          mike list "${git_args[@]}"
+          # mike list does not show properties; mike commits to the branch, not the worktree
+          git show gh-pages:versions.json |
+            jq -r '.[] | "\(.version)\(if .properties.hidden then " (hidden)" else "" end)"'
