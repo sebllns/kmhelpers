@@ -70,7 +70,7 @@ jobs:
           elif [ "$hidden" = "true" ]; then
             mike props "${git_args[@]}" --push --delete hidden "$VERSION"
           else
-            echo "$VERSION is not hidden"
+            echo "$VERSION is already visible"
           fi
           # mike list does not show properties; mike commits to the branch, not the worktree
           git show gh-pages:versions.json |
