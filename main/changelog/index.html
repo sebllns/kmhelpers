@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/kmhelpers-logo-v1.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -2174,15 +2174,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#072-2026-10-19" class="md-nav__link">
+  <a href="#072-2026-10-28" class="md-nav__link">
     <span class="md-ellipsis">
       
-        [0.7.2] - 2026-10-19
+        [0.7.2] - 2026-10-28
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="[0.7.2] - 2026-10-19">
+    <nav class="md-nav" aria-label="[0.7.2] - 2026-10-28">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -3349,15 +3349,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#072-2026-10-19" class="md-nav__link">
+  <a href="#072-2026-10-28" class="md-nav__link">
     <span class="md-ellipsis">
       
-        [0.7.2] - 2026-10-19
+        [0.7.2] - 2026-10-28
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="[0.7.2] - 2026-10-19">
+    <nav class="md-nav" aria-label="[0.7.2] - 2026-10-28">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -4383,22 +4383,27 @@
 
 <h1 id="changelog">Changelog</h1>
 <p>All notable changes to this project will be documented in this file.</p>
-<h2 id="072-2026-10-19">[0.7.2] - 2026-10-19</h2>
+<h2 id="072-2026-10-28">[0.7.2] - 2026-10-28</h2>
 <h3 id="added">Added</h3>
 <ul>
-<li><strong><code>query --export</code> (<code>-x</code>)</strong>: writes a Markdown or HTML report beside the data results</li>
+<li><strong><code>query --export</code> (<code>-x</code>)</strong>: also writes a Markdown or HTML report beside the data results (in development); <code>--page-size</code> sets the sequences per page (default 100, 0 disables paging) and <code>--top</code> the samples listed per sequence (default 100)</li>
 <li><strong><code>query -f none</code></strong>: keeps only the raw kmindex results</li>
-<li><strong>Query statistics</strong>: <code>sequence_stats.tsv</code> (one row per query sequence) and <code>sample_stats.tsv</code> (one row per matched sample), with match count, perfect matches and mean and median scores; <code>--no-stats</code> skips them</li>
+<li><strong>Query statistics</strong>: <code>sequence_stats.tsv</code> (per query sequence: matched samples) and <code>sample_stats.tsv</code> (per matched sample: matching queries), with perfect matches (count and percentage) and mean and median scores; <code>--no-stats</code> skips them</li>
 <li><strong><code>.zenodo.json</code></strong>: archive metadata (title, authors, ORCIDs, license) matching the JOSS paper</li>
 </ul>
 <h3 id="changed">Changed</h3>
 <ul>
-<li><strong><code>query</code></strong>: the query module is split into runner, result and report; <code>-f md</code> and <code>-f html</code> are deprecated in favor of <code>--export</code></li>
-<li><strong>Paper</strong>: JOSS review fixes (affiliation, typo, inline citation, BibTeX case protection)</li>
+<li><strong><code>query</code></strong>: <code>-f md</code> and <code>-f html</code> are replaced by <code>--export md|html</code>; the Python API still accepts <code>output_format="md"</code> or <code>"html"</code> with a deprecation warning, and writes TSV plus the report</li>
+<li><strong><code>query</code></strong>: the query module is split into runner (<code>query</code>), result (<code>query_result</code>) and report (<code>query_report</code>)</li>
+<li><strong><code>query</code></strong>: the results are no longer printed to the console (debug log only)</li>
+<li><strong>Release</strong>: the release workflow installs the published version from PyPI on Python 3.8 and 3.11 and checks <code>kmhelpers --version</code></li>
+<li><strong>Docs</strong>: <code>pip install</code> is the first installation method; pipeline figure updated</li>
+<li><strong>Paper</strong>: JOSS review fixes (affiliation, typo, inline citation, BibTeX case protection, pipeline figure)</li>
 </ul>
 <h3 id="fixed">Fixed</h3>
 <ul>
 <li><strong><code>query</code></strong>: results were lost when kmindex wrote one output per batch (<code>batch_N/</code>); an empty result is no longer treated as a failure</li>
+<li><strong><code>query</code></strong>: the execution time is shown in seconds (it was labeled ms)</li>
 </ul>
 <h2 id="071-2026-10-07">[0.7.1] - 2026-10-07</h2>
 <h3 id="added_1">Added</h3>
@@ -5366,10 +5371,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       

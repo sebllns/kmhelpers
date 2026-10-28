@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../../assets/kmhelpers-logo-v1.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -2638,11 +2638,11 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pykmhelpers/core/resources.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-9"> 9</a></span>
-<span class="normal"><a href="#__codelineno-0-10">10</a></span>
-<span class="normal"><a href="#__codelineno-0-11">11</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-9" name="__codelineno-0-9"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_ulimit</span><span class="p">(</span><span class="n">resource_type</span><span class="o">=</span><span class="n">resource</span><span class="o">.</span><span class="n">RLIMIT_NOFILE</span><span class="p">):</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10"></a><span class="w">    </span><span class="sd">"""Return the (soft, hard) ulimit values for the given resource type."""</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11"></a>    <span class="k">return</span> <span class="n">resource</span><span class="o">.</span><span class="n">getrlimit</span><span class="p">(</span><span class="n">resource_type</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#pykmhelpers.core.resources.get_ulimit--source--__codelineno-0-9"> 9</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.get_ulimit--source--__codelineno-0-10">10</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.get_ulimit--source--__codelineno-0-11">11</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="pykmhelpers.core.resources.get_ulimit--source--__codelineno-0-9" name="pykmhelpers.core.resources.get_ulimit--source--__codelineno-0-9"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_ulimit</span><span class="p">(</span><span class="n">resource_type</span><span class="o">=</span><span class="n">resource</span><span class="o">.</span><span class="n">RLIMIT_NOFILE</span><span class="p">):</span>
+<a id="pykmhelpers.core.resources.get_ulimit--source--__codelineno-0-10" name="pykmhelpers.core.resources.get_ulimit--source--__codelineno-0-10"></a><span class="w">    </span><span class="sd">"""Return the (soft, hard) ulimit values for the given resource type."""</span>
+<a id="pykmhelpers.core.resources.get_ulimit--source--__codelineno-0-11" name="pykmhelpers.core.resources.get_ulimit--source--__codelineno-0-11"></a>    <span class="k">return</span> <span class="n">resource</span><span class="o">.</span><span class="n">getrlimit</span><span class="p">(</span><span class="n">resource_type</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2665,21 +2665,21 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pykmhelpers/core/resources.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-14">14</a></span>
-<span class="normal"><a href="#__codelineno-0-15">15</a></span>
-<span class="normal"><a href="#__codelineno-0-16">16</a></span>
-<span class="normal"><a href="#__codelineno-0-17">17</a></span>
-<span class="normal"><a href="#__codelineno-0-18">18</a></span>
-<span class="normal"><a href="#__codelineno-0-19">19</a></span>
-<span class="normal"><a href="#__codelineno-0-20">20</a></span>
-<span class="normal"><a href="#__codelineno-0-21">21</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-14" name="__codelineno-0-14"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_available_ram</span><span class="p">(</span><span class="n">safety_margin</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15"></a><span class="w">    </span><span class="sd">"""Return usable RAM in bytes: currently available memory scaled down by `safety_margin`."""</span>
-<a id="__codelineno-0-16" name="__codelineno-0-16"></a>    <span class="n">rss_limit</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">get_ulimit</span><span class="p">(</span><span class="n">resource</span><span class="o">.</span><span class="n">RLIMIT_RSS</span><span class="p">)</span>
-<a id="__codelineno-0-17" name="__codelineno-0-17"></a>    <span class="n">available_ram</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">virtual_memory</span><span class="p">()</span><span class="o">.</span><span class="n">available</span>
-<a id="__codelineno-0-18" name="__codelineno-0-18"></a>    <span class="n">usable_ram</span> <span class="o">=</span> <span class="n">rss_limit</span> <span class="k">if</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">rss_limit</span> <span class="o">&lt;</span> <span class="n">available_ram</span> <span class="k">else</span> <span class="n">available_ram</span>
-<a id="__codelineno-0-19" name="__codelineno-0-19"></a>    <span class="k">if</span> <span class="n">usable_ram</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-<a id="__codelineno-0-20" name="__codelineno-0-20"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"could not determine available RAM"</span><span class="p">)</span>
-<a id="__codelineno-0-21" name="__codelineno-0-21"></a>    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">usable_ram</span> <span class="o">*</span> <span class="n">safety_margin</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-14">14</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-15">15</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-16">16</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-17">17</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-18">18</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-19">19</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-20">20</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-21">21</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-14" name="pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-14"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_available_ram</span><span class="p">(</span><span class="n">safety_margin</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<a id="pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-15" name="pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-15"></a><span class="w">    </span><span class="sd">"""Return usable RAM in bytes: currently available memory scaled down by `safety_margin`."""</span>
+<a id="pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-16" name="pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-16"></a>    <span class="n">rss_limit</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">get_ulimit</span><span class="p">(</span><span class="n">resource</span><span class="o">.</span><span class="n">RLIMIT_RSS</span><span class="p">)</span>
+<a id="pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-17" name="pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-17"></a>    <span class="n">available_ram</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">virtual_memory</span><span class="p">()</span><span class="o">.</span><span class="n">available</span>
+<a id="pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-18" name="pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-18"></a>    <span class="n">usable_ram</span> <span class="o">=</span> <span class="n">rss_limit</span> <span class="k">if</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">rss_limit</span> <span class="o">&lt;</span> <span class="n">available_ram</span> <span class="k">else</span> <span class="n">available_ram</span>
+<a id="pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-19" name="pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-19"></a>    <span class="k">if</span> <span class="n">usable_ram</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+<a id="pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-20" name="pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-20"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"could not determine available RAM"</span><span class="p">)</span>
+<a id="pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-21" name="pykmhelpers.core.resources.get_available_ram--source--__codelineno-0-21"></a>    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">usable_ram</span> <span class="o">*</span> <span class="n">safety_margin</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2702,21 +2702,21 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pykmhelpers/core/resources.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-24">24</a></span>
-<span class="normal"><a href="#__codelineno-0-25">25</a></span>
-<span class="normal"><a href="#__codelineno-0-26">26</a></span>
-<span class="normal"><a href="#__codelineno-0-27">27</a></span>
-<span class="normal"><a href="#__codelineno-0-28">28</a></span>
-<span class="normal"><a href="#__codelineno-0-29">29</a></span>
-<span class="normal"><a href="#__codelineno-0-30">30</a></span>
-<span class="normal"><a href="#__codelineno-0-31">31</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-24" name="__codelineno-0-24"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_available_threads</span><span class="p">(</span><span class="n">safety_margin</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-<a id="__codelineno-0-25" name="__codelineno-0-25"></a><span class="w">    </span><span class="sd">"""Return a safe thread count: CPUs available to this process, scaled down by `safety_margin`."""</span>
-<a id="__codelineno-0-26" name="__codelineno-0-26"></a>    <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-27" name="__codelineno-0-27"></a>        <span class="n">cpu_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">sched_getaffinity</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
-<a id="__codelineno-0-28" name="__codelineno-0-28"></a>    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
-<a id="__codelineno-0-29" name="__codelineno-0-29"></a>        <span class="c1"># sched_getaffinity is Linux-only</span>
-<a id="__codelineno-0-30" name="__codelineno-0-30"></a>        <span class="n">cpu_count</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span> <span class="ow">or</span> <span class="mi">1</span>
-<a id="__codelineno-0-31" name="__codelineno-0-31"></a>    <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">cpu_count</span> <span class="o">*</span> <span class="n">safety_margin</span><span class="p">))</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-24">24</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-25">25</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-26">26</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-27">27</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-28">28</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-29">29</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-30">30</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-31">31</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-24" name="pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-24"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_available_threads</span><span class="p">(</span><span class="n">safety_margin</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<a id="pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-25" name="pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-25"></a><span class="w">    </span><span class="sd">"""Return a safe thread count: CPUs available to this process, scaled down by `safety_margin`."""</span>
+<a id="pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-26" name="pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-26"></a>    <span class="k">try</span><span class="p">:</span>
+<a id="pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-27" name="pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-27"></a>        <span class="n">cpu_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">sched_getaffinity</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+<a id="pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-28" name="pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-28"></a>    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+<a id="pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-29" name="pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-29"></a>        <span class="c1"># sched_getaffinity is Linux-only</span>
+<a id="pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-30" name="pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-30"></a>        <span class="n">cpu_count</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span> <span class="ow">or</span> <span class="mi">1</span>
+<a id="pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-31" name="pykmhelpers.core.resources.get_available_threads--source--__codelineno-0-31"></a>    <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">cpu_count</span> <span class="o">*</span> <span class="n">safety_margin</span><span class="p">))</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2739,13 +2739,13 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pykmhelpers/core/resources.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-34">34</a></span>
-<span class="normal"><a href="#__codelineno-0-35">35</a></span>
-<span class="normal"><a href="#__codelineno-0-36">36</a></span>
-<span class="normal"><a href="#__codelineno-0-37">37</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-34" name="__codelineno-0-34"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_max_open_files</span><span class="p">(</span><span class="n">safety_margin</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-<a id="__codelineno-0-35" name="__codelineno-0-35"></a><span class="w">    </span><span class="sd">"""Return a safe open-files ceiling: the soft RLIMIT_NOFILE scaled down by `safety_margin`."""</span>
-<a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="n">soft</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">get_ulimit</span><span class="p">(</span><span class="n">resource</span><span class="o">.</span><span class="n">RLIMIT_NOFILE</span><span class="p">)</span>
-<a id="__codelineno-0-37" name="__codelineno-0-37"></a>    <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">soft</span> <span class="o">*</span> <span class="n">safety_margin</span><span class="p">))</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#pykmhelpers.core.resources.get_max_open_files--source--__codelineno-0-34">34</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.get_max_open_files--source--__codelineno-0-35">35</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.get_max_open_files--source--__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.get_max_open_files--source--__codelineno-0-37">37</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="pykmhelpers.core.resources.get_max_open_files--source--__codelineno-0-34" name="pykmhelpers.core.resources.get_max_open_files--source--__codelineno-0-34"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_max_open_files</span><span class="p">(</span><span class="n">safety_margin</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<a id="pykmhelpers.core.resources.get_max_open_files--source--__codelineno-0-35" name="pykmhelpers.core.resources.get_max_open_files--source--__codelineno-0-35"></a><span class="w">    </span><span class="sd">"""Return a safe open-files ceiling: the soft RLIMIT_NOFILE scaled down by `safety_margin`."""</span>
+<a id="pykmhelpers.core.resources.get_max_open_files--source--__codelineno-0-36" name="pykmhelpers.core.resources.get_max_open_files--source--__codelineno-0-36"></a>    <span class="n">soft</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">get_ulimit</span><span class="p">(</span><span class="n">resource</span><span class="o">.</span><span class="n">RLIMIT_NOFILE</span><span class="p">)</span>
+<a id="pykmhelpers.core.resources.get_max_open_files--source--__codelineno-0-37" name="pykmhelpers.core.resources.get_max_open_files--source--__codelineno-0-37"></a>    <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">soft</span> <span class="o">*</span> <span class="n">safety_margin</span><span class="p">))</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2768,25 +2768,25 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pykmhelpers/core/resources.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-40">40</a></span>
-<span class="normal"><a href="#__codelineno-0-41">41</a></span>
-<span class="normal"><a href="#__codelineno-0-42">42</a></span>
-<span class="normal"><a href="#__codelineno-0-43">43</a></span>
-<span class="normal"><a href="#__codelineno-0-44">44</a></span>
-<span class="normal"><a href="#__codelineno-0-45">45</a></span>
-<span class="normal"><a href="#__codelineno-0-46">46</a></span>
-<span class="normal"><a href="#__codelineno-0-47">47</a></span>
-<span class="normal"><a href="#__codelineno-0-48">48</a></span>
-<span class="normal"><a href="#__codelineno-0-49">49</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-40" name="__codelineno-0-40"></a><span class="k">def</span><span class="w"> </span><span class="nf">maximize_nofile</span><span class="p">():</span>
-<a id="__codelineno-0-41" name="__codelineno-0-41"></a><span class="w">    </span><span class="sd">"""Raise the open-files (RLIMIT_NOFILE) limit to the highest allowed value."""</span>
-<a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="n">soft</span><span class="p">,</span> <span class="n">hard</span> <span class="o">=</span> <span class="n">resource</span><span class="o">.</span><span class="n">getrlimit</span><span class="p">(</span><span class="n">resource</span><span class="o">.</span><span class="n">RLIMIT_NOFILE</span><span class="p">)</span>
-<a id="__codelineno-0-43" name="__codelineno-0-43"></a>    <span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-0-44" name="__codelineno-0-44"></a>        <span class="n">resource</span><span class="o">.</span><span class="n">setrlimit</span><span class="p">(</span>
-<a id="__codelineno-0-45" name="__codelineno-0-45"></a>            <span class="n">resource</span><span class="o">.</span><span class="n">RLIMIT_NOFILE</span><span class="p">,</span> <span class="p">(</span><span class="n">resource</span><span class="o">.</span><span class="n">RLIM_INFINITY</span><span class="p">,</span> <span class="n">resource</span><span class="o">.</span><span class="n">RLIM_INFINITY</span><span class="p">)</span>
-<a id="__codelineno-0-46" name="__codelineno-0-46"></a>        <span class="p">)</span>
-<a id="__codelineno-0-47" name="__codelineno-0-47"></a>    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-<a id="__codelineno-0-48" name="__codelineno-0-48"></a>        <span class="c1"># Not root: raise soft to hard limit only</span>
-<a id="__codelineno-0-49" name="__codelineno-0-49"></a>        <span class="n">resource</span><span class="o">.</span><span class="n">setrlimit</span><span class="p">(</span><span class="n">resource</span><span class="o">.</span><span class="n">RLIMIT_NOFILE</span><span class="p">,</span> <span class="p">(</span><span class="n">hard</span><span class="p">,</span> <span class="n">hard</span><span class="p">))</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-42">42</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-43">43</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-44">44</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-45">45</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-46">46</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-47">47</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-48">48</a></span>
+<span class="normal"><a href="#pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-49">49</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-40" name="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-40"></a><span class="k">def</span><span class="w"> </span><span class="nf">maximize_nofile</span><span class="p">():</span>
+<a id="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-41" name="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-41"></a><span class="w">    </span><span class="sd">"""Raise the open-files (RLIMIT_NOFILE) limit to the highest allowed value."""</span>
+<a id="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-42" name="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-42"></a>    <span class="n">soft</span><span class="p">,</span> <span class="n">hard</span> <span class="o">=</span> <span class="n">resource</span><span class="o">.</span><span class="n">getrlimit</span><span class="p">(</span><span class="n">resource</span><span class="o">.</span><span class="n">RLIMIT_NOFILE</span><span class="p">)</span>
+<a id="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-43" name="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-43"></a>    <span class="k">try</span><span class="p">:</span>
+<a id="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-44" name="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-44"></a>        <span class="n">resource</span><span class="o">.</span><span class="n">setrlimit</span><span class="p">(</span>
+<a id="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-45" name="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-45"></a>            <span class="n">resource</span><span class="o">.</span><span class="n">RLIMIT_NOFILE</span><span class="p">,</span> <span class="p">(</span><span class="n">resource</span><span class="o">.</span><span class="n">RLIM_INFINITY</span><span class="p">,</span> <span class="n">resource</span><span class="o">.</span><span class="n">RLIM_INFINITY</span><span class="p">)</span>
+<a id="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-46" name="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-46"></a>        <span class="p">)</span>
+<a id="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-47" name="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-47"></a>    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+<a id="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-48" name="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-48"></a>        <span class="c1"># Not root: raise soft to hard limit only</span>
+<a id="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-49" name="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-49"></a>        <span class="n">resource</span><span class="o">.</span><span class="n">setrlimit</span><span class="p">(</span><span class="n">resource</span><span class="o">.</span><span class="n">RLIMIT_NOFILE</span><span class="p">,</span> <span class="p">(</span><span class="n">hard</span><span class="p">,</span> <span class="n">hard</span><span class="p">))</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2901,10 +2901,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.c21346df.min.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       
