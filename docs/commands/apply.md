@@ -27,6 +27,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 | `--task TEXT` | Run only what matches these names or glob patterns (repeatable or comma-separated): a shard (`idx_g0`) or its task (`idx_g0_initial`) runs all its jobs; a job runs alone, `<shard>_j<k>` (some of its chunks) or `<shard>_publish` (see [plan - Jobs](plan.md#jobs) and [Selecting what runs](#selecting-what-runs)) |
 | `--pending` | Print the jobs not done yet, one per line, and run nothing |
 | `--status` | Print the status of every step, per shard, write it to `progress.yaml`, and run nothing; with `--notify`, mail it (see [Progress](#progress)) |
+| `--cancel` | Cancel the jobs of the plan still queued or running, after a confirmation (`-Y`), and run nothing; with `--task`, only the matching jobs (see [Cancelling a build](#cancelling-a-build)) |
 | `--sp, --show-progress` | One line per shard: progress bar of its steps, steps running, colored end status (see [Following a build](#following-a-build)); with `--status`, follow a cluster build until it ends |
 | `--interval SECONDS` | With `--status --sp`: seconds between two reads of a cluster build (default: 30) |
 | `-x, --fail-fast` | Abort on first failure instead of going on with the other shards |
@@ -49,13 +50,14 @@ A failed step stops its shard; the other shards go on, unless `--fail-fast`. Log
 
 ### Following a build
 
-`--sp, --show-progress` draws one line per shard, once its first step has started:
+`--sp, --show-progress` draws one line per shard, once its first step has started or is queued:
 
 ```
-⣾ idx_g0  [■■■■■■      ] 6/11 (8m3s)   8 running: chunk2 (4m10s), chunk5 (3m12s), chunk8 (52s), ...
+⣾ idx_g0  [■■■■■■      ] 6/11 (8m3s)   8 running: chunk2 (4m10s), chunk5 (3m12s), chunk8 (52s), ..., 2 queued
 ⣽ idx_g1  [■■■■■■■■■■■ ] 10/11 (12m40s) publish (3m4s)
 ✔ idx_g2  [■■■■■■■■■■■■] 8/8  (25m14s) SUCCESS
 ✘ idx_g3  [■■■         ] 3/9  (6m2s)   FAILED chunk3 (log: logs/idx_g3/idx_g3_initial_chunk3.log), 2 still running
+⣻ idx_g4  [            ] 0/6           6 queued
 ```
 
 - the bar and the count are the steps of the shard done: its kmtricks runs (`chunk<N>`, or
@@ -63,10 +65,12 @@ A failed step stops its shard; the other shards go on, unless `--fail-fast`. Log
   first step started;
 - several chunks of a shard run at once on a cluster with `plan --chunks-per-job N` (one
   per array task): the line shows how many, and the 3 oldest with their time;
+- `N queued`: the steps waiting on a submitted SLURM job, in the queue or held by the array
+  throttle (`max_parallel` of the cluster file); a shard with only queued steps is shown too;
 - an ended shard keeps its line: `SUCCESS` (green), `FAILED` (red), `LOST` or `CANCELLED`
   (yellow), with the failed step and its log.
 
-While no shard has started yet (jobs still queued), a spinner shows `waiting for the first step to start (N shards pending)`.
+While no shard has started nor has a step queued, a spinner shows `waiting for the first step to start (N shards pending)`.
 
 In a terminal, the lines are redrawn in place (log lines print above them); otherwise
 (redirected to a file, a SLURM job), a shard's line is printed each time one of its steps
@@ -124,6 +128,20 @@ kmhelpers apply coli_db -o coli_build/ --task coli_g0_j0  # one per array task
 kmhelpers apply coli_db -o coli_build/ --task coli_g0_publish
 ```
 
+### Cancelling a build
+
+`--cancel` lists the jobs of the plan still queued or running, then cancels them once confirmed (`-Y` answers yes; without a terminal it refuses unless `-Y` is given):
+
+- the SLURM jobs submitted by `submit.sh` (`slurm/submitted.tsv`) that `squeue` still lists are `scancel`ed: build array tasks, publish jobs and the finish job;
+- a local `apply` running a step on this host gets SIGTERM.
+
+A running step is recorded `CANCELLED`; a step whose job had not started stays `PENDING`. With `--task`, only the matching jobs are cancelled and the finish job is kept; SLURM drops the publish job of a shard whose build job is cancelled (`--kill-on-invalid-dep`). A plan made from other inputs or by another kmhelpers version is cancelled too. To submit what is not done again, run `BUILD_DIR/assets/SESSION/slurm/submit.sh` (or `build --hpc`).
+
+```bash
+kmhelpers apply coli_db -o coli_build/ --cancel                 # every job of the plan
+kmhelpers apply coli_db -o coli_build/ --cancel --task coli_g1  # one shard's jobs
+```
+
 ## Examples
 
 ```bash
@@ -145,6 +163,9 @@ kmhelpers apply coli_db -o coli_build/ --status
 
 # Follow a cluster build, one line per shard, until it ends
 kmhelpers apply coli_db -o coli_build/ --status --sp
+
+# Cancel its jobs still queued or running
+kmhelpers apply coli_db -o coli_build/ --cancel
 ```
 
 ## See Also

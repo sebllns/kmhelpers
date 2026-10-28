@@ -28,6 +28,8 @@ All notable changes to this project will be documented in this file.
 - **One group for small indexes**: `-g 0` keeps one group when one group takes at most a size, whatever a 2nd one would save in proportion: `design` uses 4 GB of built index (4 GB / bitw of profile size), `profile` no size by default (`--auto-group-single-max SIZE`, env `KMHELPERS_AUTO_GROUP_SINGLE_MAX`, `0` turns it off); recorded as `single_max` and `single_size` under `auto_group` in `profile.yaml`
 - **`profile`/`design --no-grouping, --ngp`**: one group, no grouping strategy (`grouping: none` in `profile.yaml`); refused with `-g N`
 - `profile.md`: the sizes of `profile.yaml` are for presence/absence, times bitw for an abundance index
+- **`apply --cancel`**: lists the jobs of the plan still queued or running, then, once confirmed (`-Y`), `scancel`s the SLURM jobs of `submit.sh` and sends SIGTERM to a local `apply` on this host (its running step is recorded `CANCELLED`); with `--task`, only the matching jobs, the finish job kept. A stale plan is cancelled too. `plan` and `build` point to it while jobs are active
+- **Queued steps in the progress lines** (`--sp`, `apply --status --sp`): `2 running: chunk0 (2m3s), chunk1 (2m3s), 3 queued`; a shard with steps queued but none started yet is shown (`5 queued`) instead of hidden
 - **`apply --task PATTERN`** runs part of the plan: a shard or its task (`<shard>_<session>`) runs all its jobs, a job (`<shard>_j<k>`, `<shard>_publish`) runs alone; **`apply --pending`** lists the jobs not done yet
 - **`build` summary**: after a new plan, `build` prints the shards, samples, kmtricks runs (jobs with `--hpc`) and estimated size, per span and in total, against the free space of `BUILD_DIR` (warning when over it), then asks `Build it?` / `Submit it?`; no removes the plan. Skipped with `-Y` or without a terminal
 
@@ -45,6 +47,7 @@ All notable changes to this project will be documented in this file.
   - Logs per shard: `BUILD_DIR/logs/<shard>/<run>.log` and `publish.log`
 - The plan/apply report records `kmhelpers.commit`, the git commit of the installed kmhelpers (`UNKNOWN` outside git), instead of `git_commit` from `$GIT_COMMIT`, which is no longer read
 - Docs: `commands/index.md` lists every environment variable, and explains the configuration file (`-C`) and the precedence of command line, environment, configuration file and defaults
+- The splitting message of `plan` names the bound that sets the chunk size: the chunk budget at the shard's span (`--chunk-budget`), `--max-chunks`, or the open files of the merge stage, instead of "the current limits"
 - The command duration (`Done in ...`) is printed to stderr, so stdout carries only a command's output (e.g. `apply --pending`)
 
 - **Open-files limit**: chunks and merges are sized from the hard limit (`ulimit -Hn`) instead of the soft one, so a low soft limit no longer cuts needless chunks
