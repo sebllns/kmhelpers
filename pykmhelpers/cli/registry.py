@@ -7,15 +7,18 @@ import os
 import click
 
 from pykmhelpers import KmindexRegistry, KmtricksIndex
-from pykmhelpers.cli.shared import confirm
+from pykmhelpers.cli.shared import confirm, select_shards
 from pykmhelpers.core.bloom_filter import BloomFilterSpecs
 from pykmhelpers.core.byte import ByteCounter
+from pykmhelpers.core.utils import summarize_names
 from pykmhelpers.pipeline.index_ops.stats import (
     FPR_WARN,
     write_run_stats,
     write_shard_stats,
 )
+from pykmhelpers.pipeline.query import KMIGNORE, read_ignore_file
 from pykmhelpers.pipeline.query_check import MIN_GAP, NEG_COUNT, NEG_LENGTH, query_check
+from pykmhelpers.pipeline.sample_remover import SampleRemover
 
 # (k+z)-mers queried per shard by `check`
 QUERY_CHECK_COUNT = 10
@@ -474,6 +477,125 @@ def registry_remove(ctx, index_ids, delete_files, missing_ok, keep_link):
         raise
     except Exception as e:
         raise click.ClickException(f"Remove command failed: {e}")
+
+
+@registry.command(name="remove-samples")
+@click.argument("samples_file", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--sh",
+    "--shard",
+    "index_ids",
+    multiple=True,
+    help="Shards to search, as names or glob patterns (default: all)",
+)
+@click.option(
+    "--threads",
+    "-t",
+    type=click.IntRange(min=1),
+    default=1,
+    show_default=True,
+    help="Matrices rewritten at once",
+)
+@click.option(
+    "--missing-ok",
+    is_flag=True,
+    help="Skip the samples found in no shard instead of failing",
+)
+@click.option(
+    "--no-check",
+    is_flag=True,
+    help="Do not check the new version of a shard before publishing it",
+)
+@click.option(
+    "--zvalue",
+    "-z",
+    type=click.IntRange(min=0),
+    default=6,
+    show_default=True,
+    help="Z-value of the query check",
+)
+@click.option(
+    "--min-gap",
+    type=click.FloatRange(min=0.0, max=1.0),
+    default=MIN_GAP,
+    show_default=True,
+    help="Fail a new shard whose positive score minus its negative score is below this",
+)
+@click.pass_context
+def registry_remove_samples(
+    ctx, samples_file, index_ids, threads, missing_ok, no_check, zvalue, min_gap
+):
+    """Remove the samples listed in SAMPLES_FILE from the shards holding them.
+
+    SAMPLES_FILE holds one sample name per line, lines starting with # are
+    comments (the kmignore format). Each sample is looked up in every shard,
+    or in the --shard ones; the list needs no order.
+
+    Their columns are dropped from every matrix of the shard, which is
+    rewritten in BUILD_DIR/work/remove-samples/<shard>/, checked as in
+    `check`, then swapped in under the registry lock. Compressed shards are
+    refused. An interrupted removal is finished or undone by the next run.
+    """
+    registry_path = ctx.obj["registry_path"]
+    names = read_ignore_file(samples_file)
+    if not names:
+        raise click.ClickException(f"No sample name in {samples_file}")
+
+    try:
+        remover = SampleRemover(
+            registry_path,
+            threads=threads,
+            check=not no_check,
+            zvalue=zvalue,
+            min_gap=min_gap,
+            query_count=QUERY_CHECK_COUNT,
+        )
+        for line in remover.recover():
+            click.echo(f"Recovered an interrupted removal: {line}")
+
+        registry = KmindexRegistry(registry_path, auto_create=False)
+        shards = select_shards(registry, index_ids)
+        removals, missing = remover.resolve(names, shards)
+        if missing:
+            msg = f"{len(missing)} sample(s) found in no shard: {summarize_names(sorted(missing))}"
+            if not missing_ok:
+                raise click.ClickException(msg)
+            click.echo(f"Skipped: {msg}", err=True)
+        if not removals:
+            click.echo("Nothing to remove")
+            return
+
+        problems = {r.shard: remover.problems(r) for r in removals}
+        problems = {s: p for s, p in problems.items() if p}
+        if problems:
+            lines = [f"  {s}: {'; '.join(p)}" for s, p in problems.items()]
+            raise click.ClickException(
+                f"{len(problems)} shard(s) cannot be edited:\n" + "\n".join(lines)
+            )
+
+        for r in removals:
+            click.echo(
+                f"  {r.shard}: {len(r.removed)} of {len(r.samples)} samples "
+                f"({summarize_names(r.removed)})"
+            )
+        total = sum(len(r.removed) for r in removals)
+        if not confirm(ctx, f"Remove {total} sample(s) from {len(removals)} shard(s)?"):
+            raise click.Abort()
+
+        for r in removals:
+            before, after = remover.remove(r)
+            click.echo(
+                f"Done {r.shard}: {len(r.removed)} removed, "
+                f"{len(r.samples) - len(r.removed)} left, matrices "
+                f"{ByteCounter.auto(before)} -> {ByteCounter.auto(after)}"
+            )
+    except (click.ClickException, click.Abort):
+        raise
+    except Exception as e:
+        raise click.ClickException(f"Remove samples failed: {e}")
+    kmignore = os.path.join(os.path.dirname(registry.json_path), KMIGNORE)
+    if os.path.isfile(kmignore):
+        click.echo(f"The removed samples can be taken out of {kmignore}")
 
 
 @registry.command(name="rename")
