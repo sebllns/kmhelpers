@@ -477,40 +477,30 @@ def registry_remove(ctx, index_ids, delete_files, missing_ok, keep_link):
 
 
 @registry.command(name="rename")
-@click.option(
-    "--from",
-    "-f",
-    "index_id",
-    required=True,
-    help="Index ID to rename",
-)
-@click.option(
-    "--to",
-    "-t",
-    "new_index_id",
-    required=True,
-    help="New index ID",
-)
+@click.argument("index_id")
+@click.argument("new_index_id")
 @click.pass_obj
 def registry_rename(obj, index_id, new_index_id):
-    """Rename an index"""
+    """Rename the index INDEX_ID to NEW_INDEX_ID."""
     registry_path = obj["registry_path"]
 
     try:
-        registry = KmindexRegistry(registry_path)
+        registry = KmindexRegistry(registry_path, auto_create=False)
 
         if not registry.has_index(index_id):
             raise click.ClickException(f"Index '{index_id}' not found in registry")
 
         if not registry.rename_index(index_id, new_index_id):
             raise click.ClickException(
-                f"Could not rename index from '{new_index_id}' to '{index_id}'."
+                f"Could not rename index from '{index_id}' to '{new_index_id}'"
             )
 
-        click.echo(f"✓ Renamed '{index_id}' to {new_index_id}")
+        click.echo(f"✓ Renamed '{index_id}' to '{new_index_id}'")
 
+    except click.ClickException:
+        raise
     except Exception as e:
-        raise click.ClickException(f"Failed to remove index: {e}")
+        raise click.ClickException(f"Failed to rename index: {e}")
 
 
 @registry.command(name="relink")

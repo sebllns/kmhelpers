@@ -40,6 +40,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Breaking**: `manage rename` takes the names as arguments, `manage rename OLD NEW` (was `-f OLD -t NEW`); a missing index is reported as such, and a missing `index.json` is no longer created
 - Confirmation prompts are asked only on a terminal, in the foreground; otherwise they refuse with a hint to pass `-Y` instead of a bare `Aborted!` or waiting for an answer that cannot come
 - Auto-sized partition counts (`plan`, no `-P` and no published count) are rounded up to the next power of 2, at most 256; a count fixed by `-P` or recorded for a published shard is kept as is
 - `plan` warns when a partition count leaves even one thread over the RAM limit (the build still runs with 1 thread)

@@ -103,10 +103,14 @@ Each shard is removed after confirmation, skipped with the global `-Y` option.
 
 ### `rename`
 
-| Option | Description |
-|--------|-------------|
-| `-f, --from TEXT` | Current index ID (required) |
-| `-t, --to TEXT` | New index ID (required) |
+```
+kmhelpers manage rename INDEX_ID NEW_INDEX_ID
+```
+
+| Argument | Description |
+|----------|-------------|
+| `INDEX_ID` | Current index ID |
+| `NEW_INDEX_ID` | New index ID |
 
 ### `relink`
 
@@ -156,7 +160,7 @@ kmhelpers manage remove --sh my_index -d
 kmhelpers -Y manage remove --sh idx1 --sh idx2
 
 # Rename an index
-kmhelpers manage rename -f old_name -t new_name
+kmhelpers manage rename old_name new_name
 
 # Relink all indices from a new directory
 kmhelpers manage relink -i /new/location
