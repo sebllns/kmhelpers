@@ -50,6 +50,19 @@ class QueryResultBase(unittest.TestCase):
 
 
 class TestLoad(QueryResultBase):
+    def test_ignore(self):
+        path = write_jsonl(
+            self.tmp,
+            "two.jsonl",
+            [
+                {"index": "idx_0", "query": "q0", "samples": {"s0": 0.5, "s1": 0.7}},
+                {"index": "idx_0", "query": "q1", "samples": {"s1": 0.9}},
+            ],
+        )
+        r = KmindexQueryResult(path, ignore={"s1"})
+        self.assertEqual(r.items, {"idx_0": {"q0": {"s0": 0.5}}})
+        self.assertEqual(r.query_names(), ["q0", "q1"])
+
     def test_plain_jsonl(self):
         r = KmindexQueryResult(self.plain_file())
         self.assertEqual(r.items, {"idx_0": {"q0": {"s0": RATIO}}})

@@ -53,6 +53,14 @@ logger = logging.getLogger(__name__)
     help="🎯  Score threshold for results filtering.",
 )
 @click.option(
+    "--ignore",
+    "ignore_file",
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    help="Samples to drop from the results, one per line, lines starting with # "
+    "are comments. Added to the registry kmignore file, always applied.",
+)
+@click.option(
     "--threads",
     "-t",
     type=int,
@@ -178,6 +186,7 @@ def query(
     output_dir,
     zvalue,
     threshold,
+    ignore_file,
     threads,
     single_query,
     batch_query,
@@ -262,6 +271,7 @@ def query(
             vec=vec,
             page_size=page_size,
             top=top,
+            ignore_file=ignore_file,
             print_output=print_output,
             stats=stats,
             keep_query=keep_query,

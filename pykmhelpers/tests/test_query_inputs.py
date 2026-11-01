@@ -3,6 +3,7 @@ and the optional copy of the query into the output directory. kmindex is
 mocked, no binary is needed."""
 
 import bz2
+import json
 import gzip
 import io
 import lzma
@@ -19,7 +20,12 @@ import zstandard
 from pykmhelpers.core.constants import strip_data_ext
 from pykmhelpers.core.kmindex_wrapper import QueryError
 from pykmhelpers.core.utils import detect_compression, open_decompressed
-from pykmhelpers.pipeline.query import KmindexQuery, QueryRunner, QueryRunnerConfig
+from pykmhelpers.pipeline.query import (
+    KMIGNORE,
+    KmindexQuery,
+    QueryRunner,
+    QueryRunnerConfig,
+)
 
 FASTA = b">s1\nACGTACGT\n"
 WRITERS = {
@@ -394,6 +400,31 @@ class TestQueryCli(QueryInputsBase):
         self.assertEqual(result.exit_code, 2)
         self.assertIn("--export requires a data format", result.output)
         self.assertIsNone(config)
+
+
+class TestIgnore(QueryInputsBase):
+    def setUp(self):
+        super().setUp()
+        registry = {
+            "index": {"idx_0": {"nb_samples": 4, "samples": ["s0", "s1", "s2", "s3"]}}
+        }
+        Path(self.tmp, "index.json").write_text(json.dumps(registry))
+
+    def test_no_ignore_file(self):
+        runner = self.runner()
+        self.assertEqual(runner._ignore, set())
+        self.assertEqual(runner._registry_info()[0], {"idx_0": 4})
+
+    def test_kmignore_and_option(self):
+        Path(self.tmp, KMIGNORE).write_text("# comment\ns0\n\n  s1  \n")
+        extra = self.write("extra.txt", b"s2\n# s3\nunknown\n")
+        runner = self.runner(ignore_file=extra)
+        self.assertEqual(runner._ignore, {"s0", "s1", "s2", "unknown"})
+        self.assertEqual(runner._registry_info()[0], {"idx_0": 1})
+
+    def test_missing_option_file(self):
+        with self.assertRaises(FileNotFoundError):
+            self.runner(ignore_file=os.path.join(self.tmp, "missing.txt"))
 
 
 if __name__ == "__main__":

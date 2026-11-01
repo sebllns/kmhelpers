@@ -26,6 +26,16 @@ KMINDEX_QUERY_OUTPUT = "kmindex_output"
 # by open_decompressed (multi-file archive)
 _KMINDEX_UNREADABLE = (".bz2", ".xz", ".zst", ".zip")
 
+# Samples always ignored, file next to index.json
+KMIGNORE = "kmignore"
+
+
+def read_ignore_file(path: str) -> set[str]:
+    """Sample names of an ignore file: one per line, lines starting with # are
+    comments."""
+    with open(path) as f:
+        return {s for s in (line.strip() for line in f) if s and not s.startswith("#")}
+
 
 def list_result_files(result_dir: str) -> list[str]:
     """Return the kmindex result files (JSON lines) found in result_dir.
@@ -87,6 +97,7 @@ class KmindexQuery:
         method: str = "seq",
         vec: bool = False,
         keep_query: bool = False,
+        ignore: Optional[Iterable[str]] = None,
     ) -> list[KmindexQueryResult]:
         """Run a query against the kmindex registry.
 
@@ -106,6 +117,7 @@ class KmindexQuery:
             method (str): Query method passed to kmindex (e.g. ``"seq"``).
             vec (bool): Use ``jsonl_vec`` output format instead of ``jsonl``.
             keep_query (bool): Copy the query file into ``output_dir``.
+            ignore (Iterable[str], optional): Samples dropped from the results.
         """
         index_ids = index_ids if index_ids is not None else []
         result_dir = os.path.join(output_dir, KMINDEX_QUERY_OUTPUT)
@@ -152,7 +164,9 @@ class KmindexQuery:
             logger.warning(f"No kmindex result file in {result_dir}")
         for fpath in files:
             try:
-                result.append(KmindexQueryResult(fpath, metadata=self.info))
+                result.append(
+                    KmindexQueryResult(fpath, metadata=self.info, ignore=ignore)
+                )
             except Exception as e:
                 logger.warning(f"Could not read result from {fpath}: {e}")
 
@@ -192,6 +206,9 @@ class QueryRunnerConfig:
         page_size: md/html reports, sequences per detail page; up to this
             count a single file is written. 0 disables paging.
         top: md/html reports, best samples listed per sequence.
+        ignore_file: File of samples dropped from the results, on top of the
+            registry ``kmignore`` file (same format: one sample per line,
+            lines starting with ``#`` are comments).
         on_result: Optional callback invoked with each per-query result list as
             it completes.  Useful for streaming results to the caller without
             waiting for the full run to finish.
@@ -219,6 +236,7 @@ class QueryRunnerConfig:
     stats: bool = True
     page_size: int = 100
     top: int = 100
+    ignore_file: Optional[str] = None
     on_result: Optional[Callable[[list["KmindexQueryResult"]], None]] = None
 
 
@@ -254,6 +272,7 @@ class QueryRunner:
             self._config.export = fmt
         if self._config.export and not self._config.output_format:
             raise ValueError("An export requires a data format (output_format)")
+        self._ignore = self._load_ignore()
 
     @property
     def config(self) -> QueryRunnerConfig:
@@ -362,6 +381,27 @@ class QueryRunner:
             raise
         return resolved, temp_files
 
+    def _load_ignore(self) -> set[str]:
+        """Samples of the registry kmignore file and of ignore_file."""
+        ignore: set[str] = set()
+        paths = [
+            os.path.join(
+                os.path.dirname(get_json_path(self._config.registry_path)), KMIGNORE
+            )
+        ]
+        if self._config.ignore_file:
+            if not os.path.isfile(self._config.ignore_file):
+                raise FileNotFoundError(
+                    f"Ignore file not found: {self._config.ignore_file}"
+                )
+            paths.append(self._config.ignore_file)
+        for path in paths:
+            if os.path.isfile(path):
+                samples = read_ignore_file(path)
+                logger.info(f"Ignoring {len(samples)} sample(s) listed in {path}")
+                ignore |= samples
+        return ignore
+
     @staticmethod
     def _remove_temp(paths: list[str]) -> None:
         for path in paths:
@@ -420,6 +460,7 @@ class QueryRunner:
             method=cfg.parallel,
             vec=cfg.vec,
             keep_query=cfg.keep_query,
+            ignore=self._ignore,
         )
 
         elapsed = time.time() - start
@@ -450,7 +491,13 @@ class QueryRunner:
             "subindexes": ", ".join(names),
             "kmindex_version": ", ".join(v for v in versions if v),
         }
-        return {n: registry[n]["nb_samples"] for n in names}, info
+        # Ignored samples do not count in the subindex sizes
+        sizes = {
+            n: registry[n]["nb_samples"]
+            - len(self._ignore.intersection(registry[n].get("samples", [])))
+            for n in names
+        }
+        return sizes, info
 
     def _resolve_existing(self, output_path: str, label: str) -> Optional[str]:
         """Return the (possibly adjusted) output path, or ``None`` to skip."""
@@ -486,7 +533,9 @@ class QueryRunner:
         threshold = self._config.threshold
         sizes, registry_info = self._registry_info()
         metadata = {**(info or {}), **registry_info, "zvalue": self._config.zvalue}
-        merged = KmindexQueryResult(metadata=metadata, index_sizes=sizes)
+        merged = KmindexQueryResult(
+            metadata=metadata, index_sizes=sizes, ignore=self._ignore
+        )
         files = list_result_files(result_dir)
         for json_path in files:
             try:

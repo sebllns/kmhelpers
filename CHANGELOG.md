@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Ignored samples in `query`**: samples listed in a `kmignore` file next to the registry `index.json` are always dropped from the results, statistics and reports, and left out of the subindex sizes; **`--ignore FILE`** adds more for one run. One sample per line, lines starting with `#` are comments. kmindex still queries them, `kmindex_output/` keeps them
 - **Negative queries in `manage check`**: 10 random DNA sequences of 1000 bases are queried with the positives, and the mean score of the samples on them (the empirical FP rate) is printed per shard, next to the expected one when the shard has FP stats. A shard whose positive score is not `--min-gap` (default 0.5) above its negative score is broken and fails the check, so `publish.sh` stops before its swap, or before its cleanup with the runs, merges and previous version kept; a high FP rate is only reported
 - **Stats of runs and shards** in `BUILD_DIR/logs/<shard>/`: each run script writes `<run>.stats.json` (time, peak RAM, peak disk, samples, Bloom filter size), `publish.sh` folds them into `stats.yaml` with a summary over every session of the shard (time cumulated, peaks, disk). **`--fpr-stats`** (`plan`, `build`) adds the FP rate of each sample, from the kmtricks estimates (`fpr/`), and the samples above 1%
 - The run scripts delete the `superkmers/` folder of their run once it is built

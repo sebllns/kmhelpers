@@ -5,7 +5,7 @@ import logging
 import re
 import statistics
 from itertools import groupby
-from typing import Optional
+from typing import Iterable, Optional
 
 import yaml
 
@@ -57,8 +57,11 @@ class KmindexQueryResult:
         vectors: Optional[dict] = None,
         metadata: Optional[dict] = None,
         index_sizes: Optional[dict] = None,
+        ignore: Optional[Iterable[str]] = None,
     ) -> None:
         self._items = items or {}
+        # Samples dropped when loading kmindex results
+        self._ignore: frozenset[str] = frozenset(ignore or ())
         # {index: {query: {sample: [0/1 per k-mer]}}}, only filled by jsonl_vec input
         self._vectors: dict[str, dict[str, dict[str, list[int]]]] = vectors or {}
         # Run info reported by the kmindex wrapper (command, timing, resources)
@@ -146,6 +149,8 @@ class KmindexQueryResult:
                     continue
                 scores = self._items.setdefault(index, {}).setdefault(query, {})
                 for sample, value in samples.items():
+                    if sample in self._ignore:
+                        continue
                     score, vector = self._parse_sample(value)
                     if score is None:
                         logger.warning(

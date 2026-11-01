@@ -23,6 +23,7 @@ Query indices with FASTA/FASTQ sequences.
 | Option | Description |
 |--------|-------------|
 | `--sh, --shard TEXT` | Shards to query, as names or glob patterns (repeatable or comma-separated, e.g. `'idx_g0_*'`; default: all) |
+| `--ignore FILE` | Samples to drop from the results, added to the registry `kmignore` file (see [Ignored samples](#ignored-samples)) |
 | `-t, --threads INT` | Number of threads (default: 1) |
 | `-z, --zvalue INT` | Z-value for findere algorithm to filter false positives (default: 6) |
 | `--thr, --threshold FLOAT` | Score threshold for filtering results (default: 0.05) |
@@ -45,6 +46,18 @@ Query indices with FASTA/FASTQ sequences.
 Searches one or more kmindex indices for sequences from FASTA/FASTQ files. Directories are scanned recursively. Pass `-` to read from stdin.
 
 Each value in the output is the fraction of query k-mers found in that sample. Results below `--threshold` are filtered out.
+
+**Ignored samples** - samples listed in a `kmignore` file next to the registry `index.json`
+are always dropped from the results, statistics and reports. `--ignore FILE` adds more for
+one run. Both files hold one sample name per line, lines starting with `#` are comments:
+
+```
+# contaminated
+sample_12
+sample_40
+```
+
+kmindex still queries every sample, the raw results in `kmindex_output/` keep them all.
 
 **Batch mode** - use `--batch-query` to treat all sequences across all query files as a single query, or `--single-query NAME` to assign them a specific identifier.
 
