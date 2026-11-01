@@ -445,7 +445,7 @@ class TestRerunAndUpdate(UpdateSessionBase):
         (assets / "slurm").mkdir(exist_ok=True)
         (assets / "slurm" / "submitted.tsv").write_text("old\t1\n")
         replanned = self.run_cli("plan", session_file, "-o", "build", "--replan")
-        self.assertIn("removing the previous plan", replanned.stdout + replanned.stderr)
+        self.assertIn("Removing the plan of the session", replanned.stdout + replanned.stderr)
         self.assertIn("NOTHING TO DO", replanned.stdout + replanned.stderr)
         # the previous plan is gone, the index stays
         self.assertFalse(assets.exists() and any(assets.iterdir()), list(assets.iterdir()) if assets.exists() else [])
