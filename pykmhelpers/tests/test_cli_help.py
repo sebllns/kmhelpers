@@ -31,6 +31,9 @@ class TestFullHelp(unittest.TestCase):
         runner = CliRunner()
         self.assertNotIn("--cleanup", runner.invoke(cli, ["apply", "-h"]).output)
         self.assertIn("--cleanup", runner.invoke(cli, ["apply", "-H"]).output)
+        manage = runner.invoke(cli, ["manage", "-h"]).output
+        for command in ("move-dir", "run-stats", "shard-stats"):
+            self.assertNotIn(command, manage)
 
     def test_every_command_has_full_help(self):
         for path, cmd in _walk(cli):

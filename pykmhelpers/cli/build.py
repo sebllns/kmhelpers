@@ -57,6 +57,7 @@ def build(
     threads,
     skip_compression,
     keep_previous,
+    fpr_stats,
     chunks_per_job,
     show_progress,
     notify,
@@ -151,6 +152,7 @@ def build(
             ctx, input_file, work_dir, base_path, threads, limits, safety_margin,
             max_chunks, chunk_budget, chunks_per_job, skip_compression,
             keep_previous, cluster_file, notify, notify_level, show_progress,
+            fpr_stats=fpr_stats,
         )
         if show_progress:
             ctx.exit(watch(input_file, work_dir, WATCH_INTERVAL))
@@ -174,6 +176,7 @@ def build(
             skip_compression,
             keep_previous,
             fail_on_error=False,
+            fpr_stats=fpr_stats,
         )
         notifier.log_dir = log_dir
     except click.ClickException:
@@ -236,7 +239,7 @@ def _apply_locally(input_file: str, work_dir: str, notifier: ExitNotifier, show_
 def _build_on_cluster(
     ctx, input_file, work_dir, base_path, threads, limits, safety_margin, max_chunks,
     chunk_budget, chunks_per_job, skip_compression, keep_previous, cluster_file,
-    notify, notify_level, show_progress=False,
+    notify, notify_level, show_progress=False, fpr_stats=False,
 ) -> None:
     """Plan for the jobs of ``cluster_file``, then run its submit.sh and exit:
     the jobs build the indices; ``apply --status --sp`` follows them."""
@@ -259,6 +262,7 @@ def _build_on_cluster(
             cluster_file=cluster_file,
             notify=notify,
             notify_level=notify_level,
+            fpr_stats=fpr_stats,
         )
     except click.ClickException:
         raise
@@ -341,6 +345,7 @@ _PLAN_OPTIONS = {
     "threads": "--threads",
     "skip_compression": "--skip-compression",
     "keep_previous": "--keep-previous",
+    "fpr_stats": "--fpr-stats",
     "chunks_per_job": "--chunks-per-job",
     "limits": "--limits",
     "safety_margin": "--safety-margin",

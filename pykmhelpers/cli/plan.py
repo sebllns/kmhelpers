@@ -78,6 +78,7 @@ def make_plan(
     cluster_file: Optional[str] = None,
     notify: Optional[str] = None,
     notify_level: str = "global",
+    fpr_stats: bool = False,
 ) -> tuple[ops.ApplyResult, Optional[str], str]:
     """Plan ``input_file`` into ``work_dir``; return the result, the plan path
     (None when nothing was planned) and the log directory."""
@@ -114,6 +115,7 @@ def make_plan(
             kmindex_build_from=None,
             filter_names=shared.split_names(index_ids),
             keep_previous=keep_previous,
+            fpr_stats=fpr_stats,
             limits=limits,
             safety_margin=safety_margin,
             max_chunks=max_chunks,
@@ -163,6 +165,7 @@ def plan(
     threads,
     skip_compression,
     keep_previous,
+    fpr_stats,
     chunks_per_job,
     index_ids,
     limits,
@@ -240,6 +243,7 @@ def plan(
             fail_on_error,
             offline,
             cluster_file,
+            fpr_stats=fpr_stats,
         )
     except click.ClickException:
         raise

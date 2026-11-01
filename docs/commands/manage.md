@@ -54,20 +54,34 @@ Manage k-mer index registries.
 | `-v, --verbose` | Show detailed validation output |
 | `--nq, --no-query` | Skip the query check |
 | `-z, --zvalue INT` | Z-value of the query check (default: 6) |
+| `--min-gap FLOAT` | Fail a shard whose positive score minus its negative score is below this (default: 0.5) |
 
 After the structure checks, `check` takes 10 random (k+z)-mers from the first sample of each shard
-(from the sample file listed first in the shard's `kmtricks.fof`) and queries them all in one
-kmindex query against the registry. It then prints that sample's score on its own (k+z)-mers:
+(from the sample file listed first in the shard's `kmtricks.fof`), the **positives**, and 10 random
+DNA sequences of 1000 bases, the **negatives**. It queries them all in one kmindex query against
+the registry, then prints, per shard, the score of that sample on its positives, and the mean score
+of every sample on the negatives: the empirical FP rate of a query.
 
 ```
-Query check (z=6, 10 (k+z)-mers of each shard's first sample):
-  idx_g0_p0: sample_0 mean 1.000, min 1.000, 10/10 perfect
+Query check (z=6, 10 (k+z)-mers of each shard's first sample, 10 random sequences of 1000 bases):
+  idx_g0_p0: sample_0 mean 1.000, min 1.000, 10/10 perfect; negatives mean 0.0000, max 0.0001 (sample_3), expected 0.0000
   idx_g0_p1: skipped (sample file not found: /data/S5.fa.gz)
 ```
 
-The score is only reported. A shard built with `--ab` > 1 can miss k-mers that appear in its raw
-sample file. A failed kmindex query fails the check. `apply` runs `check` after each publish and in
-the finish job, so the query check runs there too.
+- **Broken index** - a shard whose positive score is not `--min-gap` above its negative score fails
+  the check: its filters are empty (nothing hits) or saturated (everything hits). A shard built with
+  `--ab` > 1 can miss k-mers that appear in its raw sample file, hence a gap rather than a perfect
+  score.
+- **Expected FP rate** - when the shard was built with `--fpr-stats` (see
+  [build - Stats](build.md#stats)), `expected` is the FP rate of a query its samples' Bloom filters
+  give: a position hits when its z+1 k-mers all do (`fpr^(z+1)`, averaged over the samples). An
+  empirical rate more than 10 times above it (and above 0.001) is reported as suspect; it does not
+  fail the check.
+- A failed kmindex query fails the check.
+
+`apply` runs `check` before and after each publish and in the finish job: a broken shard is never
+published, and a shard failing its check after the swap keeps the runs, merges and previous version
+it was built from.
 
 ### `info`
 
@@ -128,6 +142,9 @@ kmhelpers manage check
 
 # Structure only
 kmhelpers manage check --nq
+
+# Require a wider gap between positive and negative scores
+kmhelpers manage check --min-gap 0.8
 
 # Remove an index (keep files)
 kmhelpers manage remove --sh my_index

@@ -5,6 +5,8 @@ from pykmhelpers.pipeline.index_ops.sources import session_dir_of
 
 # Folders of BUILD_DIR that are not registry entries
 RESERVED_NAMES = frozenset({"work", "assets", "logs"})
+# Stats of a shard, in its logs folder
+STATS_FILE = "stats.yaml"
 
 
 def check_index_name(name: str) -> None:
@@ -38,7 +40,7 @@ class BuildPaths:
         ├── assets/<session>/
         │   ├── plan.yaml              manifest of the plan
         │   └── <shard>/               scripts and fofs of one task, merge/ tsv
-        └── logs/<shard>/              logs of the runs and merge of one task
+        └── logs/<shard>/              logs and stats of the runs and merge of one task
     """
 
     build_dir: str
@@ -88,6 +90,14 @@ class BuildPaths:
     def task_logs(self, task_dir: str) -> str:
         """Logs of the runs and the merge of one task."""
         return os.path.join(self.logs, task_dir)
+
+    def run_stats(self, task_dir: str, run: str) -> str:
+        """Stats of the run ``run``, written by its chunk script."""
+        return os.path.join(self.task_logs(task_dir), f"{run}.stats.json")
+
+    def shard_stats(self, task_dir: str) -> str:
+        """Stats of the shard of one task, every session it was built in."""
+        return os.path.join(self.task_logs(task_dir), STATS_FILE)
 
     def shard(self, name: str) -> str:
         """Published index ``name``."""

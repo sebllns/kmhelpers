@@ -31,6 +31,7 @@ Validate paths then build k-mer indices from an index definition file in a singl
 | `--cb, --chunk-budget INT` | K-mer budget of one kmtricks chunk: a chunk of span `s` holds at most `ceil8(budget / base^s)` samples. 0 for no limit (default: `2**37`), see [build - Shards and chunks](build.md#shards-and-chunks) |
 | `--ncp, --skip-compression` | Skip compression of intermediate files during index building (useful on slow disks) |
 | `--keep-previous` | Keep the replaced version of an updated index in `BUILD_DIR/work/SESSION/previous/` instead of deleting it |
+| `--fpr-stats` | Record the FP rate of each sample (kmtricks estimate) in the stats of the runs and shards, and list the samples above 1% (see [Stats](#stats)) |
 | `--sp, --show-progress` | One line per shard: progress bar of its steps, steps running, colored end status (see [apply - Following a build](apply.md#following-a-build)); with `--hpc`, follow the cluster build after the submission |
 | `--cpj, --chunks-per-job INT` | Chunks of a shard one job builds (see [plan - Jobs](plan.md#jobs)) |
 | `--hpc, --cluster FILE` | Build on a cluster: plan for the jobs of `FILE`, submit them, and exit (see [On a cluster](#on-a-cluster)) |
@@ -75,7 +76,7 @@ coli_build/                       BUILD_DIR (build -o, query -r): the kmindex re
 └── logs/
     ├── kmhelpers_plan_<timestamp>.yaml    plan report, see Report below
     ├── kmhelpers_apply_<timestamp>.yaml   apply report
-    └── coli_g0_p0/                        <run>.log of each kmtricks run, publish.log
+    └── coli_g0_p0/                        <run>.log of each kmtricks run, publish.log, stats (see Stats)
 ```
 
 Reuse the same `BUILD_DIR` for every session of an index. Each index keeps one folder, `BUILD_DIR/<name>/`, for its whole life; a session only uses `BUILD_DIR/work/SESSION/` while it is built, and deletes it when it is done. Index names cannot be `work`, `assets`, `logs`, or start with `.`.
@@ -169,13 +170,14 @@ chunks. With the default budgets, a full shard fits 64 chunks (`2**43 = 64 x 2**
 
 Every sub-index is built as unregistered `kmtricks` runs, then published:
 
-1. **Build** - each part of the sub-index (its samples of this session) is built with `kmtricks pipeline` into `BUILD_DIR/work/SESSION/runs/<part>/`, not registered. When one `kmtricks` build cannot hold all the samples of a part (open files, `--chunk-budget` and `--max-chunks`, see [Shards and chunks](#shards-and-chunks)), the part is built in chunks, `<part>_chunk<N>/`. Each run has its script, `assets/SESSION/<shard>/<run>.sh`, which can be run anywhere, e.g. as a SLURM array task (see [plan - Jobs](plan.md#jobs)).
+1. **Build** - each part of the sub-index (its samples of this session) is built with `kmtricks pipeline` into `BUILD_DIR/work/SESSION/runs/<part>/`, not registered. When one `kmtricks` build cannot hold all the samples of a part (open files, `--chunk-budget` and `--max-chunks`, see [Shards and chunks](#shards-and-chunks)), the part is built in chunks, `<part>_chunk<N>/`. Each run has its script, `assets/SESSION/<shard>/<run>.sh`, which can be run anywhere, e.g. as a SLURM array task (see [plan - Jobs](plan.md#jobs)). Once its run is built (or found complete), the script writes its [stats](#stats), then deletes its `superkmers/` folder: neither `kmindex merge` nor a query reads it.
 2. **Check** - `assets/SESSION/<shard>/publish.sh` starts by checking every run: `run_infos.txt` (written by kmtricks only when it finishes), `kmtricks.fof`, `options.txt`, and all partition matrices present, non-empty and of equal size. If one run is incomplete, the script stops before registering or merging anything; rebuild that run and run the publish script again.
 3. **Publish a single run** - a new sub-index built in one run is moved in place (`kmindex register --mode move`): no copy, no merge.
 4. **Merge** - otherwise the runs, plus the current version of the sub-index when it is already registered (see [Updating an index](#updating-an-index)), are merged. Each `kmindex merge` runs in a throwaway registry, `BUILD_DIR/work/SESSION/merges/<name>/<step>/`, holding only its inputs. `kmindex merge` loads the repartition table of every registered sub-index (2 MiB each at minimizer size 10), so a registry limited to the inputs keeps its memory proportional to what is merged. Merges get at most one thread per partition.
 5. **Sub-shards** - one merge can take at most `k` inputs: `ram / (2 * 4^m)` (anonymous memory), `(maps - 1000) / threads` (`vm.max_map_count`) and `files / threads - 1` (open files), with the values of `--limits`. More inputs are merged in balanced groups of at most `k` (`<name>__sub1_<i>`), then these are merged, and so on. Each level reads and writes the data once more.
 6. **Swap** - holding the lock `BUILD_DIR/.registry.lock` (several merge jobs may publish at once): the sub-index is unregistered, its current version is moved to `work/SESSION/previous/`, the merge result is moved to `BUILD_DIR/<name>/`, and registered. Once the whole plan is done, the finish job (or a local `apply`/`build` of the whole plan) removes this lock file, and `layout.yaml.lock` next to the layout, unless another process holds it. Queries see the previous version until the swap; during it (a second or so) the sub-index is not queryable. Moves are renames (an internal `kmhelpers manage move-dir`), so they take the same time whatever the size; they fail instead of copying if `work/` is on another filesystem.
-7. **Check, then clean up** - `kmhelpers manage check --shard <name>` checks the published sub-index; only then are the runs, merges and previous version deleted. A failed check stops the script with everything kept.
+7. **Check, then clean up** - `kmhelpers manage check --shard <name>` checks the published sub-index, its structure and a query of positives and negatives (see [manage - check](manage.md#check)); only then are the runs, merges and previous version deleted. A failed check, a broken index among them, stops the script with everything kept. The same check runs on the merge result before the swap, so a broken index is not published.
+8. **Stats** - the stats of the runs are folded into the stats of the shard (see [Stats](#stats)).
 
 `apply` runs the run scripts of a shard, then its `publish.sh`. The plan logs, for each merge, its number of inputs, the limit that sets `k`, and its expected memory: the anonymous part must fit in RAM, while the mapped inputs are page cache that the kernel reclaims when they exceed it. The same merge plan is in the [report](#report), under `publish.steps`.
 
@@ -186,6 +188,15 @@ Every sub-index is built as unregistered `kmtricks` runs, then published:
 - `plan` writes its report once done; every run is `planned`.
 - `apply` writes it after each job, with `summary.status: RUNNING` until the end: a running or killed apply leaves its report so far. The `--notify` mail attaches it.
 - Each kmtricks run that `apply` runs writes `logs/<shard>/<run>.log` (command, execution time, max CPU and memory, kmtricks output); the report reads its run metrics from there.
+
+### Stats
+
+The scripts keep the stats of each run and shard in `BUILD_DIR/logs/<shard>/`, which no cleanup deletes, whether they are run by `apply`, a SLURM job or by hand:
+
+- `<run>.stats.json` - written by the run script once its run is built: time and peak RAM (from kmtricks `run_infos.txt`), peak disk (the run folder before its superkmers are deleted), sample count, partitions, `bloom_size` and size of the matrices. With `--fpr-stats`, the FP rate of each sample: kmtricks estimates it for each Bloom filter (`fpr/partition_<p>.txt`), it is averaged over the partitions; plus its mean, max, and the samples above 1%. It is the FP rate of one k-mer, a query with z > 0 has a much lower one.
+- `stats.yaml` - written by `publish.sh` at its end: the runs of each session the shard was built in (`sessions.<session>.chunks`), the duration of its publish and the disk of the shard, and a `summary` over all sessions: samples, chunks, time (runs and publishes, cumulated), peak RAM, peak disk, `bloom_size`, disk; with `--fpr-stats`, `fpr_mean`, `fpr_max` and `fpr_above_1pct`, the samples above 1% (also printed as a warning). The FP rate of each sample is kept in `fpr_samples`, so an update keeps those of the samples already published.
+
+`manage check` reads `fpr_samples` to print the expected FP rate of a query next to the empirical one.
 
 ??? example "An apply report (abridged)"
     ```yaml

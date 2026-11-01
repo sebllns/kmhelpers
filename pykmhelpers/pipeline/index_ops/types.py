@@ -102,6 +102,8 @@ class IndexOpsConfig:
         keep_previous: Keep the replaced version of an updated index in
             ``work/<session>/previous/`` instead of deleting it. Defaults to
             ``False``.
+        fpr_stats: Record the FP rate of each sample in the stats of the runs
+            and shards (``logs/<shard>/``). Defaults to ``False``.
         chunks_per_job: Chunks of a task one job runs (``plan.yaml`` jobs).
             ``0`` (default): one job per task, its chunks then its merge.
         publish_limits: JSON line of the resources of a merge job, when they
@@ -120,5 +122,6 @@ class IndexOpsConfig:
     max_chunks: int = MAX_CHUNKS
     chunk_budget: int = CHUNK_BUDGET
     keep_previous: bool = False
+    fpr_stats: bool = False
     chunks_per_job: int = 0
     publish_limits: Optional[str] = None

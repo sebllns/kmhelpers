@@ -876,11 +876,14 @@ class TestChunkedBuild(PipelineE2EBase):
         )
         session_file = self.tmp / "db" / "compose" / "idx" / "initial" / "index.yaml"
         self.assertTrue(session_file.is_file(), f"missing session file: {session_file}")
-        planned = self.run_cli("plan", session_file, "-o", "build", "--limits", limits)
+        planned = self.run_cli(
+            "plan", session_file, "-o", "build", "--limits", limits, "--fpr-stats"
+        )
         result = self.run_cli("apply", session_file, "-o", "build")
         return planned.stdout + planned.stderr + result.stdout + result.stderr
 
-    def assert_merged_and_clean(self):
+    def assert_merged_and_clean(self, fpr: bool = False):
+        """``fpr``: planned with --fpr-stats."""
         build = self.tmp / "build"
         index_json = build / "index.json"
         self.assertTrue(index_json.is_file(), "apply did not produce index.json")
@@ -916,6 +919,27 @@ class TestChunkedBuild(PipelineE2EBase):
             self.assertIn("kmtricks pipeline", chunk.read_text())
             self.assertNotIn("--register-as", chunk.read_text())
             self.assertTrue(chunk.with_suffix(".fof").is_file())
+            # stats, then superkmers removed: after a build and for a reused run
+            self.assertEqual(chunk.read_text().count("manage run-stats"), 2)
+            self.assertEqual("--fpr" in chunk.read_text(), fpr)
+            self.assertEqual(chunk.read_text().count("/superkmers"), 2)
+
+        # stats of each chunk, and of the shard, kept in its logs
+        logs = build / "logs" / name
+        for chunk in chunks:
+            stats = json.loads((logs / f"{chunk.stem}.stats.json").read_text())
+            self.assertGreater(stats["disk_bytes"], 0)
+            if fpr:
+                names = {f"sample_{i}" for i in range(N_SAMPLES)}
+                self.assertLessEqual(set(stats["fpr"]), names)
+        self.assertLess(text.rindex("[publish] cleanup"), text.rindex("manage -r"))
+        self.assertIn("shard-stats", text)
+        shard_stats = yaml.safe_load((logs / "stats.yaml").read_text())
+        self.assertEqual(shard_stats["summary"]["samples"], N_SAMPLES)
+        self.assertEqual(shard_stats["summary"]["chunks"], len(chunks))
+        if fpr:
+            self.assertEqual(len(shard_stats["fpr_samples"]), N_SAMPLES)
+            self.assertIn("fpr_above_1pct", shard_stats["summary"])
 
         # every original sample must still be queryable after the chunked merge
         for idx in range(N_SAMPLES):
@@ -930,7 +954,7 @@ class TestChunkedBuild(PipelineE2EBase):
         # stage needs samples+1 open files), forcing a chunked build+merge;
         # the same limit caps a merge at 4 inputs: two levels.
         self.chunked_apply('{"files": 5}')
-        self.assert_merged_and_clean()
+        self.assert_merged_and_clean(fpr=True)
 
     def test_jobs_build_chunks_then_publish(self):
         """--chunks-per-job splits the chunks into jobs; the merge waits for them."""
@@ -1188,7 +1212,7 @@ class TestChunkedBuild(PipelineE2EBase):
         # are merged in a tree of several levels.
         log = self.chunked_apply('{"files": 5, "maps": 1002}')
         self.assertIn("vm.max_map_count limit", log)
-        self.assert_merged_and_clean()
+        self.assert_merged_and_clean(fpr=True)
 
 
 class TestQueryFormats(PipelineE2EBase):

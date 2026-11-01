@@ -10,7 +10,12 @@ from pykmhelpers import KmindexRegistry, KmtricksIndex
 from pykmhelpers.cli.shared import confirm
 from pykmhelpers.core.bloom_filter import BloomFilterSpecs
 from pykmhelpers.core.byte import ByteCounter
-from pykmhelpers.pipeline.query_check import query_check
+from pykmhelpers.pipeline.index_ops.stats import (
+    FPR_WARN,
+    write_run_stats,
+    write_shard_stats,
+)
+from pykmhelpers.pipeline.query_check import MIN_GAP, NEG_COUNT, NEG_LENGTH, query_check
 
 # (k+z)-mers queried per shard by `check`
 QUERY_CHECK_COUNT = 10
@@ -300,13 +305,26 @@ def registry_info(obj, index_id, output_json):
     show_default=True,
     help="Z-value of the query check; its (k+z)-mers are taken from the samples",
 )
+@click.option(
+    "--min-gap",
+    type=click.FloatRange(min=0.0, max=1.0),
+    default=MIN_GAP,
+    show_default=True,
+    help="Fail a shard whose positive score minus its negative score is below this",
+)
 @click.pass_obj
-def registry_check(obj, verbose, index_ids, no_query, zvalue):
+def registry_check(obj, verbose, index_ids, no_query, zvalue, min_gap):
     """Validate registry consistency and check all index structures.
 
     Then, unless --no-query, queries 10 random (k+z)-mers of each shard's first
-    sample against the registry and reports that sample's score. The score is
-    only reported; a failing query fails the check.
+    sample (positives) and 10 random DNA sequences of 1000 bases (negatives)
+    against the registry. It reports the score of that sample on the positives
+    and the mean score of the samples on the negatives (empirical FP rate),
+    next to the expected one when the build recorded it (--fpr-stats).
+
+    A shard whose positive score is not --min-gap above its negative score is
+    broken and fails the check, as does a failing query. A high FP rate is
+    only reported.
     """
     registry_path = obj["registry_path"]
 
@@ -347,19 +365,36 @@ def registry_check(obj, verbose, index_ids, no_query, zvalue):
         if not no_query and queried:
             click.echo(
                 f"\nQuery check (z={zvalue}, {QUERY_CHECK_COUNT} (k+z)-mers of each "
-                "shard's first sample):"
+                f"shard's first sample, {NEG_COUNT} random sequences of {NEG_LENGTH} bases):"
             )
             try:
                 checks = query_check(registry, queried, zvalue, QUERY_CHECK_COUNT)
-                for name in queried:
-                    click.echo(f"  {name}: {checks[name].summary()}")
             except Exception as e:
                 errors.append(("query", str(e)))
                 click.echo(f"✗ query check failed: {e}", err=True)
+                checks = {}
+            for name, check in checks.items():
+                click.echo(f"  {name}: {check.summary()}")
+                if check.broken(min_gap):
+                    errors.append((name, "query check failed"))
+                    failed.add(name)
+                    click.echo(
+                        f"✗ {name}: positive score {check.mean:.3f} is not {min_gap} "
+                        f"above the negative score {check.neg_mean:.4f}: broken index",
+                        err=True,
+                    )
+                elif check.suspect():
+                    click.echo(
+                        f"⚠ {name}: empirical FP rate {check.neg_mean:.4f} is far above "
+                        f"the expected {check.expected:.4f}",
+                        err=True,
+                    )
 
         click.echo()
         if errors:
-            query_failed = " (query check failed)" if len(errors) > len(failed) else ""
+            query_failed = " (query check failed)" if any(
+                name == "query" or msg == "query check failed" for name, msg in errors
+            ) else ""
             click.echo(
                 f"Validation complete: {len(indices) - len(failed)} OK, "
                 f"{len(failed)} FAILED{query_failed}",
@@ -539,3 +574,50 @@ def registry_move(source, destination, missing_ok):
             )
         raise click.ClickException(f"Move failed: {e}")
     click.echo(f"✓ Moved {source} -> {destination}")
+
+
+# Internal: written by the chunk scripts of plan/apply/build
+@registry.command(name="run-stats", hidden=True)
+@click.argument("run_dir", type=click.Path(exists=True, file_okay=False))
+@click.argument("out", type=click.Path(dir_okay=False))
+@click.option("--fpr", is_flag=True, help="Also read the FP rate of each sample")
+def registry_run_stats(run_dir, out, fpr):
+    """Write the stats of the kmtricks run RUN_DIR to OUT (JSON)."""
+    try:
+        stats = write_run_stats(run_dir, out, fpr)
+    except Exception as e:
+        raise click.ClickException(f"Run stats failed: {e}")
+    click.echo(
+        f"✓ {stats['run']}: {stats['samples']} samples, {stats.get('duration_s')}s, "
+        f"peak RSS {stats.get('peak_rss_mb')} MB, disk {stats['disk_size']}, "
+        f"BF {stats['bf_size']}"
+    )
+
+
+# Internal: written by the publish scripts of plan/apply/build
+@registry.command(name="shard-stats", hidden=True)
+@click.argument("run_stats", nargs=-1, type=click.Path(dir_okay=False))
+@click.option("--shard", required=True, help="Published shard")
+@click.option("--session", required=True, help="Session the runs were built in")
+@click.option("--out", required=True, type=click.Path(dir_okay=False), help="stats.yaml")
+@click.option("--publish-seconds", type=float, help="Duration of the publish script")
+@click.pass_obj
+def registry_shard_stats(obj, run_stats, shard, session, out, publish_seconds):
+    """Fold the run stats RUN_STATS of SESSION into the stats of SHARD."""
+    shard_dir = os.path.join(obj["registry_path"], shard)
+    try:
+        data = write_shard_stats(out, shard, session, list(run_stats), publish_seconds, shard_dir)
+    except Exception as e:
+        raise click.ClickException(f"Shard stats failed: {e}")
+    summary = data["summary"]
+    click.echo(
+        f"✓ {shard}: {summary['samples']} samples, {summary['duration_s']}s, "
+        f"peak disk {summary['peak_disk_size']}, disk {summary['disk_size']}"
+    )
+    above = summary.get("fpr_above_1pct")
+    if above:
+        click.echo(
+            f"⚠ {shard}: {len(above)} sample(s) with an FP rate above {FPR_WARN:.0%}: "
+            + ", ".join(above),
+            err=True,
+        )

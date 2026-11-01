@@ -6,12 +6,19 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 import zstandard
 
+from pykmhelpers.core.index import IndexCompressionState
 from pykmhelpers.pipeline.query_check import (
     ShardQueryCheck,
+    expected_fpr,
     first_sample_file,
+    negative_scores,
+    query_check,
+    random_dna,
     random_windows,
 )
 
@@ -90,6 +97,117 @@ class TestSummary(unittest.TestCase):
         self.assertEqual(check.summary(), "S1 mean 0.750, min 0.500, 1/2 perfect")
         self.assertEqual(ShardQueryCheck(skipped="x").summary(), "skipped (x)")
         self.assertEqual(ShardQueryCheck(sample="S1", scores=[]).summary(), "S1: no score")
+
+    def test_summary_with_negatives(self):
+        check = ShardQueryCheck(
+            sample="S1", scores=[1.0], neg_scores={"S1": 0.01, "S2": 0.03}, expected=0.002
+        )
+        self.assertEqual(
+            check.summary(),
+            "S1 mean 1.000, min 1.000, 1/1 perfect; negatives mean 0.0200, "
+            "max 0.0300 (S2), expected 0.0020",
+        )
+
+
+class TestGap(unittest.TestCase):
+    def test_sound_shard(self):
+        check = ShardQueryCheck(sample="S1", scores=[1.0, 0.8], neg_scores={"S1": 0.0, "S2": 0.1})
+        self.assertAlmostEqual(check.gap, 0.85)
+        self.assertFalse(check.broken())
+
+    def test_broken_shards(self):
+        # empty filters: nothing hits; saturated filters: everything hits
+        empty = ShardQueryCheck(sample="S1", scores=[0.0, 0.0], neg_scores={"S1": 0.0})
+        full = ShardQueryCheck(sample="S1", scores=[1.0], neg_scores={"S1": 1.0})
+        self.assertTrue(empty.broken())
+        self.assertTrue(full.broken())
+        self.assertFalse(full.broken(min_gap=0.0))
+
+    def test_no_gate_without_scores(self):
+        self.assertIsNone(ShardQueryCheck(skipped="x").gap)
+        self.assertFalse(ShardQueryCheck(skipped="x").broken())
+        self.assertFalse(ShardQueryCheck(sample="S1", scores=[1.0]).broken())
+
+    def test_suspect(self):
+        check = ShardQueryCheck(sample="S1", scores=[1.0], neg_scores={"S1": 0.05})
+        self.assertFalse(check.suspect())
+        check.expected = 0.001
+        self.assertTrue(check.suspect())
+        check.expected = 0.01
+        self.assertFalse(check.suspect())
+
+    def test_expected_fpr_with_findere(self):
+        self.assertIsNone(expected_fpr({}, 3))
+        self.assertAlmostEqual(expected_fpr({"a": 0.5, "b": 0.1}, 0), 0.3)
+        self.assertAlmostEqual(expected_fpr({"a": 0.5}, 2), 0.125)
+
+    def test_negative_scores(self):
+        queries = {".neg__0": {"S1": 0.2}, ".neg__1": {"S1": 0.0, "S2": 0.4}}
+        self.assertEqual(
+            negative_scores(queries, ["S1", "S2", "S3"], 2), {"S1": 0.1, "S2": 0.2, "S3": 0.0}
+        )
+        self.assertEqual(negative_scores({}, ["S1"], 0), {})
+
+    def test_random_dna(self):
+        seqs = random_dna(50, 3, random.Random(0))
+        self.assertEqual([len(s) for s in seqs], [50, 50, 50])
+        self.assertTrue(all(set(s) <= set("ACGT") for s in seqs))
+
+
+class FakeQuery:
+    """KmindexQuery reading the FASTA it is given: positives hit their own
+    sample, negatives hit S2 of every shard at 0.25."""
+
+    def __init__(self, path):
+        self.path = path
+
+    def execute(self, index_ids, **kwargs):
+        names = [line[1:].strip() for line in open(self.path) if line.startswith(">")]
+        items = {}
+        for shard in index_ids:
+            items[shard] = {
+                n: ({"S2": 0.25} if n.startswith(".neg") else {"S1": 1.0})
+                for n in names
+                if n.startswith(".neg") or n.startswith(f"{shard}__")
+            }
+        return [SimpleNamespace(items=items)]
+
+
+class TestQueryCheck(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="kmhelpers_qc_"))
+        rng = random.Random(1)
+        sample = self.tmp / "s1.fa"
+        sample.write_text(">s\n" + "".join(rng.choice("ACGT") for _ in range(500)) + "\n")
+        fof = self.tmp / "kmtricks.fof"
+        fof.write_text(f"S1 : {sample}\nS2 : {sample}\n")
+        index = SimpleNamespace(
+            fof_path=str(fof),
+            kmer_size=25,
+            compress_state=IndexCompressionState.UNCOMPRESSED,
+            samples=["S1", "S2"],
+        )
+        self.registry = SimpleNamespace(root_path=str(self.tmp), get_index=lambda name: index)
+        stats = self.tmp / "logs" / "a" / "stats.yaml"
+        stats.parent.mkdir(parents=True)
+        stats.write_text("fpr_samples:\n  S1: 0.001\n  S2: 0.003\n")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_positives_negatives_and_expected(self):
+        with mock.patch("pykmhelpers.pipeline.query_check.KmindexQuery", FakeQuery):
+            checks = query_check(self.registry, ["a", "b"], 0, 5, random.Random(0), 4, 100)
+        a, b = checks["a"], checks["b"]
+        self.assertEqual(a.scores, [1.0] * 5)
+        self.assertEqual(a.neg_scores, {"S1": 0.0, "S2": 0.25})
+        self.assertAlmostEqual(a.expected, 0.002)
+        # no stats recorded for b
+        self.assertIsNone(b.expected)
+        self.assertFalse(a.broken())
+        # 0.125 on the negatives, 0.002 expected
+        self.assertTrue(a.suspect())
+        self.assertFalse(b.suspect())
 
 
 if __name__ == "__main__":

@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Negative queries in `manage check`**: 10 random DNA sequences of 1000 bases are queried with the positives, and the mean score of the samples on them (the empirical FP rate) is printed per shard, next to the expected one when the shard has FP stats. A shard whose positive score is not `--min-gap` (default 0.5) above its negative score is broken and fails the check, so `publish.sh` stops before its swap, or before its cleanup with the runs, merges and previous version kept; a high FP rate is only reported
+- **Stats of runs and shards** in `BUILD_DIR/logs/<shard>/`: each run script writes `<run>.stats.json` (time, peak RAM, peak disk, samples, Bloom filter size), `publish.sh` folds them into `stats.yaml` with a summary over every session of the shard (time cumulated, peaks, disk). **`--fpr-stats`** (`plan`, `build`) adds the FP rate of each sample, from the kmtricks estimates (`fpr/`), and the samples above 1%
+- The run scripts delete the `superkmers/` folder of their run once it is built
+
 - **Query check in `manage check`**: after the structure checks, 10 random (k+z)-mers of each shard's first sample are queried in one kmindex query against the registry, and the sample's score is printed per shard (reported only, a failing query fails the check); `--no-query` / `--nq` skips it, `-z` sets z (default 6). `apply` runs it after each publish and in the finish job
 - **`plan --cluster FILE`**: a YAML file (`type: slurm`) of the partition, time, excluded nodes, setup lines and the resources of each kind of job (`jobs.build`, `jobs.publish`, `jobs.check`); the plan is sized from these resources (`--limits` with `--cluster` is refused), and `BUILD_DIR/assets/SESSION/slurm/` gets `build.sbatch` (an array task per build job), `publish.sbatch`, `check.sbatch` and `submit.sh`
   - `submit.sh` submits what `apply --pending` lists: the build array (`max_parallel`, split at `MaxArraySize`), each publish job after the array tasks of its own shard, then `manage check` after everything; safe to run again

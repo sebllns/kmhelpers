@@ -172,6 +172,7 @@ class IndexOps:
             "chunks_per_job": per_job,
             "skip_compression": self.config.kmindex_skip_compression,
             "keep_previous": self.config.keep_previous,
+            "fpr_stats": self.config.fpr_stats,
             "base_path": self.config.sample_rootpath,
         }
         plan = new_plan(

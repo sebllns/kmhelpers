@@ -351,6 +351,13 @@ _keep_previous_option = click.option(
     help="🚩  Keep the replaced version of an updated index in "
     "BUILD_DIR/work/SESSION/previous/ instead of deleting it.",
 )
+_fpr_stats_option = click.option(
+    "--fpr-stats",
+    is_flag=True,
+    default=False,
+    help="🚩  Record the FP rate of each sample (kmtricks estimate) in the stats of the "
+    "runs and shards (BUILD_DIR/logs/SHARD/), and list the samples above 1%.",
+)
 
 # Where the plan is (plan, apply, build)
 _INDEX_TARGET_OPTIONS = [
@@ -364,6 +371,7 @@ _INDEX_BUILD_OPTIONS = [
     _threads_option,
     _skip_compression_option,
     _keep_previous_option,
+    _fpr_stats_option,
     chunks_per_job_option,
 ]
 

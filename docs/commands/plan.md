@@ -38,6 +38,7 @@ See [build - Paths](build.md#paths) for the directory layout.
 | `--cb, --chunk-budget INT` | K-mer budget of one kmtricks chunk: a chunk of span `s` holds at most `ceil8(budget / base^s)` samples. 0 for no limit (default: `2**37`), see [build - Shards and chunks](build.md#shards-and-chunks) |
 | `-x, --fail-fast` | Abort on first failure instead of continuing |
 | `--keep-previous` | Keep the replaced version of an updated index in `BUILD_DIR/work/SESSION/previous/` instead of deleting it |
+| `--fpr-stats` | Record the FP rate of each sample (kmtricks estimate) in the stats of the runs and shards, and list the samples above 1% (see [build - Stats](build.md#stats)) |
 | `--off, --offline` | Skip local path validation (useful when exporting scripts for another machine) |
 
 ## Description
@@ -49,8 +50,8 @@ BUILD_DIR/assets/SESSION/
   plan.yaml                     the plan (below)
   slurm/                        with --cluster
   <shard>/
-    <part>.sh, <part>.fof       one script per kmtricks run (or <part>_chunk<N>.sh)
-    publish.sh                  publishes the shard: check, merge or move, swap, check, clean
+    <part>.sh, <part>.fof       one script per kmtricks run (or <part>_chunk<N>.sh): build, stats, remove superkmers
+    publish.sh                  publishes the shard: check, merge or move, swap, check, clean, stats
     publish/                    the run list and the inputs of each merge step
 ```
 

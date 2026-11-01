@@ -250,7 +250,9 @@ class IndexExecutor:
         The script is ``<task dir>/<name>.sh``, its sample list
         ``<task dir>/<name>.fof``. It does nothing when the samples are
         already published in the target, keeps a complete run left by an
-        earlier attempt, and deletes and rebuilds an incomplete one.
+        earlier attempt, and deletes and rebuilds an incomplete one. A built
+        run has its stats written (``stats.run_stats``), then its superkmers
+        removed: neither kmindex merge nor query reads them.
         """
         run_dir = self._paths.run(name)
         fof_path = os.path.join(self._paths.task(self.task_dir), f"{name}.fof")
@@ -264,9 +266,15 @@ class IndexExecutor:
             "echo 'samples already published: skip'; exit 0; fi",
             f"check {name}",
         )
+        # stats are measured before the superkmers go; failing stats fail nothing
+        superkmers = _q(os.path.join(run_dir, "superkmers"))
+        finish = (
+            f"{self._run_stats(name, run_dir)} || echo 'no stats for {name}' >&2; "
+            f"rm -rf {superkmers}"
+        )
         self._script.add(
             f"if {_run_complete_cmd(run_dir, params.partitions)}; then "
-            "echo 'complete run: skip'; exit 0; fi",
+            f"echo 'complete run: skip'; {finish}; exit 0; fi",
             f"reuse {name}",
         )
         # kmtricks needs the parent of its run directory, not the run itself
@@ -292,6 +300,15 @@ class IndexExecutor:
         )
         if result and "command" in result:
             self._script.add(result["command"], f"build {name}")
+        self._script.add(finish, f"stats {name}")
+
+    def _run_stats(self, name: str, run_dir: str) -> str:
+        """Command writing the stats of the run ``name`` to the logs of the task."""
+        cmd = ["kmhelpers", "manage", "run-stats", run_dir]
+        cmd.append(self._paths.run_stats(self.task_dir, name))
+        if self._config.fpr_stats:
+            cmd.append("--fpr")
+        return shlex.join(cmd)
 
     def publish(
         self,
@@ -313,8 +330,10 @@ class IndexExecutor:
            inputs; check the result as in 2; then, under the registry lock:
            unregister ``target``, move its current version to
            ``work/<session>/previous/``, move the result in place, register it;
-        4. check the published index again (before deleting anything);
-        5. delete the runs, the merges and the previous version.
+        4. check the published index again (before deleting anything): a
+           shard failing its query check (``manage check``) keeps its inputs;
+        5. delete the runs, the merges and the previous version;
+        6. write the stats of the shard (``stats.write_shard_stats``).
 
         Every step can be run again after an interruption: a merge step whose
         ``done`` marker exists is skipped (all of them once the last one is
@@ -458,6 +477,18 @@ class IndexExecutor:
             + " ".join(_q(d) for d in work_dirs)
             + " 2>/dev/null || true",
             "cleanup work",
+        )
+
+        # 6. stats of the shard, from those of its runs; $SECONDS: the script's duration
+        runs = [os.path.basename(r) for r in run_dirs]
+        cmd = ["kmhelpers", "manage", "-r", paths.registry, "shard-stats"]
+        cmd += ["--shard", target, "--session", paths.session]
+        cmd += ["--out", paths.shard_stats(self.task_dir)]
+        cmd += [paths.run_stats(self.task_dir, r) for r in runs]
+        self._sh(
+            f'{shlex.join(cmd)} --publish-seconds "$SECONDS" '
+            f"|| echo 'no stats for {target}' >&2",
+            f"stats {target}",
         )
         self._builder.index.load_json()
 
