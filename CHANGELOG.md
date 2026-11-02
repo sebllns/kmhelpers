@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - **Abundance indexes**: `design -ab N` / `compose -ab N` (`--abundance-bits`) compose an index storing `N` bits per sample and k-mer (2^N abundance classes), built by kmindex with `--nb-cell` and `--bitw N`
   - `bitw` is stored in the index definitions and the layout; definitions without it, and `-ab 0` (default), are presence/absence as before
   - An update with another `bitw` than the layout is refused: presence/absence and abundance indexes cannot be merged
+  - `build` also refuses a part whose `bitw` differs from the `bw` of the registered index it would join (the part is reported failed, the merge is skipped)
   - Storage estimates, shard sample limits and `bytes_per_row` count `bitw` bits per sample
 
 ### Fixed

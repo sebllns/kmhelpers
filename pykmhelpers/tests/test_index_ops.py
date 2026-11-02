@@ -378,3 +378,35 @@ class TestScriptRecorder(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestBitwMismatch(unittest.TestCase):
+    """A part cannot join a registered index of another bitw."""
+
+    def executor(self, registered_bw):
+        from pykmhelpers.pipeline.index_ops.executor import IndexExecutor
+
+        entry = SimpleNamespace(bw=registered_bw)
+        index = SimpleNamespace(
+            has_index=lambda name: name == "idx_g0", get_index=lambda name: entry
+        )
+        builder = SimpleNamespace(index=index)
+        return IndexExecutor(builder, None, None, None)  # type: ignore[arg-type]
+
+    def definition(self, bitw):
+        return SimpleNamespace(name="idx_g0_part", bitw=bitw)
+
+    def test_mismatch_is_reported(self):
+        # presence/absence registered (bw 1), abundance definition
+        self.assertIn(
+            "bw=1", self.executor(1).bitw_mismatch("idx_g0", self.definition(2))
+        )
+        # abundance registered, presence/absence definition
+        self.assertIsNotNone(
+            self.executor(2).bitw_mismatch("idx_g0", self.definition(0))
+        )
+
+    def test_same_bitw_or_new_target_passes(self):
+        self.assertIsNone(self.executor(1).bitw_mismatch("idx_g0", self.definition(0)))
+        self.assertIsNone(self.executor(2).bitw_mismatch("idx_g0", self.definition(2)))
+        self.assertIsNone(self.executor(1).bitw_mismatch("other", self.definition(2)))
