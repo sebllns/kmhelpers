@@ -29,6 +29,7 @@ dependencies = [
     "click>=8.1",
     "matplotlib>=3.5",
     "zstandard>=0.19",
+    "numpy>=1.21",
 ]
 
 [project.optional-dependencies]

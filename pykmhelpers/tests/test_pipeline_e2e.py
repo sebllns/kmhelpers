@@ -256,6 +256,59 @@ class TestDesignBuildQueryUpdateQuery(PipelineE2EBase):
         self.assert_in_place("build")
 
 
+class TestRemoveSamples(PipelineE2EBase):
+    """build -> manage remove-samples (no --shard, unordered list) -> check -> query."""
+
+    def query_all(self, out):
+        path = self.tmp / f"{out}.fa"
+        path.write_text(
+            "".join(
+                f">q_{i}\n{seq[QUERY_START:QUERY_START + QUERY_LEN]}\n"
+                for i, seq in enumerate(self.sequences)
+            )
+        )
+        self.run_cli("query", path, "-r", "build", "-o", out, "-f", "json")
+        return self.load_query_results(out)
+
+    def test_remove_samples(self):
+        self.run_cli(
+            "design", self.samples_txt, "-o", "db", "-n", "idx", "-s", "initial",
+            "-k", KMER_SIZE, "-b", "1.1", "-g", "1",
+        )
+        self.run_cli("build", "db", "-o", "build")
+        before = self.query_all("before")
+        index_json = self.tmp / "build" / "index.json"
+        total = sum(e["nb_samples"] for e in json.loads(index_json.read_text())["index"].values())
+
+        removed = {"sample_3", "sample_1"}
+        listing = self.tmp / "remove.txt"
+        listing.write_text("# to remove\nsample_3\n\nsample_1\n")
+        missing = self.tmp / "missing.txt"
+        missing.write_text("sample_1\nunknown\n")
+        refused = self.run_cli("-Y", "manage", "-r", "build", "remove-samples", missing,
+                               expect_success=False)
+        self.assertIn("found in no shard", refused.stdout + refused.stderr)
+
+        log = self.run_cli("-Y", "manage", "-r", "build", "remove-samples", listing, "-t", "2")
+        self.assertIn("2 removed", log.stdout)
+
+        registry = json.loads(index_json.read_text())["index"]
+        self.assertEqual(sum(e["nb_samples"] for e in registry.values()), total - 2)
+        for entry in registry.values():
+            self.assertFalse(removed & set(entry["samples"]))
+        self.run_cli("manage", "-r", "build", "check")
+        self.assert_in_place("build")
+
+        after = self.query_all("after")
+        for query, scores in before.items():
+            kept = {s: v for s, v in scores.items() if s not in removed}
+            self.assertEqual(after.get(query, {}), kept, query)
+
+        again = self.run_cli("-Y", "manage", "-r", "build", "remove-samples", listing,
+                             expect_success=False)
+        self.assertIn("found in no shard", again.stdout + again.stderr)
+
+
 class TestDesignAutoGroups(PipelineE2EBase):
     """design -g 0 keeps one group when the built index takes at most 4GB."""
 
