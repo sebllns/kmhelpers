@@ -12,7 +12,7 @@ import yaml
 import pykmhelpers.pipeline.index_db as db
 from pykmhelpers.core.bloom_filter import SpanManager
 from pykmhelpers.core.byte import ByteCounter
-from pykmhelpers.core.constants import KMHELPERS_COMMIT, KMHELPERS_VERSION, MAX_BITW
+from pykmhelpers.core.constants import KMHELPERS_COMMIT, KMHELPERS_VERSION, check_bitw
 from pykmhelpers.core.log import Log
 
 logger = logging.getLogger(__name__)
@@ -41,9 +41,7 @@ class IndexComposer:
         self.selected_profile = selected_profile
         self.name = name or "index"
         self.abundance_min = abundance_min
-        if not 0 <= bitw <= MAX_BITW:
-            raise ValueError(f"bitw must be between 0 and {MAX_BITW}, got {bitw}")
-        self.bitw = bitw
+        self.bitw = check_bitw(bitw)
         self.no_merge = no_merge
         self.shard_size = shard_size
         self.partition_count = partition_count

@@ -164,7 +164,7 @@ class TestLayout(unittest.TestCase):
         IndexComposer(name="idx", bitw=2)._check_layout_bitw(self.path)
 
     def test_invalid_bitw_is_refused(self):
-        for bitw in (-1, 9):
+        for bitw in (-1, 1, 9):
             with self.assertRaises(ValueError):
                 IndexComposer(name="idx", bitw=bitw)
 

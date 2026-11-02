@@ -13,7 +13,7 @@ import pykmhelpers.core.fasta
 import pykmhelpers.core.kmindex_paths
 import pykmhelpers.pipeline.fof
 import pykmhelpers.pipeline.query
-from pykmhelpers.core.constants import MAX_BITW
+from pykmhelpers.core.constants import check_bitw
 from pykmhelpers.core.utils import summarize_names
 
 logger = logging.getLogger(__name__)
@@ -314,8 +314,7 @@ class IndexBuilder:
             samples and samples.get_sample_count()
         ), "Samples dictionary cannot be empty"
         assert bloom_size, "Bloom size must be specified and greater than 0"
-        if not 0 <= bitw <= MAX_BITW:
-            raise ValueError(f"bitw must be between 0 and {MAX_BITW}, got {bitw}")
+        check_bitw(bitw)
         assert name, "Index name cannot be empty"
         assert not self.index.has_index(
             name

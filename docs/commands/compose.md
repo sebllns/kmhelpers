@@ -28,7 +28,7 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 | `-pr, --profile TEXT` | Profile name to use (default: `default_profile` from profiles file) |
 | `-p, --partition-count INT` | Partitions per index, fixed for its whole life; 0 lets the first build size it (default: 0) |
 | `-si, --shard-size SIZE` | Max size of one shard (e.g. `256GB`, `500000MB`); omit for a single unlimited index per span |
-| `-ab, --abundance-bits INT` | Build an abundance index with `N` bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0) |
+| `-ab, --abundance-bits N` | Build an abundance index with `N` bits per cell, `N` from 2 to 8 (2^N abundance classes, 4 to 256); without it, the index is presence/absence (1 bit, 2 classes) |
 | `-m, --partition-min-size SIZE` | Minimum partition file size (e.g. `500MB`, `1GB`) |
 | `-P, --partition-count-limit INT` | Upper bound on auto partition count (default: 256) |
 

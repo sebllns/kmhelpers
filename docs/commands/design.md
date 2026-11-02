@@ -64,7 +64,7 @@ Set `-S` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 | `-si, --shard-size SIZE` | Max size of one shard (e.g. `10GB`); a span is split into independent shards, see [compose](compose.md) |
 | `-fp, --false-positive-rate FLOAT` | Target Bloom-filter false-positive rate (default: 0.25) |
 | `-p, --partition-count INT` | Desired number of partitions per index, 0 for automatic (default: 0) |
-| `-ab, --abundance-bits INT` | Build an abundance index with `N` bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0), see [compose](compose.md) |
+| `-ab, --abundance-bits N` | Build an abundance index with `N` bits per cell, `N` from 2 to 8 (2^N abundance classes, 4 to 256); without it, the index is presence/absence (1 bit, 2 classes), see [compose](compose.md) |
 | `-nc, --no-count` | Skip k-mer counting with ntcard |
 | `-lg, --leaf-grouping` | Group files by leaf folder; each leaf directory becomes one sample |
 | `-r, --autorename` | Rename duplicate sample IDs by appending a numeric suffix instead of skipping |

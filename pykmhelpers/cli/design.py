@@ -8,7 +8,7 @@ import click
 
 from pykmhelpers.cli.shared import parse_shard_size
 from pykmhelpers.core.byte import ByteCounter
-from pykmhelpers.core.constants import MAX_BITW
+from pykmhelpers.core.constants import MAX_BITW, MIN_BITW
 from pykmhelpers.core.log import Log
 from pykmhelpers.core.utils import Toolbox
 from pykmhelpers.pipeline.composer import IndexComposer
@@ -146,12 +146,12 @@ logger = logging.getLogger(__name__)
     "--abundance-bits",
     "-ab",
     "bitw",
-    type=click.IntRange(0, MAX_BITW),
-    default=0,
-    show_default=True,
-    help="🎯  Build an abundance index with this many bits per cell (2^N abundance "
-    "classes, kmindex default: 2). 0 builds a presence/absence index. "
-    "Fixed for the life of the index.",
+    metavar="N",
+    type=click.IntRange(MIN_BITW, MAX_BITW),
+    default=None,
+    help="🎯  Build an abundance index with N bits per cell, N from "
+    f"{MIN_BITW} to {MAX_BITW} (2^N abundance classes, kmindex default: 2). "
+    "Without it, the index is presence/absence (1 bit, 2 classes). Fixed for the life of the index.",
 )
 @click.pass_context
 def design(
@@ -295,7 +295,7 @@ def design(
             no_merge=False,
             shard_size=parse_shard_size(shard_size),
             partition_count=partition_count,
-            bitw=bitw,
+            bitw=bitw or 0,
         ).run(
             input_file=jsonl_path,
             output_dir=compose_dir,
