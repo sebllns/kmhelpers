@@ -176,11 +176,11 @@ class IndexDefinition(Item, auto_increment=True):
     bf_size: int = DbFields.BF_SIZE.get_default() or 0
     fp_rate: float = DbFields.FP_RATE.get_default() or 0.25
     abundance_min: int = DbFields.ABUNDANCE_MIN.get_default() or 2
-    # Bits per abundance cell, 0 for a presence/absence index
-    bitw: int = DbFields.BITW.get_default() or 0
     samples: dict[str, Sample] = field(default_factory=dict)
     merge_name: Optional[str] = None
     sample_file: Optional[str] = None
+    # Bits per abundance cell, 0 for a presence/absence index
+    bitw: int = DbFields.BITW.get_default() or 0
 
     @property
     def sample_count(self):

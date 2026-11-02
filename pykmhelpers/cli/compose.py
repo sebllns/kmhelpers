@@ -8,6 +8,7 @@ import click
 
 from pykmhelpers.cli.shared import parse_shard_size
 from pykmhelpers.core.byte import ByteCounter
+from pykmhelpers.core.constants import MAX_BITW
 from pykmhelpers.core.log import Log
 from pykmhelpers.pipeline.composer import IndexComposer
 
@@ -84,7 +85,7 @@ logger = logging.getLogger(__name__)
     "--abundance-bits",
     "-ab",
     "bitw",
-    type=click.IntRange(0, 8),
+    type=click.IntRange(0, MAX_BITW),
     default=0,
     show_default=True,
     help="🎯  Build an abundance index with this many bits per cell (2^N abundance "

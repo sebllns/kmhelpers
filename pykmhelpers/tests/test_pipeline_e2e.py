@@ -265,7 +265,15 @@ class TestAbundanceDesignBuildQuery(PipelineE2EBase):
         self.run_cli("query", q0, "-r", "build", "-o", "results", "-f", "json")
         merged = self.load_query_results("results")
         self.assertIn(q0_header, merged)
-        self.assertGreater(merged[q0_header].get("sample_0", 0), 0)
+        # every k-mer of an assembled sample is seen once: abundance class 1,
+        # an integer (a presence/absence index reports a float ratio)
+        scores = merged[q0_header]
+        self.assertIsInstance(scores.get("sample_0"), int)
+        self.assertEqual(scores["sample_0"], 1)
+        self.assertEqual(
+            {s: v for s, v in scores.items() if s != "sample_0"},
+            {s: 0 for s in scores if s != "sample_0"},
+        )
 
         # a presence/absence session cannot be merged into the abundance index
         self.run_cli(

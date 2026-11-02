@@ -12,7 +12,7 @@ import yaml
 import pykmhelpers.pipeline.index_db as db
 from pykmhelpers.core.bloom_filter import SpanManager
 from pykmhelpers.core.byte import ByteCounter
-from pykmhelpers.core.constants import KMHELPERS_COMMIT, KMHELPERS_VERSION
+from pykmhelpers.core.constants import KMHELPERS_COMMIT, KMHELPERS_VERSION, MAX_BITW
 from pykmhelpers.core.log import Log
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,6 @@ class IndexComposer:
         selected_profile=None,
         name="index",
         abundance_min=1,
-        bitw: int = 0,
         no_merge=False,
         shard_size: int = 0,
         partition_count: int = 0,
@@ -35,13 +34,16 @@ class IndexComposer:
         false_positive_rate: Optional[float] = None,
         format="yaml",
         db_tools: Optional[db.IndexDefinitionTools] = None,
+        bitw: int = 0,
     ):
         self.profiles_file = profiles_file
         self.layout_file = layout_file
         self.selected_profile = selected_profile
         self.name = name or "index"
         self.abundance_min = abundance_min
-        self.bitw = max(bitw, 0)
+        if not 0 <= bitw <= MAX_BITW:
+            raise ValueError(f"bitw must be between 0 and {MAX_BITW}, got {bitw}")
+        self.bitw = bitw
         self.no_merge = no_merge
         self.shard_size = shard_size
         self.partition_count = partition_count
@@ -61,9 +63,7 @@ class IndexComposer:
         """Compose index definition file(s) from a sample list."""
         file_k = read_jsonl_header(input_file)
         # The hard min the k-mers were counted with (2 for raw reads)
-        abundance_min = (
-            read_jsonl_abundance_min(input_file) or self.abundance_min
-        )
+        abundance_min = read_jsonl_abundance_min(input_file) or self.abundance_min
         file_fp = None
 
         span_base = 2.0
@@ -92,13 +92,7 @@ class IndexComposer:
             )
             allowed_spans = sorted(spans_properties.keys())
             out_layout = os.path.realpath(self.layout_file)
-            layout_bitw = load_layout_bitw(self.layout_file)
-            if layout_bitw != self.bitw:
-                raise ValueError(
-                    f"Layout {self.layout_file} was composed with bitw={layout_bitw}, "
-                    f"got bitw={self.bitw}: presence/absence and abundance indexes "
-                    "cannot be merged"
-                )
+            self._check_layout_bitw(out_layout)
             logger.debug(
                 f"Loaded layout: {self.layout_file} (base={span_base}, "
                 f"spans={allowed_spans}, shard_size={shard_size})"
@@ -114,6 +108,9 @@ class IndexComposer:
             out_layout = os.path.realpath(
                 os.path.join(output_dir, f"{self.name}_layout.yaml")
             )
+            # Overwriting the layout of an existing index keeps its shard names
+            if os.path.exists(out_layout):
+                self._check_layout_bitw(out_layout)
 
         kmer_size = self.kmer_size or file_k or 25
         false_positive_rate = self.false_positive_rate or file_fp or 0.25
@@ -344,6 +341,16 @@ class IndexComposer:
         with open(path, "w") as f:
             yaml.dump(layout_data, f, default_flow_style=False, sort_keys=True)
         logger.info(f"Wrote layout: {path}")
+
+    def _check_layout_bitw(self, path: str) -> None:
+        """Refuse a layout composed with another bitw: its shards cannot be merged."""
+        layout_bitw = load_layout_bitw(path)
+        if layout_bitw != self.bitw:
+            raise ValueError(
+                f"Layout {path} was composed with bitw={layout_bitw}, "
+                f"got bitw={self.bitw}: presence/absence and abundance indexes "
+                "cannot be merged"
+            )
 
 
 def max_samples_for(bf_size: int, shard_size: int, bitw: int = 0) -> int:

@@ -157,6 +157,17 @@ class TestLayout(unittest.TestCase):
         IndexComposer(name="idx", bitw=2)._write_layout(self.path, 1.1, 0, 10, {})
         self.assertEqual(load_layout_bitw(self.path), 2)
 
+    def test_other_bitw_is_refused(self):
+        IndexComposer(name="idx", bitw=2)._write_layout(self.path, 1.1, 0, 10, {})
+        with self.assertRaises(ValueError):
+            IndexComposer(name="idx")._check_layout_bitw(self.path)
+        IndexComposer(name="idx", bitw=2)._check_layout_bitw(self.path)
+
+    def test_invalid_bitw_is_refused(self):
+        for bitw in (-1, 9):
+            with self.assertRaises(ValueError):
+                IndexComposer(name="idx", bitw=bitw)
+
     def test_layout_without_bitw_is_presence_absence(self):
         legacy = {"type": "layout", "data": {"base": 1.1, "map": {76: "idx_g0"}}}
         with open(self.path, "w") as f:

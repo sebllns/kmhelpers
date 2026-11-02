@@ -13,6 +13,7 @@ import pykmhelpers.core.fasta
 import pykmhelpers.core.kmindex_paths
 import pykmhelpers.pipeline.fof
 import pykmhelpers.pipeline.query
+from pykmhelpers.core.constants import MAX_BITW
 from pykmhelpers.core.utils import summarize_names
 
 logger = logging.getLogger(__name__)
@@ -248,7 +249,6 @@ class IndexBuilder:
         bloom_size: int,
         kmer_size: int = 25,
         abundance_min: int = 2,
-        bitw: int = 0,
         n_partitions: int = 256,
         n_threads: int = 0,
         n_max_threads: int = 0,
@@ -259,6 +259,7 @@ class IndexBuilder:
         dry_run: bool = False,
         on_existing: str = "fail",
         progress: typing.Optional[Progress] = None,
+        bitw: int = 0,
     ) -> dict:
         """Build a new sub-index from a set of samples via KmindexWrapper.build.
 
@@ -313,6 +314,8 @@ class IndexBuilder:
             samples and samples.get_sample_count()
         ), "Samples dictionary cannot be empty"
         assert bloom_size, "Bloom size must be specified and greater than 0"
+        if not 0 <= bitw <= MAX_BITW:
+            raise ValueError(f"bitw must be between 0 and {MAX_BITW}, got {bitw}")
         assert name, "Index name cannot be empty"
         assert not self.index.has_index(
             name

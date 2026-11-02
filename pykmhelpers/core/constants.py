@@ -37,6 +37,9 @@ def get_commit_subject() -> str:
 
 KMHELPERS_COMMIT = get_commit()
 
+# Largest bits per cell of an abundance index (design/compose --abundance-bits)
+MAX_BITW = 8
+
 DATA_EXT = (
     # ".fasta.gz",
     # ".fastq.gz",
