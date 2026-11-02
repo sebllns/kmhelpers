@@ -13,6 +13,7 @@ import pykmhelpers.core.fasta
 import pykmhelpers.core.kmindex_paths
 import pykmhelpers.pipeline.fof
 import pykmhelpers.pipeline.query
+from pykmhelpers.core.constants import check_bitw
 from pykmhelpers.core.utils import summarize_names
 
 logger = logging.getLogger(__name__)
@@ -258,6 +259,7 @@ class IndexBuilder:
         dry_run: bool = False,
         on_existing: str = "fail",
         progress: typing.Optional[Progress] = None,
+        bitw: int = 0,
     ) -> dict:
         """Build a new sub-index from a set of samples via KmindexWrapper.build.
 
@@ -270,6 +272,8 @@ class IndexBuilder:
                 Must be greater than 0.
             kmer_size (int): K-mer size used by kmindex.
             abundance_min (int): Minimum k-mer abundance (hard min) to keep.
+            bitw (int): Bits per cell of an abundance index, `bloom_size`
+                being its number of cells. `0` builds a presence/absence index.
             n_partitions (int): Number of partitions to split the Bloom
                 filter matrix into. `0` lets kmindex choose.
             n_threads (int): Number of threads to use. `0` uses all available
@@ -310,6 +314,7 @@ class IndexBuilder:
             samples and samples.get_sample_count()
         ), "Samples dictionary cannot be empty"
         assert bloom_size, "Bloom size must be specified and greater than 0"
+        check_bitw(bitw)
         assert name, "Index name cannot be empty"
         assert not self.index.has_index(
             name
@@ -330,8 +335,15 @@ class IndexBuilder:
 
         n_partitions = max(n_partitions, 0)
 
+        # kmindex takes the cell count of an abundance index as --nb-cell
+        size_args: dict = (
+            {"nb_cell": bloom_size, "bitw": bitw}
+            if bitw > 0
+            else {"bloom_size": bloom_size}
+        )
+
         bf_specs = self.get_bf_specs(
-            n_samples=samples.get_sample_count(),
+            n_samples=samples.get_sample_count() * max(bitw, 1),
             bloom_size=bloom_size,
             n_partitions=max(256, n_partitions),
         )
@@ -425,7 +437,7 @@ class IndexBuilder:
             threads=n_threads,
             nb_partitions=n_partitions,
             register_as=name,
-            bloom_size=bloom_size,
+            **size_args,
             output_log_dir=None if dry_run else os.path.join(self.log_folder, name),
             output_param_file=os.path.join(self.assets_folder, f"{name}.yaml"),
             from_index=build_from,

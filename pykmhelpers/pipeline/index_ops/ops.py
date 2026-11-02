@@ -262,6 +262,12 @@ class IndexOps:
             report.record(i.name, ApplyStatus.NONE)
             return
 
+        mismatch = executor.bitw_mismatch(target, i)
+        if mismatch:
+            logger.error(f"{indent_prefix(logger)}{mismatch}")
+            report.record(i.name, ApplyStatus.FAILED, error=mismatch)
+            return
+
         fof, issues = samples.build_fof(i)
         sample_count = fof.get_sample_count()
         result = None

@@ -8,6 +8,7 @@ import click
 
 from pykmhelpers.cli.shared import parse_shard_size
 from pykmhelpers.core.byte import ByteCounter
+from pykmhelpers.core.constants import MAX_BITW, MIN_BITW
 from pykmhelpers.core.log import Log
 from pykmhelpers.pipeline.composer import IndexComposer
 
@@ -80,6 +81,17 @@ logger = logging.getLogger(__name__)
 #     show_default=True,
 #     help="⚙️  Partition count limit for auto-partitioning.",
 # )
+@click.option(
+    "--abundance-bits",
+    "-ab",
+    "bitw",
+    metavar="N",
+    type=click.IntRange(MIN_BITW, MAX_BITW),
+    default=None,
+    help="🎯  Build an abundance index with N bits per cell, N from "
+    f"{MIN_BITW} to {MAX_BITW} (2^N abundance classes, kmindex default: 2). "
+    "Without it, the index is presence/absence (1 bit, 2 classes). Fixed for the life of the index.",
+)
 @click.pass_context
 def compose(
     ctx,
@@ -93,6 +105,7 @@ def compose(
     # partition_min_size,
     # partition_count_limit,
     session_id,
+    bitw,
 ):
     """Compose index definition file(s) from a sample list.
 
@@ -177,6 +190,7 @@ def compose(
             no_merge=False,
             shard_size=parse_shard_size(shard_size),
             partition_count=partition_count,
+            bitw=bitw or 0,
             # bf_max_size=bf_max_size,
             # partition_min_size=partition_min_size,
             # exact_partition_count=False,

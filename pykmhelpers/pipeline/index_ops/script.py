@@ -65,6 +65,8 @@ class ScriptRecorder:
         header = [
             "#!/usr/bin/env bash",
             "set -euo pipefail",
+            # sizing assumes the hard open-files limit
+            'ulimit -Sn "$(ulimit -Hn)" 2>/dev/null || true',
             f"WORKDIR='{self._workdir}'",
             "cd ${WORKDIR}",
         ]

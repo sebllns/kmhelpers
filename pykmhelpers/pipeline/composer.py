@@ -12,7 +12,7 @@ import yaml
 import pykmhelpers.pipeline.index_db as db
 from pykmhelpers.core.bloom_filter import SpanManager
 from pykmhelpers.core.byte import ByteCounter
-from pykmhelpers.core.constants import KMHELPERS_COMMIT, KMHELPERS_VERSION
+from pykmhelpers.core.constants import KMHELPERS_COMMIT, KMHELPERS_VERSION, check_bitw
 from pykmhelpers.core.log import Log
 
 logger = logging.getLogger(__name__)
@@ -34,12 +34,14 @@ class IndexComposer:
         false_positive_rate: Optional[float] = None,
         format="yaml",
         db_tools: Optional[db.IndexDefinitionTools] = None,
+        bitw: int = 0,
     ):
         self.profiles_file = profiles_file
         self.layout_file = layout_file
         self.selected_profile = selected_profile
         self.name = name or "index"
         self.abundance_min = abundance_min
+        self.bitw = check_bitw(bitw)
         self.no_merge = no_merge
         self.shard_size = shard_size
         self.partition_count = partition_count
@@ -58,6 +60,8 @@ class IndexComposer:
     ) -> None:
         """Compose index definition file(s) from a sample list."""
         file_k = read_jsonl_header(input_file)
+        # The hard min the k-mers were counted with (2 for raw reads)
+        abundance_min = read_jsonl_abundance_min(input_file) or self.abundance_min
         file_fp = None
 
         span_base = 2.0
@@ -86,6 +90,7 @@ class IndexComposer:
             )
             allowed_spans = sorted(spans_properties.keys())
             out_layout = os.path.realpath(self.layout_file)
+            self._check_layout_bitw(out_layout)
             logger.debug(
                 f"Loaded layout: {self.layout_file} (base={span_base}, "
                 f"spans={allowed_spans}, shard_size={shard_size})"
@@ -101,6 +106,9 @@ class IndexComposer:
             out_layout = os.path.realpath(
                 os.path.join(output_dir, f"{self.name}_layout.yaml")
             )
+            # Overwriting the layout of an existing index keeps its shard names
+            if os.path.exists(out_layout):
+                self._check_layout_bitw(out_layout)
 
         kmer_size = self.kmer_size or file_k or 25
         false_positive_rate = self.false_positive_rate or file_fp or 0.25
@@ -119,7 +127,7 @@ class IndexComposer:
             shard_size = self.shard_size
             for span, props in spans_properties.items():
                 props["max_samples"] = max_samples_for(
-                    span_manager.get_bf_size(span), shard_size
+                    span_manager.get_bf_size(span), shard_size, self.bitw
                 )
             logger.info(
                 f"Layout re-sharded with a {ByteCounter.auto(shard_size)} limit"
@@ -177,10 +185,11 @@ class IndexComposer:
                         kmhelpers_version=KMHELPERS_VERSION,
                         kmhelpers_commit=KMHELPERS_COMMIT,
                         kmer_size=kmer_size,
-                        index_type="kmindex",
+                        index_type="kmindex-abundance" if self.bitw else "kmindex",
                         span=span,
                         bf_size=bf_sizes[span],
-                        abundance_min=self.abundance_min,
+                        abundance_min=abundance_min,
+                        bitw=self.bitw,
                         sample_file=f"{self.name}_samples.jsonl",
                         samples={},
                         partition_count=props.get("partition_count") or 0,
@@ -262,7 +271,9 @@ class IndexComposer:
         """Per-span properties of a new index: name, sample limit, shards."""
         props = {}
         for i, span in enumerate(allowed_spans):
-            max_samples = max_samples_for(span_manager.get_bf_size(span), shard_size)
+            max_samples = max_samples_for(
+                span_manager.get_bf_size(span), shard_size, self.bitw
+            )
             props[span] = {
                 "id": i,
                 "name": self.db_tools.get_merge_name(self.name, i),
@@ -308,6 +319,7 @@ class IndexComposer:
                 "base": span_base,
                 "shard_size": shard_size,
                 "minim_size": minim_size,
+                "bitw": self.bitw,
                 "map": {
                     span: {
                         "name": props["name"],
@@ -328,18 +340,40 @@ class IndexComposer:
             yaml.dump(layout_data, f, default_flow_style=False, sort_keys=True)
         logger.info(f"Wrote layout: {path}")
 
+    def _check_layout_bitw(self, path: str) -> None:
+        """Refuse a layout composed with another bitw: its shards cannot be merged."""
+        layout_bitw = load_layout_bitw(path)
+        if layout_bitw != self.bitw:
+            raise ValueError(
+                f"Layout {path} was composed with bitw={layout_bitw}, "
+                f"got bitw={self.bitw}: presence/absence and abundance indexes "
+                "cannot be merged"
+            )
 
-def max_samples_for(bf_size: int, shard_size: int) -> int:
+
+def max_samples_for(bf_size: int, shard_size: int, bitw: int = 0) -> int:
     """Samples a shard of at most ``shard_size`` bytes can hold, 0 if unlimited.
 
     A shard stores one Bloom filter row per k-mer slot and one bit column per
-    sample, so it costs about ``bf_size * samples / 8`` bytes. Rows are byte
+    sample (``bitw`` bits for an abundance index), so it costs about
+    ``bf_size * samples * bitw / 8`` bytes. Rows are byte
     aligned, hence the rounding down to a multiple of 8 samples. A shard holds
     at least 8 samples, so it may exceed ``shard_size`` when 8 do not fit.
     """
     if not shard_size or not bf_size:
         return 0
-    return max(8, (8 * shard_size // bf_size) // 8 * 8)
+    return max(8, (8 * shard_size // (bf_size * max(bitw, 1))) // 8 * 8)
+
+
+def load_layout_bitw(path: str) -> int:
+    """Bits per abundance cell stored in a layout, 0 for presence/absence.
+
+    Layouts written before abundance indexes have no ``bitw`` and are read as
+    presence/absence.
+    """
+    with open(path) as f:
+        data = yaml.safe_load(f)
+    return int(data.get("data", {}).get("bitw") or 0)
 
 
 def load_layout(path: str) -> tuple[float, int, int, dict]:
@@ -492,6 +526,19 @@ def read_jsonl_header(filename: str) -> Optional[int]:
     try:
         json_line = json.loads(line)
         return json_line.get("k")
+    except json.JSONDecodeError:
+        logger.warning(f"Could not parse JSONL header in {filename}")
+        return None
+
+
+def read_jsonl_abundance_min(filename: str) -> Optional[int]:
+    """Return the ``abundance_min`` value from the JSONL header, or None."""
+    with open(filename) as f:
+        line = f.readline().strip()
+    if not line:
+        return None
+    try:
+        return json.loads(line).get("abundance_min")
     except json.JSONDecodeError:
         logger.warning(f"Could not parse JSONL header in {filename}")
         return None
