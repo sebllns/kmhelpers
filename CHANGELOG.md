@@ -13,6 +13,10 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Open-files limit**: chunks are sized from the hard limit (`ulimit -Hn`) instead of the soft one, so a low soft limit no longer cuts needless chunks
+  - Every command raises the soft limit to the hard one at start (logged with `-V`, a warning if it fails), inherited by kmindex and the merge steps
+  - The generated build scripts raise it too (`ulimit -Sn "$(ulimit -Hn)"`)
+- **`list`**: the sample list is written line-buffered, so a killed run loses no counted sample and `--continue` resumes after the last one
 - **`compose` hard min**: the `abundance_min` of the JSONL header (2 for unassembled data) is used, instead of always 1
 
 ## [0.7.3] - 2026-10-28
