@@ -24,4 +24,4 @@ INFO     | kmtricks   kmtricks v1.6.0      /opt/kmhelpers/.env/bin/kmtricks
 WARNING  | ntcard     ntcard not found. Either add its installation directory to PATH, or set the NTCARD_BIN_PATH environment variable to that directory.
 ```
 
-Missing tools can be installed with [`install-deps`](install-deps.md) (kmtricks and kmindex only).
+Missing tools can be installed with [`install-deps`](install-deps.md), see also [Custom tool versions](../getting-started/installation.md#custom-tool-versions).

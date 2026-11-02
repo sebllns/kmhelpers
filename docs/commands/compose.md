@@ -32,7 +32,7 @@ Compose index definition file(s) from a sample list produced by [`list`](list.md
 | `--kr, --kmer-ratio FLOAT` | Multiply the k-mer ratio (k-mer occurrences per counted k-mer) that sizes the build memory (default: 1), see Partitioning below |
 | `--ncl, --no-copy-list` | Point the index definition files to the input sample list instead of copying it into the compose output folder; the list must then stay in place and unchanged as it is used for building |
 | `--shard-budget-bytes SIZE` | Hidden. Cap a shard by its size on disk (e.g. `256GB`, `500000MB`) rather than by `--shard-budget`: when set, `--shard-budget` is not used. Cannot be combined with `--shard-budget` |
-| `--ab, --abundance-bits INT` | Build an abundance index with `N` bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0) |
+| `--ab, --abundance-bits N` | Build an abundance index with `N` bits per cell, `N` from 2 to 8 (2^N abundance classes, 4 to 256); 0 builds a presence/absence index (1 bit, 2 classes) (default: 0 for a new index, the layout's value on an update) |
 
 ## Description
 

@@ -1,0 +1,22 @@
+{
+  "title": "kmhelpers: A Python toolkit for automated management of genomic indexes",
+  "upload_type": "software",
+  "license": "GPL-3.0-only",
+  "creators": [
+    {
+      "name": "Bellenous, Sébastien",
+      "affiliation": "Genscale, Univ. Rennes, Inria, CNRS, IRISA - UMR 6074, Rennes, F-35000 France",
+      "orcid": "0009-0002-8429-284X"
+    },
+    {
+      "name": "Jaron, Kamil S.",
+      "affiliation": "Tree of Life, Wellcome Sanger Institute, Hinxton CB10 1SA, United Kingdom",
+      "orcid": "0000-0003-1470-5450"
+    },
+    {
+      "name": "Peterlongo, Pierre",
+      "affiliation": "Genscale, Univ. Rennes, Inria, CNRS, IRISA - UMR 6074, Rennes, F-35000 France",
+      "orcid": "0000-0003-0776-6407"
+    }
+  ]
+}

@@ -70,7 +70,7 @@ Set `-s` to get a predictable path. Without it, `SESSION` is a timestamp: `desig
 | `--fp, --false-positive-rate FLOAT` | Target Bloom-filter false-positive rate (default: 0.25) |
 | `-P, --partition-count INT` | Hidden. Fix the partition count of every shard for the life of the index: inherited by every later session, no longer adapted to the system limits of `plan`/`build`. 0 (default) lets the first `plan` of each shard size it, see [compose - Partitioning](compose.md#description) |
 | `--minim-size INT` | Minimizer size (4-15), fixed for the life of the index (default: 10 for a new index, the layout's value on an update) |
-| `--ab, --abundance-bits INT` | Build an abundance index with `N` bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0), see [compose](compose.md) |
+| `--ab, --abundance-bits N` | Build an abundance index with `N` bits per cell, `N` from 2 to 8 (2^N abundance classes, 4 to 256); 0 builds a presence/absence index (1 bit, 2 classes) (default: 0 for a new index, the layout's value on an update), see [compose](compose.md) |
 | `--nc, --no-count` | Skip k-mer counting with ntcard |
 | `--kr, --kmer-ratio FLOAT` | Multiply the k-mer ratio (k-mer occurrences per counted k-mer) that sizes the build memory (default: 1), see [compose - Partitioning](compose.md#description) |
 | `--ncl, --no-copy-list` | With a JSONL INPUT, point the index definition files to it instead of copying it into the compose output folder; the list must then stay in place and unchanged as it is used for building. A list written by `design` is never copied |

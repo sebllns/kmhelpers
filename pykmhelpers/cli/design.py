@@ -8,6 +8,7 @@ import shutil
 import click
 
 from pykmhelpers.cli.shared import (
+    abundance_bits_option,
     auto_group_options,
     confirm,
     kmer_ratio_option,
@@ -182,17 +183,7 @@ logger = logging.getLogger(__name__)
     "from the limits; fix it for deep raw reads, whose build memory the "
     "automatic sizing underestimates.",
 )
-@click.option(
-    "--abundance-bits",
-    "--ab",
-    "bitw",
-    type=click.IntRange(0, 8),
-    default=None,
-    help="🎯  Build an abundance index with this many bits per cell (2^N abundance "
-    "classes, kmindex default: 2). 0 builds a presence/absence index. "
-    "Fixed for the life of the index: an update takes the layout's value. "
-    "[default: 0 for a new index]",
-)
+@abundance_bits_option
 @auto_group_options(hidden=True)
 @no_grouping_option
 @click.option(

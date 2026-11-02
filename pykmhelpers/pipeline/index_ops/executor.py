@@ -157,6 +157,24 @@ class IndexExecutor:
         self._claimed.add(name)
         return True
 
+    def bitw_mismatch(self, target: str, i: IndexDefinition) -> str | None:
+        """Why ``i`` cannot join the registered ``target``, if their bitw differ.
+
+        kmindex records ``bw`` 1 for presence/absence and N for an abundance
+        index; presence/absence and abundance indexes cannot be merged.
+        """
+        if not self._builder.index.has_index(target):
+            return None
+        registered = self._builder.index.get_index(target).bw
+        wanted = max(i.bitw, 1)
+        if registered and registered != wanted:
+            return (
+                f"'{target}' is registered with bw={registered}, the definition "
+                f"of '{i.name}' has bw={wanted}: presence/absence and abundance "
+                "indexes cannot be merged"
+            )
+        return None
+
     def align_with(
         self, target: str, params: BuildParams, part: Optional[str] = None
     ) -> BuildParams:

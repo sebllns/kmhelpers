@@ -116,10 +116,10 @@ Most `kmhelpers` commands (`design`, `plan`, `query`, `compose`, ...) complete i
 ## Version & Requirements
 
 <!-- release-only -->
-**kmhelpers v@VERSION@**  · Python ≥ 3.8
+**kmhelpers v@VERSION@**  · Python ≥ 3.10
 <!-- /release-only -->
 <!-- dev-only -->
-**kmhelpers (development version)**  · Python ≥ 3.8
+**kmhelpers (development version)**  · Python ≥ 3.10
 <!-- /dev-only -->
 
 | Tool | Version |
@@ -128,7 +128,7 @@ Most `kmhelpers` commands (`design`, `plan`, `query`, `compose`, ...) complete i
 | [kmtricks](https://github.com/tlemane/kmtricks) | ≥ 1.6.0 |
 | [ntCard](https://github.com/bcgsc/ntCard) | ≥ 1.2.2 |
 
-See [Installation](getting-started/installation.md) for build instructions.
+See [Installation](getting-started/installation.md) to install them, or to use other versions.
 
 ## License
 

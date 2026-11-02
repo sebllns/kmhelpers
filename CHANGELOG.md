@@ -2,106 +2,72 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.8.0] - Unreleased
 
 ### Added
 
-- **`manage remove-samples FILE`**: removes the listed samples (`kmignore` format) from the shards holding them, found in every shard or the `--shard` ones, the list in any order. Their columns are dropped from every uncompressed matrix (`-t` matrices at once), their lines from `kmtricks.fof` and `fpr/`; the new version is written in `BUILD_DIR/work/remove-samples/<shard>/`, checked as by `manage check`, then swapped in under the registry lock (`kmindex register --mode move`). Compressed shards are refused; an interrupted removal is finished or undone by the next run. `numpy` is now a declared dependency
-- **Ignored samples in `query`**: samples listed in a `kmignore` file next to the registry `index.json` are always dropped from the results, statistics and reports, and left out of the subindex sizes; **`--ignore FILE`** adds more for one run. One sample per line, lines starting with `#` are comments. kmindex still queries them, `kmindex_output/` keeps them
-- **Negative queries in `manage check`**: 10 random DNA sequences of 1000 bases are queried with the positives, and the mean score of the samples on them (the empirical FP rate) is printed per shard, next to the expected one when the shard has FP stats. A shard whose positive score is not `--min-gap` (default 0.5) above its negative score is broken and fails the check, so `publish.sh` stops before its swap, or before its cleanup with the runs, merges and previous version kept; a high FP rate is only reported
-- **Stats of runs and shards** in `BUILD_DIR/logs/<shard>/`: each run script writes `<run>.stats.json` (time, peak RAM, peak disk, samples, Bloom filter size), `publish.sh` folds them into `stats.yaml` with a summary over every session of the shard (time cumulated, peaks, disk). **`--fpr-stats`** (`plan`, `build`) adds the FP rate of each sample, from the kmtricks estimates (`fpr/`), and the samples above 1%
-- The run scripts delete the `superkmers/` folder of their run once it is built
-
-- **Query check in `manage check`**: after the structure checks, 10 random (k+z)-mers of each shard's first sample are queried in one kmindex query against the registry, and the sample's score is printed per shard (reported only, a failing query fails the check); `--no-query` / `--nq` skips it, `-z` sets z (default 6). `apply` runs it after each publish and in the finish job
-- **`plan --cluster FILE`**: a YAML file (`type: slurm`) of the partition, time, excluded nodes, setup lines and the resources of each kind of job (`jobs.build`, `jobs.publish`, `jobs.check`); the plan is sized from these resources (`--limits` with `--cluster` is refused), and `BUILD_DIR/assets/SESSION/slurm/` gets `build.sbatch` (an array task per build job), `publish.sbatch`, `check.sbatch` and `submit.sh`
-  - `submit.sh` submits what `apply --pending` lists: the build array (`max_parallel`, split at `MaxArraySize`), each publish job after the array tasks of its own shard, then `manage check` after everything; safe to run again
-- **`plan --chunks-per-job N`**: the chunks of a shard are split into jobs `<shard>_j<k>` of up to N chunks, then a job `<shard>_publish`; 0 (default) keeps one job per shard
-- **`build --hpc FILE`** (`--cluster`): plans for the jobs of the cluster file, runs the generated `submit.sh` and exits; nothing is submitted for a `FAILED` or `PARTIAL` plan
-- **Progress**: `apply` records each step in `assets/SESSION/<shard>/state/<step>.json` and rewrites `assets/SESSION/progress.yaml` after each one; **`apply --status`** prints it per shard and step: `SUCCESS`, `FAILED` (log and error), `CANCELLED` (SIGTERM), `RUNNING` (job, node, start), `LOST` (running job gone from `squeue`, with why from the end of its SLURM log: cancelled, time limit, out of memory, node failure, preemption), `PENDING` (with its SLURM job once submitted)
-- **`--show-progress` / `--sp`** (`apply`, `build`): one line per started shard, a progress bar of its steps (chunks and publish), its time, the steps running (how many, and the 3 oldest with their time) and a colored end status (SUCCESS, FAILED with step and log, LOST, CANCELLED); redrawn in a terminal, printed at each step end otherwise. `apply --status --sp` (and `build --hpc --sp`) follows a cluster build every `--interval` seconds until it ends, exiting 0 on SUCCESS
-- **`apply --status --task PATTERN`** (and `--status --sp --task`, `apply --sp --task`): only the matching shards and steps, in detail: job and node, time, RAM of a running step (`sstat` MaxRSS of the raw id of the job, from `squeue %A` for an array task, against its `--mem` on SLURM, psutil against the plan's RAM limit for a local `apply`; colored at 80 % and 95 %) and its current kmtricks phase (`Count partitions 63%`, or `Compute SuperK 80% · Count partitions 63%` while both run, read from the tail of its log); live, one line per running step under its shard. The global status is unchanged
-- **`build --hpc` while jobs of the plan are still queued or running** submits the others (a cancelled or lost job), as `slurm/submit.sh`; it no longer only follows them. Without `--hpc`, it still follows them
-- The logs of the steps of `apply` are written as the step runs (stdout first, then stderr and the resource usage, under `--- RESOURCES ---`, at the end), so a running step can be followed. A step started again keeps its attempts before in its state file (job, node, times, how it ended, read from the SLURM log of a job that ended without a status) and the log of the last one as `<step>.log.prev`; `apply --status` shows `attempt N`, and with `--task` one line per attempt before
-- The overall status of `apply --status` stays `RUNNING` while a shard runs, even with others failed
-- **`--notify-level global|shard`** (`apply`, `build`): `shard` also mails each shard when it ends; the mails carry the progress tree. On a cluster, the jobs ending a shard send the shard mails and the finish job the final one
-- SLURM files: a **finish** job replaces the check job, after every job (`afterany`): checks the registry when all is built, writes `progress.yaml`, mails it with `build --notify`; publish and finish jobs get `--kill-on-invalid-dep=yes`, so a failure never leaves jobs pending; `submit.sh` records submissions in `slurm/submitted.tsv` and never submits again a job still queued or running; each run writes its build jobs to a list of its own under `slurm/lists/`, never written again, as the queued array tasks read their line when they start (`build.sbatch` fails on a line without a job, `apply --task ""` is refused)
-- **`design --redesign`**: removes the previous design of the index (`compose/NAME/`, `profile/`) and designs it again; without it, `design` warns when it reuses an existing layout (an update: groups and shards kept, `-g`, `-b`, `--sb`, `--ab` not used)
-- `design` / `compose` refuse a session already in the layout: its samples were counted twice
-- **Published partition count in the layout**: `apply` records the partition count of each shard it publishes (or finds published) under the shard, `map.<span>.shards[].partition_count`, under a lock and only when missing; `compose` writes the layout under the same lock, keeps the counts recorded while it ran and across sessions and later `plan`s use it (`partitions_source: published`). A `-P` given later applies to new shards only
-- **Lock files removed once the build is done**: the finish job, after a passed `manage check`, runs `apply --cleanup` (hidden), which removes `BUILD_DIR/.registry.lock` and `layout.yaml.lock` unless another process holds them; a local `apply`/`build` of the whole plan does the same when it completes it. Every kmhelpers lock is a `flock(2)` lock, the one the publish scripts take
-- **A session is planned once**: `build` on a session that already has a plan runs it (resumes it, or submits what is not done with `--hpc`; `NOTHING TO DO` when everything is built) instead of planning again, warning about the options it does not use; `plan` refuses it. **`--replan`** (`plan`, `build`) removes `BUILD_DIR/assets/SESSION/` and plans again (indexes, built runs and logs stay)
-- While jobs of the current plan are still queued (`squeue`) or running (a local `apply`), `build` follows them (as `apply --status --sp`, or prints their status once outside a terminal) instead of planning again, and `plan` refuses: planning rewrites the scripts and states under them; `submit.sh` keeps a finish job still pending when it submits nothing new, and replaces it otherwise (one final mail)
-- **One group for small indexes**: `-g 0` keeps one group when one group takes at most a size, whatever a 2nd one would save in proportion: `design` uses 4 GB of built index (4 GB / bitw of profile size), `profile` no size by default (`--auto-group-single-max SIZE`, env `KMHELPERS_AUTO_GROUP_SINGLE_MAX`, `0` turns it off); recorded as `single_max` and `single_size` under `auto_group` in `profile.yaml`
-- **`profile`/`design --no-grouping, --ngp`**: one group, no grouping strategy (`grouping: none` in `profile.yaml`); refused with `-g N`
-- `profile.md`: the sizes of `profile.yaml` are for presence/absence, times bitw for an abundance index
-- **`apply --cancel`**: lists the jobs of the plan still queued or running, then, once confirmed (`-Y`), `scancel`s the SLURM jobs of `submit.sh` and sends SIGTERM to a local `apply` on this host (its running step is recorded `CANCELLED`); with `--task`, only the matching jobs, the finish job kept. A stale plan is cancelled too. `plan` and `build` point to it while jobs are active
-- **Queued steps in the progress lines** (`--sp`, `apply --status --sp`): `2 running: chunk0 (2m3s), chunk1 (2m3s), 3 queued`; a shard with steps queued but none started yet is shown (`5 queued`) instead of hidden
-- **`apply --task PATTERN`** runs part of the plan: a shard or its task (`<shard>_<session>`) runs all its jobs, a job (`<shard>_j<k>`, `<shard>_publish`) runs alone; **`apply --pending`** lists the jobs not done yet
-- **`build` summary**: after a new plan, `build` prints the shards, samples, kmtricks runs (jobs with `--hpc`) and estimated size, per span and in total, against the free space of `BUILD_DIR` (warning when over it), then asks `Build it?` / `Submit it?`; no removes the plan. Skipped with `-Y` or without a terminal
-
-### Changed
-
-- **Breaking**: `manage rename` takes the names as arguments, `manage rename OLD NEW` (was `-f OLD -t NEW`); a missing index is reported as such, and a missing `index.json` is no longer created
-- Confirmation prompts are asked only on a terminal, in the foreground; otherwise they refuse with a hint to pass `-Y` instead of a bare `Aborted!` or waiting for an answer that cannot come
-- Auto-sized partition counts (`plan`, no `-P` and no published count) are rounded up to the next power of 2, at most 256; a count fixed by `-P` or recorded for a published shard is kept as is
-- `plan` warns when a partition count leaves even one thread over the RAM limit (the build still runs with 1 thread)
-- **`plan` prepares, `apply` runs**: `plan` takes every build decision and writes `BUILD_DIR/assets/SESSION/plan.yaml` (one task per part: its chunks, publish step and jobs) and one directory of scripts per shard, `<shard>/` (`<run>.sh` and `.fof` per kmtricks run, `publish.sh`, `publish/`); `apply` runs these scripts, under monitoring, and builds nothing itself
-  - `apply` refuses a missing plan, and a stale one: an input changed since (definition, shard files, `layout.yaml`, sample lists, cluster file, hashed in `plan.yaml`) or another kmhelpers version made it
-  - `apply --shard` is replaced by `apply --task`
-  - `apply` has no sizing option any more (`--limits`, `--safety-margin`, `--max-chunks`, `--chunk-budget`, `--threads`, `--base-path`, `--skip-compression`, `--keep-previous`): they are options of `plan` (and `build`)
-  - Before publishing a shard, `apply` checks the registry is as `plan` saw it (`expects`), or as an interrupted run of the same publish step leaves it
-  - Each run script skips samples already published and complete runs, and deletes and rebuilds an incomplete run, so every script can be run again
-  - Logs per shard: `BUILD_DIR/logs/<shard>/<run>.log` and `publish.log`
-- The plan/apply report records `kmhelpers.commit`, the git commit of the installed kmhelpers (`UNKNOWN` outside git), instead of `git_commit` from `$GIT_COMMIT`, which is no longer read
-- Docs: `commands/index.md` lists every environment variable, and explains the configuration file (`-C`) and the precedence of command line, environment, configuration file and defaults
-- The splitting message of `plan` names the bound that sets the chunk size: the chunk budget at the shard's span (`--chunk-budget`), `--max-chunks`, or the open files of the merge stage, instead of "the current limits"
-- The command duration (`Done in ...`) is printed to stderr, so stdout carries only a command's output (e.g. `apply --pending`)
-
-- **Open-files limit**: chunks and merges are sized from the hard limit (`ulimit -Hn`) instead of the soft one, so a low soft limit no longer cuts needless chunks
-  - Every command raises the soft limit to the hard one at start (logged with `-V`, a warning if it fails), inherited by kmtricks, kmindex and the merge steps
-  - The scripts in `BUILD_DIR/assets/SESSION/` raise it too (`ulimit -Sn "$(ulimit -Hn)"`), when run by hand or in a SLURM job
-  - The plan/apply report records `files_soft` and `files_hard` under `limits`
-
-### Removed
-
-- `manage remove -y, --yes`: use the global `-Y` (`kmhelpers -Y manage remove ...`), as every other confirmation
-- `plan`/`apply --run`: replaced by jobs (`plan --chunks-per-job`, `apply --task`)
-- `BUILD_DIR/assets/SESSION/kmhelpers_apply.sh` and the flat `<shard>.sh` / `<shard>_merge.sh` scripts: replaced by the per-shard directories
-- Support for build directories of older kmhelpers: parts registered on their own (merged in as they were), and symlinked index folders
-
-## [0.8.0] - 2026-10-19
-
-### Added
-
-- **k-mer ratio**: `list` records `kmer_total` (k-mer occurrences, ntcard F1) next to `kmer_count`; `compose` records each shard's `kmer_ratio` (largest `kmer_total / kmer_count` of its samples, else 1 assembled / 4 raw reads, times `compose`/`design --kr, --kmer-ratio`) in `index.yaml` and the shard files, and `plan` sizes partitions and threads from the Bloom filter capacity × that ratio, since kmtricks holds every occurrence before `--hard-min`
-- **`compose`/`design --ncl, --no-copy-list`**: the session points to the input sample list instead of copying it to `SESSION/samples.jsonl`; `design` never copies the list it writes (`list/samples_<SESSION>.jsonl`), so its sessions have no `samples.jsonl`
-- **Automatic group count** (`profile -g 0`, `design -g 0`): starts from one group per 1000 samples, then adds one while it saves at least 20% of the storage, up to 20 groups
-  - Tuned with `profile --auto-group-samples`, `--auto-group-max` and `--auto-group-min-gain` (env: `KMHELPERS_AUTO_GROUP_*`), recorded under `auto_group` in `profile.yaml`; `design` reads only the environment variables
-- **Abundance indexes**: `design --ab N` / `compose --ab N` (`--abundance-bits`) compose an index storing `N` bits per sample and k-mer (2^N abundance classes), built by kmtricks with `--mode hash:bfc:bin --bitw N`
-  - `bitw` is stored in the index definitions and the layout; definitions without it, and `--ab 0` (default), are presence/absence as before
-  - An update with another `bitw` than the layout is refused: presence/absence and abundance indexes cannot be merged
+- **Abundance indexes**: `design`/`compose --ab N` (`--abundance-bits`) store `N` bits per sample and k-mer (2^N abundance classes), built by kmtricks with `--mode hash:bfc:bin --bitw N`
+  - `N` is 0 (presence/absence, the default for a new index) or 2 to 8; an update takes the layout's `bitw` and refuses another one
   - Storage estimates, shard sample limits, merge memory and `bytes_per_row` count `bitw` bits per sample
   - Queries report the abundance class of each sample instead of the fraction of k-mers found
-- **`list --paired [REGEX]`** (`design --paired`): groups mate files (R1/R2) of a directory into one sample
-  - The default regex matches mate tokens such as `_R1`, `_R2`, `_1`, `.2`; `--paired=REGEX` sets a custom one
-  - Without `--paired`, a warning is logged when unassembled files (`--dt u`) look like read pairs
+- **k-mer ratio**: `list` records `kmer_total` (ntcard F1) next to `kmer_count`; `compose` records each shard's `kmer_ratio` (largest `kmer_total / kmer_count` of its samples, else 1 for assembled data and 4 for raw reads, times `--kr, --kmer-ratio`), and `plan` sizes partitions and threads from it, since kmtricks holds every occurrence before `--hard-min`
+- **Shard budget** (from Logan, `compose`/`design --sb, --shard-budget`): a shard of span `s` holds at most `ceil8(budget / base^s)` samples; `2**43` by default for a new index, 0 for no limit. Stored in the layout: an update keeps it, passing it again re-shards
+- **Automatic group count** (`profile`/`design -g 0`): one group per 1000 samples, plus one while it saves at least 20% of the storage, up to 20 groups; a single group when it takes at most a size (4 GB of built index for `design`, none by default for `profile`)
+  - Tuned with `profile --auto-group-samples`, `--auto-group-max`, `--auto-group-min-gain` and `--auto-group-single-max` (env `KMHELPERS_AUTO_GROUP_*`, the only way for `design`), recorded under `auto_group` in `profile.yaml`
+- **`profile`/`design --no-grouping, --ngp`**: a single group; refused with `-g N`
+- **`design --redesign`**: removes the previous design (`compose/NAME/`, `profile/`) and designs again; without it, `design` warns when it reuses a layout (`-g`, `-b`, `--sb`, `--ab` are then not used)
+- `design`/`compose` refuse a session already in the layout, whose samples would be counted twice
+- **`compose`/`design --ncl, --no-copy-list`**: the session points to the input sample list instead of copying it; `design` never copies the list it writes
+- **`list --paired [REGEX]`** (`design --paired`): groups mate files (R1/R2) of a directory into one sample; the default regex matches tokens such as `_R1`, `_2`, `.2`. Without it, unassembled files that look paired are warned about
+- **Published partition counts**: `apply` records the partition count of each published shard in the layout (`map.<span>.shards[].partition_count`); `compose` keeps them and later `plan`s reuse them (`partitions_source: published`), a later `-P` applying to new shards only
+- **Chunk budget** (`plan`, `build` `--cb, --chunk-budget`): a kmtricks chunk of span `s` holds at most `ceil8(budget / base^s)` samples (`2**37` by default, 0 for no limit), within the open-files limit and `--max-chunks`
+- **`--keep-previous`** (`plan`, `build`): keeps the replaced version of an updated index in `BUILD_DIR/work/SESSION/previous/`
+- **A session is planned once**: `build` on a planned session runs it (resumes it, or submits what is left with `--hpc`; `NOTHING TO DO` when all is built) and `plan` refuses it; **`--replan`** (`plan`, `build`) removes `BUILD_DIR/assets/SESSION/` and plans again. While jobs of the plan are queued or running, `plan` refuses and `build` follows them
+- **`build` summary**: after a new plan, `build` prints the shards, samples, runs (jobs with `--hpc`) and estimated size per span and in total against the free space of `BUILD_DIR`, then asks to build or submit; skipped with `-Y` or without a terminal
+- **`apply --task PATTERN`**: runs a shard or its task (`<shard>_<session>`) whole, or one job (`<shard>_j<k>`, `<shard>_publish`); **`apply --pending`** lists the jobs not done yet
+- **`apply --cancel`**: once confirmed (`-Y`), `scancel`s the SLURM jobs of the plan and sends SIGTERM to a local `apply` (its running step is recorded `CANCELLED`); with `--task`, only the matching jobs
+- **Plan/apply report** (`BUILD_DIR/logs/kmhelpers_{plan,apply}_*.yaml`): per shard, with a `summary` (status, times, counts, totals), the host, CPUs and SLURM job, the resolved limits (with `files_soft` and `files_hard`), `kmhelpers.commit` (git commit of the installed kmhelpers), the build parameters (`partitions_source`), scripts, runs and publish steps
+  - `apply` adds the duration, peak RSS, CPU efficiency and RAM share of each run, and the publish duration and size of each shard
+  - Written as the build goes (`summary.status: RUNNING`), and attached to the `--notify` mail
+- **Run and shard stats** in `BUILD_DIR/logs/<shard>/`: each run writes `<run>.stats.json` (time, peak RAM and disk, samples, Bloom filter size), `publish.sh` folds them into `stats.yaml` over every session of the shard; **`--fpr-stats`** (`plan`, `build`) adds the FP rate of each sample (kmtricks `fpr/`) and lists those above 1%
+- The run scripts delete their `superkmers/` folder once built
+- **Lock files removed once built**: a complete build removes `BUILD_DIR/.registry.lock` and `layout.yaml.lock` unless another process holds them (hidden `apply --cleanup`); every kmhelpers lock is a `flock(2)` lock
+- **SLURM** (`plan --cluster FILE`): a YAML file (`type: slurm`) of the partition, time, excluded nodes, setup lines and resources of each kind of job (`jobs.build`, `jobs.publish`, `jobs.check`); the plan is sized from it (`--limits` is then refused) and `BUILD_DIR/assets/SESSION/slurm/` gets `build.sbatch`, `publish.sbatch`, `finish.sbatch` and `submit.sh`
+  - `submit.sh` submits what `apply --pending` lists: the build array (`max_parallel`, split at `MaxArraySize`), each publish job after the tasks of its shard, then a finish job after all (`afterany`) that checks the registry, writes `progress.yaml` and mails it; publish and finish jobs use `--kill-on-invalid-dep=yes`
+  - `submit.sh` can be run again: submissions are recorded in `slurm/submitted.tsv`, a job still queued or running is never submitted twice, and each run lists its jobs in its own file under `slurm/lists/`
+  - **`plan --chunks-per-job N`**: splits the chunks of a shard into jobs `<shard>_j<k>` of up to N chunks, then `<shard>_publish`; 0 (default) keeps one job per shard
+  - **`build --hpc FILE`**: plans for the cluster file and runs `submit.sh`, nothing for a `FAILED` or `PARTIAL` plan; with jobs of the plan still active, it submits the others (cancelled or lost)
+- **`apply --status`**: the progress of each shard and step (`assets/SESSION/<shard>/state/<step>.json`, summed up in `progress.yaml`): `SUCCESS`, `FAILED`, `CANCELLED`, `RUNNING` (job, node, start), `LOST` (gone from `squeue`, with the cause from its SLURM log) or `PENDING`. Earlier attempts of a step are kept, its previous log as `<step>.log.prev`; the overall status stays `RUNNING` while a shard runs
+- **`--show-progress, --sp`** (`apply`, `build`): one line per shard with a progress bar, time, running and queued steps and end status; `apply --status --sp` follows a cluster build every `--interval` seconds, exiting 0 on success
+  - With `--task PATTERN`: the matching steps in detail, with job, node, time, RAM against its limit (colored at 80% and 95%) and current kmtricks phase
+- Step logs are written as the step runs, its resource usage at the end under `--- RESOURCES ---`
+- **`--notify-level global|shard`** (`apply`, `build`): `shard` also mails each shard when it ends; the mails carry the progress tree
 - **`query --export` (`-x`)**: writes a Markdown or HTML report beside the data results
 - **`query -f none`**: keeps only the raw kmindex results
-- **Query statistics**: `sequence_stats.tsv` (one row per query sequence) and `sample_stats.tsv` (one row per matched sample), with match count, perfect matches and mean and median scores; `--no-stats` skips them. The overall rows are also in the md and html reports
-- **Plan/apply report** (`BUILD_DIR/logs/kmhelpers_{plan,apply}_*.yaml`): organised by shard (`run` renamed `shards`, the span table moved to `summary.spans`), with a `summary` (status, times, counts, totals), the host, kernel, CPUs and SLURM job, the resolved limits, `kmhelpers.git_commit` from `$GIT_COMMIT`, each part's build parameters (with `partitions_source`: `design`, `auto`, `registered` or `run`), scripts and kmtricks runs, and how each shard is published (merge steps and their estimated memory)
-  - `apply` adds per run the duration, peak RSS, max CPU, CPU efficiency and share of the RAM limit read from `logs/<run>/kmtricks.log`, and per shard the publish duration and size on disk
-  - Written as the run goes: a running or killed `apply` leaves its report so far (`summary.status: RUNNING`), also attached to the `--notify` mail
-- **`--keep-previous`** (`plan`, `apply`, `build`): keeps the replaced version of an updated index in `BUILD_DIR/work/SESSION/previous/`
+- **Query statistics**: `sequence_stats.tsv` and `sample_stats.tsv` (match count, perfect matches, mean and median scores), also in the reports; `--no-stats` skips them
+- **Ignored samples in `query`**: samples listed in a `kmignore` file next to the registry `index.json`, plus those of **`--ignore FILE`** for one run, are dropped from the results, statistics and reports (kmindex still queries them)
+- **`manage remove-samples FILE`**: removes the listed samples (`kmignore` format) from the shards holding them (all, or `--shard`) by dropping their columns from every uncompressed matrix; the new version is built in `BUILD_DIR/work/remove-samples/<shard>/`, checked, then swapped in under the registry lock. Compressed shards are refused; an interrupted removal is finished or undone by the next run. `numpy` is now a dependency
+- **Query checks in `manage check`**, after the structure checks (`--no-query, --nq` skips them; `apply` runs them after each publish):
+  - 10 random (k+z)-mers of each shard's first sample (`-z`, default 6): the sample's score is printed
+  - 10 random 1000-base sequences: the mean score (empirical FP rate) is printed next to the expected one; a shard whose positive score is not `--min-gap` (default 0.5) above it fails the check, so `publish.sh` stops before its swap
 - **`manage check -n`**: checks only the given indices, and fails if one is not registered
-- **`manage move-dir`** (internal, hidden): renames a folder for the generated scripts, failing instead of copying across filesystems
 - **`manage remove --missing-ok`** and **`--keep-link`**: skip unregistered IDs; only edit `index.json`
-- **Shard budget** (from Logan, `compose`/`design --sb, --shard-budget`): a shard of span `s` holds at most `ceil8(budget / base^s)` samples
-  - Defaults to `2**43` for a new index; `--shard-budget 0` disables it
-  - `shard_budget` is stored in the layout; an update keeps it, passing it again re-shards the layout
-- **Chunk budget** (`plan`, `apply`, `build` `--cb, --chunk-budget`): a kmtricks chunk of span `s` holds at most `ceil8(budget / base^s)` samples (default `2**37`, 0 for no limit), still within the open-files limit and `--max-chunks`
+- **`manage move-dir`** (internal, hidden): renames a folder for the generated scripts, failing instead of copying across filesystems
 
 ### Changed
 
+- **Breaking**: `manage rename OLD NEW` takes the names as arguments (was `-f OLD -t NEW`); a missing index is reported as such, and a missing `index.json` is no longer created
+- **`plan` prepares, `apply` runs**: `plan` takes every build decision and writes `BUILD_DIR/assets/SESSION/plan.yaml` and one directory of scripts per shard (`<run>.sh` and `.fof` per kmtricks run, `publish.sh`); `apply` only runs them, under monitoring
+  - `apply` refuses a missing or stale plan (an input hashed in `plan.yaml` changed, or another kmhelpers version made it)
+  - `apply` loses its sizing options (`--limits`, `--max-chunks`, `--chunk-budget`, ...), now `plan`/`build` ones, and `--shard`, replaced by `--task`
+  - Before publishing a shard, `apply` checks the registry is as `plan` saw it, or as an interrupted publish left it
+  - Every script can be run again: it skips published samples and complete runs, and rebuilds incomplete ones
+  - Logs per shard: `BUILD_DIR/logs/<shard>/<run>.log` and `publish.log`
+- Auto-sized partition counts are rounded up to the next power of 2, at most 256; a count fixed by `-P` or recorded for a published shard is kept
+- `plan` warns when a partition count leaves even one thread over the RAM limit, and its splitting message names the bound that sets the chunk size
+- **Open-files limit** (as in 0.7.4): also raised for kmtricks and in the scripts of `BUILD_DIR/assets/SESSION/`
+- Confirmation prompts are asked only on a terminal in the foreground; otherwise they refuse with a hint to pass `-Y`
+- The command duration (`Done in ...`) is printed to stderr, so stdout carries only the command's output
 - **Option names made consistent**
   - `design`/`compose -s, --session` (was `--session-id`), the same name as in `plan`/`apply`/`build`
   - `design -a, --autorename` (was `-r`), as in `list`
@@ -117,7 +83,6 @@ All notable changes to this project will be documented in this file.
   - File names lose the `NAME_` prefix: `samples.jsonl`, `summary.csv` (one row per shard); `orig_dist.csv` is replaced by `distribution` in `index.yaml`
   - `design` writes its sample list to `DESIGN_DIR/list/samples_SESSION.jsonl`
 - **`plan`, `apply`, `build` take a directory**: the design directory, a compose directory or `COMPOSE_DIR/NAME`, resolved to the session given by the new `-S/--session` or the last one composed; a session's `index.yaml` or a shard file can still be passed
-- **`compose`/`design --ab`** defaults to the layout's value on an update (0 for a new index), instead of 0; an explicit different value is still refused
 - **Default group count** (`profile -g`, `design -g`): 0 (automatic) instead of 20
 - **New indexes are sharded by default** under the shard budget: shards are named `NAME_g<i>_p<k>` (was `NAME_g<i>` without `--shard-size`); layouts without a budget keep no limit
 - **`compose`/`design --shard-size` (`-si`) is now the hidden `--shard-budget-bytes`**: it caps a shard by bytes on disk instead of the shard budget, not on top of it, and cannot be combined with `--shard-budget`
@@ -130,16 +95,14 @@ All notable changes to this project will be documented in this file.
   - The hidden `compose`/`design -P, --partition-count` keeps its capital: `-p` is `--pair-regex` in `design`
 - **`-H, --HELP`** on every command: the help including hidden options, marked `[hidden]`
 - **`--threads`** (`plan`, `apply`, `build`) is hidden and loses `-t`: threads are sized from `--limits` (e.g. `--limits '{"threads": 8}'`)
-- **Shard selection by glob pattern**: `plan`, `apply`, `query` and `compress` `--sh, --shard` take glob patterns (`'idx_g0_*'`); a name without wildcard matches exactly. A pattern matching nothing is a warning; only no match at all is an error (also for `--run`). `plan`/`apply -s, --span` is removed: `--shard 'NAME_g<i>*'` selects a group
+- **Shard selection by glob pattern**: `plan`, `apply`, `query` and `compress` `--sh, --shard` take glob patterns (`'idx_g0_*'`); a name without wildcard matches exactly. A pattern matching nothing is a warning; only no match at all is an error. `plan`/`apply -s, --span` is removed: `--shard 'NAME_g<i>*'` selects a group
 - **`compress` without `--shard` compresses every shard of the registry**, one after the other; a failed shard does not stop the others, the command fails at the end
-- **`plan`/`apply --run PATTERN`**: builds only the matching kmtricks runs (`<part>`, `<part>_chunk<N>`) without merging, e.g. one chunk per SLURM array task; a later `apply --shard` merges them
 - **`design`/`compose -P, --partition-count`** is hidden: the partition count is sized at plan from `--limits` unless fixed
 - **`KmtricksWrapper.pipeline`, `KmindexWrapper.build`**: `bloom_size` is required and `bitw` optional; with `bitw` set, the index is an abundance index of `bloom_size` cells, otherwise presence/absence (`nb_cell` removed)
   - Its size estimate counts `bloom_size` in bits (it was read as bytes)
 - **Index layout**: every index lives in place in `BUILD_DIR/<name>/` (a directory of the registry, not a symlink), and keeps that folder across updates
   - Everything temporary to a session (kmtricks runs, merges, previous version) is in `BUILD_DIR/work/SESSION/`, deleted when the session is done; `BUILD_DIR/kmindex_data/` is no longer used
   - `plan`, `apply` and `build` derive every path from one place (`BuildPaths`); scripts always go to `BUILD_DIR/assets/SESSION/`
-  - Indices of older build dirs (symlinks to `kmindex_data/SESSION/`) keep working; updating one moves it in place
 - **Session parts** are built like chunks: unregistered `kmtricks pipeline` runs, checked, then published by the merge script
   - A new index built in one run is moved in place (`kmindex register --mode move`) instead of being copied by a 1-input `kmindex merge`
   - An update merges the current version with the new runs in a throwaway registry, then swaps them under a lock (`BUILD_DIR/.registry.lock`): unregister, current version aside, new version in place, register
@@ -163,9 +126,14 @@ All notable changes to this project will be documented in this file.
   - The *E. coli* tutorials and `examples/tuto_ecoli_e2e.sh` scan the dataset directories instead of using file lists
   - `list`: new "When to use a sample list" section
   - New `sample_lister` API reference page
+  - `commands/index.md` lists every environment variable and the precedence of command line, environment, configuration file (`-C`) and defaults
+  - `profile.md`: the sizes of `profile.yaml` are for presence/absence, times bitw for an abundance index
 
 ### Removed
 
+- `manage remove -y, --yes`: use the global `-Y`
+- `BUILD_DIR/assets/SESSION/kmhelpers_apply.sh` and the flat `<shard>.sh` / `<shard>_merge.sh` scripts: replaced by the per-shard directories
+- Support for build directories of older kmhelpers: parts registered on their own, and symlinked index folders
 - **`cli/kmindex.py`**: the `kmhelpers kmindex` group, no longer registered; and the unused diagram sources `docs/diagrams/pipeline_diagram_v1.drawio`, `pipeline_diagram_v2.drawio`
 - **`compose` docs** of options removed earlier (`--partition-min-size`, `--partition-count-limit`, `--split-size`)
 - **`-r/--registry` and `-bl/--bloom-dir`** (`plan`, `apply`): the registry is `BUILD_DIR`, where indices live in place
@@ -178,6 +146,60 @@ All notable changes to this project will be documented in this file.
 - **`manage remove`**: always deleted the index files, ignoring `-d/--delete-files`
 - **`query`**: results were lost when kmindex wrote one file per batch (`batch_N/`), and a query without match was reported as failed
 - **`examples/pipeline_api.py`**: used `IndexOpsConfig` arguments removed by the in-place index layout
+
+## [0.7.4] - 2026-11-02
+
+### Added
+
+- **Abundance indexes**: `design -ab N` / `compose -ab N` (`--abundance-bits`) compose an index storing `N` bits per sample and k-mer (2^N abundance classes), built by kmindex with `--nb-cell` and `--bitw N`
+  - `bitw` is stored in the index definitions and the layout; definitions without it, and composes without `-ab`, are presence/absence as before; `-ab` takes 2 to 8
+  - An update with another `bitw` than the layout is refused: presence/absence and abundance indexes cannot be merged
+  - `build` also refuses a part whose `bitw` differs from the `bw` of the registered index it would join (the part is reported failed, the merge is skipped)
+  - Storage estimates, shard sample limits and `bytes_per_row` count `bitw` bits per sample
+
+### Fixed
+
+- **Open-files limit**: chunks are sized from the hard limit (`ulimit -Hn`) instead of the soft one, so a low soft limit no longer cuts needless chunks
+  - Every command raises the soft limit to the hard one at start (logged with `-V`, a warning if it fails), inherited by kmindex and the merge steps
+  - The generated build scripts raise it too (`ulimit -Sn "$(ulimit -Hn)"`)
+- **`list`**: the sample list is written line-buffered, so a killed run loses no counted sample and `--continue` resumes after the last one
+- **Build sizing**: a warning is logged when a fixed partition count leaves even one thread over the RAM limit (the build still runs with 1 thread)
+- **`compose` hard min**: the `abundance_min` of the JSONL header (2 for unassembled data) is used, instead of always 1
+
+## [0.7.3] - 2026-10-28
+
+### Changed
+
+- **Python 3.10 or later is required** (was 3.8): type hints such as `tuple[str, str]` and `dict | None` made `import pykmhelpers` fail on 3.8 and 3.9 since at least 0.7.1
+- **CI**: the compile job installs the package and runs `kmhelpers --help` on Python 3.10 to 3.13; the release verifies the PyPI package on 3.10 and 3.13
+
+### Fixed
+
+- **Python 3.10**: `import pykmhelpers` needed `typing_extensions`, which is not a dependency (`typing.Self` is 3.11+)
+- **Python 3.10 and 3.11**: moving an index left the source in place, as `shutil.rmtree(onexc=...)` is 3.12+
+
+## [0.7.2] - 2026-10-28
+
+### Added
+
+- **`query --export` (`-x`)**: also writes a Markdown or HTML report beside the data results (in development); `--page-size` sets the sequences per page (default 100, 0 disables paging) and `--top` the samples listed per sequence (default 100)
+- **`query -f none`**: keeps only the raw kmindex results
+- **Query statistics**: `sequence_stats.tsv` (per query sequence: matched samples) and `sample_stats.tsv` (per matched sample: matching queries), with perfect matches (count and percentage) and mean and median scores; `--no-stats` skips them
+- **`.zenodo.json`**: archive metadata (title, authors, ORCIDs, license) matching the JOSS paper
+
+### Changed
+
+- **`query`**: `-f md` and `-f html` are replaced by `--export md|html`; the Python API still accepts `output_format="md"` or `"html"` with a deprecation warning, and writes TSV plus the report
+- **`query`**: the query module is split into runner (`query`), result (`query_result`) and report (`query_report`)
+- **`query`**: the results are no longer printed to the console (debug log only)
+- **Release**: the release workflow installs the published version from PyPI on Python 3.8 and 3.11 and checks `kmhelpers --version`
+- **Docs**: `pip install` is the first installation method; pipeline figure updated
+- **Paper**: JOSS review fixes (affiliation, typo, inline citation, BibTeX case protection, pipeline figure)
+
+### Fixed
+
+- **`query`**: results were lost when kmindex wrote one output per batch (`batch_N/`); an empty result is no longer treated as a failure
+- **`query`**: the execution time is shown in seconds (it was labeled ms)
 
 ## [0.7.1] - 2026-10-07
 
