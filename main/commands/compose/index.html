@@ -2619,6 +2619,10 @@
 <td>Max size of one shard (e.g. <code>256GB</code>, <code>500000MB</code>); omit for a single unlimited index per span</td>
 </tr>
 <tr>
+<td><code>-ab, --abundance-bits N</code></td>
+<td>Build an abundance index with <code>N</code> bits per cell, <code>N</code> from 2 to 8 (2^N abundance classes, 4 to 256); without it, the index is presence/absence (1 bit, 2 classes)</td>
+</tr>
+<tr>
 <td><code>-m, --partition-min-size SIZE</code></td>
 <td>Minimum partition file size (e.g. <code>500MB</code>, <code>1GB</code>)</td>
 </tr>
@@ -2660,6 +2664,15 @@ Filling a shard means merging the session's new samples into it; only chunks (a 
 split, see <a href="../plan/">plan</a>) are merged as well.</p>
 <p>Without <code>--shard-size</code>, a span keeps a single index named <code>NAME_g&lt;i&gt;</code>. With it, shards are
 named <code>NAME_g&lt;i&gt;_p&lt;k&gt;</code>.</p>
+<p><strong>Abundance</strong> - by default an index records the presence or absence of each k-mer in each
+sample. With <code>--abundance-bits N</code>, each sample gets <code>N</code> bits per Bloom filter cell instead of
+one, holding the abundance class of the k-mer (2^N classes, kmindex uses 2 by default). The
+index is then built by kmindex with <code>--nb-cell</code> and <code>--bitw N</code>, takes <code>N</code> times more
+space, and a query reports the abundance class of each sample instead of the fraction of
+k-mers found. <code>N</code> is stored in the layout and fixed for the life of the index: an update with
+another value is refused.</p>
+<p><strong>Hard min</strong> - k-mers seen fewer times than the <code>abundance_min</code> of the JSONL header are
+dropped at build time. <code>list</code> sets it to 1 for assembled data and 2 for raw reads.</p>
 <h2 id="examples">Examples</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Build a new index (writes layout to ./db/my_index_layout.yaml)</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kmhelpers<span class="w"> </span>compose<span class="w"> </span>samples.jsonl<span class="w"> </span>-o<span class="w"> </span>./db<span class="w"> </span>-n<span class="w"> </span>my_index<span class="w"> </span>-pf<span class="w"> </span>profiles.yaml

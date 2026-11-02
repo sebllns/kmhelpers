@@ -2701,6 +2701,10 @@
 <td>Desired number of partitions per index, 0 for automatic (default: 0)</td>
 </tr>
 <tr>
+<td><code>-ab, --abundance-bits N</code></td>
+<td>Build an abundance index with <code>N</code> bits per cell, <code>N</code> from 2 to 8 (2^N abundance classes, 4 to 256); without it, the index is presence/absence (1 bit, 2 classes), see <a href="../compose/">compose</a></td>
+</tr>
+<tr>
 <td><code>-nc, --no-count</code></td>
 <td>Skip k-mer counting with ntcard</td>
 </tr>
@@ -2746,11 +2750,14 @@
 <a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="c1"># Force a specific partition count</span>
 <a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>/data/sequences<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli<span class="w"> </span>-p<span class="w"> </span><span class="m">4</span>
 <a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>
-<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="c1"># Import from a plain-text file list</span>
-<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>my_files.txt<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="c1"># Abundance index of raw reads (4 abundance classes)</span>
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>/data/reads<span class="w"> </span>-o<span class="w"> </span>reads_db<span class="w"> </span>-n<span class="w"> </span>reads<span class="w"> </span>-dt<span class="w"> </span>u<span class="w"> </span>-ab<span class="w"> </span><span class="m">2</span>
 <a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>
-<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="c1"># Re-use an existing JSONL sample index, skipping the list step</span>
-<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>coli_db/list/coli_samples_20260101_120000.jsonl<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli
+<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="c1"># Import from a plain-text file list</span>
+<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>my_files.txt<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli
+<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>
+<a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="c1"># Re-use an existing JSONL sample index, skipping the list step</span>
+<a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a>kmhelpers<span class="w"> </span>design<span class="w"> </span>coli_db/list/coli_samples_20260101_120000.jsonl<span class="w"> </span>-o<span class="w"> </span>coli_db<span class="w"> </span>-n<span class="w"> </span>coli
 </code></pre></div>
 <h2 id="see-also">See Also</h2>
 <ul>
