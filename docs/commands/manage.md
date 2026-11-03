@@ -15,7 +15,7 @@ Manage k-mer index registries.
 
 !!! abstract "I/O"
     **Input:** kmindex registry (`-r`), subcommand-specific arguments  
-    **Output:** updated registry state (create, add, remove, rename, relink) or printed info (list, info, check)
+    **Output:** updated registry state (create, add, remove, rename, relink, clean) or printed info (list, info, check)
 
 ## Subcommands
 
@@ -29,6 +29,7 @@ Manage k-mer index registries.
 | `remove` | Remove one or more indices from the registry |
 | `rename` | Rename an index |
 | `relink` | Recreate links after moving index files |
+| `clean` | Remove build leftovers, finished session plans and logs |
 
 ## Subcommand Options
 
@@ -119,6 +120,22 @@ kmhelpers manage rename INDEX_ID NEW_INDEX_ID
 | `-i, --input-dir DIR` | Directory containing the moved index files (required) |
 | `--sh, --shard TEXT` | Shard to relink (default: all registered shards) |
 
+### `clean`
+
+| Option | Description |
+|--------|-------------|
+| `--sh, --shard TEXT` | Clean only these shards (default: all, repeatable); fails if one is not registered |
+| `--assets` | Also remove `assets/<session>/` of the finished sessions |
+| `--logs` | Also remove the logs and reports of `logs/`; the stats are kept |
+| `-n, --dry-run` | Only list what would be removed, with the sizes |
+
+A published shard built from a single kmtricks run is that run moved in place, with its build intermediates. `clean` removes the folders read neither by kmindex nor by kmhelpers once the run is built: `superkmers/`, `counts/`, `minimizers/`, `partition_infos/`, `merge_infos/`, `histograms/`, `filters/` and `howde_index/`. It keeps what a query or a merge reads (`matrices/`, `hash.info`, `repartition_gatb/`, `config_gatb/`, `options.txt`, `kmtricks.fof`, `build_infos.txt`) and what the kmhelpers stats read (`run_infos.txt`, `fpr/`). The run scripts of a build already delete `superkmers/`.
+
+- `--assets` removes the plan, scripts and progress of a session only when every shard of its plan holds its samples and no job of the plan is queued or running; the other sessions are listed as kept, with the reason. `apply --status` no longer knows a removed session.
+- `--logs` removes `logs/<shard>/*.log` (and `.log.prev`), `logs/slurm/` and the `kmhelpers_*.yaml` reports. `stats.yaml` and `<run>.stats.json` stay. It is refused while a job of any session is queued or running.
+
+Everything found is listed with its size, then removed after one confirmation, skipped with the global `-Y` option.
+
 ## Examples
 
 ```bash
@@ -167,4 +184,8 @@ kmhelpers manage relink -i /new/location
 
 # Relink a specific index
 kmhelpers manage relink -i /new/location --sh my_index
+
+# List what clean would remove, then remove it, with the finished sessions and the logs
+kmhelpers manage clean -n --assets --logs
+kmhelpers -Y manage clean --assets --logs
 ```

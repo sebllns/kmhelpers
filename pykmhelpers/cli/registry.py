@@ -3,6 +3,7 @@
 import errno
 import json
 import os
+import shutil
 
 import click
 
@@ -10,6 +11,13 @@ from pykmhelpers import KmindexRegistry, KmtricksIndex
 from pykmhelpers.cli.shared import confirm
 from pykmhelpers.core.bloom_filter import BloomFilterSpecs
 from pykmhelpers.core.byte import ByteCounter
+from pykmhelpers.pipeline.index_ops.clean import (
+    active_sessions,
+    finished_assets,
+    log_files,
+    path_bytes,
+    shard_leftovers,
+)
 from pykmhelpers.pipeline.index_ops.stats import (
     FPR_WARN,
     write_run_stats,
@@ -528,6 +536,90 @@ def registry_relink(obj, input_dir, index_id):
         registry.relink(index_id, input_dir)
     except Exception as e:
         click.ClickException(f"Relink failed: {e}")
+
+
+@registry.command(name="clean")
+@click.option(
+    "--sh",
+    "--shard",
+    "index_ids",
+    multiple=True,
+    help="Clean only these shards (default: all); fails if one is not registered",
+)
+@click.option("--assets", is_flag=True, help="Also remove assets/<session>/ of the finished sessions")
+@click.option("--logs", is_flag=True, help="Also remove the logs and reports of logs/ (stats are kept)")
+@click.option("--dry-run", "-n", is_flag=True, help="Only list what would be removed")
+@click.pass_context
+def registry_clean(ctx, index_ids, assets, logs, dry_run):
+    """Remove what the published shards and finished builds no longer need.
+
+    In each shard: the kmtricks build intermediates (superkmers/, counts/,
+    minimizers/, partition_infos/, merge_infos/, histograms/, filters/,
+    howde_index/), read neither by kmindex nor by kmhelpers once built.
+
+    With --assets: assets/<session>/ (plan, scripts, progress) of each session
+    whose shards are all published and that has no job left. With --logs: the
+    run and publish logs, logs/slurm/ and the kmhelpers_*.yaml reports; the
+    stats (stats.yaml, <run>.stats.json) stay. Refused while a job runs.
+    """
+    registry_path = ctx.obj["registry_path"]
+    build_dir = os.path.realpath(registry_path)
+    try:
+        registry = KmindexRegistry(registry_path, auto_create=False)
+    except Exception as e:
+        raise click.ClickException(f"Cannot open the registry: {e}")
+
+    shards = registry.list_indices()
+    if index_ids:
+        missing = [i for i in index_ids if i not in shards]
+        if missing:
+            raise click.ClickException(f"Not registered: {', '.join(missing)}")
+        shards = list(index_ids)
+
+    targets = shard_leftovers(registry, shards)
+    if assets:
+        removable, kept = finished_assets(build_dir)
+        targets += removable
+        for session, why in kept.items():
+            click.echo(f"⊙ Kept assets/{session}: {why}")
+    if logs:
+        active = active_sessions(build_dir)
+        if active:
+            raise click.ClickException(
+                f"Jobs still queued or running in session(s) {', '.join(active)}: "
+                "not removing the logs"
+            )
+        targets += log_files(build_dir)
+
+    if not targets:
+        click.echo("Nothing to clean")
+        return
+
+    sizes = {t: path_bytes(t) for t in targets}
+    for t in targets:
+        click.echo(f"  {os.path.relpath(t, build_dir)}: {ByteCounter.auto(sizes[t])}")
+    total = ByteCounter.auto(sum(sizes.values()))
+    click.echo(f"Total: {total}")
+    if dry_run:
+        return
+    if not confirm(ctx, f"Remove {len(targets)} item(s) ({total})?"):
+        click.echo("Operation cancelled")
+        return
+
+    freed, failed = 0, []
+    for t in targets:
+        try:
+            if os.path.isdir(t) and not os.path.islink(t):
+                shutil.rmtree(t)
+            else:
+                os.remove(t)
+            freed += sizes[t]
+        except OSError as e:
+            failed.append(t)
+            click.echo(f"✗ {os.path.relpath(t, build_dir)}: {e}", err=True)
+    click.echo(f"Freed {ByteCounter.auto(freed)}")
+    if failed:
+        raise click.ClickException(f"Could not remove {len(failed)} item(s)")
 
 
 # Internal: used by the scripts written by plan/apply/build, not listed in --help
