@@ -18,6 +18,7 @@ from pykmhelpers.pipeline.index_ops.clean import (
     path_bytes,
     shard_leftovers,
 )
+from pykmhelpers.pipeline.index_ops.repair import REMOVE, apply_repairs, plan_repairs
 from pykmhelpers.pipeline.index_ops.stats import (
     FPR_WARN,
     write_run_stats,
@@ -320,8 +321,21 @@ def registry_info(obj, index_id, output_json):
     show_default=True,
     help="Fail a shard whose positive score minus its negative score is below this",
 )
-@click.pass_obj
-def registry_check(obj, verbose, index_ids, no_query, zvalue, min_gap):
+@click.option(
+    "--autorepair",
+    is_flag=True,
+    help="Repair the root path and the links of index.json first, relink lost "
+    "shards, drop the ones found nowhere (index.json is backed up)",
+)
+@click.option(
+    "--search",
+    "search_dirs",
+    multiple=True,
+    type=click.Path(exists=True, file_okay=False),
+    help="With --autorepair: also look for lost shards in DIR (DIR/<name>, DIR/*/<name>)",
+)
+@click.pass_context
+def registry_check(ctx, verbose, index_ids, no_query, zvalue, min_gap, autorepair, search_dirs):
     """Validate registry consistency and check all index structures.
 
     Then, unless --no-query, queries 10 random (k+z)-mers of each shard's first
@@ -333,8 +347,16 @@ def registry_check(obj, verbose, index_ids, no_query, zvalue, min_gap):
     A shard whose positive score is not --min-gap above its negative score is
     broken and fails the check, as does a failing query. A high FP rate is
     only reported.
+
+    With --autorepair, the registry is repaired before the checks: the root
+    path of index.json, relative links made absolute, a lost shard linked to
+    a folder holding its samples (in the old registry path, work/*/previous/
+    or a --search DIR), a shard found nowhere removed from index.json (after
+    a confirmation). index.json is first copied to index.json.<time>.bak.
     """
-    registry_path = obj["registry_path"]
+    registry_path = ctx.obj["registry_path"]
+    if search_dirs and not autorepair:
+        raise click.ClickException("--search needs --autorepair")
 
     try:
         registry = KmindexRegistry(registry_path, auto_create=False)
@@ -345,13 +367,21 @@ def registry_check(obj, verbose, index_ids, no_query, zvalue, min_gap):
                 raise click.ClickException(f"Not registered: {', '.join(missing)}")
             indices = list(index_ids)
 
+        repair_errors = []
+        if autorepair:
+            repair_errors = _autorepair(ctx, registry_path, indices, search_dirs)
+            registry.load_json()
+            indices = [i for i in indices if registry.has_index(i)]
+
         if not indices:
             click.echo("No indices found in registry")
+            if repair_errors:
+                raise click.ClickException(f"{len(repair_errors)} repair(s) failed")
             return
 
         click.echo(f"Validating {len(indices)} index(ices)...\n")
 
-        errors = []
+        errors = [("repair", e) for e in repair_errors]
         for idx_name in indices:
             try:
                 index = registry.get_index(idx_name)
@@ -418,6 +448,30 @@ def registry_check(obj, verbose, index_ids, no_query, zvalue, min_gap):
         raise
     except Exception as e:
         raise click.ClickException(f"Registry check failed: {e}")
+
+
+def _autorepair(ctx, registry_path: str, shards: list[str], search_dirs) -> list[str]:
+    """Plan, print and apply the repairs of the registry; return the errors."""
+    repairs, unregistered = plan_repairs(registry_path, shards, search_dirs)
+    for name in unregistered:
+        click.echo(f"⊙ {name}: index folder not registered (kmhelpers manage add)")
+    if not repairs:
+        click.echo("Nothing to repair\n")
+        return []
+    click.echo("Repairs:")
+    for r in repairs:
+        click.echo(f"  {r}")
+    removed = [r.shard for r in repairs if r.kind == REMOVE]
+    if removed and not confirm(ctx, f"Remove {len(removed)} lost shard(s) from index.json?"):
+        click.echo("Removal cancelled: lost shards kept")
+        repairs = [r for r in repairs if r.kind != REMOVE]
+    backup, errors = apply_repairs(registry_path, repairs)
+    if backup:
+        click.echo(f"✓ index.json backed up to {backup}")
+    for e in errors:
+        click.echo(f"✗ {e}", err=True)
+    click.echo(f"✓ {len(repairs) - len(errors)} repair(s) applied\n")
+    return errors
 
 
 @registry.command(name="remove")

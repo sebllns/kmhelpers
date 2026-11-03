@@ -56,6 +56,8 @@ Manage k-mer index registries.
 | `--nq, --no-query` | Skip the query check |
 | `-z, --zvalue INT` | Z-value of the query check (default: 6) |
 | `--min-gap FLOAT` | Fail a shard whose positive score minus its negative score is below this (default: 0.5) |
+| `--autorepair` | Repair the registry before the checks (see [Autorepair](#autorepair)) |
+| `--search DIR` | With `--autorepair`: also look for lost shards in `DIR` (repeatable) |
 
 After the structure checks, `check` takes 10 random (k+z)-mers from the first sample of each shard
 (from the sample file listed first in the shard's `kmtricks.fof`), the **positives**, and 10 random
@@ -79,6 +81,17 @@ Query check (z=6, 10 (k+z)-mers of each shard's first sample, 10 random sequence
   empirical rate more than 10 times above it (and above 0.001) is reported as suspect; it does not
   fail the check.
 - A failed kmindex query fails the check.
+
+#### Autorepair
+
+Moving a registry, or the folders its shards link to, leaves `index.json` stale. kmindex finds a shard at `<registry>/<name>` and follows it when it is a symlink; a relative link is resolved against the current directory, not the registry. With `--autorepair`, `check` first repairs:
+
+1. the root `path` of `index.json`, set to the registry;
+2. relative links, made absolute;
+3. a lost shard (missing folder or dangling link), linked to the first folder found that holds its samples, in the same order, with a complete structure: `<old path>/<name>` (the registry was moved), `<registry>/work/*/previous/<name>` (an interrupted publish), then for each `--search DIR`: `DIR/<name>`, `DIR/*/<name>` and `DIR/<name of the old link target>`. Nothing is moved or copied, and a folder holding other samples (another version) is never linked;
+4. a shard found nowhere, removed from `index.json` with its dangling link, after one confirmation (skipped with the global `-Y`).
+
+`--sh` limits 2-4 to its shards. Before any change, under the registry lock, `index.json` is copied to `index.json.<YYYYmmdd_HHMMSS>.bak`. A shard whose folder exists but fails its checks is only reported, and an index folder of the registry that is not registered is reported (`manage add` registers it). The checks then run on the repaired registry.
 
 `apply` runs `check` before and after each publish and in the finish job: a broken shard is never
 published, and a shard failing its check after the swap keeps the runs, merges and previous version
@@ -166,6 +179,9 @@ kmhelpers manage check --nq
 
 # Require a wider gap between positive and negative scores
 kmhelpers manage check --min-gap 0.8
+
+# Repair a moved registry, looking for lost shards in /data/indices
+kmhelpers manage check --autorepair --search /data/indices
 
 # Remove an index (keep files)
 kmhelpers manage remove --sh my_index
