@@ -15,7 +15,7 @@ Manage k-mer index registries.
 
 !!! abstract "I/O"
     **Input:** kmindex registry (`-r`), subcommand-specific arguments  
-    **Output:** updated registry state (create, add, remove, rename, relink) or printed info (list, info, check)
+    **Output:** updated registry state (create, add, remove, remove-samples, rename, relink) or printed info (list, info, check)
 
 ## Subcommands
 
@@ -27,6 +27,7 @@ Manage k-mer index registries.
 | `info` | Show detailed information about an index |
 | `check` | Validate registry consistency and index structures |
 | `remove` | Remove one or more indices from the registry |
+| `remove-samples` | Remove samples from the shards holding them, rewriting their matrices |
 | `rename` | Rename an index |
 | `relink` | Recreate links after moving index files |
 
@@ -101,6 +102,45 @@ it was built from.
 
 Each shard is removed after confirmation, skipped with the global `-Y` option.
 
+### `remove-samples`
+
+```
+kmhelpers manage remove-samples [OPTIONS] SAMPLES_FILE
+```
+
+`SAMPLES_FILE` holds one sample name per line, lines starting with `#` are comments (the
+`kmignore` format, see [query](query.md#ignored-samples)).
+
+| Option | Description |
+|--------|-------------|
+| `--sh, --shard TEXT` | Shards to search, names or glob patterns (default: all registered shards) |
+| `-t, --threads INT` | Matrices rewritten at once (default: 1) |
+| `--missing-ok` | Skip the samples found in no shard instead of failing |
+| `--no-check` | Do not check the new version of a shard before publishing it |
+| `-z, --zvalue INT` | Z-value of the query check (default: 6) |
+| `--min-gap FLOAT` | Fail a new shard whose positive score minus its negative score is below this (default: 0.5) |
+
+Each sample is looked up in the `kmtricks.fof` of every shard (or of the `--shard` ones),
+so the list needs no order; a sample held by several shards is removed from each. Nothing
+is changed when a sample is found in no shard (unless `--missing-ok`), or when a shard is
+compressed, would lose all its samples, or is not on the filesystem of the registry. The
+shards and their samples are listed, then removed after confirmation (`-Y` skips it).
+
+For each shard, in `BUILD_DIR/work/remove-samples/<shard>/`:
+
+1. `new/` gets the shard without the samples: their columns are dropped from every
+   `matrices/matrix_<p>.cmbf`, their lines from `kmtricks.fof` and `fpr/partition_<p>.txt`;
+   other files are hardlinked, a sum index (`sum_<p>.vec`) is left out;
+2. `new/` is checked as by `check` (structure and query), in a throwaway registry;
+3. under the registry lock, the shard is unregistered, its folder moved to `previous/`,
+   then `kmindex register --mode move` moves `new/` in place and registers it;
+4. the work folder is deleted.
+
+The Bloom filters keep their size: the other samples keep their FP rate, the matrices
+shrink by the share of removed columns. An interrupted removal is finished (new version
+checked) or undone (previous version restored) by the next run. Do not run it while a
+build publishes to the same shard.
+
 ### `rename`
 
 ```
@@ -158,6 +198,10 @@ kmhelpers manage remove --sh my_index -d
 
 # Remove multiple indices without confirmation
 kmhelpers -Y manage remove --sh idx1 --sh idx2
+
+# Remove samples wherever they are, then from two shards only
+kmhelpers -Y manage remove-samples contaminated.txt -t 8
+kmhelpers manage remove-samples contaminated.txt --sh 'idx_g0_*'
 
 # Rename an index
 kmhelpers manage rename old_name new_name

@@ -672,12 +672,16 @@ class KmindexWrapper(Wrapper):
         name: Optional[str] = None,
         index_path: Optional[str] = None,
         from_file: Optional[str] = None,
+        mode: str = "symlink",
     ) -> dict:
-        """Register kmtricks runs in a global index (``kmindex register``, symlink mode).
+        """Register kmtricks runs in a global index (``kmindex register``).
 
         Either one run (``name`` and ``index_path``) or every ``name<TAB>path``
         line of ``from_file``. kmindex creates the registry directory; it must
         not exist without an ``index.json`` (kmindex then fails to read it).
+        ``mode`` is ``symlink``, ``copy`` or ``move`` (a rename, failing
+        across filesystems); nothing is linked, copied or moved when the
+        registry already holds a folder of that name.
         """
         if (from_file is None) == (name is None or index_path is None):
             raise ValueError("give either name and index_path, or from_file")
@@ -697,6 +701,8 @@ class KmindexWrapper(Wrapper):
                 "--index-path",
                 Toolbox.get_canonical_path(index_path),
             ]
+        if mode != "symlink":
+            cmd += ["--mode", mode]
         cmd += ["--verbose", self._get_verbose_level()]
 
         result = self._monitor_cmd(cmd, log_errors_only=True)
