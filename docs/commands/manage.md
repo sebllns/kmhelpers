@@ -21,14 +21,14 @@ Manage k-mer index registries.
 
 | Subcommand | Description |
 |------------|-------------|
-| `create` | Initialise a registry and optionally register existing indices |
-| `add` | Register existing kmtricks indices in an existing registry |
-| `list` | List all indices in a registry |
-| `info` | Show detailed information about an index |
-| `check` | Validate registry consistency and index structures |
-| `remove` | Remove one or more indices from the registry |
-| `rename` | Rename an index |
-| `relink` | Recreate links after moving index files |
+| `create` | Initialise a registry and optionally register existing shards |
+| `add` | Register existing kmtricks indexes as shards of an existing registry |
+| `list` | List all shards of a registry |
+| `info` | Show detailed information about a shard |
+| `check` | Validate registry consistency and shard structures |
+| `remove` | Remove one or more shards from the registry |
+| `rename` | Rename a shard, or an index (all its shards) |
+| `relink` | Recreate links after moving shard folders |
 | `clean` | Remove build leftovers, finished session plans and logs |
 
 ## Subcommand Options
@@ -109,8 +109,8 @@ it was built from.
 | Option | Description |
 |--------|-------------|
 | `--sh, --shard TEXT` | Shard(s) to remove (required, repeatable) |
-| `-d, --delete-files` | Also delete index files from disk |
-| `--missing-ok` | Skip index IDs that are not registered instead of failing |
+| `-d, --delete-files` | Also delete the shard files from disk |
+| `--missing-ok` | Skip shards that are not registered instead of failing |
 | `--keep-link` | Only edit `index.json`: leave a symlinked entry in place |
 
 Each shard is removed after confirmation, skipped with the global `-Y` option.
@@ -118,13 +118,22 @@ Each shard is removed after confirmation, skipped with the global `-Y` option.
 ### `rename`
 
 ```
-kmhelpers manage rename INDEX_ID NEW_INDEX_ID
+kmhelpers manage rename OLD NEW
+kmhelpers manage rename --index OLD NEW [--compose-dir COMPOSE_DIR]
 ```
 
-| Argument | Description |
-|----------|-------------|
-| `INDEX_ID` | Current index ID |
-| `NEW_INDEX_ID` | New index ID |
+| Argument / Option | Description |
+|-------------------|-------------|
+| `OLD`, `NEW` | Current and new shard name, or index name with `--index` |
+| `--index` | Rename the index: every shard `OLD_g<k>[_p<j>]` becomes `NEW_g<k>[_p<j>]` |
+| `--compose-dir DIR` | With `--index`: also rename `DIR/OLD/` and the shard names its `layout.yaml` records |
+
+A shard is its folder (or symlink) `<registry>/<shard>` and its `index.json` entry. kmindex stores nothing name-specific in the folder, so `rename` renames the folder, or only the link of a symlinked shard, and the key of its entry, in place and in the same order; kmindex is not needed and no data is moved. Its logs and stats, `logs/<shard>/`, follow it (the `shard` field of `stats.yaml` too).
+
+- Under the registry lock, `index.json` is first copied to `index.json.<YYYYmmdd_HHMMSS>.bak`, then written once. A failed rename undoes the folders already renamed.
+- Refused when `NEW` is registered or exists in the registry or in `logs/`, is a reserved name (`work`, `assets`, `logs`, hidden), while a job of a build of the registry is queued or running, or while a session still has a renamed shard to publish.
+- `--index` lists the renames and asks once (skipped with the global `-Y`). An index is only the prefix of its shard names: shards not named `OLD_g<k>` or `OLD_g<k>_p<j>` are not renamed.
+- Without `--compose-dir`, the compose layout keeps the old names, and the next `compose -n OLD` would build new shards under them. With it, `COMPOSE_DIR/OLD/` becomes `COMPOSE_DIR/NEW/`, checked before any shard is renamed, so the next `compose -n NEW` updates the renamed shards. The sessions already composed keep the old names in their files.
 
 ### `relink`
 
@@ -158,14 +167,14 @@ kmhelpers manage create
 # Create a registry and register indices from a directory
 kmhelpers manage create -i /data/indices
 
-# List all registered indices
+# List all registered shards
 kmhelpers manage list
 kmhelpers manage -r /path/to/registry list
 
 # Add indices from a directory to an existing registry
 kmhelpers manage add -i /data/new_indices
 
-# Show info for a specific index
+# Show info for a shard
 kmhelpers manage info --sh my_index
 
 # Show info as JSON
@@ -183,22 +192,25 @@ kmhelpers manage check --min-gap 0.8
 # Repair a moved registry, looking for lost shards in /data/indices
 kmhelpers manage check --autorepair --search /data/indices
 
-# Remove an index (keep files)
+# Remove a shard (keep files)
 kmhelpers manage remove --sh my_index
 
-# Remove an index and delete files from disk
+# Remove a shard and delete its files from disk
 kmhelpers manage remove --sh my_index -d
 
-# Remove multiple indices without confirmation
+# Remove several shards without confirmation
 kmhelpers -Y manage remove --sh idx1 --sh idx2
 
-# Rename an index
-kmhelpers manage rename old_name new_name
+# Rename a shard
+kmhelpers manage rename idx_g0 virus_g0
 
-# Relink all indices from a new directory
+# Rename an index: all its shards, and its compose folder and layout
+kmhelpers -Y manage rename --index idx virus --compose-dir db/compose
+
+# Relink all shards from a new directory
 kmhelpers manage relink -i /new/location
 
-# Relink a specific index
+# Relink one shard
 kmhelpers manage relink -i /new/location --sh my_index
 
 # List what clean would remove, then remove it, with the finished sessions and the logs

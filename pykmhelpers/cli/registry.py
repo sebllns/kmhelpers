@@ -19,6 +19,13 @@ from pykmhelpers.pipeline.index_ops.clean import (
     path_bytes,
     shard_leftovers,
 )
+from pykmhelpers.pipeline.index_ops.rename import (
+    check_layout_rename,
+    index_shards,
+    rename_layout,
+    rename_shards,
+    renamed,
+)
 from pykmhelpers.pipeline.index_ops.repair import REMOVE, apply_repairs, plan_repairs
 from pykmhelpers.pipeline.index_ops.stats import (
     FPR_WARN,
@@ -542,30 +549,80 @@ def registry_remove(ctx, index_ids, delete_files, missing_ok, keep_link):
 
 
 @registry.command(name="rename")
-@click.argument("index_id")
-@click.argument("new_index_id")
-@click.pass_obj
-def registry_rename(obj, index_id, new_index_id):
-    """Rename the index INDEX_ID to NEW_INDEX_ID."""
-    registry_path = obj["registry_path"]
+@click.argument("old")
+@click.argument("new")
+@click.option(
+    "--index",
+    "whole_index",
+    is_flag=True,
+    help="OLD and NEW are index names: rename every shard OLD_g<k>[_p<j>] to NEW_g<k>[_p<j>]",
+)
+@click.option(
+    "--compose-dir",
+    type=click.Path(exists=True, file_okay=False),
+    help="With --index: also rename COMPOSE_DIR/OLD/ and the shard names of its layout",
+)
+@click.pass_context
+def registry_rename(ctx, old, new, whole_index, compose_dir):
+    """Rename the shard OLD to NEW, or with --index the index OLD to NEW.
 
+    The shard folder (or its symlink) and its index.json entry are renamed,
+    with its logs and stats (logs/<shard>/); no data is moved or rebuilt.
+    index.json is first copied to index.json.<time>.bak. Refused while a
+    build of the registry runs or still has a renamed shard to publish.
+
+    With --index, every shard of the index is renamed at once; --compose-dir
+    renames its compose folder and the names its layout records, so the next
+    compose of NEW updates the renamed shards.
+    """
+    registry_path = ctx.obj["registry_path"]
+    if compose_dir and not whole_index:
+        raise click.ClickException("--compose-dir needs --index")
     try:
         registry = KmindexRegistry(registry_path, auto_create=False)
-
-        if not registry.has_index(index_id):
-            raise click.ClickException(f"Index '{index_id}' not found in registry")
-
-        if not registry.rename_index(index_id, new_index_id):
-            raise click.ClickException(
-                f"Could not rename index from '{index_id}' to '{new_index_id}'"
-            )
-
-        click.echo(f"✓ Renamed '{index_id}' to '{new_index_id}'")
-
-    except click.ClickException:
-        raise
     except Exception as e:
-        raise click.ClickException(f"Failed to rename index: {e}")
+        raise click.ClickException(f"Cannot open the registry: {e}")
+
+    if whole_index:
+        shards = index_shards(registry.list_indices(), old)
+        if not shards:
+            raise click.ClickException(f"No shard of index '{old}' ({old}_g<k>[_p<j>]) in the registry")
+        renames = {s: renamed(s, old, new) for s in shards}
+    else:
+        renames = {old: new}
+
+    if compose_dir:
+        try:
+            check_layout_rename(compose_dir, old, new)
+        except ValueError as e:
+            raise click.ClickException(str(e))
+    for src, dst in renames.items():
+        click.echo(f"  {src} -> {dst}")
+    if whole_index and not confirm(ctx, f"Rename {len(renames)} shard(s) of index '{old}' to '{new}'?"):
+        click.echo("Operation cancelled")
+        return
+    try:
+        backup = rename_shards(registry_path, renames)
+    except (OSError, ValueError) as e:
+        raise click.ClickException(f"Rename failed: {e}")
+    click.echo(f"✓ index.json backed up to {backup}")
+    click.echo(f"✓ Renamed {len(renames)} shard(s)")
+
+    if compose_dir:
+        try:
+            layout = rename_layout(compose_dir, old, new)
+        except (OSError, ValueError) as e:
+            raise click.ClickException(
+                f"Shards renamed, but not the compose folder {os.path.join(compose_dir, old)}: {e}"
+            )
+        dst = os.path.join(compose_dir, new)
+        click.echo(f"✓ Compose folder renamed: {dst}" + ("" if layout else " (no layout)"))
+    elif whole_index:
+        click.echo(
+            f"⚠ The compose layout of '{old}' still names the old shards: "
+            "pass --compose-dir to rename it too",
+            err=True,
+        )
 
 
 @registry.command(name="relink")

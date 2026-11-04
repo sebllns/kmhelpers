@@ -614,48 +614,6 @@ class KmtricksIndex:
             logger.error(f"Error moving index: {e}")
             return False
 
-    def rename(self, new_id: str) -> bool:
-        """
-        Rename this index to a new ID.
-
-        Args:
-            new_id: New index ID
-
-        Returns:
-            True if rename was successful, False otherwise
-        """
-        try:
-            # Validate new_id
-            if not new_id or not isinstance(new_id, str):
-                logger.error(f"Invalid new index ID: {new_id}")
-                return False
-
-            if new_id == self._index_id:
-                logger.error(f"New ID is the same as current ID: {new_id}")
-                return False
-
-            # Get current and new paths
-            old_path = os.path.join(self._parent_dir, self.id)
-            new_path = os.path.join(self._parent_dir, new_id)
-
-            # Check if new path already exists
-            if os.path.exists(new_path):
-                logger.error(f"Index with ID '{new_id}' already exists at {new_path}")
-                return False
-
-            # Rename the directory
-            os.rename(old_path, new_path)
-
-            # Update the index ID
-            self._index_id = new_id
-
-            logger.info(f"Successfully renamed index to '{new_id}'")
-            return True
-
-        except Exception as e:
-            logger.error(f"Error renaming index: {e}")
-            return False
-
     def __str__(self) -> str:
         """String representation of the index."""
         return f"Index(id='{self._index_id}', _parent_dir='{self._parent_dir}', nb_samples={self.nb_samples}, bloom_size={self.bloom_size}, nb_partitions={self.nb_partitions})"
@@ -927,40 +885,6 @@ class KmindexRegistry:
                     os.symlink(index_path, index_link, target_is_directory=True)
             except Exception as e:
                 logger.error(f"Error linking {i}: {e}")
-
-    def rename_index(self, old_index_id: str, new_index_id: str) -> bool:
-        """
-        Rename an index in the registry.
-
-        Args:
-            old_index_id: The current index ID
-            new_index_id: The new index ID
-
-        Returns:
-            True if index was renamed, False if operation failed
-        """
-        # Check if old index exists
-        if not self.has_index(old_index_id):
-            return False
-
-        # Check if new index ID already exists
-        if self.has_index(new_index_id):
-            return False
-
-        # Create backup before writing
-        self._backup_json()
-
-        idx = self.get_index(old_index_id)
-        idx.rename(new_index_id)
-
-        self.remove_index(old_index_id, delete_files=False)
-        self.add_index(idx)
-
-        # Write the updated JSON back to file
-        with open(self.json_path, "w") as f:
-            json.dump(self._json_data, f, indent=4)
-
-        return True
 
     def import_directory(self, path):
         logger.info(f"Import indexes from {path}:")

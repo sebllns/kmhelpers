@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - **Negative queries in `manage check`**: 10 random DNA sequences of 1000 bases are queried with the positives, and the mean score of the samples on them (the empirical FP rate) is printed per shard, next to the expected one when the shard has FP stats. A shard whose positive score is not `--min-gap` (default 0.5) above its negative score is broken and fails the check, so `publish.sh` stops before its swap, or before its cleanup with the runs, merges and previous version kept; a high FP rate is only reported
 - **Stats of runs and shards** in `BUILD_DIR/logs/<shard>/`: each run script writes `<run>.stats.json` (time, peak RAM, peak disk, samples, Bloom filter size), `publish.sh` folds them into `stats.yaml` with a summary over every session of the shard (time cumulated, peaks, disk). **`--fpr-stats`** (`plan`, `build`) adds the FP rate of each sample, from the kmtricks estimates (`fpr/`), and the samples above 1%
 - The run scripts delete the `superkmers/` folder of their run once it is built
+- **`manage rename --index OLD NEW`**: renames every shard `OLD_g<k>[_p<j>]` of an index to `NEW_g<k>[_p<j>]` at once; `--compose-dir` also renames `COMPOSE_DIR/OLD/` and the shard names of its layout
 - **`manage check --autorepair`**: before the checks, sets the root `path` of `index.json` to the registry, makes relative links absolute, links a lost shard to a folder holding the same samples (old registry path, `work/*/previous/`, `--search DIR`), and removes from `index.json` a shard found nowhere (after a confirmation); `index.json` is first copied to `index.json.<time>.bak`, under the registry lock
 - **`manage clean`**: removes the kmtricks build intermediates left in published shards (`superkmers/`, `counts/`, `minimizers/`, `partition_infos/`, `merge_infos/`, `histograms/`, `filters/`, `howde_index/`), read neither by kmindex nor by kmhelpers; `--assets` removes `assets/<session>/` of the sessions fully published with no job left, `--logs` the logs and reports (stats are kept, refused while a job runs); `--shard`, `--dry-run`, one confirmation (`-Y`)
 
@@ -69,6 +70,10 @@ All notable changes to this project will be documented in this file.
 - `plan`/`apply --run`: replaced by jobs (`plan --chunks-per-job`, `apply --task`)
 - `BUILD_DIR/assets/SESSION/kmhelpers_apply.sh` and the flat `<shard>.sh` / `<shard>_merge.sh` scripts: replaced by the per-shard directories
 - Support for build directories of older kmhelpers: parts registered on their own (merged in as they were), and symlinked index folders
+
+### Fixed
+
+- `manage rename`: renames the folder (or link) and the `index.json` key in place, without kmindex, with the shard logs and stats; under the registry lock, after a timestamped backup, undone on failure; refuses a registered, existing or reserved new name and a rename during a build. It could drop a shard from `index.json` while reporting success, when re-registering failed
 
 ## [0.8.0] - 2026-10-19
 
