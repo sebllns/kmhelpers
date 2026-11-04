@@ -2,6 +2,7 @@
 
 import errno
 import json
+import logging
 import os
 import shutil
 
@@ -25,6 +26,8 @@ from pykmhelpers.pipeline.index_ops.stats import (
     write_shard_stats,
 )
 from pykmhelpers.pipeline.query_check import MIN_GAP, NEG_COUNT, NEG_LENGTH, query_check
+
+logger = logging.getLogger(__name__)
 
 # (k+z)-mers queried per shard by `check`
 QUERY_CHECK_COUNT = 10
@@ -668,7 +671,9 @@ def registry_clean(ctx, index_ids, assets, logs, dry_run):
             else:
                 os.remove(t)
             freed += sizes[t]
+            logger.info(f"Removed {t}")
         except OSError as e:
+            logger.warning(f"Could not remove {t}: {e}")
             failed.append(t)
             click.echo(f"✗ {os.path.relpath(t, build_dir)}: {e}", err=True)
     click.echo(f"Freed {ByteCounter.auto(freed)}")

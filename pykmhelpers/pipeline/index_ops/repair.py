@@ -14,6 +14,7 @@ root ``path`` of ``index.json`` stale and the links dangling. The repairs:
 
 import glob
 import json
+import logging
 import os
 import shutil
 from dataclasses import dataclass
@@ -23,6 +24,8 @@ from typing import Optional
 from pykmhelpers.core.file_lock import locked
 from pykmhelpers.core.kmindex_layout import check_index_structure, load_fof_file
 from pykmhelpers.pipeline.index_ops.paths import RESERVED_NAMES, BuildPaths
+
+logger = logging.getLogger(__name__)
 
 ROOT, ABSOLUTE, RELINK, REMOVE = "root", "absolute", "relink", "remove"
 
@@ -58,9 +61,14 @@ def matches(path: str, entry: dict) -> bool:
     try:
         # samples first: a cheap test, and no structure warnings for other folders
         if load_fof_file(os.path.join(path, "kmtricks.fof")) != list(entry.get("samples") or []):
+            logger.debug(f"Candidate {path}: other samples")
             return False
-        return check_index_structure(path, int(entry.get("nb_partitions") or 0))
-    except (OSError, ValueError):
+        if not check_index_structure(path, int(entry.get("nb_partitions") or 0)):
+            logger.debug(f"Candidate {path}: incomplete structure")
+            return False
+        return True
+    except (OSError, ValueError) as e:
+        logger.debug(f"Candidate {path}: {e}")
         return False
 
 
@@ -84,6 +92,7 @@ def candidates(name: str, registry: str, old_root: str, old_target: Optional[str
         real = os.path.realpath(path)
         if real not in unique and os.path.isdir(real):
             unique.append(real)
+    logger.debug(f"Candidates for {name}: {unique or 'none'}")
     return unique
 
 
@@ -99,7 +108,9 @@ def plan_repairs(registry: str, shards: Optional[list[str]] = None, search_dirs=
     entries = data.get("index") or {}
     old_root = data.get("path") or ""
     repairs = []
+    logger.info(f"Planning the repairs of {registry} ({len(entries)} shard(s))")
     if old_root != registry:
+        logger.debug(f"Root path {old_root!r} is not the registry")
         repairs.append(Repair(ROOT, None, old_root, registry))
 
     for name in shards if shards is not None else list(entries):
@@ -107,11 +118,14 @@ def plan_repairs(registry: str, shards: Optional[list[str]] = None, search_dirs=
         target = os.readlink(link) if os.path.islink(link) else None
         if os.path.exists(link):
             if target and not os.path.isabs(target):
+                logger.debug(f"{name}: relative link {target}")
                 repairs.append(Repair(ABSOLUTE, name, target, os.path.realpath(link)))
             continue
+        logger.info(f"{name}: " + (f"dangling link {target}" if target else "folder missing") + ", searching")
         places = candidates(name, registry, old_root, target, search_dirs)
         found = find_shard(entries[name], places)
         repairs.append(Repair(RELINK, name, target, found) if found else Repair(REMOVE, name, target, None))
+        logger.info(f"{name}: found in {found}" if found else f"{name}: not found in {len(places)} candidate(s)")
 
     unregistered = []
     for entry in sorted(os.listdir(registry)):
@@ -120,6 +134,7 @@ def plan_repairs(registry: str, shards: Optional[list[str]] = None, search_dirs=
             continue
         if os.path.isdir(path) and os.path.isfile(os.path.join(path, "kmtricks.fof")):
             unregistered.append(entry)
+    logger.info(f"{len(repairs)} repair(s) planned, {len(unregistered)} unregistered folder(s)")
     return repairs, unregistered
 
 
@@ -141,6 +156,7 @@ def apply_repairs(registry: str, repairs: list[Repair]) -> tuple[Optional[str], 
         json_path = _json_path(registry)
         backup = f"{json_path}.{datetime.now().strftime('%Y%m%d_%H%M%S')}.bak"
         shutil.copy2(json_path, backup)
+        logger.info(f"Backed up {json_path} to {backup}")
         data = _load(registry)
         for r in repairs:
             try:
@@ -156,10 +172,13 @@ def apply_repairs(registry: str, repairs: list[Repair]) -> tuple[Optional[str], 
                     if os.path.islink(link):
                         os.unlink(link)
                     data["index"].pop(r.shard, None)
+                logger.info(f"Repaired {r}")
             except OSError as e:
+                logger.warning(f"Repair failed, {r}: {e}")
                 errors.append(f"{r}: {e}")
         tmp = f"{json_path}.{os.getpid()}.tmp"
         with open(tmp, "w") as f:
             json.dump(data, f, indent=4)
         os.replace(tmp, json_path)
+        logger.info(f"Wrote {json_path}")
     return backup, errors

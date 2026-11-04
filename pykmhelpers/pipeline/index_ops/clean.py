@@ -8,6 +8,7 @@
 """
 
 import glob
+import logging
 import os
 
 import yaml
@@ -15,6 +16,8 @@ import yaml
 from pykmhelpers.pipeline.index_ops.paths import STATS_FILE, BuildPaths
 from pykmhelpers.pipeline.index_ops.report import dir_bytes
 from pykmhelpers.pipeline.index_ops.status import BuildState, active_jobs
+
+logger = logging.getLogger(__name__)
 
 # Folders of a kmtricks run that a published index does not need. Kept:
 # matrices/, hash.info, repartition_gatb/, options.txt, kmtricks.fof,
@@ -51,6 +54,7 @@ def shard_leftovers(registry, shards: list[str]) -> list[str]:
             path = os.path.join(root, name)
             if os.path.isdir(path):
                 found.append(path)
+    logger.info(f"{len(found)} build leftover(s) in {len(shards)} shard(s)")
     return found
 
 
@@ -62,7 +66,8 @@ def sessions(build_dir: str) -> dict[str, BuildState]:
         try:
             with open(plan_file) as f:
                 plan = yaml.safe_load(f) or {}
-        except (OSError, yaml.YAMLError):
+        except (OSError, yaml.YAMLError) as e:
+            logger.warning(f"Could not read {plan_file}: {e}")
             plan = {}
         plan.setdefault("tasks", {})
         states[session] = BuildState(plan, BuildPaths(build_dir, session))
@@ -82,12 +87,14 @@ def finished_assets(build_dir: str) -> tuple[list[str], dict[str, str]]:
         active = active_jobs(state)
         if active:
             kept[session] = f"{len(active)} job(s) queued or running"
+            logger.debug(f"Session {session}: active jobs {active}")
             continue
         pending = [t["shard"] for t in state.tasks.values() if not state.task_done(t)]
         if pending:
             kept[session] = f"not published: {', '.join(sorted(set(pending)))}"
             continue
         removable.append(state.paths.assets)
+        logger.debug(f"Session {session}: finished")
     for folder in sorted(glob.glob(os.path.join(glob.escape(build_dir), "assets", "*"))):
         name = os.path.basename(folder)
         if os.path.isdir(folder) and name not in states:
@@ -119,4 +126,5 @@ def log_files(build_dir: str) -> list[str]:
                 continue
             if name.endswith(".log") or name.endswith(".log.prev"):
                 found.append(os.path.join(folder, name))
+    logger.info(f"{len(found)} log file(s) or folder(s) in {logs}")
     return found
