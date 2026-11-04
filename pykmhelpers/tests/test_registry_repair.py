@@ -12,7 +12,7 @@ from pathlib import Path
 from click.testing import CliRunner
 
 from pykmhelpers.cli.kmhelpers import cli
-from pykmhelpers.pipeline.index_ops.repair import ABSOLUTE, RELINK, REMOVE, ROOT, plan_repairs
+from pykmhelpers.pipeline.index_ops.repair import ABSOLUTE, RELINK, REMOVE, ROOT, check_json, plan_repairs
 
 PARTITIONS = 2
 
@@ -164,6 +164,42 @@ class TestRepairs(RepairCase):
         self.write_json({"a": entry(["S1"])})
         _, unregistered = plan_repairs(str(self.reg))
         self.assertEqual(unregistered, ["orphan"])
+
+    def test_check_reports_stale_root_path(self):
+        fake_index(self.reg / "a", ["S1"])
+        self.write_json({"a": entry(["S1"])}, root="/old/place")
+        result = self.check()
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn("index.json: path '/old/place' is not the registry", result.output)
+        self.assertIn("1 OK, 0 FAILED", result.output)
+
+    def test_check_accepts_root_path_through_symlink(self):
+        fake_index(self.reg / "a", ["S1"])
+        os.symlink(self.reg, self.tmp / "alias")
+        self.write_json({"a": entry(["S1"])}, root=str(self.tmp / "alias"))
+        self.assertEqual(check_json(str(self.reg)), [])
+
+    def test_check_reports_relative_link(self):
+        fake_index(self.data / "a", ["S1"])
+        os.symlink("../data/a", self.reg / "a")
+        self.write_json({"a": entry(["S1"])})
+        result = self.check()
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn("a: relative link ../data/a", result.output)
+
+    def test_check_reports_samples_mismatch(self):
+        fake_index(self.reg / "a", ["S1", "S2"])
+        self.write_json({"a": entry(["S2", "S1"])})
+        result = self.check()
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn("a: samples of index.json differ from kmtricks.fof", result.output)
+        self.assertIn("0 OK, 1 FAILED", result.output)
+
+    def test_check_healthy_json(self):
+        fake_index(self.reg / "a", ["S1"])
+        self.write_json({"a": entry(["S1"])})
+        result = self.check()
+        self.assertEqual(result.exit_code, 0, result.output)
 
     def test_search_needs_autorepair(self):
         self.write_json({})

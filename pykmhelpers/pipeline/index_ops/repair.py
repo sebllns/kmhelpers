@@ -138,6 +138,34 @@ def plan_repairs(registry: str, shards: Optional[list[str]] = None, search_dirs=
     return repairs, unregistered
 
 
+def check_json(registry: str, shards: Optional[list[str]] = None) -> list[tuple[str, str]]:
+    """Problems of ``index.json`` as (name, message), name being "index.json"
+    for the root path, else the shard (limited to ``shards``). A missing shard
+    folder is left to the structure check."""
+    registry = os.path.realpath(registry)
+    data = _load(registry)
+    entries = data.get("index") or {}
+    problems = []
+    root = data.get("path")
+    # a path through a symlink still leads kmindex to the registry
+    if not isinstance(root, str) or not os.path.isabs(root) or os.path.realpath(root) != registry:
+        problems.append(("index.json", f"path {root!r} is not the registry {registry}"))
+    for name in shards if shards is not None else list(entries):
+        link = os.path.join(registry, name)
+        if not os.path.exists(link):
+            continue
+        if os.path.islink(link) and not os.path.isabs(os.readlink(link)):
+            problems.append((name, f"relative link {os.readlink(link)}"))
+        try:
+            fof = load_fof_file(os.path.join(link, "kmtricks.fof"))
+        except OSError:
+            continue
+        samples = list(entries[name].get("samples") or [])
+        if fof != samples:
+            problems.append((name, "samples of index.json differ from kmtricks.fof"))
+    return problems
+
+
 def _replace_link(link: str, target: str) -> None:
     if os.path.islink(link):
         os.unlink(link)

@@ -26,7 +26,7 @@ from pykmhelpers.pipeline.index_ops.rename import (
     rename_shards,
     renamed,
 )
-from pykmhelpers.pipeline.index_ops.repair import REMOVE, apply_repairs, plan_repairs
+from pykmhelpers.pipeline.index_ops.repair import REMOVE, apply_repairs, check_json, plan_repairs
 from pykmhelpers.pipeline.index_ops.stats import (
     FPR_WARN,
     write_run_stats,
@@ -348,6 +348,10 @@ def registry_info(obj, index_id, output_json):
 def registry_check(ctx, verbose, index_ids, no_query, zvalue, min_gap, autorepair, search_dirs):
     """Validate registry consistency and check all index structures.
 
+    index.json is checked first: its root path must lead to the registry,
+    shard links must be absolute and the samples of a shard must match its
+    kmtricks.fof.
+
     Then, unless --no-query, queries 10 random (k+z)-mers of each shard's first
     sample (positives) and 10 random DNA sequences of 1000 bases (negatives)
     against the registry. It reports the score of that sample on the positives
@@ -389,13 +393,25 @@ def registry_check(ctx, verbose, index_ids, no_query, zvalue, min_gap, autorepai
                 raise click.ClickException(f"{len(repair_errors)} repair(s) failed")
             return
 
+        errors = [("repair", e) for e in repair_errors]
+        json_problems = {}
+        for name, msg in check_json(registry_path, indices):
+            json_problems.setdefault(name, []).append(msg)
+        hint = "" if autorepair else " (--autorepair fixes it)"
+        for msg in json_problems.pop("index.json", []):
+            errors.append(("index.json", msg))
+            click.echo(f"✗ index.json: {msg}{hint}", err=True)
+
         click.echo(f"Validating {len(indices)} index(ices)...\n")
 
-        errors = [("repair", e) for e in repair_errors]
         for idx_name in indices:
             try:
                 index = registry.get_index(idx_name)
-                if index.check_structure():
+                if idx_name in json_problems:
+                    for msg in json_problems[idx_name]:
+                        errors.append((idx_name, msg))
+                        click.echo(f"✗ {idx_name}: {msg}", err=True)
+                elif index.check_structure():
                     click.echo(f"✓ {idx_name}")
                     if verbose:
                         click.echo(
@@ -408,7 +424,7 @@ def registry_check(ctx, verbose, index_ids, no_query, zvalue, min_gap, autorepai
                 errors.append((idx_name, str(e)))
                 click.echo(f"✗ {idx_name}: {e}", err=True)
 
-        failed = {name for name, _ in errors}
+        failed = {name for name, _ in errors if name in indices}
         queried = [i for i in indices if i not in failed]
         if not no_query and queried:
             click.echo(
