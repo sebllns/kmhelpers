@@ -61,11 +61,10 @@ Manage k-mer index registries.
 
 Before the shard checks, `check` validates `index.json`; each failure fails the check:
 
-- the root `path` must be absolute and lead to the registry (a path through a symlink is accepted);
 - a shard link must be absolute: kmindex resolves a relative target against the directory it runs from, not the registry, so it works only when run from the registry;
 - the `samples` of a shard must match its `kmtricks.fof`, in the same order.
 
-`--autorepair` fixes the first two.
+`--autorepair` fixes the first one.
 
 After the structure checks, `check` takes 10 random (k+z)-mers from the first sample of each shard
 (from the sample file listed first in the shard's `kmtricks.fof`), the **positives**, and 10 random

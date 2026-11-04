@@ -139,17 +139,13 @@ def plan_repairs(registry: str, shards: Optional[list[str]] = None, search_dirs=
 
 
 def check_json(registry: str, shards: Optional[list[str]] = None) -> list[tuple[str, str]]:
-    """Problems of ``index.json`` as (name, message), name being "index.json"
-    for the root path, else the shard (limited to ``shards``). A missing shard
-    folder is left to the structure check."""
+    """Problems of the shards of ``index.json`` (limited to ``shards``) as
+    (shard, message). A missing shard folder is left to the structure check.
+    The root path is not checked: kmindex no longer reads it."""
     registry = os.path.realpath(registry)
     data = _load(registry)
     entries = data.get("index") or {}
     problems = []
-    root = data.get("path")
-    # a path through a symlink still leads kmindex to the registry
-    if not isinstance(root, str) or not os.path.isabs(root) or os.path.realpath(root) != registry:
-        problems.append(("index.json", f"path {root!r} is not the registry {registry}"))
     for name in shards if shards is not None else list(entries):
         link = os.path.join(registry, name)
         if not os.path.exists(link):

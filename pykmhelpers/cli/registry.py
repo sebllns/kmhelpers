@@ -348,9 +348,8 @@ def registry_info(obj, index_id, output_json):
 def registry_check(ctx, verbose, index_ids, no_query, zvalue, min_gap, autorepair, search_dirs):
     """Validate registry consistency and check all index structures.
 
-    index.json is checked first: its root path must lead to the registry,
-    shard links must be absolute and the samples of a shard must match its
-    kmtricks.fof.
+    index.json is checked first: shard links must be absolute and the samples
+    of a shard must match its kmtricks.fof.
 
     Then, unless --no-query, queries 10 random (k+z)-mers of each shard's first
     sample (positives) and 10 random DNA sequences of 1000 bases (negatives)
@@ -397,10 +396,6 @@ def registry_check(ctx, verbose, index_ids, no_query, zvalue, min_gap, autorepai
         json_problems = {}
         for name, msg in check_json(registry_path, indices):
             json_problems.setdefault(name, []).append(msg)
-        hint = "" if autorepair else " (--autorepair fixes it)"
-        for msg in json_problems.pop("index.json", []):
-            errors.append(("index.json", msg))
-            click.echo(f"✗ index.json: {msg}{hint}", err=True)
 
         click.echo(f"Validating {len(indices)} index(ices)...\n")
 
