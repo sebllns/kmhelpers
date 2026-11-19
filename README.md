@@ -5,7 +5,10 @@
 [![Bioconda](https://img.shields.io/conda/vn/bioconda/kmhelpers)](https://anaconda.org/bioconda/kmhelpers)
 [![Anaconda](https://img.shields.io/conda/p/bioconda/kmindex?logo=anaconda&label=bioconda%7Cplatform&color=green)](https://anaconda.org/bioconda/kmhelpers)
 [![Tests](https://github.com/sebllns/kmhelpers/actions/workflows/tests.yml/badge.svg)](https://github.com/sebllns/kmhelpers/actions/workflows/tests.yml)
-[![DOI](https://zenodo.org/badge/1219077365.svg)](https://doi.org/10.5281/zenodo.23730969)
+
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.11287/status.svg)](https://doi.org/10.21105/joss.11287)
+[![DOI](https://zenodo.org/badge/1219077365.svg)](https://doi.org/10.5281/zenodo.23888768)
+
 
 <img src="https://raw.githubusercontent.com/sebllns/kmhelpers/main/assets/kmhelpers-logo-v1.png" alt="kmhelpers logo" width="64" height="64">
 
@@ -66,11 +69,9 @@ The [E. coli tutorial](https://sebllns.github.io/kmhelpers/latest/tutorials/ecol
 
 ## Citation
 
-If you use kmhelpers, please cite the archived software:
+If you use kmhelpers, please cite:
 
-> Bellenous S., Jaron K. S., Peterlongo P. *kmhelpers: A Python toolkit for automated management of genomic indexes*. Zenodo. <https://doi.org/10.5281/zenodo.23730969>
-
-A paper is under review at the [Journal of Open Source Software](https://joss.theoj.org/).
+> Bellenous S., Jaron K. S., Peterlongo P. *kmhelpers: A Python toolkit for automated management of genomic indexes*. Journal of Open Source Software, 11(127), 11287, https://doi.org/10.21105/joss.11287
 
 ## Disclaimer
 
