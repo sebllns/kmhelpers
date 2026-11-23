@@ -187,6 +187,46 @@ class TestResolveBuildParams(unittest.TestCase):
         )
         self.assertGreaterEqual(large.partitions, small.partitions)
 
+    def test_partitions_sized_for_the_merge_of_a_full_shard(self):
+        """A full shard of 100000 samples weighs 339 MB: in 100 MB, 4 merge
+        threads need 0.9 * 4 * 339 / 100 = 13 partitions, rounded to 16."""
+        limits = '{"ram": 8000000000, "files": 4096, "threads": 4}'
+        layout = self.layout(max_samples=100000)
+        build_only = resolve_build_params(
+            make_definition(), 5, make_config(limits=limits), layout
+        )
+        self.assertEqual(build_only.partitions, 4)
+
+        config = make_config(
+            limits=limits, publish_limits='{"ram": 100000000, "threads": 4}'
+        )
+        params = resolve_build_params(make_definition(), 5, config, layout)
+        self.assertEqual(params.partitions, 16)
+
+    def test_merge_partitions_capped(self):
+        config = make_config(
+            limits='{"ram": 8000000000, "files": 4096, "threads": 4}',
+            publish_limits='{"ram": 1000000, "threads": 4}',
+        )
+        with self.assertLogs("pykmhelpers.pipeline.index_ops.sizing", "WARNING") as logs:
+            params = resolve_build_params(
+                make_definition(), 5, config, self.layout(max_samples=100000)
+            )
+        self.assertEqual(params.partitions, 256)
+        self.assertIn("Merges of a full shard", logs.output[0])
+
+    def test_merge_partitions_capped_by_the_open_files(self):
+        """The superk stage opens P + 1 files at 1 thread: 64 files allow 32."""
+        config = make_config(
+            limits='{"ram": 8000000000, "files": 64, "threads": 4}',
+            publish_limits='{"ram": 1000000, "threads": 4}',
+        )
+        with self.assertLogs("pykmhelpers.pipeline.index_ops.sizing", "WARNING"):
+            params = resolve_build_params(
+                make_definition(), 5, config, self.layout(max_samples=100000)
+            )
+        self.assertEqual(params.partitions, 32)
+
     def test_auto_sizing_fits(self):
         config = make_config(limits='{"ram": 8000000000, "files": 4096, "threads": 4}')
         params = resolve_build_params(make_definition(), 7, config, self.layout())

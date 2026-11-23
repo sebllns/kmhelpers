@@ -10,10 +10,13 @@ from pykmhelpers.core.kmindex_paths import chunk_complete, chunk_problems
 from pykmhelpers.pipeline.index_ops import merging
 from pykmhelpers.pipeline.index_ops.merging import (
     MergeLimits,
+    fit_threads,
     footprint,
     max_inputs,
+    merge_partitions,
     merge_threads,
     merge_tree,
+    shard_bytes,
 )
 
 MiB = 2**20
@@ -79,6 +82,35 @@ class TestFootprint(unittest.TestCase):
         full = footprint([1] * 8, 8, 4, 10, 28547584, 4)["mapped"]
         one = footprint([1] * 8, 8, 4, 10, 28547584, 1)["mapped"]
         self.assertAlmostEqual(one * 4, full, delta=full * 0.01)
+
+
+class TestMergePartitions(unittest.TestCase):
+    def test_whole_input_fits(self):
+        self.assertEqual(merge_partitions(10 * MiB, 64, 100 * MiB), 1)
+
+    def test_one_partition_per_thread_share(self):
+        # 0.9 * 4 * 1000 MiB / 360 MiB = 10 partitions
+        self.assertEqual(merge_partitions(1000 * MiB, 4, 360 * MiB), 10)
+
+    def test_default_shard_budget(self):
+        # 2**43 k-mers at span 85 (base 1.1): about 3.5 TB, 3 threads in 13.6 GB
+        size = shard_bytes(10472, 2666315736)
+        self.assertAlmostEqual(size / 1e12, 3.49, delta=0.01)
+        self.assertGreater(merge_partitions(size, 3, 13604533862), 256)
+
+
+class TestFitThreads(unittest.TestCase):
+    def test_span_168_reference(self):
+        # 128 one-sample inputs, P=4: 3.4 GB at T=4, so 2 GB leaves 2 threads
+        fp = footprint([1] * 128, 128, 4, 10, 28547584, 4)
+        self.assertEqual(fit_threads(fp["inputs"], fp["anon"], 4, 4, 4 * 2**30), 4)
+        self.assertEqual(fit_threads(fp["inputs"], fp["anon"], 4, 4, 2 * 2**30), 2)
+
+    def test_capped_by_partitions(self):
+        self.assertEqual(fit_threads(MiB, 0, 4, 144, 2**40), 4)
+
+    def test_at_least_one_thread(self):
+        self.assertEqual(fit_threads(2**40, 0, 4, 8, MiB), 1)
 
 
 class TestMergeTree(unittest.TestCase):

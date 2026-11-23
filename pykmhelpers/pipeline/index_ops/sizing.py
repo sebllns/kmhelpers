@@ -4,10 +4,16 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from pykmhelpers.core.bloom_filter import bf_max_kmers
+from pykmhelpers.core.byte import ByteCounter, SizeFormat
 from pykmhelpers.core.build_params import _resolve_limits, auto_params, params_for_partitions
 from pykmhelpers.pipeline.composer import budget_samples_for
 from pykmhelpers.pipeline.index_db import IndexDefinition
 from pykmhelpers.pipeline.index_ops.layout import LayoutStore
+from pykmhelpers.pipeline.index_ops.merging import (
+    merge_partitions,
+    merge_resources,
+    shard_bytes,
+)
 from pykmhelpers.pipeline.index_ops.types import IndexOpsConfig
 
 logger = logging.getLogger(__name__)
@@ -137,16 +143,38 @@ def resolve_partitions(
         max_chunks=None,
         max_chunk_samples=chunk_samples(i, config, layout),
     )
-    if params.partitions is None:
-        raise TypeError("expected auto_params() to set partitions")
+    if params.partitions is None or params.threads is None:
+        raise TypeError("expected auto_params() to set partitions and threads")
+
     partitions = round_auto_partitions(params.partitions)
     if partitions < params.partitions:
         logger.warning(
             f"  └── Auto-sized partition count {params.partitions} capped to "
             f"{AUTO_MAX_PARTITIONS}: fewer threads fit the RAM limit"
         )
+
+    # The merges of the shard must fit too: a merge thread maps 1/P of the shard
+    merge_limits, merge_cpus = merge_resources(config)
+    build_threads = config.kmindex_threads or params.threads
+    merge_t = min(build_threads, merge_cpus or build_threads)
+    size = shard_bytes(i.bf_size, max(1, samples), getattr(i, "bitw", 0))
+    for_merge = merge_partitions(size, merge_t, merge_limits.ram)
+    side = "build RAM"
+    if for_merge > partitions:
+        side = "merge RAM"
+        # the superk stage opens P + 1 files at 1 thread: a larger P cannot build
+        files = _resolve_limits(config.limits or "{}", config.safety_margin)[1]
+        cap = min(AUTO_MAX_PARTITIONS, 1 << max(0, (files - 1).bit_length() - 1))
+        partitions = max(partitions, min(round_auto_partitions(for_merge), cap))
+        if partitions < for_merge:
+            logger.warning(
+                f"  └── Merges of a full shard ({ByteCounter.auto(size, SizeFormat.BYTE)}) "
+                f"need {for_merge} partitions for {merge_t} thread(s), capped to "
+                f"{partitions} (at most {AUTO_MAX_PARTITIONS}, open files {files}): "
+                "they will use fewer threads"
+            )
     logger.info(
-        f"  └── Partitions: {partitions} (auto from the limits, "
+        f"  └── Partitions: {partitions} (auto from the {side} limit, "
         f"k-mer ratio {i.kmer_ratio})"
     )
     return partitions

@@ -10,8 +10,11 @@ Model (kmindex 0.7.1, measured on Vista, see the merge RAM report):
   ``index_infos.cpp:73-74``): anonymous memory ``R * 2 * 4^m``, whatever is merged.
 * One output row buffer per partition (``merge.cpp:199``): negligible.
 
-So a merge is bounded by the anonymous memory of its registry, by the number of
-mmaps (``vm.max_map_count``) and by the open-file limit, not by the mapped inputs.
+So the number of inputs of a merge is bounded by the anonymous memory of its
+registry, by the number of mmaps (``vm.max_map_count``) and by the open-file
+limit. The mapped inputs are fitted in RAM by the thread count: the partition
+count is sized at plan for the merge of a full shard (``merge_partitions``), and
+each merge step runs with the threads that fit (``fit_threads``).
 """
 
 import json
@@ -48,6 +51,35 @@ def _system_max_maps() -> int:
         return DEFAULT_MAX_MAPS
 
 
+def shard_bytes(bf_size: int, samples: int, bw: int = 1) -> int:
+    """Size on disk of an index of ``samples`` samples, headers left out."""
+    return bf_size * math.ceil(samples * max(bw, 1) / 8)
+
+
+def merge_partitions(size: int, threads: int, ram: int) -> int:
+    """Fewest partitions letting ``threads`` merge threads keep the mapped part
+    of ``size`` bytes of inputs in ``ram`` (``0.9 * min(T, P) / P * size``).
+
+    1 when the whole input fits: the partition count does not matter then.
+    """
+    if MAPPED_FRACTION * size <= ram:
+        return 1
+    return math.ceil(MAPPED_FRACTION * max(threads, 1) * size / max(ram, 1))
+
+
+def fit_threads(inputs: int, anon: int, partitions: int, threads: int, ram: int) -> int:
+    """Most merge threads, at most ``merge_threads(threads, partitions)``, whose
+    footprint (``anon`` plus the mapped share of ``inputs`` bytes) fits ``ram``.
+
+    At least 1, even when one thread does not fit.
+    """
+    t_max = merge_threads(threads, partitions)
+    if not inputs:
+        return t_max
+    per_thread = MAPPED_FRACTION * inputs / max(partitions, 1)
+    return max(1, min(t_max, math.floor((ram - anon) / per_thread)))
+
+
 @dataclass(frozen=True)
 class MergeLimits:
     """Resources one ``kmindex merge`` may use."""
@@ -66,6 +98,17 @@ class MergeLimits:
         ram, files, _, _ = _resolve_limits(limits or "{}", safety_margin)
         maps = json.loads(limits or "{}").get("maps")
         return cls(int(ram), int(files), int(maps or _system_max_maps()))
+
+
+def merge_resources(config) -> tuple[MergeLimits, int | None]:
+    """Limits of a merge job of ``config`` (an ``IndexOpsConfig``) and its
+    ``threads``, None when not given.
+
+    A publish job may have other resources than the build jobs (``--cluster``).
+    """
+    limits = config.publish_limits or config.limits
+    threads = json.loads(limits or "{}").get("threads")
+    return MergeLimits.resolve(limits, config.safety_margin), threads
 
 
 def max_inputs(
@@ -106,7 +149,7 @@ def footprint(
     """Expected memory of one merge, in bytes.
 
     ``anon`` must fit in RAM. ``mapped`` is page cache: when it exceeds RAM the
-    kernel reclaims it during the merge.
+    kernel reclaims it during the merge. ``inputs`` is the size of the inputs.
     """
     t_eff = merge_threads(threads, partitions)
     rows = bf_size // partitions if partitions else bf_size
@@ -118,7 +161,7 @@ def footprint(
         sum(input_samples) * bw / 8
     )
     mapped = int(MAPPED_FRACTION * t_eff / max(partitions, 1) * inputs)
-    return {"anon": anon, "mapped": mapped}
+    return {"anon": anon, "mapped": mapped, "inputs": inputs}
 
 
 @dataclass(frozen=True)

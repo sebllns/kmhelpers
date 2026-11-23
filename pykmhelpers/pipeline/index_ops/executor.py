@@ -1,6 +1,5 @@
 import datetime
 import glob
-import json
 import logging
 import os
 import shlex
@@ -14,9 +13,10 @@ from pykmhelpers.operations.builder import IndexBuilder, backup_name
 from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.pipeline.index_db import IndexDefinition
 from pykmhelpers.pipeline.index_ops.merging import (
-    MergeLimits,
+    fit_threads,
     footprint,
     max_inputs,
+    merge_resources,
     merge_threads,
     merge_tree,
 )
@@ -345,8 +345,9 @@ class IndexExecutor:
         3. otherwise merge the runs, plus the current version of ``target`` if
            there is one, in a balanced tree of merges of at most ``k`` inputs
            (``max_inputs``), each in a throwaway registry holding only its
-           inputs; check the result as in 2; then, under the registry lock:
-           unregister ``target``, move its current version to
+           inputs and run with the threads that fit the RAM limit; check the
+           result as in 2; then, under the registry lock: unregister
+           ``target``, move its current version to
            ``work/<session>/previous/``, move the result in place, register it;
         4. check the published index again (before deleting anything): a
            shard failing its query check (``manage check``) keeps its inputs;
@@ -549,11 +550,9 @@ class IndexExecutor:
         """
         paths = self._paths
         partitions = params.partitions
-        # a publish job may have other resources than the build jobs (--cluster)
-        publish_limits = self._config.publish_limits or self._config.limits
-        merge_cpus = json.loads(publish_limits or "{}").get("threads")
+        limits, merge_cpus = merge_resources(self._config)
         threads = merge_threads(min(params.threads, merge_cpus or params.threads), partitions)
-        limits = MergeLimits.resolve(publish_limits, self._config.safety_margin)
+        # fewer threads in a step only loosen the mmaps and open-files bounds of k
         k, binding = max_inputs(limits, partitions, params.minim_size, threads)
         steps = merge_tree(target, list(inputs), k)
         step_details: list[dict] = []
@@ -573,33 +572,44 @@ class IndexExecutor:
 
         for step in steps:
             samples[step.name] = sum(samples[n] for n in step.inputs)
+            sizes = [samples[n] for n in step.inputs]
+            bw = max(i.bitw, 1)
             fp = footprint(
-                [samples[n] for n in step.inputs],
-                len(step.inputs),
-                partitions,
-                params.minim_size,
-                i.bf_size,
-                threads,
-                bw=max(i.bitw, 1),
+                sizes, len(sizes), partitions, params.minim_size, i.bf_size, threads, bw=bw
             )
-            note = (
-                ", more than the RAM limit: relies on page-cache reclaim"
-                if fp["mapped"] > limits.ram
-                else ""
+            step_threads = fit_threads(
+                fp["inputs"], fp["anon"], partitions, threads, limits.ram
             )
+            if step_threads < threads:
+                fp = footprint(
+                    sizes, len(sizes), partitions, params.minim_size, i.bf_size,
+                    step_threads, bw=bw,
+                )
             step_details.append(
                 {
                     "name": step.name,
                     "level": step.level,
                     "inputs": list(step.inputs),
+                    "threads": step_threads,
                     "est_anon": _size(fp["anon"]),
                     "est_mapped": _size(fp["mapped"]),
                 }
+            )
+            note = (
+                f", {step_threads} thread(s) to fit the RAM limit"
+                if step_threads < threads
+                else ""
             )
             logger.info(
                 f"      {step.name}: {len(step.inputs)} inputs, "
                 f"anonymous {_size(fp['anon'])}, mapped inputs {_size(fp['mapped'])}{note}"
             )
+            if fp["anon"] + fp["mapped"] > limits.ram:
+                logger.warning(
+                    f"      {step.name}: one partition of its inputs exceeds the RAM limit "
+                    f"({_size(limits.ram)}): relies on page-cache reclaim; "
+                    "lower the shard budget (compose --shard-budget) or raise the partitions"
+                )
 
             step_dir = paths.merge_step(target, step.name)
             registry = os.path.join(step_dir, "registry")
@@ -626,7 +636,7 @@ class IndexExecutor:
                         "--to-merge",
                         ",".join(step.inputs),
                         "--threads",
-                        str(threads),
+                        str(step_threads),
                     ),
                     f"touch {_q(done)}",
                 ]
