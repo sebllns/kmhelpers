@@ -1,5 +1,6 @@
 """Unit tests for `kmhelpers manage rename` (no kmindex needed)."""
 
+import fcntl
 import glob
 import json
 import logging
@@ -155,6 +156,25 @@ class TestIndex(RenameCase):
         (compose / "virus").mkdir()
         result = self.rename("--index", "idx", "virus", "--compose-dir", str(compose))
         self.assertNotEqual(result.exit_code, 0)
+        self.assertEqual(self.entries(), self.shards)
+
+    def test_compose_layout_in_use_renames_nothing(self):
+        compose = self.add_layout()
+        lock = compose / "idx" / "layout.yaml.lock"
+        with open(lock, "a") as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            result = self.rename("--index", "idx", "virus", "--compose-dir", str(compose))
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn("in use", result.output)
+        self.assertEqual(self.entries(), self.shards)
+        self.assertTrue((compose / "idx" / "layout.yaml").is_file())
+
+    def test_compose_layout_unreadable_renames_nothing(self):
+        compose = self.add_layout()
+        (compose / "idx" / "layout.yaml").write_text("data: [unclosed")
+        result = self.rename("--index", "idx", "virus", "--compose-dir", str(compose))
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn("Cannot read", result.output)
         self.assertEqual(self.entries(), self.shards)
 
     def test_compose_dir_needs_index(self):

@@ -85,6 +85,11 @@ class TestShards(CleanCase):
         self.assertFalse((self.reg / "a" / "superkmers").exists())
         self.assertTrue((self.reg / "b" / "superkmers").is_dir())
 
+    def test_repeated_shard(self):
+        result = self.run_clean("--sh", "a", "--sh", "a")
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertFalse((self.reg / "a" / "superkmers").exists())
+
     def test_unknown_shard_fails(self):
         result = self.run_clean("--sh", "zz")
         self.assertNotEqual(result.exit_code, 0)
