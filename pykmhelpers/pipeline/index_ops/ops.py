@@ -143,7 +143,7 @@ class IndexOps:
         Under ``assets/<session>/``, one directory per task (``<shard>/``):
         one script per kmtricks run, ``publish.sh`` (publication and cleanup),
         their sample lists and merge inputs. With ``cluster`` (a loaded
-        ``--cluster`` file), also ``slurm/``: the files submitting the jobs,
+        ``--cluster`` file), also ``slurm/`` or ``nextflow/``: the files running the jobs,
         mailing ``notify`` at ``notify_level`` (``global`` or ``shard``).
         """
         if self._paths is None or self._input is None:
@@ -192,9 +192,11 @@ class IndexOps:
             )
             for path in written:
                 logger.debug(f"Written {path}")
-            submit = next((p for p in written if p.endswith("submit.sh")), None)
+            submit = next((p for p in written if p.endswith(("submit.sh", "run.sh"))), None)
             if submit:
                 logger.info(f"Submit the jobs with: bash {submit}")
+            if cluster["type"] == "nextflow" and not shutil.which("nextflow"):
+                logger.warning("nextflow is not on PATH here: run.sh needs it where it runs")
         return self._paths.plan
 
     def run(

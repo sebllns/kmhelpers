@@ -592,6 +592,46 @@ class TestCancel(StatusCase):
             cancel_jobs(["10_0"])
 
 
+class TestNextflowRun(StatusCase):
+    """A Nextflow run started by run.sh: nextflow/head.tsv holds its host and pid."""
+
+    def head(self, host=None, pid=None):
+        path = Path(self.paths.assets) / "nextflow" / "head.tsv"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"{host or socket.gethostname()}\t{pid or os.getpid()}\n")
+
+    def test_every_job_waits_on_the_run_while_it_is_alive(self):
+        self.head()
+        run = f"nextflow {os.getpid()}"
+        self.assertEqual(set(self.state.submitted().values()), {run})
+        self.assertEqual(set(self.state.submitted()), {"idx_g0_j0", "idx_g0_j1", "idx_g0_publish"})
+        # no squeue check of a local run: queued while it lives
+        squeue = mock.Mock(return_value=False)
+        self.assertEqual(self.status("idx_g0_s1_chunk0", run, alive=squeue), (PENDING, f"job {run}"))
+        squeue.assert_not_called()
+        self.assertEqual(shard_progress(self.state, self.task).waiting, 3)
+        with mock.patch("pykmhelpers.pipeline.index_ops.status.shutil.which", return_value=None):
+            self.assertEqual(active_jobs(self.state), [run])
+            self.assertEqual(cancellable_jobs(self.state), [("nextflow run", run, f"RUNNING on {socket.gethostname()}")])
+
+    def test_an_ended_run_is_nothing(self):
+        self.head(pid=999999999)
+        self.assertIsNone(self.state.nextflow_head())
+        self.assertEqual(self.state.submitted(), {})
+        self.assertEqual(active_jobs(self.state), [])
+
+    def test_a_run_on_another_host_is_kept(self):
+        self.head(host="login2", pid=999999999)
+        self.assertEqual(self.state.nextflow_head(), ("login2", "999999999"))
+
+    def test_cancel_stops_its_process_group(self):
+        with mock.patch("pykmhelpers.pipeline.index_ops.status.os.killpg") as killpg, \
+                mock.patch("pykmhelpers.pipeline.index_ops.status.subprocess.run") as run:
+            cancel_jobs(["nextflow 42"])
+        killpg.assert_called_once_with(42, signal.SIGTERM)
+        run.assert_not_called()
+
+
 class TestFinishJob(StatusCase):
     def setUp(self):
         super().setUp()

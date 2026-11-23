@@ -4,7 +4,8 @@
 ``assets/<session>/<shard>/state/<step>.json`` (``<run>`` or ``publish``), one per
 step, so the tasks of a SLURM array never write the same file. The status of a
 step comes from the build directory first, then from its state file, then from
-the submissions of ``submit.sh`` (``slurm/submitted.tsv``):
+the submissions of ``submit.sh`` (``slurm/submitted.tsv``), or the Nextflow
+run started by ``run.sh`` (``nextflow/head.tsv``) while it is alive:
 
 - ``SUCCESS``: its run is complete, or its shard holds the samples of its task;
 - ``FAILED`` / ``CANCELLED``: as recorded, with its log;
@@ -44,6 +45,9 @@ PENDING = "PENDING"
 
 PROGRESS_FILE = "progress.yaml"
 SUBMITTED_FILE = os.path.join("slurm", "submitted.tsv")
+HEAD_FILE = os.path.join("nextflow", "head.tsv")
+# id of the Nextflow run every job of a nextflow plan waits on
+NEXTFLOW_ID = "nextflow "
 SLURM_TAIL = 4096  # bytes of a SLURM log read for why its job ended
 # why a SLURM job ended, from the end of its log; the first match wins
 _SLURM_ENDS = [
@@ -187,8 +191,28 @@ class BuildState:
 
     # --- submissions
 
+    def nextflow_head(self) -> Optional[tuple[str, str]]:
+        """``(host, pid)`` of the Nextflow run of the plan (``run.sh``), unless
+        it is known to have ended: alive on this host, or on another one."""
+        try:
+            with open(os.path.join(self.paths.assets, HEAD_FILE)) as f:
+                host, pid = f.read().split()[:2]
+        except (OSError, ValueError):
+            return None
+        if host == socket.gethostname() and not _pid_alive(pid):
+            return None
+        return host, pid
+
     def submitted(self) -> dict[str, str]:
-        """Last SLURM id of each job submitted by ``submit.sh``."""
+        """Last SLURM id of each job submitted by ``submit.sh``; for a Nextflow
+        run still alive, ``nextflow <pid>`` for every job of the plan."""
+        head = self.nextflow_head()
+        if head:
+            return {
+                job: f"{NEXTFLOW_ID}{head[1]}"
+                for task in self.tasks.values()
+                for job in (task.get("jobs") or {})
+            }
         ids: dict[str, str] = {}
         try:
             with open(os.path.join(self.paths.assets, SUBMITTED_FILE)) as f:
@@ -224,7 +248,7 @@ class BuildState:
             since = (state.get("started") or "")[11:16]
             return RUNNING, f"job {job}, {state.get('node', '?')}, since {since}"
         if job_of:
-            if alive is not None and alive(job_of) is False:
+            if alive is not None and not local_id(job_of) and alive(job_of) is False:
                 # a step before it failed, or its dependency was cancelled
                 return PENDING, f"job {job_of} ended without running it: submit again"
             return PENDING, f"job {job_of}"
@@ -333,10 +357,11 @@ def active_jobs(state: "BuildState") -> list[str]:
     submitted that ``squeue`` still lists, and the local ``apply`` processes
     (``pid N`` on this host) still alive with a step RUNNING."""
     active: list[str] = []
-    if shutil.which("squeue"):
-        for job, jid in state.submitted().items():
-            if squeue_alive(jid):
-                active.append(jid)
+    squeue = shutil.which("squeue")
+    for jid in dict.fromkeys(state.submitted().values()):
+        # a Nextflow run is listed only while it is not known to have ended
+        if jid.startswith(NEXTFLOW_ID) or (squeue and squeue_alive(jid)):
+            active.append(jid)
     host = socket.gethostname()
     for task in state.tasks.values():
         steps = list(task.get("chunks") or {}) + ([PUBLISH] if task.get("publish") else [])
@@ -358,7 +383,12 @@ def cancellable_jobs(
     local ``apply`` processes on this host running one of their steps (``pid N``).
     ``names``: only these jobs of the plan, so never the finish job."""
     found: dict[str, tuple[str, str, str]] = {}  # one per id
-    if shutil.which("squeue"):
+    head = state.nextflow_head()
+    if head:
+        # its jobs are cancelled with it
+        jid = f"{NEXTFLOW_ID}{head[1]}"
+        found[jid] = ("nextflow run", jid, f"{RUNNING} on {head[0]}")
+    elif shutil.which("squeue"):
         for job, jid in state.submitted().items():
             if names is None or job in names:
                 where = squeue_state(jid)
@@ -380,11 +410,17 @@ def cancellable_jobs(
     return list(found.values())
 
 
+def local_id(job: str) -> bool:
+    """A process of this host (``pid N``, ``nextflow N``), not a SLURM job."""
+    return job.startswith(("pid ", NEXTFLOW_ID))
+
+
 def cancel_jobs(ids: list[str]) -> None:
-    """``scancel`` the SLURM ``ids``, SIGTERM the local ``pid N`` ones: a running
-    step is then recorded CANCELLED by its ``apply``. A job already gone is no
-    error."""
-    slurm = [i for i in ids if not i.startswith("pid ")]
+    """``scancel`` the SLURM ``ids``, SIGTERM the local ``pid N`` ones and the
+    process group of a ``nextflow N`` run (Nextflow then cancels its jobs): a
+    running step is then recorded CANCELLED by its ``apply``. A job already
+    gone is no error."""
+    slurm = [i for i in ids if not local_id(i)]
     if slurm:
         try:
             r = subprocess.run(["scancel", *slurm], capture_output=True, text=True, timeout=60)
@@ -393,11 +429,14 @@ def cancel_jobs(ids: list[str]) -> None:
         if r.returncode != 0 and "Invalid job id" not in r.stderr:
             raise RuntimeError(f"scancel failed: {r.stderr.strip() or r.returncode}")
     for i in ids:
-        if i.startswith("pid "):
-            try:
+        try:
+            if i.startswith("pid "):
                 os.kill(int(i[4:]), signal.SIGTERM)
-            except ProcessLookupError:
-                pass
+            elif i.startswith(NEXTFLOW_ID):
+                # run.sh starts it with setsid: its pid is its group
+                os.killpg(int(i[len(NEXTFLOW_ID):]), signal.SIGTERM)
+        except ProcessLookupError:
+            pass
 
 
 def _pid_alive(pid: str) -> bool:

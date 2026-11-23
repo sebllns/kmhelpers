@@ -100,7 +100,7 @@ A job is what `apply --task <job>` and a SLURM array task run. With `--chunks-pe
 
 ### Cluster
 
-`--cluster FILE` sizes the plan from the resources of the jobs that will run it, and writes the files submitting them, to `BUILD_DIR/assets/SESSION/<type>/`. `type` is required and selects the scheduler: only `slurm` for now; another type is refused before anything is planned or written.
+`--cluster FILE` sizes the plan from the resources of the jobs that will run it, and writes the files submitting them, to `BUILD_DIR/assets/SESSION/<type>/`. `type` is required: `slurm` (below) or `nextflow` (see [Nextflow](#nextflow)); another type is refused before anything is planned or written.
 
 ```yaml
 type: slurm
@@ -136,6 +136,42 @@ limits: {files: 131072, maps: 65530}   # optional, see below
 
 Publish and finish jobs are cancelled when a job they wait on fails (`--kill-on-invalid-dep=yes`): nothing stays pending forever, and the finish job reports the failure. [`build --hpc`](build.md#on-a-cluster) plans and submits in one command, and takes `--notify`.
 
+### Nextflow
+
+With `type: nextflow`, the same file runs the jobs with [Nextflow](https://www.nextflow.io/), on any of its executors. kmhelpers keeps every decision: each Nextflow task runs `kmhelpers apply --task <job>`, as a SLURM array task does. Nextflow and Java are needed only where `run.sh` runs.
+
+```yaml
+type: nextflow
+executor: slurm                 # any Nextflow executor: slurm (default), pbspro, lsf, sge, local...
+partition: compute              # queue
+time: 2-00:00:00                # SLURM time format
+max_parallel: 8                 # jobs running or queued at once (executor.queueSize)
+setup: |                        # run before kmhelpers in every job, and in run.sh
+  export PATH=/path/to/kmhelpers/.env/bin:$PATH
+extra: []                       # clusterOptions, as is
+jobs:
+  build: {cpus: 24, mem: 120G}
+  publish: {cpus: 24, mem: 120G}
+  check: {cpus: 1, mem: 4G, time: "1:00:00"}
+```
+
+- `account`, `qos`, `constraint` and `exclude` are SLURM options: with another executor they are refused, give that executor's options in `extra`. `output` is not used: the log of each task is in its work directory (`.command.log`).
+- `executor` is refused with `type: slurm`.
+
+`plan` writes `BUILD_DIR/assets/SESSION/nextflow/`:
+
+| File | Holds or runs |
+|------|---------------|
+| `main.nf` | the workflow, the same for every plan: the build jobs, each publish job once every job of its shard succeeded, then finish after all, successful or not |
+| `jobs.tsv` | the jobs of the plan: shard, job, kind (`build` or `publish`) |
+| `nextflow.config` | the executor, the resources of each kind of job, `setup` as `beforeScript`, and the paths of the files above; nothing is cached (`cache = false`) |
+| `finish.sh` | as `finish.sbatch`: `manage check`, `apply --cleanup`, `apply --status` (and its mail); fails when the build is not done |
+| `run.sh` | starts `nextflow run` in the background on this host, on the jobs `apply --pending` lists (`pending.txt`), and records its host and pid in `head.tsv`; log in `run.out` |
+
+`run.sh` returns once Nextflow is started: the run goes on after the shell or the `build --hpc` that started it ends. On a cluster whose login nodes stop long processes, run it in a long, low-resource job or a terminal multiplexer. It can be run again: it starts nothing while its run is alive, and `apply` skips what is done, so a run after a failure runs only the failed jobs and what waits on them. Rerun `run.sh` (or `build --hpc`), not `nextflow -resume`.
+
+A failed job stops its shard only: the other shards go on, and its publish job does not run. While the run is alive, `apply --status` shows the steps not started as queued (`job nextflow <pid>`); `apply --cancel` stops the run, which cancels its jobs (see [apply - Cancelling a build](apply.md#cancelling-a-build)).
+
 ## Examples
 
 ```bash
@@ -151,6 +187,10 @@ kmhelpers plan coli_db -o coli_build/ --chunks-per-job 4
 # Size the plan for the SLURM jobs of cluster.yaml, then submit them
 kmhelpers plan coli_db -o coli_build/ --cluster cluster.yaml
 bash coli_build/assets/initial/slurm/submit.sh
+
+# The same jobs with Nextflow (type: nextflow in nf.yaml)
+kmhelpers plan coli_db -o coli_build/ --cluster nf.yaml
+bash coli_build/assets/initial/nextflow/run.sh
 
 # Skip path validation (for exporting scripts)
 kmhelpers plan coli_db -o coli_build/ --offline

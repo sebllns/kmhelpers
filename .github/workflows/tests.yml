@@ -68,6 +68,11 @@ jobs:
         shell: bash -el {0}
         run: pip install -e .[dev]
 
+      # Runs the Nextflow end-to-end test (skipped without nextflow)
+      - name: Install Nextflow
+        shell: bash -el {0}
+        run: conda install -y -c conda-forge -c bioconda nextflow
+
       - name: Run tests
         shell: bash -el {0}
         run: pytest pykmhelpers/tests

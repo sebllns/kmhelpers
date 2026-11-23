@@ -3,6 +3,7 @@
 import logging
 import os
 import shutil
+import socket
 import time
 from datetime import datetime
 
@@ -13,13 +14,16 @@ import pykmhelpers.core.log
 import pykmhelpers.pipeline.index_ops as ops
 from pykmhelpers.cli.notify import ExitNotifier, mail
 from pykmhelpers.pipeline.index_ops.runner import PlanRunner, describe
+from pykmhelpers.pipeline.index_ops.cluster import submit_script
 from pykmhelpers.pipeline.index_ops.progress import ShardDisplay
 from pykmhelpers.pipeline.index_ops.status import (
+    HEAD_FILE,
     PROGRESS_FILE,
     RUNNING,
     SUCCESS,
     cancel_jobs,
     cancellable_jobs,
+    local_id,
     overall,
     ram_source,
     render,
@@ -160,6 +164,14 @@ def cancel(ctx, input_file: str, work_dir: str, task_ids=None) -> int:
     number of jobs cancelled."""
     # a plan made from other inputs (or another kmhelpers) is cancelled too
     runner = PlanRunner(work_dir, input_file, fresh=False)
+    head = runner.state.nextflow_head()
+    if head and task_ids:
+        raise click.UsageError("A Nextflow run is cancelled whole: --cancel without --task")
+    if head and head[0] != socket.gethostname():
+        raise click.ClickException(
+            f"The Nextflow run of this plan runs on {head[0]} (pid {head[1]}): cancel it "
+            f"there, or remove {os.path.join(runner.state.paths.assets, HEAD_FILE)} if it ended"
+        )
     names = None
     if task_ids:
         names = {j.name for j in runner.jobs(shared.split_names(task_ids))}
@@ -168,12 +180,13 @@ def cancel(ctx, input_file: str, work_dir: str, task_ids=None) -> int:
         click.echo("Nothing to cancel: no job of this plan is queued or running")
         return 0
     for job, jid, where in found:
-        click.echo(f"{job}: {jid if jid.startswith('pid ') else f'job {jid}'}, {where}")
+        click.echo(f"{job}: {jid if local_id(jid) else f'job {jid}'}, {where}")
     if not shared.confirm(ctx, f"Cancel these {len(found)} job(s)?"):
         click.echo("Nothing cancelled")
         return 0
     cancel_jobs([jid for _, jid, _ in found])
-    submit = os.path.join(runner.state.paths.assets, "slurm", "submit.sh")
+    cluster_type = (runner.state.plan.get("cluster") or {}).get("type") or "slurm"
+    submit = submit_script(runner.state.paths.assets, cluster_type)
     click.echo(
         f"{len(found)} job(s) cancelled. Where the build stands: "
         f"`kmhelpers apply {input_file} -o {work_dir} --status`; to submit what "
@@ -193,7 +206,8 @@ def cancel(ctx, input_file: str, work_dir: str, task_ids=None) -> int:
     "do_cancel",
     is_flag=True,
     help="🚩  Cancel the jobs of the plan still queued or running (scancel the "
-    "SLURM jobs of submit.sh, SIGTERM a local apply on this host), after a "
+    "SLURM jobs of submit.sh, SIGTERM the Nextflow run of run.sh or a local apply "
+    "on this host), after a "
     "confirmation (-Y), and run nothing. With --task, only the matching jobs "
     "(the finish job is kept; SLURM drops the publish job of a cancelled build "
     "job). A cancelled step is recorded CANCELLED: submit.sh submits it again.",

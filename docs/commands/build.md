@@ -103,7 +103,7 @@ kmhelpers apply coli_db -o coli_build/ --status          # where it stands, any 
 kmhelpers apply coli_db -o coli_build/ --status --sp     # one line per shard, until it ends
 ```
 
-With `--hpc FILE` (see [plan - Cluster](plan.md#cluster)), `build` plans for the jobs of `FILE`, runs the generated `slurm/submit.sh`, and exits: the SLURM jobs build the indices. Nothing is submitted when the plan is `FAILED` or `PARTIAL`. The jobs are:
+With `--hpc FILE` (see [plan - Cluster](plan.md#cluster)), `build` plans for the jobs of `FILE`, runs the generated `slurm/submit.sh`, and exits: the SLURM jobs build the indices. With `type: nextflow`, it runs `nextflow/run.sh` instead, which starts the jobs with Nextflow in the background (see [plan - Nextflow](plan.md#nextflow)); the rest of this section describes SLURM. Nothing is submitted when the plan is `FAILED` or `PARTIAL`. The jobs are:
 
 1. the **build array**: one task per build job (a shard, or `--chunks-per-job` chunks of it);
 2. one **publish** job per shard, after the array tasks of that shard;

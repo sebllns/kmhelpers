@@ -1154,6 +1154,33 @@ class TestChunkedBuild(PipelineE2EBase):
         proc = subprocess.run(cmd, cwd=self.tmp, capture_output=True, text=True, env=env)
         self.assertNotEqual(proc.returncode, 0)
 
+    @unittest.skipUnless(shutil.which("nextflow"), "nextflow not on PATH")
+    def test_build_hpc_with_nextflow(self):
+        """build --hpc with type nextflow (local executor) runs the chunk jobs,
+        then the publish job, then finish; --sp follows the run to its end."""
+        session_file = self.design()
+        cluster = self.tmp / "nextflow.yaml"
+        cluster.write_text(yaml.safe_dump({
+            "type": "nextflow", "executor": "local",
+            # the tasks run kmhelpers of this environment
+            "setup": f"export PATH={os.path.dirname(sys.executable)}:$PATH",
+            "jobs": {"build": {"cpus": 1, "mem": "2G"}, "publish": {"cpus": 1, "mem": "2G"}},
+            "limits": {"files": 5},
+        }))
+        cmd = [sys.executable, "-m", CLI_MODULE, "build", str(session_file), "-o", "build",
+               "--hpc", str(cluster), "--chunks-per-job", "2", "--sp"]
+        proc = subprocess.run(cmd, cwd=self.tmp, capture_output=True, text=True, timeout=900)
+        nf = self.tmp / "build" / "assets" / "initial" / "nextflow"
+        log = (nf / "run.out").read_text() if (nf / "run.out").exists() else ""
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr + log)
+        self.assertTrue((nf / "head.tsv").is_file())
+        self.assert_merged_and_clean()
+        status = self.run_cli("apply", session_file, "-o", "build", "--status")
+        self.assertIn("SUCCESS", status.stdout)
+        # nothing left to run: run.sh starts nothing
+        again = subprocess.run(["bash", str(nf / "run.sh")], capture_output=True, text=True)
+        self.assertIn("nothing pending", again.stdout, again.stderr)
+
     def test_show_progress_lines(self):
         """--sp prints one line per shard as its steps end, chunked or not;
         --status --sp returns at once on an ended build: 0 on SUCCESS, else 1."""

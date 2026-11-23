@@ -280,8 +280,8 @@ cluster_option = click.option(
     required=False,
     type=click.Path(exists=True, dir_okay=False),
     help="📁  YAML file of the scheduler and the resources of each kind of job "
-    "(type: slurm). Sizes the plan from these resources (not with --limits) and "
-    "writes BUILD_DIR/assets/SESSION/slurm/, with submit.sh.",
+    "(type: slurm or nextflow). Sizes the plan from these resources (not with --limits) and "
+    "writes BUILD_DIR/assets/SESSION/slurm/ (submit.sh) or nextflow/ (run.sh).",
 )
 chunks_per_job_option = click.option(
     "--chunks-per-job",

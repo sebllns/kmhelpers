@@ -17,6 +17,7 @@ from pykmhelpers.cli.apply import run_plan, show_status, watch
 from pykmhelpers.cli.notify import ExitNotifier
 from pykmhelpers.cli.plan import active_plan_jobs, make_plan, remove_session_plan, shown_jobs
 from pykmhelpers.core.byte import ByteCounter
+from pykmhelpers.pipeline.index_ops.cluster import SUBMIT_SCRIPTS, submit_script
 from pykmhelpers.pipeline.index_ops.paths import BuildPaths
 from pykmhelpers.pipeline.index_ops.plan_file import check_fresh, load_plan
 from pykmhelpers.pipeline.index_ops.runner import PlanRunner
@@ -137,7 +138,7 @@ def build(
         if action == "submit":
             _submit(
                 input_file, work_dir,
-                os.path.join(os.path.dirname(plan_file), "slurm", "submit.sh"),
+                _submit_path(plan_file),
                 show_progress,
             )
             if show_progress:
@@ -285,7 +286,7 @@ def _build_on_cluster(
         _decline(input_file, work_dir)
     _submit(
         input_file, work_dir,
-        os.path.join(os.path.dirname(plan_path), "slurm", "submit.sh"),
+        _submit_path(plan_path),
         show_progress,
     )
 
@@ -323,8 +324,14 @@ def _decline(input_file: str, work_dir: str) -> None:
     raise click.Abort()
 
 
+def _submit_path(plan_path: str) -> str:
+    """The plan's submit.sh (SLURM) or run.sh (Nextflow)."""
+    cluster_type = (load_plan(plan_path).get("cluster") or {}).get("type") or "slurm"
+    return submit_script(os.path.dirname(plan_path), cluster_type)
+
+
 def _submit(input_file: str, work_dir: str, submit: str, watching: bool = False) -> None:
-    """Run the plan's submit.sh: it submits what is not done yet."""
+    """Run the plan's submit.sh or run.sh: it submits or runs what is not done yet."""
     pykmhelpers.core.log.Log.step(logger, f"STEP 2: Submit {submit}")
     proc = subprocess.run(["bash", submit], capture_output=True, text=True)
     for line in (proc.stdout + proc.stderr).splitlines():
@@ -332,7 +339,8 @@ def _submit(input_file: str, work_dir: str, submit: str, watching: bool = False)
     if proc.returncode != 0:
         raise click.ClickException(f"FAILED ('submit'): {submit} exited {proc.returncode}")
     status = f"kmhelpers apply {input_file} -o {work_dir} --status"
-    logger.info("Submitted: the jobs run on SLURM, independently of this command")
+    runs_on = "Nextflow" if os.path.basename(submit) == SUBMIT_SCRIPTS["nextflow"] else "SLURM"
+    logger.info(f"Submitted: the jobs run on {runs_on}, independently of this command")
     if watching:
         logger.info("Ctrl-C only stops following them: the jobs go on")
     logger.info(f"Follow them (again) with: {status} --sp")

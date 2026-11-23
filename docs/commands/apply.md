@@ -133,9 +133,10 @@ kmhelpers apply coli_db -o coli_build/ --task coli_g0_publish
 `--cancel` lists the jobs of the plan still queued or running, then cancels them once confirmed (`-Y` answers yes; without a terminal it refuses unless `-Y` is given):
 
 - the SLURM jobs submitted by `submit.sh` (`slurm/submitted.tsv`) that `squeue` still lists are `scancel`ed: build array tasks, publish jobs and the finish job;
-- a local `apply` running a step on this host gets SIGTERM.
+- a local `apply` running a step on this host gets SIGTERM;
+- the Nextflow run started by `nextflow/run.sh` (`nextflow/head.tsv`) gets SIGTERM, with its process group: Nextflow cancels its jobs. It is cancelled whole (`--task` is refused), from the host it runs on.
 
-A running step is recorded `CANCELLED`; a step whose job had not started stays `PENDING`. With `--task`, only the matching jobs are cancelled and the finish job is kept; SLURM drops the publish job of a shard whose build job is cancelled (`--kill-on-invalid-dep`). A plan made from other inputs or by another kmhelpers version is cancelled too. To submit what is not done again, run `BUILD_DIR/assets/SESSION/slurm/submit.sh` (or `build --hpc`).
+A running step is recorded `CANCELLED`; a step whose job had not started stays `PENDING`. With `--task`, only the matching jobs are cancelled and the finish job is kept; SLURM drops the publish job of a shard whose build job is cancelled (`--kill-on-invalid-dep`). A plan made from other inputs or by another kmhelpers version is cancelled too. To submit what is not done again, run `BUILD_DIR/assets/SESSION/slurm/submit.sh` (`nextflow/run.sh`), or `build --hpc`.
 
 ```bash
 kmhelpers apply coli_db -o coli_build/ --cancel                 # every job of the plan

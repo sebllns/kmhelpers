@@ -3,8 +3,10 @@
 import json
 import os
 import shutil
+import socket
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -14,6 +16,9 @@ from pykmhelpers.pipeline.index_ops.cluster import (
     limits_for,
     load_cluster,
     mem_bytes,
+    slurm_seconds,
+    submit_script,
+    write_nextflow,
     write_slurm,
     write_submission,
 )
@@ -33,6 +38,7 @@ CLUSTER = {
     },
     "limits": {"files": 131072, "maps": 65530},
 }
+NEXTFLOW = {**CLUSTER, "type": "nextflow", "account": "genscale"}
 
 
 class ClusterCase(unittest.TestCase):
@@ -64,7 +70,10 @@ class TestLoadCluster(ClusterCase):
     def test_errors(self):
         for data, msg in [
             ({**CLUSTER, "nope": 1}, "unknown key"),
-            ({**CLUSTER, "type": "pbs"}, "cluster type 'pbs' is not supported \\(supported: slurm\\)"),
+            ({**CLUSTER, "type": "pbs"}, "cluster type 'pbs' is not supported \\(supported: slurm, nextflow\\)"),
+            ({**CLUSTER, "executor": "pbspro"}, "'executor' is only for type nextflow"),
+            ({**NEXTFLOW, "executor": "pbspro"}, "exclude \\(jobs.build\\) only apply to executor slurm"),
+            ({**NEXTFLOW, "time": "two days"}, "Invalid time"),
             ({k: v for k, v in CLUSTER.items() if k != "type"}, "'type' is required"),
             ({**CLUSTER, "jobs": {"build": {"cpus": 1}}}, "needs cpus and mem"),
             ({**CLUSTER, "jobs": {**CLUSTER["jobs"], "other": {}}}, "unknown job kind"),
@@ -79,6 +88,18 @@ class TestLoadCluster(ClusterCase):
         self.assertEqual(mem_bytes("4096M"), 4 << 30)
         self.assertEqual(mem_bytes("1.5T"), int(1.5 * (1 << 40)))
         self.assertEqual(mem_bytes(2048), 2 << 30)  # MB, as sbatch
+
+    def test_slurm_seconds(self):
+        for value, seconds in [("90", 5400), (90, 5400), ("5:30", 330), ("1:00:00", 3600),
+                               ("2-00:00:00", 172800), ("1-12", 129600), ("1-0:30", 88200)]:
+            with self.subTest(value=value):
+                self.assertEqual(slurm_seconds(value), seconds)
+
+    def test_nextflow_executor(self):
+        self.assertEqual(self.load(NEXTFLOW)["executor"], "slurm")
+        self.assertNotIn("executor", self.load(CLUSTER))
+        pbs = {k: v for k, v in NEXTFLOW.items() if k not in ("account", "exclude")}
+        self.assertEqual(self.load({**pbs, "executor": "pbspro"})["executor"], "pbspro")
 
 
 class TestWriteSlurm(ClusterCase):
@@ -286,6 +307,93 @@ class TestWriteSlurm(ClusterCase):
         out = self.write(0)
         self.assertEqual((out / "jobs.txt").read_text().split(), ["idx_g0", "idx_g1"])
         self.assertNotIn("_publish", (out / "submit.sh").read_text().split("for SHARD in")[1].split(";")[0])
+
+
+class TestWriteNextflow(ClusterCase):
+    plan = TestWriteSlurm.plan
+
+    def write(self, per_job, data=NEXTFLOW, notify=None, level="global"):
+        out = self.tmp / "nextflow"
+        write_nextflow(self.plan(per_job), self.load(data), str(out), notify, level)
+        return out
+
+    def test_jobs_and_config(self):
+        out = self.write(3, notify="me@example.com", level="shard")
+        rows = [line.split("\t") for line in (out / "jobs.tsv").read_text().splitlines()]
+        self.assertEqual(rows[:4], [["idx_g0", "idx_g0_j0", "build"], ["idx_g0", "idx_g0_j1", "build"],
+                                    ["idx_g0", "idx_g0_j2", "build"], ["idx_g0", "idx_g0_publish", "publish"]])
+        self.assertEqual(len(rows), 8)
+        config = (out / "nextflow.config").read_text()
+        for line in ("executor = 'slurm'", "cache = false", "queueSize = 8",
+                     "withLabel: build {", "cpus = 24", "memory = '122880 MB'", "time = '172800s'",
+                     "queue = 'compute'", "clusterOptions = '-A genscale --exclude=node01'",
+                     "withLabel: publish {", "queue = 'mem'", "memory = '65536 MB'",
+                     "withLabel: check {", "time = '3600s'", "memory = '4096 MB'",
+                     "beforeScript = 'export PATH=/opt/kmhelpers/bin:$PATH'",
+                     f"jobs = '{out}/jobs.tsv'", f"finish = '{out}/finish.sh'",
+                     "shard_mail = ' --notify me@example.com --notify-level shard --no-notify-final'"):
+            self.assertIn(line, config)
+        self.assertIn("kmhelpers apply /db/compose/idx/initial/index.yaml -o", config)
+        self.assertIn("groupKey(shard, count[shard])", (out / "main.nf").read_text())
+        finish = (out / "finish.sh").read_text()
+        self.assertIn("manage -r", finish)
+        self.assertIn("--status --notify me@example.com", finish)
+        for name in ("run.sh", "finish.sh"):
+            subprocess.run(["bash", "-n", str(out / name)], check=True)
+
+    def test_other_executor_takes_extra_as_is(self):
+        pbs = {k: v for k, v in NEXTFLOW.items() if k not in ("account", "exclude")}
+        out = self.write(0, {**pbs, "executor": "pbspro", "extra": ["-l place=scatter"], "max_parallel": 0})
+        config = (out / "nextflow.config").read_text()
+        self.assertIn("executor = 'pbspro'", config)
+        self.assertIn("clusterOptions = '-l place=scatter'", config)
+        self.assertNotIn("queueSize", config)
+        # whole-shard jobs: no publish job
+        self.assertEqual([r.split("\t")[2] for r in (out / "jobs.tsv").read_text().splitlines()],
+                         ["build", "build"])
+
+    def fake_run(self, pending, head=None):
+        """Run run.sh with a fake kmhelpers and nextflow; return its output."""
+        out = self.write(3)
+        bin_dir = self.tmp / "bin"
+        bin_dir.mkdir(exist_ok=True)
+        (bin_dir / "kmhelpers").write_text(f'#!/usr/bin/env bash\nprintf "{pending}"\n')
+        (bin_dir / "nextflow").write_text(f'#!/usr/bin/env bash\necho "$*" > {self.tmp}/nf_args\n')
+        for f in bin_dir.iterdir():
+            f.chmod(0o755)
+        if head:
+            (out / "head.tsv").write_text(head)
+        env = {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}"}
+        proc = subprocess.run(["bash", str(out / "run.sh")], env=env, capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        return out, proc.stdout
+
+    def test_run_starts_nextflow_on_the_pending_jobs(self):
+        out, stdout = self.fake_run("idx_g0_j0\\nidx_g0_publish\\n")
+        self.assertIn("started on", stdout)
+        self.assertEqual((out / "pending.txt").read_text().split(), ["idx_g0_j0", "idx_g0_publish"])
+        host, pid = (out / "head.tsv").read_text().split()
+        self.assertTrue(pid.isdigit())
+        for _ in range(50):  # the background run
+            if (self.tmp / "nf_args").exists():
+                break
+            time.sleep(0.1)
+        self.assertEqual((self.tmp / "nf_args").read_text().split(),
+                         ["run", "main.nf", "-c", "nextflow.config", "-w", "work"])
+
+    def test_run_does_nothing_when_done_or_running(self):
+        out, stdout = self.fake_run("")
+        self.assertIn("nothing pending", stdout)
+        self.assertFalse((out / "head.tsv").exists())
+        out, stdout = self.fake_run("idx_g0_j0\\n", head=f"{socket.gethostname()}\t{os.getpid()}\n")
+        self.assertIn("still running, not started again", stdout)
+        self.assertFalse((self.tmp / "nf_args").exists())
+
+    def test_submission_files_follow_the_type(self):
+        written = write_submission(self.plan(3), self.load(NEXTFLOW), str(self.tmp / "assets"))
+        self.assertTrue(all(Path(p).parent == self.tmp / "assets" / "nextflow" for p in written))
+        self.assertEqual(submit_script("/a", "nextflow"), "/a/nextflow/run.sh")
+        self.assertEqual(submit_script("/a", "slurm"), "/a/slurm/submit.sh")
 
 
 if __name__ == "__main__":
