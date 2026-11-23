@@ -79,6 +79,8 @@ coli_build/                       BUILD_DIR (build -o, query -r): the kmindex re
     └── coli_g0_p0/                        <run>.log of each kmtricks run, publish.log, stats (see Stats)
 ```
 
+`kmhelpers manage clean` removes the build leftovers of shards published by older versions, and with `--assets` and `--logs` the plans of finished sessions and the logs (see [manage](manage.md#clean)).
+
 Reuse the same `BUILD_DIR` for every session of an index. Each index keeps one folder, `BUILD_DIR/<name>/`, for its whole life; a session only uses `BUILD_DIR/work/SESSION/` while it is built, and deletes it when it is done. Index names cannot be `work`, `assets`, `logs`, or start with `.`.
 
 Building a session again resumes it: complete kmtricks runs are kept, incomplete ones are rebuilt, finished merges are not redone, and parts whose samples are already in their index are skipped. A finished session built again changes nothing. A run of `<shard>/publish.sh` interrupted at any point is finished by running it again (or `apply`): until the new version of a sub-index is registered, the sub-index is either registered with its previous folder or not registered at all, never registered with other data.

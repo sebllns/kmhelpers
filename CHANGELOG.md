@@ -51,6 +51,10 @@ All notable changes to this project will be documented in this file.
   - 10 random (k+z)-mers of each shard's first sample (`-z`, default 6): the sample's score is printed
   - 10 random 1000-base sequences: the mean score (empirical FP rate) is printed next to the expected one; a shard whose positive score is not `--min-gap` (default 0.5) above it fails the check, so `publish.sh` stops before its swap
 - **`manage check -n`**: checks only the given indices, and fails if one is not registered
+- **`manage rename --index OLD NEW`**: renames every shard `OLD_g<k>[_p<j>]` of an index to `NEW_g<k>[_p<j>]` at once; `--compose-dir` also renames `COMPOSE_DIR/OLD/` and the shard names of its layout
+- **`manage check --autorepair`**: before the checks, sets the root `path` of `index.json` to the registry, makes relative links absolute, links a lost shard to a folder holding the same samples (old registry path, `work/*/previous/`, `--search DIR`), and removes from `index.json` a shard found nowhere (after a confirmation); `index.json` is first copied to `index.json.<time>.bak`, under the registry lock
+- **`index.json` checks in `manage check`**: a shard link must be absolute, and the `samples` of a shard must match its `kmtricks.fof`, in order; each failure fails the check
+- **`manage clean`**: removes the kmtricks build intermediates left in published shards (`superkmers/`, `counts/`, `minimizers/`, `partition_infos/`, `merge_infos/`, `histograms/`, `filters/`, `howde_index/`), read neither by kmindex nor by kmhelpers; `--assets` removes `assets/<session>/` of the sessions fully published with no job left, `--logs` the logs and reports (stats are kept, refused while a job runs); `--shard`, `--dry-run`, one confirmation (`-Y`)
 - **`manage remove --missing-ok`** and **`--keep-link`**: skip unregistered IDs; only edit `index.json`
 - **`manage move-dir`** (internal, hidden): renames a folder for the generated scripts, failing instead of copying across filesystems
 
@@ -144,6 +148,7 @@ All notable changes to this project will be documented in this file.
 - **`compose` hard min**: the `abundance_min` of the JSONL header (2 for unassembled data) is used, instead of always 1
 - **Python 3.11**: deleting an index used `shutil.rmtree(onexc=...)`, which exists only from Python 3.12
 - **`manage remove`**: always deleted the index files, ignoring `-d/--delete-files`
+- `manage rename`: renames the folder (or link) and the `index.json` key in place, without kmindex, with the shard logs and stats; under the registry lock, after a timestamped backup, undone on failure; refuses a registered, existing or reserved new name and a rename during a build. It could drop a shard from `index.json` while reporting success, when re-registering failed
 - **`query`**: results were lost when kmindex wrote one file per batch (`batch_N/`), and a query without match was reported as failed
 - **`examples/pipeline_api.py`**: used `IndexOpsConfig` arguments removed by the in-place index layout
 

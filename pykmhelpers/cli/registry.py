@@ -2,7 +2,9 @@
 
 import errno
 import json
+import logging
 import os
+import shutil
 
 import click
 
@@ -11,6 +13,21 @@ from pykmhelpers.cli.shared import confirm, select_shards
 from pykmhelpers.core.bloom_filter import BloomFilterSpecs
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.utils import summarize_names
+from pykmhelpers.pipeline.index_ops.clean import (
+    active_sessions,
+    finished_assets,
+    log_files,
+    path_bytes,
+    shard_leftovers,
+)
+from pykmhelpers.pipeline.index_ops.rename import (
+    check_layout_rename,
+    index_shards,
+    rename_layout,
+    rename_shards,
+    renamed,
+)
+from pykmhelpers.pipeline.index_ops.repair import REMOVE, apply_repairs, check_json, plan_repairs
 from pykmhelpers.pipeline.index_ops.stats import (
     FPR_WARN,
     write_run_stats,
@@ -19,6 +36,8 @@ from pykmhelpers.pipeline.index_ops.stats import (
 from pykmhelpers.pipeline.query import KMIGNORE, read_ignore_file
 from pykmhelpers.pipeline.query_check import MIN_GAP, NEG_COUNT, NEG_LENGTH, query_check
 from pykmhelpers.pipeline.sample_remover import SampleRemover
+
+logger = logging.getLogger(__name__)
 
 # (k+z)-mers queried per shard by `check`
 QUERY_CHECK_COUNT = 10
@@ -315,9 +334,25 @@ def registry_info(obj, index_id, output_json):
     show_default=True,
     help="Fail a shard whose positive score minus its negative score is below this",
 )
-@click.pass_obj
-def registry_check(obj, verbose, index_ids, no_query, zvalue, min_gap):
+@click.option(
+    "--autorepair",
+    is_flag=True,
+    help="Repair the root path and the links of index.json first, relink lost "
+    "shards, drop the ones found nowhere (index.json is backed up)",
+)
+@click.option(
+    "--search",
+    "search_dirs",
+    multiple=True,
+    type=click.Path(exists=True, file_okay=False),
+    help="With --autorepair: also look for lost shards in DIR (DIR/<name>, DIR/*/<name>)",
+)
+@click.pass_context
+def registry_check(ctx, verbose, index_ids, no_query, zvalue, min_gap, autorepair, search_dirs):
     """Validate registry consistency and check all index structures.
+
+    index.json is checked first: shard links must be absolute and the samples
+    of a shard must match its kmtricks.fof.
 
     Then, unless --no-query, queries 10 random (k+z)-mers of each shard's first
     sample (positives) and 10 random DNA sequences of 1000 bases (negatives)
@@ -328,8 +363,16 @@ def registry_check(obj, verbose, index_ids, no_query, zvalue, min_gap):
     A shard whose positive score is not --min-gap above its negative score is
     broken and fails the check, as does a failing query. A high FP rate is
     only reported.
+
+    With --autorepair, the registry is repaired before the checks: the root
+    path of index.json, relative links made absolute, a lost shard linked to
+    a folder holding its samples (in the old registry path, work/*/previous/
+    or a --search DIR), a shard found nowhere removed from index.json (after
+    a confirmation). index.json is first copied to index.json.<time>.bak.
     """
-    registry_path = obj["registry_path"]
+    registry_path = ctx.obj["registry_path"]
+    if search_dirs and not autorepair:
+        raise click.ClickException("--search needs --autorepair")
 
     try:
         registry = KmindexRegistry(registry_path, auto_create=False)
@@ -340,17 +383,33 @@ def registry_check(obj, verbose, index_ids, no_query, zvalue, min_gap):
                 raise click.ClickException(f"Not registered: {', '.join(missing)}")
             indices = list(index_ids)
 
+        repair_errors = []
+        if autorepair:
+            repair_errors = _autorepair(ctx, registry_path, indices, search_dirs)
+            registry.load_json()
+            indices = [i for i in indices if registry.has_index(i)]
+
         if not indices:
             click.echo("No indices found in registry")
+            if repair_errors:
+                raise click.ClickException(f"{len(repair_errors)} repair(s) failed")
             return
+
+        errors = [("repair", e) for e in repair_errors]
+        json_problems = {}
+        for name, msg in check_json(registry_path, indices):
+            json_problems.setdefault(name, []).append(msg)
 
         click.echo(f"Validating {len(indices)} index(ices)...\n")
 
-        errors = []
         for idx_name in indices:
             try:
                 index = registry.get_index(idx_name)
-                if index.check_structure():
+                if idx_name in json_problems:
+                    for msg in json_problems[idx_name]:
+                        errors.append((idx_name, msg))
+                        click.echo(f"✗ {idx_name}: {msg}", err=True)
+                elif index.check_structure():
                     click.echo(f"✓ {idx_name}")
                     if verbose:
                         click.echo(
@@ -363,7 +422,7 @@ def registry_check(obj, verbose, index_ids, no_query, zvalue, min_gap):
                 errors.append((idx_name, str(e)))
                 click.echo(f"✗ {idx_name}: {e}", err=True)
 
-        failed = {name for name, _ in errors}
+        failed = {name for name, _ in errors if name in indices}
         queried = [i for i in indices if i not in failed]
         if not no_query and queried:
             click.echo(
@@ -413,6 +472,30 @@ def registry_check(obj, verbose, index_ids, no_query, zvalue, min_gap):
         raise
     except Exception as e:
         raise click.ClickException(f"Registry check failed: {e}")
+
+
+def _autorepair(ctx, registry_path: str, shards: list[str], search_dirs) -> list[str]:
+    """Plan, print and apply the repairs of the registry; return the errors."""
+    repairs, unregistered = plan_repairs(registry_path, shards, search_dirs)
+    for name in unregistered:
+        click.echo(f"⊙ {name}: index folder not registered (kmhelpers manage add)")
+    if not repairs:
+        click.echo("Nothing to repair\n")
+        return []
+    click.echo("Repairs:")
+    for r in repairs:
+        click.echo(f"  {r}")
+    removed = [r.shard for r in repairs if r.kind == REMOVE]
+    if removed and not confirm(ctx, f"Remove {len(removed)} lost shard(s) from index.json?"):
+        click.echo("Removal cancelled: lost shards kept")
+        repairs = [r for r in repairs if r.kind != REMOVE]
+    backup, errors = apply_repairs(registry_path, repairs)
+    if backup:
+        click.echo(f"✓ index.json backed up to {backup}")
+    for e in errors:
+        click.echo(f"✗ {e}", err=True)
+    click.echo(f"✓ {len(repairs) - len(errors)} repair(s) applied\n")
+    return errors
 
 
 @registry.command(name="remove")
@@ -592,37 +675,89 @@ def registry_remove_samples(
     except (click.ClickException, click.Abort):
         raise
     except Exception as e:
-        raise click.ClickException(f"Remove samples failed: {e}")
+        raise click.ClickException(
+            f"Remove samples failed: {e}\nRun it again: it finishes or undoes an interrupted removal"
+        )
     kmignore = os.path.join(os.path.dirname(registry.json_path), KMIGNORE)
     if os.path.isfile(kmignore):
         click.echo(f"The removed samples can be taken out of {kmignore}")
 
 
 @registry.command(name="rename")
-@click.argument("index_id")
-@click.argument("new_index_id")
-@click.pass_obj
-def registry_rename(obj, index_id, new_index_id):
-    """Rename the index INDEX_ID to NEW_INDEX_ID."""
-    registry_path = obj["registry_path"]
+@click.argument("old")
+@click.argument("new")
+@click.option(
+    "--index",
+    "whole_index",
+    is_flag=True,
+    help="OLD and NEW are index names: rename every shard OLD_g<k>[_p<j>] to NEW_g<k>[_p<j>]",
+)
+@click.option(
+    "--compose-dir",
+    type=click.Path(exists=True, file_okay=False),
+    help="With --index: also rename COMPOSE_DIR/OLD/ and the shard names of its layout",
+)
+@click.pass_context
+def registry_rename(ctx, old, new, whole_index, compose_dir):
+    """Rename the shard OLD to NEW, or with --index the index OLD to NEW.
 
+    The shard folder (or its symlink) and its index.json entry are renamed,
+    with its logs and stats (logs/<shard>/); no data is moved or rebuilt.
+    index.json is first copied to index.json.<time>.bak. Refused while a
+    build of the registry runs or still has a renamed shard to publish.
+
+    With --index, every shard of the index is renamed at once; --compose-dir
+    renames its compose folder and the names its layout records, so the next
+    compose of NEW updates the renamed shards.
+    """
+    registry_path = ctx.obj["registry_path"]
+    if compose_dir and not whole_index:
+        raise click.ClickException("--compose-dir needs --index")
     try:
         registry = KmindexRegistry(registry_path, auto_create=False)
-
-        if not registry.has_index(index_id):
-            raise click.ClickException(f"Index '{index_id}' not found in registry")
-
-        if not registry.rename_index(index_id, new_index_id):
-            raise click.ClickException(
-                f"Could not rename index from '{index_id}' to '{new_index_id}'"
-            )
-
-        click.echo(f"✓ Renamed '{index_id}' to '{new_index_id}'")
-
-    except click.ClickException:
-        raise
     except Exception as e:
-        raise click.ClickException(f"Failed to rename index: {e}")
+        raise click.ClickException(f"Cannot open the registry: {e}")
+
+    if whole_index:
+        shards = index_shards(registry.list_indices(), old)
+        if not shards:
+            raise click.ClickException(f"No shard of index '{old}' ({old}_g<k>[_p<j>]) in the registry")
+        renames = {s: renamed(s, old, new) for s in shards}
+    else:
+        renames = {old: new}
+
+    if compose_dir:
+        try:
+            check_layout_rename(compose_dir, old, new)
+        except ValueError as e:
+            raise click.ClickException(str(e))
+    for src, dst in renames.items():
+        click.echo(f"  {src} -> {dst}")
+    if whole_index and not confirm(ctx, f"Rename {len(renames)} shard(s) of index '{old}' to '{new}'?"):
+        click.echo("Operation cancelled")
+        return
+    try:
+        backup = rename_shards(registry_path, renames)
+    except (OSError, ValueError) as e:
+        raise click.ClickException(f"Rename failed: {e}")
+    click.echo(f"✓ index.json backed up to {backup}")
+    click.echo(f"✓ Renamed {len(renames)} shard(s)")
+
+    if compose_dir:
+        try:
+            layout = rename_layout(compose_dir, old, new)
+        except (OSError, ValueError) as e:
+            raise click.ClickException(
+                f"Shards renamed, but not the compose folder {os.path.join(compose_dir, old)}: {e}"
+            )
+        dst = os.path.join(compose_dir, new)
+        click.echo(f"✓ Compose folder renamed: {dst}" + ("" if layout else " (no layout)"))
+    elif whole_index:
+        click.echo(
+            f"⚠ The compose layout of '{old}' still names the old shards: "
+            "pass --compose-dir to rename it too",
+            err=True,
+        )
 
 
 @registry.command(name="relink")
@@ -650,6 +785,92 @@ def registry_relink(obj, input_dir, index_id):
         registry.relink(index_id, input_dir)
     except Exception as e:
         click.ClickException(f"Relink failed: {e}")
+
+
+@registry.command(name="clean")
+@click.option(
+    "--sh",
+    "--shard",
+    "index_ids",
+    multiple=True,
+    help="Clean only these shards (default: all); fails if one is not registered",
+)
+@click.option("--assets", is_flag=True, help="Also remove assets/<session>/ of the finished sessions")
+@click.option("--logs", is_flag=True, help="Also remove the logs and reports of logs/ (stats are kept)")
+@click.option("--dry-run", "-n", is_flag=True, help="Only list what would be removed")
+@click.pass_context
+def registry_clean(ctx, index_ids, assets, logs, dry_run):
+    """Remove what the published shards and finished builds no longer need.
+
+    In each shard: the kmtricks build intermediates (superkmers/, counts/,
+    minimizers/, partition_infos/, merge_infos/, histograms/, filters/,
+    howde_index/), read neither by kmindex nor by kmhelpers once built.
+
+    With --assets: assets/<session>/ (plan, scripts, progress) of each session
+    whose shards are all published and that has no job left. With --logs: the
+    run and publish logs, logs/slurm/ and the kmhelpers_*.yaml reports; the
+    stats (stats.yaml, <run>.stats.json) stay. Refused while a job runs.
+    """
+    registry_path = ctx.obj["registry_path"]
+    build_dir = os.path.realpath(registry_path)
+    try:
+        registry = KmindexRegistry(registry_path, auto_create=False)
+    except Exception as e:
+        raise click.ClickException(f"Cannot open the registry: {e}")
+
+    shards = registry.list_indices()
+    if index_ids:
+        missing = [i for i in index_ids if i not in shards]
+        if missing:
+            raise click.ClickException(f"Not registered: {', '.join(missing)}")
+        shards = list(dict.fromkeys(index_ids))
+
+    targets = shard_leftovers(registry, shards)
+    if assets:
+        removable, kept = finished_assets(build_dir)
+        targets += removable
+        for session, why in kept.items():
+            click.echo(f"⊙ Kept assets/{session}: {why}")
+    if logs:
+        active = active_sessions(build_dir)
+        if active:
+            raise click.ClickException(
+                f"Jobs still queued or running in session(s) {', '.join(active)}: "
+                "not removing the logs"
+            )
+        targets += log_files(build_dir)
+
+    if not targets:
+        click.echo("Nothing to clean")
+        return
+
+    sizes = {t: path_bytes(t) for t in targets}
+    for t in targets:
+        click.echo(f"  {os.path.relpath(t, build_dir)}: {ByteCounter.auto(sizes[t])}")
+    total = ByteCounter.auto(sum(sizes.values()))
+    click.echo(f"Total: {total}")
+    if dry_run:
+        return
+    if not confirm(ctx, f"Remove {len(targets)} item(s) ({total})?"):
+        click.echo("Operation cancelled")
+        return
+
+    freed, failed = 0, []
+    for t in targets:
+        try:
+            if os.path.isdir(t) and not os.path.islink(t):
+                shutil.rmtree(t)
+            else:
+                os.remove(t)
+            freed += sizes[t]
+            logger.info(f"Removed {t}")
+        except OSError as e:
+            logger.warning(f"Could not remove {t}: {e}")
+            failed.append(t)
+            click.echo(f"✗ {os.path.relpath(t, build_dir)}: {e}", err=True)
+    click.echo(f"Freed {ByteCounter.auto(freed)}")
+    if failed:
+        raise click.ClickException(f"Could not remove {len(failed)} item(s)")
 
 
 # Internal: used by the scripts written by plan/apply/build, not listed in --help
