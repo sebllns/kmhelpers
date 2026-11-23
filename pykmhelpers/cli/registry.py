@@ -675,7 +675,9 @@ def registry_remove_samples(
     except (click.ClickException, click.Abort):
         raise
     except Exception as e:
-        raise click.ClickException(f"Remove samples failed: {e}")
+        raise click.ClickException(
+            f"Remove samples failed: {e}\nRun it again: it finishes or undoes an interrupted removal"
+        )
     kmignore = os.path.join(os.path.dirname(registry.json_path), KMIGNORE)
     if os.path.isfile(kmignore):
         click.echo(f"The removed samples can be taken out of {kmignore}")
@@ -821,7 +823,7 @@ def registry_clean(ctx, index_ids, assets, logs, dry_run):
         missing = [i for i in index_ids if i not in shards]
         if missing:
             raise click.ClickException(f"Not registered: {', '.join(missing)}")
-        shards = list(index_ids)
+        shards = list(dict.fromkeys(index_ids))
 
     targets = shard_leftovers(registry, shards)
     if assets:

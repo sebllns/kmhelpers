@@ -120,33 +120,52 @@ def _rename_stats(path: str, shard: str) -> None:
 
 
 def check_layout_rename(compose_dir: str, index: str, new_index: str) -> None:
-    """Refuse a compose folder rename bound to fail, before any shard is renamed."""
+    """Refuse a compose folder rename bound to fail, before any shard is
+    renamed: a missing folder, an existing target, a layout in use or that
+    cannot be read."""
     src = os.path.join(compose_dir, index)
     dst = os.path.join(compose_dir, new_index)
     if not os.path.isdir(src):
         raise ValueError(f"No compose folder {src}")
     if os.path.lexists(dst):
         raise ValueError(f"{dst} already exists")
+    layout = os.path.join(src, LAYOUT_FILE)
+    if not os.path.isfile(layout):
+        return
+    if remove_if_free(layout_lock(layout)) is False:
+        raise ValueError(f"{layout} is in use (compose or apply running)")
+    _read_layout(layout)
+
+
+def _read_layout(path: str) -> dict:
+    try:
+        with open(path) as f:
+            return yaml.safe_load(f) or {}
+    except yaml.YAMLError as e:
+        raise ValueError(f"Cannot read {path}: {e}")
 
 
 def rename_layout(compose_dir: str, index: str, new_index: str) -> Optional[str]:
     """Rename ``COMPOSE_DIR/index/`` to ``COMPOSE_DIR/new_index/`` and the
     names its layout records; return the new layout path, None without one.
 
-    The sessions already composed keep the old names in their files: they
-    are built, the next ``compose -n new_index`` starts from the layout.
+    ``check_layout_rename`` runs first, as the caller did before renaming
+    the shards, so only an I/O error can stop it. The sessions already composed keep the old names in
+    their files: they are built, the next ``compose -n new_index`` starts
+    from the layout.
     """
     check_layout_rename(compose_dir, index, new_index)
     src = os.path.join(compose_dir, index)
     dst = os.path.join(compose_dir, new_index)
-    layout = os.path.join(src, LAYOUT_FILE)
-    if not os.path.isfile(layout):
-        os.rename(src, dst)
-        logger.info(f"Renamed {src} -> {dst} (no layout)")
+    has_layout = os.path.isfile(os.path.join(src, LAYOUT_FILE))
+    os.rename(src, dst)
+    logger.info(f"Renamed {src} -> {dst}" + ("" if has_layout else " (no layout)"))
+    if not has_layout:
         return None
+
+    layout = os.path.join(dst, LAYOUT_FILE)
     with locked(layout_lock(layout)):
-        with open(layout) as f:
-            data = yaml.safe_load(f) or {}
+        data = _read_layout(layout)
         spans = (data.get("data") or {}).get("map") or {}
         for span, entry in spans.items():
             if isinstance(entry, str):  # layouts written before sharding
@@ -156,8 +175,5 @@ def rename_layout(compose_dir: str, index: str, new_index: str) -> Optional[str]
             for sh in entry.get("shards") or []:
                 sh["name"] = renamed(sh["name"], index, new_index)
         replace_atomically(layout, yaml.dump(data, default_flow_style=False, sort_keys=True))
-    if remove_if_free(layout_lock(layout)) is False:
-        raise ValueError(f"{layout} is in use (compose or apply running): not moved")
-    os.rename(src, dst)
-    logger.info(f"Renamed {src} -> {dst}")
-    return os.path.join(dst, LAYOUT_FILE)
+    remove_if_free(layout_lock(layout))
+    return layout
