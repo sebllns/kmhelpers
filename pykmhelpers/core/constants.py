@@ -37,6 +37,22 @@ def get_commit_subject() -> str:
 
 KMHELPERS_COMMIT = get_commit()
 
+# Bits per cell of an abundance index (design/compose --abundance-bits);
+# 0 is presence/absence, 1 bit would hold the same information
+MIN_BITW = 2
+MAX_BITW = 8
+
+
+def check_bitw(bitw: int) -> int:
+    """Return ``bitw`` if it is 0 or between MIN_BITW and MAX_BITW, else raise ValueError."""
+    if bitw != 0 and not MIN_BITW <= bitw <= MAX_BITW:
+        raise ValueError(
+            f"bitw must be 0 (presence/absence) or between {MIN_BITW} and "
+            f"{MAX_BITW}, got {bitw}"
+        )
+    return bitw
+
+
 DATA_EXT = (
     # ".fasta.gz",
     # ".fastq.gz",

@@ -58,6 +58,7 @@ sample_40
 ```
 
 kmindex still queries every sample, the raw results in `kmindex_output/` keep them all.
+To remove them from the index itself, see [`manage remove-samples`](manage.md#remove-samples).
 
 **Batch mode** - use `--batch-query` to treat all sequences across all query files as a single query, or `--single-query NAME` to assign them a specific identifier.
 

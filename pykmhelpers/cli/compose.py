@@ -7,6 +7,7 @@ import os
 import click
 
 from pykmhelpers.cli.shared import (
+    abundance_bits_option,
     confirm,
     kmer_ratio_option,
     no_copy_list_option,
@@ -94,17 +95,7 @@ logger = logging.getLogger(__name__)
 #     show_default=True,
 #     help="⚙️  Partition count limit for auto-partitioning.",
 # )
-@click.option(
-    "--abundance-bits",
-    "--ab",
-    "bitw",
-    type=click.IntRange(0, 8),
-    default=None,
-    help="🎯  Build an abundance index with this many bits per cell (2^N abundance "
-    "classes, kmindex default: 2). 0 builds a presence/absence index. "
-    "Fixed for the life of the index: an update takes the layout's value. "
-    "[default: 0 for a new index]",
-)
+@abundance_bits_option
 @sharding_options
 @no_copy_list_option
 @kmer_ratio_option

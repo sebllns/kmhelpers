@@ -1,7 +1,3 @@
-try:
-    from typing import Self
-except ImportError:
-    from typing_extensions import Self
 
 from dataclasses import dataclass
 from enum import Enum, IntEnum
@@ -209,7 +205,7 @@ class ByteCounter:
             return False
         return self.byte_count == other.byte_count
 
-    def __lt__(self, other: Self) -> bool:
+    def __lt__(self, other: "ByteCounter") -> bool:
         """Check if less than another ByteCounter."""
         if not isinstance(other, ByteCounter):
             raise TypeError(
@@ -217,7 +213,7 @@ class ByteCounter:
             )
         return self.byte_count < other.byte_count
 
-    def __le__(self, other: Self) -> bool:
+    def __le__(self, other: "ByteCounter") -> bool:
         """Check if less than or equal to another ByteCounter."""
         if not isinstance(other, ByteCounter):
             raise TypeError(
@@ -225,7 +221,7 @@ class ByteCounter:
             )
         return self.byte_count <= other.byte_count
 
-    def __gt__(self, other: Self) -> bool:
+    def __gt__(self, other: "ByteCounter") -> bool:
         """Check if greater than another ByteCounter."""
         if not isinstance(other, ByteCounter):
             raise TypeError(
@@ -233,7 +229,7 @@ class ByteCounter:
             )
         return self.byte_count > other.byte_count
 
-    def __ge__(self, other: Self) -> bool:
+    def __ge__(self, other: "ByteCounter") -> bool:
         """Check if greater than or equal to another ByteCounter."""
         if not isinstance(other, ByteCounter):
             raise TypeError(

@@ -19,6 +19,7 @@ from pykmhelpers.core.constants import (
     KMHELPERS_COMMIT,
     KMHELPERS_VERSION,
     SHARD_BUDGET,
+    check_bitw,
 )
 from pykmhelpers.core.log import Log
 
@@ -68,7 +69,7 @@ class IndexComposer:
         self.name = name or "index"
         self.abundance_min = abundance_min
         # None: the layout's value on an update, presence/absence (0) otherwise
-        self.bitw = None if bitw is None else max(bitw, 0)
+        self.bitw = None if bitw is None else check_bitw(bitw)
         self.no_merge = no_merge
         if shard_size and shard_budget is not None:
             raise ValueError("A shard is capped by a budget or by a size, not both")
@@ -179,15 +180,10 @@ class IndexComposer:
                     f"{minim_size}, got {self.minim_size}: indexes with different "
                     "minimizer sizes cannot be merged"
                 )
-            layout_bitw = load_layout_bitw(self.layout_file)
             if self.bitw is None:
-                self.bitw = layout_bitw
-            elif layout_bitw != self.bitw:
-                raise ValueError(
-                    f"Layout {self.layout_file} was composed with bitw={layout_bitw}, "
-                    f"got bitw={self.bitw}: presence/absence and abundance indexes "
-                    "cannot be merged"
-                )
+                self.bitw = load_layout_bitw(self.layout_file)
+            else:
+                self._check_layout_bitw(self.layout_file)
             logger.debug(
                 f"Loaded layout: {self.layout_file} (base={span_base}, "
                 f"spans={allowed_spans}, shard_size={shard_size})"
@@ -533,6 +529,15 @@ class IndexComposer:
             path, yaml.dump(layout_data, default_flow_style=False, sort_keys=True)
         )
 
+    def _check_layout_bitw(self, path: str) -> None:
+        """Refuse a layout composed with another bitw: its shards cannot be merged."""
+        layout_bitw = load_layout_bitw(path)
+        if layout_bitw != self.bitw:
+            raise ValueError(
+                f"Layout {path} was composed with bitw={layout_bitw}, "
+                f"got bitw={self.bitw}: presence/absence and abundance indexes "
+                "cannot be merged"
+            )
 
 def layout_lock(path: str) -> str:
     """Lock file of the layout ``path``, taken by every writer of the layout."""

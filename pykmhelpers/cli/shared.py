@@ -14,7 +14,10 @@ from pykmhelpers.core.constants import (
     AUTO_GROUP_MAX,
     AUTO_GROUP_MIN_GAIN,
     AUTO_GROUP_SAMPLES,
+    MAX_BITW,
     MAX_CHUNKS,
+    MIN_BITW,
+    check_bitw,
 )
 from pykmhelpers.pipeline.fof import FofManager
 from pykmhelpers.pipeline.index_ops.sources import resolve_input
@@ -176,6 +179,30 @@ kmer_ratio_option = click.option(
     "sizes the build memory. Computed per shard from the sample list (kmer_total), "
     "else 1 for assembled data and 4 for raw reads. Raise it for deep raw reads "
     "listed without kmer_total.",
+)
+
+
+def _check_bitw_option(ctx, param, value):
+    if value is None:
+        return None
+    try:
+        return check_bitw(value)
+    except ValueError as e:
+        raise click.BadParameter(str(e)) from e
+
+
+abundance_bits_option = click.option(
+    "--abundance-bits",
+    "--ab",
+    "bitw",
+    metavar="N",
+    type=int,
+    default=None,
+    callback=_check_bitw_option,
+    help=f"🎯  Build an abundance index with N bits per cell, N from {MIN_BITW} to "
+    f"{MAX_BITW} (2^N abundance classes, kmindex default: 2). 0 builds a "
+    "presence/absence index (1 bit, 2 classes). Fixed for the life of the index: "
+    "an update takes the layout's value. [default: 0 for a new index]",
 )
 
 output_dir_option = click.option(

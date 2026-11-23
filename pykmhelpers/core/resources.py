@@ -61,7 +61,7 @@ def maximize_nofile() -> int:
         resource.setrlimit(
             resource.RLIMIT_NOFILE, (resource.RLIM_INFINITY, resource.RLIM_INFINITY)
         )
-    except ValueError:
+    except (ValueError, OSError):
         # Not root: raise soft to hard limit only
         try:
             resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
