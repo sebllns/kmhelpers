@@ -132,7 +132,9 @@ def resolve_partitions(
         samples=max(1, samples),
         limits=config.limits or "{}",
         safety_margin=config.safety_margin,
-        max_chunks=config.max_chunks or None,
+        # max_chunks applies to the chunks of the plan (resolve_build_params):
+        # on a full shard it would only cut the threads partitions are sized for
+        max_chunks=None,
         max_chunk_samples=chunk_samples(i, config, layout),
     )
     if params.partitions is None:
