@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/kmhelpers-logo-v1.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
     
     
       
@@ -2906,6 +2906,10 @@
 <td>Shards to query, as names or glob patterns (repeatable or comma-separated, e.g. <code>'idx_g0_*'</code>; default: all)</td>
 </tr>
 <tr>
+<td><code>--ignore FILE</code></td>
+<td>Samples to drop from the results, added to the registry <code>kmignore</code> file (see <a href="#ignored-samples">Ignored samples</a>)</td>
+</tr>
+<tr>
 <td><code>-t, --threads INT</code></td>
 <td>Number of threads (default: 1)</td>
 </tr>
@@ -2974,6 +2978,15 @@
 <h2 id="description">Description</h2>
 <p>Searches one or more kmindex indices for sequences from FASTA/FASTQ files. Directories are scanned recursively. Pass <code>-</code> to read from stdin.</p>
 <p>Each value in the output is the fraction of query k-mers found in that sample. Results below <code>--threshold</code> are filtered out.</p>
+<p><strong>Ignored samples</strong> - samples listed in a <code>kmignore</code> file next to the registry <code>index.json</code>
+are always dropped from the results, statistics and reports. <code>--ignore FILE</code> adds more for
+one run. Both files hold one sample name per line, lines starting with <code>#</code> are comments:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a># contaminated
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>sample_12
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>sample_40
+</code></pre></div>
+<p>kmindex still queries every sample, the raw results in <code>kmindex_output/</code> keep them all.
+To remove them from the index itself, see <a href="../manage/#remove-samples"><code>manage remove-samples</code></a>.</p>
 <p><strong>Batch mode</strong> - use <code>--batch-query</code> to treat all sequences across all query files as a single query, or <code>--single-query NAME</code> to assign them a specific identifier.</p>
 <p><strong>Parallelization</strong> - <code>seq</code> parallelises across sequences (default); <code>sub</code> parallelises across sub-indices (forced when <code>--compressed</code> is set).</p>
 <p><strong>Statistics</strong> - written unless <code>--no-stats</code> (or <code>--print</code>). <code>sequence_stats.tsv</code> holds
@@ -3046,19 +3059,19 @@ samples of the sequence with their score. Up to <code>--page-size</code> sequenc
 details go to <code>details/page_NNN.&lt;format&gt;</code>, <code>--page-size</code> sequences per page. Statistics
 always use every match, <code>--top</code> only caps what is listed. All matches stay in
 <code>kmindex_output/</code>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>results/query/
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  index.html
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  sequence_stats.tsv
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  sample_stats.tsv
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  details/page_001.html
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>  details/page_002.html
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>  kmindex_output/
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>results/query/
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  index.html
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  sequence_stats.tsv
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  sample_stats.tsv
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  details/page_001.html
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>  details/page_002.html
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>  kmindex_output/
 </code></pre></div>
 <p><strong>Presence vector</strong> - by default kmindex reports one coverage ratio <code>R</code> per sample:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="p">{</span><span class="nt">"index"</span><span class="p">:</span><span class="s2">"idx_0"</span><span class="p">,</span><span class="nt">"query"</span><span class="p">:</span><span class="s2">"q0"</span><span class="p">,</span><span class="nt">"samples"</span><span class="p">:{</span><span class="nt">"sample_0"</span><span class="p">:</span><span class="mf">0.69</span><span class="p">}}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span><span class="nt">"index"</span><span class="p">:</span><span class="s2">"idx_0"</span><span class="p">,</span><span class="nt">"query"</span><span class="p">:</span><span class="s2">"q0"</span><span class="p">,</span><span class="nt">"samples"</span><span class="p">:{</span><span class="nt">"sample_0"</span><span class="p">:</span><span class="mf">0.69</span><span class="p">}}</span>
 </code></pre></div>
 <p>With <code>--vec</code> it reports the per-k-mer presence vector <code>P</code> as well, <code>R</code> being its mean:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span><span class="nt">"index"</span><span class="p">:</span><span class="s2">"idx_0"</span><span class="p">,</span><span class="nt">"query"</span><span class="p">:</span><span class="s2">"q0"</span><span class="p">,</span><span class="nt">"samples"</span><span class="p">:{</span><span class="nt">"sample_0"</span><span class="p">:{</span><span class="nt">"P"</span><span class="p">:[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="err">...</span><span class="p">],</span><span class="nt">"R"</span><span class="p">:</span><span class="mf">0.69</span><span class="p">}}}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">{</span><span class="nt">"index"</span><span class="p">:</span><span class="s2">"idx_0"</span><span class="p">,</span><span class="nt">"query"</span><span class="p">:</span><span class="s2">"q0"</span><span class="p">,</span><span class="nt">"samples"</span><span class="p">:{</span><span class="nt">"sample_0"</span><span class="p">:{</span><span class="nt">"P"</span><span class="p">:[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="err">...</span><span class="p">],</span><span class="nt">"R"</span><span class="p">:</span><span class="mf">0.69</span><span class="p">}}}</span>
 </code></pre></div>
 <p>The score matrix is identical either way. <code>--vec</code> adds, per (query, sample), the coverage
 stats <code>n_kmers</code>, <code>covered</code>, <code>longest_run</code> (longest stretch of consecutive k-mers found) and
@@ -3098,38 +3111,38 @@ concentrated on a sub-region:</p>
 example <code>[[1, 557], [0, 597], [1, 507]]</code> means 557 k-mers found, then 597 missing, then 507
 found.</p>
 <h2 id="examples">Examples</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Single query file against one index</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>query.fa
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Multiple query files with threading</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>-t<span class="w"> </span><span class="m">4</span><span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>q1.fa<span class="w"> </span>q2.fa
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># Query multiple indices</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>--sh<span class="w"> </span>idx2<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>query.fa
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="c1"># Read from stdin</span>
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>cat<span class="w"> </span>query.fa<span class="w"> </span><span class="p">|</span><span class="w"> </span>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-
-<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>
-<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="c1"># Scan a directory recursively</span>
-<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>./queries_dir/
-<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>
-<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="c1"># Treat all sequences as one batch query</span>
-<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>--single-query<span class="w"> </span>batch1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>multi.fa
-<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>
-<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="c1"># Score threshold filtering</span>
-<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>--thr<span class="w"> </span><span class="m">0</span>.1<span class="w"> </span>query.fa
-<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>
-<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a><span class="c1"># TSV data plus an HTML report</span>
-<a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-f<span class="w"> </span>tsv<span class="w"> </span>--export<span class="w"> </span>html<span class="w"> </span>query.fa
-<a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a>
-<a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a><span class="c1"># Raw kmindex results only</span>
-<a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-f<span class="w"> </span>none<span class="w"> </span>query.fa
-<a id="__codelineno-4-27" name="__codelineno-4-27" href="#__codelineno-4-27"></a>
-<a id="__codelineno-4-28" name="__codelineno-4-28" href="#__codelineno-4-28"></a><span class="c1"># Paged HTML report for many reads: 500 reads per page, 20 best samples each</span>
-<a id="__codelineno-4-29" name="__codelineno-4-29" href="#__codelineno-4-29"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-x<span class="w"> </span>html<span class="w"> </span>--page-size<span class="w"> </span><span class="m">500</span><span class="w"> </span>--top<span class="w"> </span><span class="m">20</span><span class="w"> </span>reads.fq.gz
-<a id="__codelineno-4-30" name="__codelineno-4-30" href="#__codelineno-4-30"></a>
-<a id="__codelineno-4-31" name="__codelineno-4-31" href="#__codelineno-4-31"></a><span class="c1"># Per-k-mer coverage track in the HTML report</span>
-<a id="__codelineno-4-32" name="__codelineno-4-32" href="#__codelineno-4-32"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-x<span class="w"> </span>html<span class="w"> </span>--vec<span class="w"> </span>query.fa
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Single query file against one index</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>query.fa
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Multiple query files with threading</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>-t<span class="w"> </span><span class="m">4</span><span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>q1.fa<span class="w"> </span>q2.fa
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Query multiple indices</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>--sh<span class="w"> </span>idx2<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>query.fa
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="c1"># Read from stdin</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>cat<span class="w"> </span>query.fa<span class="w"> </span><span class="p">|</span><span class="w"> </span>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="c1"># Scan a directory recursively</span>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>./queries_dir/
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="c1"># Treat all sequences as one batch query</span>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>--single-query<span class="w"> </span>batch1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>multi.fa
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="c1"># Score threshold filtering</span>
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>--thr<span class="w"> </span><span class="m">0</span>.1<span class="w"> </span>query.fa
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>
+<a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a><span class="c1"># TSV data plus an HTML report</span>
+<a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-f<span class="w"> </span>tsv<span class="w"> </span>--export<span class="w"> </span>html<span class="w"> </span>query.fa
+<a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a>
+<a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a><span class="c1"># Raw kmindex results only</span>
+<a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-f<span class="w"> </span>none<span class="w"> </span>query.fa
+<a id="__codelineno-5-27" name="__codelineno-5-27" href="#__codelineno-5-27"></a>
+<a id="__codelineno-5-28" name="__codelineno-5-28" href="#__codelineno-5-28"></a><span class="c1"># Paged HTML report for many reads: 500 reads per page, 20 best samples each</span>
+<a id="__codelineno-5-29" name="__codelineno-5-29" href="#__codelineno-5-29"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-x<span class="w"> </span>html<span class="w"> </span>--page-size<span class="w"> </span><span class="m">500</span><span class="w"> </span>--top<span class="w"> </span><span class="m">20</span><span class="w"> </span>reads.fq.gz
+<a id="__codelineno-5-30" name="__codelineno-5-30" href="#__codelineno-5-30"></a>
+<a id="__codelineno-5-31" name="__codelineno-5-31" href="#__codelineno-5-31"></a><span class="c1"># Per-k-mer coverage track in the HTML report</span>
+<a id="__codelineno-5-32" name="__codelineno-5-32" href="#__codelineno-5-32"></a>kmhelpers<span class="w"> </span>query<span class="w"> </span>-r<span class="w"> </span>./registry<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>-o<span class="w"> </span>results<span class="w"> </span>-x<span class="w"> </span>html<span class="w"> </span>--vec<span class="w"> </span>query.fa
 </code></pre></div>
 
 
@@ -3235,7 +3248,7 @@ found.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       

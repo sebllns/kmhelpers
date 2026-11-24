@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/kmhelpers-logo-v1.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
     
     
       
@@ -1787,6 +1787,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="check">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#autorepair" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Autorepair
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -1812,6 +1829,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#remove-samples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        remove-samples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#rename" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1827,6 +1855,17 @@
     <span class="md-ellipsis">
       
         relink
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        clean
       
     </span>
   </a>
@@ -2875,6 +2914,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="check">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#autorepair" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Autorepair
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -2900,6 +2956,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#remove-samples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        remove-samples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#rename" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2915,6 +2982,17 @@
     <span class="md-ellipsis">
       
         relink
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        clean
       
     </span>
   </a>
@@ -3048,7 +3126,7 @@
 <div class="admonition abstract">
 <p class="admonition-title">I/O</p>
 <p><strong>Input:</strong> kmindex registry (<code>-r</code>), subcommand-specific arguments<br />
-<strong>Output:</strong> updated registry state (create, add, remove, rename, relink) or printed info (list, info, check)</p>
+<strong>Output:</strong> updated registry state (create, add, remove, remove-samples, rename, relink, clean) or printed info (list, info, check)</p>
 </div>
 <h2 id="subcommands">Subcommands</h2>
 <table>
@@ -3061,35 +3139,43 @@
 <tbody>
 <tr>
 <td><code>create</code></td>
-<td>Initialise a registry and optionally register existing indices</td>
+<td>Initialise a registry and optionally register existing shards</td>
 </tr>
 <tr>
 <td><code>add</code></td>
-<td>Register existing kmtricks indices in an existing registry</td>
+<td>Register existing kmtricks indexes as shards of an existing registry</td>
 </tr>
 <tr>
 <td><code>list</code></td>
-<td>List all indices in a registry</td>
+<td>List all shards of a registry</td>
 </tr>
 <tr>
 <td><code>info</code></td>
-<td>Show detailed information about an index</td>
+<td>Show detailed information about a shard</td>
 </tr>
 <tr>
 <td><code>check</code></td>
-<td>Validate registry consistency and index structures</td>
+<td>Validate registry consistency and shard structures</td>
 </tr>
 <tr>
 <td><code>remove</code></td>
-<td>Remove one or more indices from the registry</td>
+<td>Remove one or more shards from the registry</td>
+</tr>
+<tr>
+<td><code>remove-samples</code></td>
+<td>Remove samples from the shards holding them, rewriting their matrices</td>
 </tr>
 <tr>
 <td><code>rename</code></td>
-<td>Rename an index</td>
+<td>Rename a shard, or an index (all its shards)</td>
 </tr>
 <tr>
 <td><code>relink</code></td>
-<td>Recreate links after moving index files</td>
+<td>Recreate links after moving shard folders</td>
+</tr>
+<tr>
+<td><code>clean</code></td>
+<td>Remove build leftovers, finished session plans and logs</td>
 </tr>
 </tbody>
 </table>
@@ -3157,18 +3243,59 @@
 <td><code>-z, --zvalue INT</code></td>
 <td>Z-value of the query check (default: 6)</td>
 </tr>
+<tr>
+<td><code>--min-gap FLOAT</code></td>
+<td>Fail a shard whose positive score minus its negative score is below this (default: 0.5)</td>
+</tr>
+<tr>
+<td><code>--autorepair</code></td>
+<td>Repair the registry before the checks (see <a href="#autorepair">Autorepair</a>)</td>
+</tr>
+<tr>
+<td><code>--search DIR</code></td>
+<td>With <code>--autorepair</code>: also look for lost shards in <code>DIR</code> (repeatable)</td>
+</tr>
 </tbody>
 </table>
+<p>Before the shard checks, <code>check</code> validates <code>index.json</code>; each failure fails the check:</p>
+<ul>
+<li>a shard link must be absolute: kmindex resolves a relative target against the directory it runs from, not the registry, so it works only when run from the registry;</li>
+<li>the <code>samples</code> of a shard must match its <code>kmtricks.fof</code>, in the same order.</li>
+</ul>
+<p><code>--autorepair</code> fixes the first one.</p>
 <p>After the structure checks, <code>check</code> takes 10 random (k+z)-mers from the first sample of each shard
-(from the sample file listed first in the shard's <code>kmtricks.fof</code>) and queries them all in one
-kmindex query against the registry. It then prints that sample's score on its own (k+z)-mers:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Query check (z=6, 10 (k+z)-mers of each shard's first sample):
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  idx_g0_p0: sample_0 mean 1.000, min 1.000, 10/10 perfect
+(from the sample file listed first in the shard's <code>kmtricks.fof</code>), the <strong>positives</strong>, and 10 random
+DNA sequences of 1000 bases, the <strong>negatives</strong>. It queries them all in one kmindex query against
+the registry, then prints, per shard, the score of that sample on its positives, and the mean score
+of every sample on the negatives: the empirical FP rate of a query.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Query check (z=6, 10 (k+z)-mers of each shard's first sample, 10 random sequences of 1000 bases):
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  idx_g0_p0: sample_0 mean 1.000, min 1.000, 10/10 perfect; negatives mean 0.0000, max 0.0001 (sample_3), expected 0.0000
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  idx_g0_p1: skipped (sample file not found: /data/S5.fa.gz)
 </code></pre></div>
-<p>The score is only reported. A shard built with <code>--ab</code> &gt; 1 can miss k-mers that appear in its raw
-sample file. A failed kmindex query fails the check. <code>apply</code> runs <code>check</code> after each publish and in
-the finish job, so the query check runs there too.</p>
+<ul>
+<li><strong>Broken index</strong> - a shard whose positive score is not <code>--min-gap</code> above its negative score fails
+  the check: its filters are empty (nothing hits) or saturated (everything hits). A shard built with
+  <code>--ab</code> &gt; 1 can miss k-mers that appear in its raw sample file, hence a gap rather than a perfect
+  score.</li>
+<li><strong>Expected FP rate</strong> - when the shard was built with <code>--fpr-stats</code> (see
+  <a href="../build/#stats">build - Stats</a>), <code>expected</code> is the FP rate of a query its samples' Bloom filters
+  give: a position hits when its z+1 k-mers all do (<code>fpr^(z+1)</code>, averaged over the samples). An
+  empirical rate more than 10 times above it (and above 0.001) is reported as suspect; it does not
+  fail the check.</li>
+<li>A failed kmindex query fails the check.</li>
+</ul>
+<h4 id="autorepair">Autorepair</h4>
+<p>Moving a registry, or the folders its shards link to, leaves <code>index.json</code> stale. kmindex finds a shard at <code>&lt;registry&gt;/&lt;name&gt;</code> and follows it when it is a symlink; a relative link is resolved against the current directory, not the registry. With <code>--autorepair</code>, <code>check</code> first repairs:</p>
+<ol>
+<li>the root <code>path</code> of <code>index.json</code>, set to the registry;</li>
+<li>relative links, made absolute;</li>
+<li>a lost shard (missing folder or dangling link), linked to the first folder found that holds its samples, in the same order, with a complete structure: <code>&lt;old path&gt;/&lt;name&gt;</code> (the registry was moved), <code>&lt;registry&gt;/work/*/previous/&lt;name&gt;</code> (an interrupted publish), then for each <code>--search DIR</code>: <code>DIR/&lt;name&gt;</code>, <code>DIR/*/&lt;name&gt;</code> and <code>DIR/&lt;name of the old link target&gt;</code>. Nothing is moved or copied, and a folder holding other samples (another version) is never linked;</li>
+<li>a shard found nowhere, removed from <code>index.json</code> with its dangling link, after one confirmation (skipped with the global <code>-Y</code>).</li>
+</ol>
+<p><code>--sh</code> limits 2-4 to its shards. Before any change, under the registry lock, <code>index.json</code> is copied to <code>index.json.&lt;YYYYmmdd_HHMMSS&gt;.bak</code>. A shard whose folder exists but fails its checks is only reported, and an index folder of the registry that is not registered is reported (<code>manage add</code> registers it). The checks then run on the repaired registry.</p>
+<p><code>apply</code> runs <code>check</code> before and after each publish and in the finish job: a broken shard is never
+published, and a shard failing its check after the swap keeps the runs, merges and previous version
+it was built from.</p>
 <h3 id="info"><code>info</code></h3>
 <table>
 <thead>
@@ -3203,15 +3330,11 @@ the finish job, so the query check runs there too.</p>
 </tr>
 <tr>
 <td><code>-d, --delete-files</code></td>
-<td>Also delete index files from disk</td>
-</tr>
-<tr>
-<td><code>-y, --yes</code></td>
-<td>Skip confirmation prompt</td>
+<td>Also delete the shard files from disk</td>
 </tr>
 <tr>
 <td><code>--missing-ok</code></td>
-<td>Skip index IDs that are not registered instead of failing</td>
+<td>Skip shards that are not registered instead of failing</td>
 </tr>
 <tr>
 <td><code>--keep-link</code></td>
@@ -3219,7 +3342,12 @@ the finish job, so the query check runs there too.</p>
 </tr>
 </tbody>
 </table>
-<h3 id="rename"><code>rename</code></h3>
+<p>Each shard is removed after confirmation, skipped with the global <code>-Y</code> option.</p>
+<h3 id="remove-samples"><code>remove-samples</code></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kmhelpers manage remove-samples [OPTIONS] SAMPLES_FILE
+</code></pre></div>
+<p><code>SAMPLES_FILE</code> holds one sample name per line, lines starting with <code>#</code> are comments (the
+<code>kmignore</code> format, see <a href="../query/#ignored-samples">query</a>).</p>
 <table>
 <thead>
 <tr>
@@ -3229,15 +3357,83 @@ the finish job, so the query check runs there too.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>-f, --from TEXT</code></td>
-<td>Current index ID (required)</td>
+<td><code>--sh, --shard TEXT</code></td>
+<td>Shards to search, names or glob patterns (default: all registered shards)</td>
 </tr>
 <tr>
-<td><code>-t, --to TEXT</code></td>
-<td>New index ID (required)</td>
+<td><code>-t, --threads INT</code></td>
+<td>Matrices rewritten at once (default: 1)</td>
+</tr>
+<tr>
+<td><code>--missing-ok</code></td>
+<td>Skip the samples found in no shard instead of failing</td>
+</tr>
+<tr>
+<td><code>--no-check</code></td>
+<td>Do not check the new version of a shard before publishing it</td>
+</tr>
+<tr>
+<td><code>-z, --zvalue INT</code></td>
+<td>Z-value of the query check (default: 6)</td>
+</tr>
+<tr>
+<td><code>--min-gap FLOAT</code></td>
+<td>Fail a new shard whose positive score minus its negative score is below this (default: 0.5)</td>
 </tr>
 </tbody>
 </table>
+<p>Each sample is looked up in the <code>kmtricks.fof</code> of every shard (or of the <code>--shard</code> ones),
+so the list needs no order; a sample held by several shards is removed from each. Nothing
+is changed when a sample is found in no shard (unless <code>--missing-ok</code>), or when a shard is
+compressed, would lose all its samples, or is not on the filesystem of the registry. The
+shards and their samples are listed, then removed after confirmation (<code>-Y</code> skips it).</p>
+<p>For each shard, in <code>BUILD_DIR/work/remove-samples/&lt;shard&gt;/</code>:</p>
+<ol>
+<li><code>new/</code> gets the shard without the samples: their columns are dropped from every
+   <code>matrices/matrix_&lt;p&gt;.cmbf</code>, their lines from <code>kmtricks.fof</code> and <code>fpr/partition_&lt;p&gt;.txt</code>;
+   other files are hardlinked, a sum index (<code>sum_&lt;p&gt;.vec</code>) is left out;</li>
+<li><code>new/</code> is checked as by <code>check</code> (structure and query), in a throwaway registry;</li>
+<li>under the registry lock, the shard is unregistered, its folder moved to <code>previous/</code>,
+   then <code>kmindex register --mode move</code> moves <code>new/</code> in place and registers it;</li>
+<li>the work folder is deleted.</li>
+</ol>
+<p>The Bloom filters keep their size: the other samples keep their FP rate, the matrices
+shrink by the share of removed columns. An interrupted removal is finished (new version
+checked) or undone (previous version restored) by the next run. Do not run it while a
+build publishes to the same shard.</p>
+<h3 id="rename"><code>rename</code></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>kmhelpers manage rename OLD NEW
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>kmhelpers manage rename --index OLD NEW [--compose-dir COMPOSE_DIR]
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Argument / Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OLD</code>, <code>NEW</code></td>
+<td>Current and new shard name, or index name with <code>--index</code></td>
+</tr>
+<tr>
+<td><code>--index</code></td>
+<td>Rename the index: every shard <code>OLD_g&lt;k&gt;[_p&lt;j&gt;]</code> becomes <code>NEW_g&lt;k&gt;[_p&lt;j&gt;]</code></td>
+</tr>
+<tr>
+<td><code>--compose-dir DIR</code></td>
+<td>With <code>--index</code>: also rename <code>DIR/OLD/</code> and the shard names its <code>layout.yaml</code> records</td>
+</tr>
+</tbody>
+</table>
+<p>A shard is its folder (or symlink) <code>&lt;registry&gt;/&lt;shard&gt;</code> and its <code>index.json</code> entry. kmindex stores nothing name-specific in the folder, so <code>rename</code> renames the folder, or only the link of a symlinked shard, and the key of its entry, in place and in the same order; kmindex is not needed and no data is moved. Its logs and stats, <code>logs/&lt;shard&gt;/</code>, follow it (the <code>shard</code> field of <code>stats.yaml</code> too).</p>
+<ul>
+<li>Under the registry lock, <code>index.json</code> is first copied to <code>index.json.&lt;YYYYmmdd_HHMMSS&gt;.bak</code>, then written once. A failed rename undoes the folders already renamed.</li>
+<li>Refused when <code>NEW</code> is registered or exists in the registry or in <code>logs/</code>, is a reserved name (<code>work</code>, <code>assets</code>, <code>logs</code>, hidden), while a job of a build of the registry is queued or running, or while a session still has a renamed shard to publish.</li>
+<li><code>--index</code> lists the renames and asks once (skipped with the global <code>-Y</code>). An index is only the prefix of its shard names: shards not named <code>OLD_g&lt;k&gt;</code> or <code>OLD_g&lt;k&gt;_p&lt;j&gt;</code> are not renamed.</li>
+<li>Without <code>--compose-dir</code>, the compose layout keeps the old names, and the next <code>compose -n OLD</code> would build new shards under them. With it, <code>COMPOSE_DIR/OLD/</code> becomes <code>COMPOSE_DIR/NEW/</code>, checked before any shard is renamed, so the next <code>compose -n NEW</code> updates the renamed shards. The sessions already composed keep the old names in their files.</li>
+</ul>
 <h3 id="relink"><code>relink</code></h3>
 <table>
 <thead>
@@ -3257,49 +3453,99 @@ the finish job, so the query check runs there too.</p>
 </tr>
 </tbody>
 </table>
+<h3 id="clean"><code>clean</code></h3>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--sh, --shard TEXT</code></td>
+<td>Clean only these shards (default: all, repeatable); fails if one is not registered</td>
+</tr>
+<tr>
+<td><code>--assets</code></td>
+<td>Also remove <code>assets/&lt;session&gt;/</code> of the finished sessions</td>
+</tr>
+<tr>
+<td><code>--logs</code></td>
+<td>Also remove the logs and reports of <code>logs/</code>; the stats are kept</td>
+</tr>
+<tr>
+<td><code>-n, --dry-run</code></td>
+<td>Only list what would be removed, with the sizes</td>
+</tr>
+</tbody>
+</table>
+<p>A published shard built from a single kmtricks run is that run moved in place, with its build intermediates. <code>clean</code> removes the folders read neither by kmindex nor by kmhelpers once the run is built: <code>superkmers/</code>, <code>counts/</code>, <code>minimizers/</code>, <code>partition_infos/</code>, <code>merge_infos/</code>, <code>histograms/</code>, <code>filters/</code> and <code>howde_index/</code>. It keeps what a query or a merge reads (<code>matrices/</code>, <code>hash.info</code>, <code>repartition_gatb/</code>, <code>config_gatb/</code>, <code>options.txt</code>, <code>kmtricks.fof</code>, <code>build_infos.txt</code>) and what the kmhelpers stats read (<code>run_infos.txt</code>, <code>fpr/</code>). The run scripts of a build already delete <code>superkmers/</code>.</p>
+<ul>
+<li><code>--assets</code> removes the plan, scripts and progress of a session only when every shard of its plan holds its samples and no job of the plan is queued or running; the other sessions are listed as kept, with the reason. <code>apply --status</code> no longer knows a removed session.</li>
+<li><code>--logs</code> removes <code>logs/&lt;shard&gt;/*.log</code> (and <code>.log.prev</code>), <code>logs/slurm/</code> and the <code>kmhelpers_*.yaml</code> reports. <code>stats.yaml</code> and <code>&lt;run&gt;.stats.json</code> stay. It is refused while a job of any session is queued or running.</li>
+</ul>
+<p>Everything found is listed with its size, then removed after one confirmation, skipped with the global <code>-Y</code> option.</p>
 <h2 id="examples">Examples</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Create a registry in the current directory</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>create
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Create a registry and register indices from a directory</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>create<span class="w"> </span>-i<span class="w"> </span>/data/indices
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="c1"># List all registered indices</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>list
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>-r<span class="w"> </span>/path/to/registry<span class="w"> </span>list
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="c1"># Add indices from a directory to an existing registry</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>add<span class="w"> </span>-i<span class="w"> </span>/data/new_indices
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="c1"># Show info for a specific index</span>
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>info<span class="w"> </span>--sh<span class="w"> </span>my_index
-<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>
-<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="c1"># Show info as JSON</span>
-<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>info<span class="w"> </span>--sh<span class="w"> </span>my_index<span class="w"> </span>--json
-<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>
-<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="c1"># Check consistency (structure, then a query of each shard's first sample)</span>
-<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>check
-<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>
-<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="c1"># Structure only</span>
-<a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>check<span class="w"> </span>--nq
-<a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a>
-<a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a><span class="c1"># Remove an index (keep files)</span>
-<a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>remove<span class="w"> </span>--sh<span class="w"> </span>my_index
-<a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a>
-<a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a><span class="c1"># Remove an index and delete files from disk</span>
-<a id="__codelineno-2-30" name="__codelineno-2-30" href="#__codelineno-2-30"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>remove<span class="w"> </span>--sh<span class="w"> </span>my_index<span class="w"> </span>-d
-<a id="__codelineno-2-31" name="__codelineno-2-31" href="#__codelineno-2-31"></a>
-<a id="__codelineno-2-32" name="__codelineno-2-32" href="#__codelineno-2-32"></a><span class="c1"># Remove multiple indices without confirmation</span>
-<a id="__codelineno-2-33" name="__codelineno-2-33" href="#__codelineno-2-33"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>remove<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>--sh<span class="w"> </span>idx2<span class="w"> </span>-y
-<a id="__codelineno-2-34" name="__codelineno-2-34" href="#__codelineno-2-34"></a>
-<a id="__codelineno-2-35" name="__codelineno-2-35" href="#__codelineno-2-35"></a><span class="c1"># Rename an index</span>
-<a id="__codelineno-2-36" name="__codelineno-2-36" href="#__codelineno-2-36"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>rename<span class="w"> </span>-f<span class="w"> </span>old_name<span class="w"> </span>-t<span class="w"> </span>new_name
-<a id="__codelineno-2-37" name="__codelineno-2-37" href="#__codelineno-2-37"></a>
-<a id="__codelineno-2-38" name="__codelineno-2-38" href="#__codelineno-2-38"></a><span class="c1"># Relink all indices from a new directory</span>
-<a id="__codelineno-2-39" name="__codelineno-2-39" href="#__codelineno-2-39"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>relink<span class="w"> </span>-i<span class="w"> </span>/new/location
-<a id="__codelineno-2-40" name="__codelineno-2-40" href="#__codelineno-2-40"></a>
-<a id="__codelineno-2-41" name="__codelineno-2-41" href="#__codelineno-2-41"></a><span class="c1"># Relink a specific index</span>
-<a id="__codelineno-2-42" name="__codelineno-2-42" href="#__codelineno-2-42"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>relink<span class="w"> </span>-i<span class="w"> </span>/new/location<span class="w"> </span>--sh<span class="w"> </span>my_index
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Create a registry in the current directory</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>create
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Create a registry and register indices from a directory</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>create<span class="w"> </span>-i<span class="w"> </span>/data/indices
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># List all registered shards</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>list
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>-r<span class="w"> </span>/path/to/registry<span class="w"> </span>list
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="c1"># Add indices from a directory to an existing registry</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>add<span class="w"> </span>-i<span class="w"> </span>/data/new_indices
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="c1"># Show info for a shard</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>info<span class="w"> </span>--sh<span class="w"> </span>my_index
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="c1"># Show info as JSON</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>info<span class="w"> </span>--sh<span class="w"> </span>my_index<span class="w"> </span>--json
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="c1"># Check consistency (structure, then a query of each shard's first sample)</span>
+<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>check
+<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a>
+<a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a><span class="c1"># Structure only</span>
+<a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>check<span class="w"> </span>--nq
+<a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a>
+<a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a><span class="c1"># Require a wider gap between positive and negative scores</span>
+<a id="__codelineno-4-27" name="__codelineno-4-27" href="#__codelineno-4-27"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>check<span class="w"> </span>--min-gap<span class="w"> </span><span class="m">0</span>.8
+<a id="__codelineno-4-28" name="__codelineno-4-28" href="#__codelineno-4-28"></a>
+<a id="__codelineno-4-29" name="__codelineno-4-29" href="#__codelineno-4-29"></a><span class="c1"># Repair a moved registry, looking for lost shards in /data/indices</span>
+<a id="__codelineno-4-30" name="__codelineno-4-30" href="#__codelineno-4-30"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>check<span class="w"> </span>--autorepair<span class="w"> </span>--search<span class="w"> </span>/data/indices
+<a id="__codelineno-4-31" name="__codelineno-4-31" href="#__codelineno-4-31"></a>
+<a id="__codelineno-4-32" name="__codelineno-4-32" href="#__codelineno-4-32"></a><span class="c1"># Remove a shard (keep files)</span>
+<a id="__codelineno-4-33" name="__codelineno-4-33" href="#__codelineno-4-33"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>remove<span class="w"> </span>--sh<span class="w"> </span>my_index
+<a id="__codelineno-4-34" name="__codelineno-4-34" href="#__codelineno-4-34"></a>
+<a id="__codelineno-4-35" name="__codelineno-4-35" href="#__codelineno-4-35"></a><span class="c1"># Remove a shard and delete its files from disk</span>
+<a id="__codelineno-4-36" name="__codelineno-4-36" href="#__codelineno-4-36"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>remove<span class="w"> </span>--sh<span class="w"> </span>my_index<span class="w"> </span>-d
+<a id="__codelineno-4-37" name="__codelineno-4-37" href="#__codelineno-4-37"></a>
+<a id="__codelineno-4-38" name="__codelineno-4-38" href="#__codelineno-4-38"></a><span class="c1"># Remove several shards without confirmation</span>
+<a id="__codelineno-4-39" name="__codelineno-4-39" href="#__codelineno-4-39"></a>kmhelpers<span class="w"> </span>-Y<span class="w"> </span>manage<span class="w"> </span>remove<span class="w"> </span>--sh<span class="w"> </span>idx1<span class="w"> </span>--sh<span class="w"> </span>idx2
+<a id="__codelineno-4-40" name="__codelineno-4-40" href="#__codelineno-4-40"></a>
+<a id="__codelineno-4-41" name="__codelineno-4-41" href="#__codelineno-4-41"></a><span class="c1"># Remove samples wherever they are, then from two shards only</span>
+<a id="__codelineno-4-42" name="__codelineno-4-42" href="#__codelineno-4-42"></a>kmhelpers<span class="w"> </span>-Y<span class="w"> </span>manage<span class="w"> </span>remove-samples<span class="w"> </span>contaminated.txt<span class="w"> </span>-t<span class="w"> </span><span class="m">8</span>
+<a id="__codelineno-4-43" name="__codelineno-4-43" href="#__codelineno-4-43"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>remove-samples<span class="w"> </span>contaminated.txt<span class="w"> </span>--sh<span class="w"> </span><span class="s1">'idx_g0_*'</span>
+<a id="__codelineno-4-44" name="__codelineno-4-44" href="#__codelineno-4-44"></a>
+<a id="__codelineno-4-45" name="__codelineno-4-45" href="#__codelineno-4-45"></a><span class="c1"># Rename a shard</span>
+<a id="__codelineno-4-46" name="__codelineno-4-46" href="#__codelineno-4-46"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>rename<span class="w"> </span>idx_g0<span class="w"> </span>virus_g0
+<a id="__codelineno-4-47" name="__codelineno-4-47" href="#__codelineno-4-47"></a>
+<a id="__codelineno-4-48" name="__codelineno-4-48" href="#__codelineno-4-48"></a><span class="c1"># Rename an index: all its shards, and its compose folder and layout</span>
+<a id="__codelineno-4-49" name="__codelineno-4-49" href="#__codelineno-4-49"></a>kmhelpers<span class="w"> </span>-Y<span class="w"> </span>manage<span class="w"> </span>rename<span class="w"> </span>--index<span class="w"> </span>idx<span class="w"> </span>virus<span class="w"> </span>--compose-dir<span class="w"> </span>db/compose
+<a id="__codelineno-4-50" name="__codelineno-4-50" href="#__codelineno-4-50"></a>
+<a id="__codelineno-4-51" name="__codelineno-4-51" href="#__codelineno-4-51"></a><span class="c1"># Relink all shards from a new directory</span>
+<a id="__codelineno-4-52" name="__codelineno-4-52" href="#__codelineno-4-52"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>relink<span class="w"> </span>-i<span class="w"> </span>/new/location
+<a id="__codelineno-4-53" name="__codelineno-4-53" href="#__codelineno-4-53"></a>
+<a id="__codelineno-4-54" name="__codelineno-4-54" href="#__codelineno-4-54"></a><span class="c1"># Relink one shard</span>
+<a id="__codelineno-4-55" name="__codelineno-4-55" href="#__codelineno-4-55"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>relink<span class="w"> </span>-i<span class="w"> </span>/new/location<span class="w"> </span>--sh<span class="w"> </span>my_index
+<a id="__codelineno-4-56" name="__codelineno-4-56" href="#__codelineno-4-56"></a>
+<a id="__codelineno-4-57" name="__codelineno-4-57" href="#__codelineno-4-57"></a><span class="c1"># List what clean would remove, then remove it, with the finished sessions and the logs</span>
+<a id="__codelineno-4-58" name="__codelineno-4-58" href="#__codelineno-4-58"></a>kmhelpers<span class="w"> </span>manage<span class="w"> </span>clean<span class="w"> </span>-n<span class="w"> </span>--assets<span class="w"> </span>--logs
+<a id="__codelineno-4-59" name="__codelineno-4-59" href="#__codelineno-4-59"></a>kmhelpers<span class="w"> </span>-Y<span class="w"> </span>manage<span class="w"> </span>clean<span class="w"> </span>--assets<span class="w"> </span>--logs
 </code></pre></div>
 
 
@@ -3405,7 +3651,7 @@ the finish job, so the query check runs there too.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       

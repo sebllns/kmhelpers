@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/kmhelpers-logo-v1.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
     
     
       
@@ -1697,6 +1697,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#cancelling-a-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cancelling a build
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2866,6 +2877,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#cancelling-a-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cancelling a build
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3037,6 +3059,10 @@
 <td>Print the status of every step, per shard, write it to <code>progress.yaml</code>, and run nothing; with <code>--notify</code>, mail it (see <a href="#progress">Progress</a>)</td>
 </tr>
 <tr>
+<td><code>--cancel</code></td>
+<td>Cancel the jobs of the plan still queued or running, after a confirmation (<code>-Y</code>), and run nothing; with <code>--task</code>, only the matching jobs (see <a href="#cancelling-a-build">Cancelling a build</a>)</td>
+</tr>
+<tr>
 <td><code>--sp, --show-progress</code></td>
 <td>One line per shard: progress bar of its steps, steps running, colored end status (see <a href="#following-a-build">Following a build</a>); with <code>--status</code>, follow a cluster build until it ends</td>
 </tr>
@@ -3069,11 +3095,12 @@
 </ul>
 <p>A failed step stops its shard; the other shards go on, unless <code>--fail-fast</code>. Logs are in <code>BUILD_DIR/logs/&lt;shard&gt;/</code> (<code>&lt;run&gt;.log</code> with the <code>kmtricks</code> output and its resource use, <code>publish.log</code>).</p>
 <h3 id="following-a-build">Following a build</h3>
-<p><code>--sp, --show-progress</code> draws one line per shard, once its first step has started:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>⣾ idx_g0  [■■■■■■      ] 6/11 (8m3s)   8 running: chunk2 (4m10s), chunk5 (3m12s), chunk8 (52s), ...
+<p><code>--sp, --show-progress</code> draws one line per shard, once its first step has started or is queued:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>⣾ idx_g0  [■■■■■■      ] 6/11 (8m3s)   8 running: chunk2 (4m10s), chunk5 (3m12s), chunk8 (52s), ..., 2 queued
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>⣽ idx_g1  [■■■■■■■■■■■ ] 10/11 (12m40s) publish (3m4s)
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>✔ idx_g2  [■■■■■■■■■■■■] 8/8  (25m14s) SUCCESS
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>✘ idx_g3  [■■■         ] 3/9  (6m2s)   FAILED chunk3 (log: logs/idx_g3/idx_g3_initial_chunk3.log), 2 still running
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>⣻ idx_g4  [            ] 0/6           6 queued
 </code></pre></div>
 <ul>
 <li>the bar and the count are the steps of the shard done: its kmtricks runs (<code>chunk&lt;N&gt;</code>, or
@@ -3081,10 +3108,12 @@
   first step started;</li>
 <li>several chunks of a shard run at once on a cluster with <code>plan --chunks-per-job N</code> (one
   per array task): the line shows how many, and the 3 oldest with their time;</li>
+<li><code>N queued</code>: the steps waiting on a submitted SLURM job, in the queue or held by the array
+  throttle (<code>max_parallel</code> of the cluster file); a shard with only queued steps is shown too;</li>
 <li>an ended shard keeps its line: <code>SUCCESS</code> (green), <code>FAILED</code> (red), <code>LOST</code> or <code>CANCELLED</code>
   (yellow), with the failed step and its log.</li>
 </ul>
-<p>While no shard has started yet (jobs still queued), a spinner shows <code>waiting for the first step to start (N shards pending)</code>.</p>
+<p>While no shard has started nor has a step queued, a spinner shows <code>waiting for the first step to start (N shards pending)</code>.</p>
 <p>In a terminal, the lines are redrawn in place (log lines print above them); otherwise
 (redirected to a file, a SLURM job), a shard's line is printed each time one of its steps
 ends.</p>
@@ -3120,7 +3149,7 @@ stops watching; the jobs go on.</p>
 </tr>
 <tr>
 <td><code>LOST</code></td>
-<td>recorded as running, but its job is no longer in <code>squeue</code>: it ended without a status (out of memory, node failure); see its SLURM log</td>
+<td>recorded as running, but its job is no longer in <code>squeue</code>: it ended without a status. Why, when the end of its SLURM log says it: cancelled (<code>scancel</code>), time limit, out of memory, node failure or preemption, with the path of that log</td>
 </tr>
 <tr>
 <td><code>PENDING</code></td>
@@ -3128,7 +3157,10 @@ stops watching; the jobs go on.</p>
 </tr>
 </tbody>
 </table>
-<p><code>--status</code> exits 0 whatever the status; the summary line gives the overall one (<code>SUCCESS</code>, <code>FAILED</code>, <code>RUNNING</code>, <code>PENDING</code>).</p>
+<p><code>--status</code> exits 0 whatever the status; the summary line gives the overall one (<code>SUCCESS</code>, <code>FAILED</code>, <code>RUNNING</code>, <code>PENDING</code>): <code>RUNNING</code> while a shard runs, even with others failed. A step run again keeps its attempts before in its state file (<code>attempts</code>: job, node, times, how it ended, e.g. <code>was cancelled (scancel)</code> from its SLURM log), and the log of the last one as <code>&lt;step&gt;.log.prev</code>. <code>--status</code> adds <code>attempt N</code> to the step; with <code>--task</code>, one line per attempt before:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>metav_g0_p0_initial_chunk0: RUNNING  job 179726_0 @node56  8m48s  RAM 1.0G/120G (1%)  Compute SuperK 0%  attempt 2
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    attempt 1: job 179717_0 @node58 was cancelled (scancel) after 1h16m, log: logs/metav_g0_p0/metav_g0_p0_initial_chunk0.log.prev
+</code></pre></div>
 <p><strong>Report</strong> - <code>BUILD_DIR/logs/kmhelpers_apply_&lt;timestamp&gt;.yaml</code>: per shard, for each kmtricks run whether it was built, reused or already published, its duration, peak RSS, CPU efficiency and share of the RAM limit (from its log); how it was published, its duration and size on disk. It is written after each job, with status <code>RUNNING</code> until the end, so a running or killed apply leaves its report so far. See <a href="../build/#report">build - Report</a>.</p>
 <h3 id="selecting-what-runs">Selecting what runs</h3>
 <p><code>--task</code> takes names or glob patterns (repeatable or comma-separated). A pattern selects every job whose name, task or shard it matches, so a shard or task name runs all the jobs of that shard, and a job name runs only that job:</p>
@@ -3165,30 +3197,43 @@ stops watching; the jobs go on.</p>
 <p>A pattern that matches nothing is a warning; only no match at all is an error (<code>No task matches ...</code>). Job names are listed in <code>plan.yaml</code> (<code>jobs:</code> of each task), and <code>--pending</code> prints those not done yet.</p>
 <h3 id="running-jobs-separately">Running jobs separately</h3>
 <p>With <code>plan --chunks-per-job N</code>, the chunks of a shard are split into jobs that can run at the same time, e.g. as the tasks of a SLURM array, then the publish job of the shard. <code>plan --cluster</code> writes the SLURM files submitting them (see <a href="../plan/#cluster">plan - Cluster</a>); by hand:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kmhelpers<span class="w"> </span>plan<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--chunks-per-job<span class="w"> </span><span class="m">4</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--pending<span class="w">          </span><span class="c1"># the jobs to run</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--task<span class="w"> </span>coli_g0_j0<span class="w">  </span><span class="c1"># one per array task</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--task<span class="w"> </span>coli_g0_publish
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>kmhelpers<span class="w"> </span>plan<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--chunks-per-job<span class="w"> </span><span class="m">4</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--pending<span class="w">          </span><span class="c1"># the jobs to run</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--task<span class="w"> </span>coli_g0_j0<span class="w">  </span><span class="c1"># one per array task</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--task<span class="w"> </span>coli_g0_publish
+</code></pre></div>
+<h3 id="cancelling-a-build">Cancelling a build</h3>
+<p><code>--cancel</code> lists the jobs of the plan still queued or running, then cancels them once confirmed (<code>-Y</code> answers yes; without a terminal it refuses unless <code>-Y</code> is given):</p>
+<ul>
+<li>the SLURM jobs submitted by <code>submit.sh</code> (<code>slurm/submitted.tsv</code>) that <code>squeue</code> still lists are <code>scancel</code>ed: build array tasks, publish jobs and the finish job;</li>
+<li>a local <code>apply</code> running a step on this host gets SIGTERM.</li>
+</ul>
+<p>A running step is recorded <code>CANCELLED</code>; a step whose job had not started stays <code>PENDING</code>. With <code>--task</code>, only the matching jobs are cancelled and the finish job is kept; SLURM drops the publish job of a shard whose build job is cancelled (<code>--kill-on-invalid-dep</code>). A plan made from other inputs or by another kmhelpers version is cancelled too. To submit what is not done again, run <code>BUILD_DIR/assets/SESSION/slurm/submit.sh</code> (or <code>build --hpc</code>).</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--cancel<span class="w">                 </span><span class="c1"># every job of the plan</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--cancel<span class="w"> </span>--task<span class="w"> </span>coli_g1<span class="w">  </span><span class="c1"># one shard's jobs</span>
 </code></pre></div>
 <h2 id="examples">Examples</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Run the whole plan</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Run the jobs of some shards</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--task<span class="w"> </span>coli_g0,coli_g1
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--task<span class="w"> </span><span class="s1">'coli_g0_*'</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="c1"># Show progress, abort on first error</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--sp<span class="w"> </span>-x
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="c1"># Notify by email when done</span>
-<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--notify<span class="w"> </span>user@example.com
-<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>
-<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="c1"># Where every shard and step stands</span>
-<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--status
-<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>
-<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="c1"># Follow a cluster build, one line per shard, until it ends</span>
-<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--status<span class="w"> </span>--sp
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Run the whole plan</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Run the jobs of some shards</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--task<span class="w"> </span>coli_g0,coli_g1
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--task<span class="w"> </span><span class="s1">'coli_g0_*'</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="c1"># Show progress, abort on first error</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--sp<span class="w"> </span>-x
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="c1"># Notify by email when done</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--notify<span class="w"> </span>user@example.com
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="c1"># Where every shard and step stands</span>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--status
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="c1"># Follow a cluster build, one line per shard, until it ends</span>
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--status<span class="w"> </span>--sp
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="c1"># Cancel its jobs still queued or running</span>
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>kmhelpers<span class="w"> </span>apply<span class="w"> </span>coli_db<span class="w"> </span>-o<span class="w"> </span>coli_build/<span class="w"> </span>--cancel
 </code></pre></div>
 <h2 id="see-also">See Also</h2>
 <ul>
@@ -3301,7 +3346,7 @@ stops watching; the jobs go on.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       

@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../../assets/kmhelpers-logo-v1.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
     
     
       
@@ -3149,7 +3149,7 @@ raised: the process keeps its current limit.</p>
 <a id="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-61" name="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-61"></a>        <span class="n">resource</span><span class="o">.</span><span class="n">setrlimit</span><span class="p">(</span>
 <a id="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-62" name="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-62"></a>            <span class="n">resource</span><span class="o">.</span><span class="n">RLIMIT_NOFILE</span><span class="p">,</span> <span class="p">(</span><span class="n">resource</span><span class="o">.</span><span class="n">RLIM_INFINITY</span><span class="p">,</span> <span class="n">resource</span><span class="o">.</span><span class="n">RLIM_INFINITY</span><span class="p">)</span>
 <a id="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-63" name="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-63"></a>        <span class="p">)</span>
-<a id="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-64" name="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-64"></a>    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+<a id="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-64" name="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-64"></a>    <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">):</span>
 <a id="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-65" name="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-65"></a>        <span class="c1"># Not root: raise soft to hard limit only</span>
 <a id="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-66" name="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-66"></a>        <span class="k">try</span><span class="p">:</span>
 <a id="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-67" name="pykmhelpers.core.resources.maximize_nofile--source--__codelineno-0-67"></a>            <span class="n">resource</span><span class="o">.</span><span class="n">setrlimit</span><span class="p">(</span><span class="n">resource</span><span class="o">.</span><span class="n">RLIMIT_NOFILE</span><span class="p">,</span> <span class="p">(</span><span class="n">hard</span><span class="p">,</span> <span class="n">hard</span><span class="p">))</span>
@@ -3282,7 +3282,7 @@ raised: the process keeps its current limit.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       

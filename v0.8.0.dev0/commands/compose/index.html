@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/kmhelpers-logo-v1.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
     
     
       
@@ -2945,7 +2945,7 @@
 </tr>
 <tr>
 <td><code>--sb, --shard-budget INT</code></td>
-<td>Shard budget: a shard of span <code>s</code> holds at most <code>ceil8(budget / base^s)</code> samples (e.g. <code>2**43</code>); 0 for no limit (default: <code>2**43</code> for a new index, the layout's rule on an update)</td>
+<td>Shard budget: about how many k-mers a shard holds, summed over its samples (a shard of span <code>s</code> gets <code>ceil8(budget / base^s)</code> samples) (e.g. <code>2**43</code>); 0 for no limit (default: <code>2**43</code> for a new index, the layout's rule on an update)</td>
 </tr>
 <tr>
 <td><code>--kr, --kmer-ratio FLOAT</code></td>
@@ -2960,8 +2960,8 @@
 <td>Hidden. Cap a shard by its size on disk (e.g. <code>256GB</code>, <code>500000MB</code>) rather than by <code>--shard-budget</code>: when set, <code>--shard-budget</code> is not used. Cannot be combined with <code>--shard-budget</code></td>
 </tr>
 <tr>
-<td><code>--ab, --abundance-bits INT</code></td>
-<td>Build an abundance index with <code>N</code> bits per cell (2^N abundance classes); 0 builds a presence/absence index (default: 0)</td>
+<td><code>--ab, --abundance-bits N</code></td>
+<td>Build an abundance index with <code>N</code> bits per cell, <code>N</code> from 2 to 8 (2^N abundance classes, 4 to 256); 0 builds a presence/absence index (1 bit, 2 classes) (default: 0 for a new index, the layout's value on an update)</td>
 </tr>
 </tbody>
 </table>
@@ -3186,7 +3186,7 @@ dropped at build time. <code>list</code> sets it to 1 for assembled data and 2 f
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       

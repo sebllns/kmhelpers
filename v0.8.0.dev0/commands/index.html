@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/kmhelpers-logo-v1.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
     
     
       
@@ -2920,6 +2920,7 @@
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>                          prompts.  [env var: KMHELPERS_SKIP_CONFIRMATION]
 </code></pre></div>
 <p>Also honors <code>KMHELPERS_LOG_LEVEL</code>: default log level 0-4 (0=CRITICAL, 4=DEBUG) before <code>-V</code>/<code>-Q</code> adjustments. Default: 3 (INFO).</p>
+<p><strong>Confirmations</strong> - a prompt is asked only when stdin and stdout are a terminal and the command runs in the foreground. Otherwise (batch job, output redirected, background job), a prompt guarding an overwrite or a deletion refuses with a hint to pass <code>-Y</code>, while the summary of <a href="build/#description"><code>build</code></a> proceeds.</p>
 <h2 id="configuration-file">Configuration file</h2>
 <p><code>-C, --config FILE</code> (or <code>KMHELPERS_CONFIG=FILE</code>) reads default option values from a YAML file, for every command:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># kmhelpers.yaml</span>
@@ -3201,7 +3202,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["announce.dismiss", "navigation.tabs", "navigation.tracking", "navigation.sections", "navigation.path", "navigation.top", "navigation.expand", "navigation.footer", "navigation.indexes", "content.code.copy", "content.code.select", "content.code.annotate", "search.suggest", "search.highlight", "search.share", "content.tabs.link"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
       
