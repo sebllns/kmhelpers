@@ -38,7 +38,9 @@ class kmtricks_params:
         self.files = {
             "superk": (self.threads * self.partitions) + nw,
             "count": (self.threads * 2),
-            "merge": (self.threads * self.samples) + self.threads,
+            # one merge task per partition: min(T, P) tasks hold S + 1 files each
+            # (measured on Vista, kmtricks_tacc_benchmarks E1)
+            "merge": min(self.threads, self.partitions) * (self.samples + 1),
         }
 
     def max_memory(self):
@@ -82,7 +84,9 @@ class kmtricks_params:
             if nw <= 0:
                 nw = 1
 
-            # merge stage is the binding constraint on threads (sequential stages)
+            # merge stage bound on threads (sequential stages). Conservative:
+            # t * (S + 1) >= min(t, P) * (S + 1), the merge-stage file count, and
+            # it keeps this search from picking thousands of threads at P = 1.
             if t * (self.samples + 1) > max_files:
                 break
 

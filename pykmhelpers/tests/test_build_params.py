@@ -1,7 +1,8 @@
 """Unit tests for the kmtricks build-parameter selection.
 
 Covers the chunk-size decision: the open-files ceiling alone, and the
-``max_chunks`` cap that trades threads for bigger chunks.
+``max_chunks`` cap that trades merge tasks for bigger chunks. The merge stage
+opens ``min(T, P) * (S + 1)`` files (kmtricks_tacc_benchmarks E1).
 """
 
 import math
@@ -21,6 +22,13 @@ SAMPLES = 1000
 
 LIMITS = f'{{"ram": {RAM}, "files": {ULIMIT}, "threads": {THREADS}}}'
 
+# RAM-minimum partitions at THREADS: ceil(KMERS * 8 * 1.05 * 64 / RAM) = 17
+PARTS = 17
+
+
+def merge_files(p):
+    return min(p.threads, p.partitions) * (p.samples + 1)
+
 
 def best(**kwargs):
     args = dict(kmers=KMERS, ram=RAM, samples=SAMPLES, ulimit=ULIMIT, n_threads=THREADS)
@@ -30,17 +38,33 @@ def best(**kwargs):
 
 class TestChunkSize(unittest.TestCase):
     def test_no_cap_keeps_the_full_thread_count(self):
-        """Baseline: the chunk is the largest that fits all threads in the merge."""
+        """Baseline: the chunk is the largest that fits min(T, P) merge tasks."""
         p = best()
-        self.assertEqual(p.samples, ULIMIT // THREADS - 1)
+        self.assertEqual(p.partitions, PARTS)
+        self.assertEqual(p.samples, ULIMIT // PARTS - 1)
         self.assertEqual(p.threads, THREADS)
-        self.assertEqual(math.ceil(SAMPLES / p.samples), 16)
+        self.assertEqual(math.ceil(SAMPLES / p.samples), 5)
+        self.assertEqual(p.files["merge"], merge_files(p))
+        self.assertLessEqual(max(p.files.values()), ULIMIT)
+
+    def test_merge_files_follow_the_merge_tasks_not_the_threads(self):
+        """At T > P the merge holds P * (S + 1) files, not T * (S + 1)."""
+        p = best()
+        self.assertGreater(p.threads, p.partitions)
+        self.assertEqual(p.files["merge"], p.partitions * (p.samples + 1))
+
+    def test_threads_below_partitions_bound_the_chunk(self):
+        """With T < P the merge tasks are the threads."""
+        p = best(ram=RAM // 8, n_threads=8)
+        self.assertLess(p.threads, p.partitions)
+        self.assertEqual(p.samples, ULIMIT // 8 - 1)
+        self.assertEqual(p.files["merge"], p.threads * (p.samples + 1))
 
     def test_cap_trades_threads_for_bigger_chunks(self):
         p = best(max_chunks=4)
         self.assertEqual(p.samples, 250)
         self.assertEqual(math.ceil(SAMPLES / p.samples), 4)
-        self.assertLessEqual(p.threads, ULIMIT // (p.samples + 1))
+        self.assertLessEqual(merge_files(p), ULIMIT)
         self.assertLessEqual(max(p.files.values()), ULIMIT)
 
     def test_single_chunk_when_the_cap_is_one(self):
@@ -62,7 +86,9 @@ class TestChunkSize(unittest.TestCase):
                 kmers=KMERS, ram=RAM, samples=100, ulimit=8, n_threads=4, max_chunks=1
             )
         self.assertEqual(p.samples, 7)
-        self.assertEqual(p.threads, 1)
+        # one partition, so one merge task: 3 threads still fit 1 * (7 + 1) files
+        self.assertEqual(p.partitions, 1)
+        self.assertEqual(p.threads, 3)
         self.assertIn("max_chunks=1", logs.output[0])
 
     def test_chunk_never_exceeds_the_sample_count(self):
@@ -94,7 +120,7 @@ class TestAutoParams(unittest.TestCase):
 
     def test_no_cap_by_default(self):
         p = auto_params(kmers=KMERS, samples=SAMPLES, limits=LIMITS)
-        self.assertEqual(p.samples, ULIMIT // THREADS - 1)
+        self.assertEqual(p.samples, ULIMIT // PARTS - 1)
 
 
 class TestParamsForPartitions(unittest.TestCase):
@@ -110,7 +136,9 @@ class TestParamsForPartitions(unittest.TestCase):
         p = params_for_partitions(
             kmers=KMERS, samples=SAMPLES, partitions=32, limits=LIMITS
         )
-        self.assertEqual(p.samples, ULIMIT // THREADS - 1)
+        self.assertEqual(p.samples, ULIMIT // 32 - 1)
+        self.assertEqual(p.threads, THREADS)
+        self.assertEqual(p.files["merge"], 32 * (p.samples + 1))
 
     def test_warns_when_one_thread_exceeds_ram(self):
         limits = '{"ram": 1000, "files": 4096, "threads": 4}'

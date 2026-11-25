@@ -193,22 +193,26 @@ def chunk_bound(
     sample_count: int,
     config: IndexOpsConfig,
     max_chunk_samples: Optional[int],
+    partitions: int,
 ) -> str:
     """What bounds a kmtricks chunk of ``i`` at ``chunk_size`` samples, for the
     splitting message (``_chunk_size``): the chunk budget, the ``--max-chunks``
-    cap raising the chunk, or the open files of the merge stage."""
+    cap raising the chunk, or the open files of the merge stage, which holds
+    ``min(threads, partitions) * (samples + 1)`` files."""
     if max_chunk_samples and chunk_size == max_chunk_samples:
         return (
             f"the chunk budget allows at span {i.span} "
             f"({budget_text(config.chunk_budget)} k-mers, --chunk-budget)"
         )
     _, files, threads, _ = _resolve_limits(config.limits or "{}", config.safety_margin)
+    tasks = max(1, min(threads, partitions))
     if config.max_chunks and chunk_size == math.ceil(sample_count / config.max_chunks) \
-            and chunk_size > files // threads - 1:
+            and chunk_size > files // tasks - 1:
         return f"--max-chunks {config.max_chunks} asks for"
     return (
-        f"the open-files limit allows ({files} files at {threads} threads: "
-        "the merge stage opens threads x (samples + 1))"
+        f"the open-files limit allows ({files} files for {tasks} merge tasks, "
+        f"min({threads} threads, {partitions} partitions): "
+        "the merge stage opens min(threads, partitions) x (samples + 1))"
     )
 
 
@@ -263,7 +267,7 @@ def resolve_build_params(
     if chunk_size is not None:
         logger.info(
             f"  └── '{i.name}' has {sample_count} samples, exceeding the "
-            f"{chunk_size} {chunk_bound(i, chunk_size, sample_count, config, max_chunk_samples)}; "
+            f"{chunk_size} {chunk_bound(i, chunk_size, sample_count, config, max_chunk_samples, partitions)}; "
             f"splitting into {math.ceil(sample_count / chunk_size)} chunks"
         )
 

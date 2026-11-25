@@ -17,21 +17,26 @@ logger = logging.getLogger(__name__)
 def _chunk_size(
     samples: int,
     ulimit: int,
-    n_threads: int,
+    merge_tasks: int,
     max_chunks: int | None,
     max_chunk_samples: int | None = None,
 ) -> int:
     """Per-chunk sample count.
 
-    Base value: the largest chunk that still fits ``n_threads`` in the merge
-    stage (``n_threads * (chunk + 1) <= ulimit``), capped at the total sample
+    The kmtricks merge stage runs one task per partition on ``T`` threads, so
+    it holds ``min(T, P) * (chunk + 1)`` open files at once (measured on Vista,
+    kmtricks_tacc_benchmarks E1). ``merge_tasks`` is that ``min(T, P)`` at the
+    full thread count.
+
+    Base value: the largest chunk that still fits ``merge_tasks`` in the merge
+    stage (``merge_tasks * (chunk + 1) <= ulimit``), capped at the total sample
     count and at ``max_chunk_samples`` (the chunk budget), and
     floored at 1.
 
     With ``max_chunks``, the chunk is raised to ``ceil(samples / max_chunks)``
-    so the build is split into at most that many chunks. The merge stage needs
-    ``threads * (chunk + 1)`` open files, so a bigger chunk costs threads,
-    never RAM (``samples`` does not enter the memory model). ``ulimit - 1``
+    so the build is split into at most that many chunks. A bigger chunk costs
+    merge tasks (threads, or partitions below the thread count), never RAM
+    (``samples`` does not enter the memory model). ``ulimit - 1``
     (one merge thread) and ``max_chunk_samples`` bound the largest chunk: a
     cap that would need more cannot be honoured, and we warn and stay at that
     ceiling rather than fail.
@@ -41,7 +46,7 @@ def _chunk_size(
         ceiling = min(ceiling, max_chunk_samples)
     ceiling = max(1, ceiling)
 
-    chunk_s = max(1, min(ulimit // n_threads - 1, ceiling))
+    chunk_s = max(1, min(ulimit // max(1, merge_tasks) - 1, ceiling))
     if max_chunks is None or max_chunks < 1:
         return chunk_s
 
@@ -89,8 +94,8 @@ def get_best_params(
 
     The objective is lexicographic but conflict-free:
       * threads is capped by n_threads, by RAM (via the partitions needed),
-        and by ulimit (merge stage = threads*(samples+1), superk stage =
-        threads*partitions + writers).
+        and by ulimit (merge stage = min(threads, partitions)*(samples+1),
+        superk stage = threads*partitions + writers).
       * for the chosen thread count, ``nb_partitions()`` returns the RAM
         MINIMUM, which is also the best case for the superk file count.
 
@@ -106,21 +111,30 @@ def get_best_params(
     if ulimit < 1:
         raise ValueError(f"ulimit {ulimit} too low: at least 1 open file required")
 
-    chunk_s = _chunk_size(
-        samples, ulimit, n_threads, max_chunks, max_chunk_samples
-    )
+    if n_threads < 1:
+        raise ValueError(f"n_threads {n_threads} must be at least 1")
 
-    # hard ceiling on threads: user cap and the merge-stage file limit
-    max_t = min(n_threads, ulimit // (chunk_s + 1))
-    if max_t < 1:
+    # the merge stage opens min(T, P) * (chunk + 1) files: size the chunk for
+    # the merge tasks at the full thread count. P(t) grows with t, so
+    # min(t, P(t)) only shrinks below n_threads and the chunk stays feasible.
+    top = kmparams.kmtricks_params(
+        kmers=kmers, memory=ram, threads=n_threads, focus=focus
+    )
+    top.nb_partitions()
+    if top.partitions is None:
+        raise TypeError("expected nb_partitions() to set partitions")
+    chunk_s = _chunk_size(
+        samples, ulimit, min(n_threads, top.partitions), max_chunks, max_chunk_samples
+    )
+    if chunk_s + 1 > ulimit:
         raise ValueError(
             f"ulimit {ulimit} too low: merge stage needs at least "
-            f"{chunk_s + 1} open files for a single thread"
+            f"{chunk_s + 1} open files for a single task"
         )
 
-    # walk down from the ceiling; first feasible t is the maximum, and its
+    # walk down from the user cap; first feasible t is the maximum, and its
     # RAM-minimum partitions is the minimum partition count for that t
-    for t in range(max_t, 0, -1):
+    for t in range(n_threads, 0, -1):
         p = kmparams.kmtricks_params(
             kmers=kmers, memory=ram, threads=t, samples=chunk_s, focus=focus
         )
@@ -154,7 +168,8 @@ def params_for_partitions(
     index keeps the count decided for it once (see the layout). RAM is then
     absorbed by the thread count instead: ``nb_threads`` gives the most
     threads that fit ``ram`` at that partition count, capped by the thread
-    limit and by the open-files ceiling of the merge and superk stages.
+    limit and by the open-files ceiling of the merge stage
+    (``min(T, P) * (chunk + 1)``) and of the superk stage.
 
     ``p.samples`` on the returned params is the per-chunk sample count, as in
     `get_best_params`, and ``max_chunks`` and ``max_chunk_samples`` bound it
@@ -180,15 +195,16 @@ def params_for_partitions(
             f"single thread, over the {ram} bytes RAM limit"
         )
 
+    # the merge stage opens min(T, P) * (chunk + 1) files
     chunk_s = _chunk_size(
-        samples, ulimit, n_threads, max_chunks, max_chunk_samples
+        samples, ulimit, min(n_threads, partitions), max_chunks, max_chunk_samples
     )
-    max_t = min(n_threads, ram_params.threads, ulimit // (chunk_s + 1))
-    if max_t < 1:
+    if chunk_s + 1 > ulimit:
         raise ValueError(
             f"ulimit {ulimit} too low: merge stage needs at least "
-            f"{chunk_s + 1} open files for a single thread"
+            f"{chunk_s + 1} open files for a single task"
         )
+    max_t = max(1, min(n_threads, ram_params.threads))
 
     for t in range(max_t, 0, -1):
         p = kmparams.kmtricks_params(

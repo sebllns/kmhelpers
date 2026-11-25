@@ -69,14 +69,21 @@ $$
 $$
 
 $$
-\text{merge} = T \cdot S + T = T (S + 1)
+\text{merge} = \min(T, P) \cdot (S + 1)
 $$
+
+kmtricks runs one merge task per partition on $T$ threads, so $\min(T, P)$ tasks are open at
+once, each holding the $S$ sample files of its partition plus its output. Measured on TACC Vista
+(kmtricks_tacc_benchmarks, E1, $S = 300$): the peak stays under $\min(T, P)(S+1)$, within 3 % at
+$P = 64$, and at $T = 64, P = 4$ it is 1,056 files against $T(S+1) = 19{,}264$. The former
+$T(S+1)$ overestimates by $T/P$ whenever $T > P$.
 
 ## `nb_threads_partitions` (fits $T, P$ from `files` limit $F$ and $S$)
 
 For each candidate $t = 1, \dots, F$, with $n_w(t) = \max(1, \lfloor t \cdot f \rfloor)$:
 
-- merge-stage constraint (binding, sequential stage):
+- merge-stage constraint (binding, sequential stage), kept at the conservative $t(S+1)$ here: it
+  bounds $\min(t, P)(S+1)$ and stops the search from picking thousands of threads at $P = 1$:
 
 $$
 t (S + 1) \le F
@@ -119,13 +126,18 @@ with no regard for $N$, which could leave threads unused whenever $\lfloor F/(S+
 enough to unlock $N$ threads when the largest chunk caps them below $N$, trading more chunks
 for full requested parallelism. Unchanged when the largest chunk already supports $N$ threads.
 
-1. Chunk size: as large as `ulimit` allows (fewest chunks), unless that size caps threads below
-   $N$, in which case shrink it to the largest size that still fits $N$ threads in the merge
-   stage:
+1. Chunk size: the largest that fits the merge tasks of the full thread count,
+   $M = \min(N, P(N))$ with $P(N)$ the RAM-minimum partitions at $N$ threads (step 3), in the
+   merge stage ($M(S+1) \le F$):
 
 $$
-S = \max\!\left(1,\ \min\!\left(\left\lfloor \dfrac{F}{N} \right\rfloor - 1,\ S_{\text{total}}\right)\right)
+S = \max\!\left(1,\ \min\!\left(\left\lfloor \dfrac{F}{M} \right\rfloor - 1,\ S_{\text{total}}\right)\right)
 $$
+
+   $P(t)$ grows with $t$, so $\min(t, P(t)) \le M$ for every $t \le N$: the chunk stays feasible
+   for the merge stage at any thread count the walk of step 3 visits. `params_for_partitions`
+   uses $M = \min(N, P)$ with its fixed $P$. The derivation below was written for $M = N$
+   (the former $T(S+1)$ model) and holds with $N$ replaced by $M$.
 
 $\lfloor F/N \rfloor - 1$ is the largest $S$ satisfying $N(S+1) \le F$ (i.e. $S+1 \le F/N$, and
 since $S+1$ is an integer, $S+1 \le \lfloor F/N \rfloor$): the merge-stage chunk size that fits
@@ -141,14 +153,9 @@ picks the right value. It only diverges from the two-case form at the degenerate
 merge-stage thread ceiling below; it never affects the superk-stage infeasibility case, since
 superk ($T \cdot P + n_w$) doesn't depend on $S$.
 
-2. Hard thread ceiling, from the user cap and the merge-stage file limit ($T(S+1) \le F$):
-
-$$
-T_{\max} = \min\left(N,\ \left\lfloor \frac{F}{S+1} \right\rfloor \right)
-$$
-
-If $T_{\max} < 1$, no configuration fits `ulimit` (raises `ValueError`). Given the $S$ selection
-above, this now only happens when $N < 1$.
+2. Thread ceiling: the user cap, $T_{\max} = N$. The merge stage no longer caps threads directly,
+   since $\min(t, P(t))(S+1)$ depends on $P$; step 3 checks it for each $t$. Raises `ValueError`
+   when $N < 1$ or $S + 1 > F$.
 
 3. Walk $t$ down from $T_{\max}$ to $1$. For each $t$, take the RAM-minimum partitions via `nb_partitions`:
 
