@@ -78,6 +78,51 @@ class TestRunStats(unittest.TestCase):
         self.assertIn("fpr", write_run_stats(self.run, out, fpr=True))
 
 
+class TestMonitorFolding(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="kmhelpers_monitor_stats_"))
+        self.logs = self.tmp / "logs" / "a"
+        self.logs.mkdir(parents=True)
+        self.shard = self.tmp / "a"
+        self.shard.mkdir()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def monitor(self, name: str, **fields) -> None:
+        base = dict.fromkeys(("wall_s", "cpu_user_s", "cpu_sys_s", "peak_rss_max_proc_kb",
+                              "peak_rss_tree_kb", "peak_open_files", "peak_disk_bytes",
+                              "peak_disk_inodes", "final_disk_bytes"), 0)
+        (self.logs / f"{name}.monitor.json").write_text(json.dumps({**base, **fields}))
+
+    def test_runs_and_merges_are_folded(self):
+        for run, cpu, fds, disk in (("a_chunk0", 10, 300, 5000), ("a_chunk1", 30, 900, 7000)):
+            self.monitor(run, wall_s=cpu / 2, cpu_user_s=cpu, peak_open_files=fds, peak_disk_bytes=disk,
+                         peak_rss_max_proc_kb=1000)
+            (self.logs / f"{run}.stats.json").write_text(json.dumps({"run": run, "samples": 1}))
+        # write_run_stats folds the monitor file of the run
+        from pykmhelpers.pipeline.index_ops.stats import load_monitor, monitor_path
+
+        self.assertEqual(monitor_path(str(self.logs / "a_chunk0.stats.json")),
+                         str(self.logs / "a_chunk0.monitor.json"))
+        stats_files = []
+        for run in ("a_chunk0", "a_chunk1"):
+            path = self.logs / f"{run}.stats.json"
+            path.write_text(json.dumps({"run": run, "samples": 1,
+                                        "monitor": load_monitor(monitor_path(str(path)))}))
+            stats_files.append(str(path))
+        self.monitor("merge_a", wall_s=60, cpu_user_s=200, peak_rss_tree_kb=5000, peak_open_files=40)
+        data = write_shard_stats(str(self.logs / "stats.yaml"), "a", "initial", stats_files, 70, str(self.shard))
+        summary = data["summary"]
+        self.assertEqual(summary["builds"]["monitored"], 2)
+        self.assertEqual(summary["builds"]["cpu_s"], 40)
+        self.assertEqual(summary["builds"]["peak_open_files"], 900)
+        self.assertEqual(summary["builds"]["peak_disk_bytes"], 7000)
+        self.assertEqual(summary["merges"]["cpu_s"], 200)
+        self.assertEqual(summary["merges"]["peak_rss_kb"], 5000)
+        self.assertIn("a", data["sessions"]["initial"]["publish"]["merges"])
+
+
 class TestShardStats(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="kmhelpers_stats_"))

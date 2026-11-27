@@ -41,6 +41,13 @@ def _fof_names(path: str) -> str:
     return f"awk -F: '{{gsub(/[ \\t]/, \"\", $1); if ($1 != \"\") print $1}}' {_q(path)} | sort"
 
 
+def _monitor_prefix(out: str, watch: str, label: str) -> str:
+    """``kmhelpers manage monitor`` prefix recording the resources of the command after it."""
+    return shlex.join(
+        ["kmhelpers", "manage", "monitor", "--out", out, "--watch", watch, "--label", label, "--"]
+    )
+
+
 def _run_complete_cmd(run_dir: str, partitions: int) -> str:
     """Shell test, true when the kmtricks run ``run_dir`` is complete.
 
@@ -317,7 +324,10 @@ class IndexExecutor:
             fof_path=fof_path,
         )
         if result and "command" in result:
-            self._script.add(result["command"], f"build {name}")
+            monitor = _monitor_prefix(
+                self._paths.monitor_stats(self.task_dir, name), run_dir, f"build:{name}"
+            )
+            self._script.add(f"{monitor} {result['command']}", f"build {name}")
         self._script.add(finish, f"stats {name}")
 
     def _run_stats(self, name: str, run_dir: str) -> str:
@@ -625,7 +635,13 @@ class IndexExecutor:
                     self._kmindex(
                         "register", "--global-index", registry, "--from-file", tsv
                     ),
-                    self._kmindex(
+                    _monitor_prefix(
+                        paths.monitor_stats(self.task_dir, f"merge_{step.name}"),
+                        os.path.join(step_dir, "out"),
+                        f"merge:{step.name}",
+                    )
+                    + " "
+                    + self._kmindex(
                         "merge",
                         "--index",
                         registry,

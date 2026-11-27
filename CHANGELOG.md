@@ -71,6 +71,7 @@ All notable changes to this project will be documented in this file.
 - `plan` warns when a partition count leaves even one thread over the RAM limit, and its splitting message names the bound that sets the chunk size
 - **Merge-stage RAM** (kmtricks_tacc_benchmarks E2): a kmtricks chunk and its threads also fit the RAM of the kmtricks merge stage, `0.07 GiB + 169 KiB x min(threads, partitions) x samples`; the splitting message names it when it binds
 - **Merge RAM bound soft by default** (kmtricks_tacc_benchmarks Step 5): auto partitions are no longer raised for the `kmindex merge` of a full shard, `plan` warns instead; `--limits` key `"merge_ram": "hard"` restores the raise where jobs are killed above their RAM. The mapped share of the merge inputs is 0.96 (was 0.9)
+- **Build and merge resources** (`kmhelpers manage monitor`): chunk scripts run `kmtricks pipeline` and publish scripts every `kmindex merge` step under a monitor writing wall and CPU time, peak RSS, peak open files and peak storage (`logs/<shard>/<run>.monitor.json`, `merge_<step>.monitor.json`); `run-stats` adds them as `monitor`, `shard-stats` sums and peaks them in `summary.builds` and `summary.merges`
 - **Open-files limit** (as in 0.7.4): also raised for kmtricks and in the scripts of `BUILD_DIR/assets/SESSION/`
 - Confirmation prompts are asked only on a terminal in the foreground; otherwise they refuse with a hint to pass `-Y`
 - The command duration (`Done in ...`) is printed to stderr, so stdout carries only the command's output

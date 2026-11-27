@@ -24,6 +24,7 @@ import yaml
 
 from pykmhelpers.core.byte import ByteCounter
 from pykmhelpers.core.kmindex_layout import load_options_file
+from pykmhelpers.core.monitor import load_monitor
 from pykmhelpers.pipeline.index_ops.paths import STATS_FILE
 from pykmhelpers.pipeline.index_ops.report import dir_bytes
 from pykmhelpers.pipeline.index_ops.status import _atomic_write
@@ -127,8 +128,34 @@ def write_run_stats(run_dir: str, out: str, fpr: bool = False) -> dict:
         except (OSError, ValueError):
             pass
     stats = run_stats(run_dir, fpr)
+    monitor = load_monitor(monitor_path(out))
+    if monitor:
+        stats["monitor"] = monitor
     _atomic_write(out, json.dumps(stats) + "\n")
     return stats
+
+
+def monitor_path(run_stats_file: str) -> str:
+    """Monitor file of a run, next to its stats (``paths.monitor_stats``)."""
+    base = run_stats_file[: -len(".stats.json")] if run_stats_file.endswith(".stats.json") else run_stats_file
+    return f"{base}.monitor.json"
+
+
+def _monitored(entries: list[dict]) -> dict:
+    """Totals and peaks of the ``monitor`` entries of runs or merge steps."""
+    mons = [e["monitor"] for e in entries if e.get("monitor")]
+    if not mons:
+        return {}
+    peak = lambda k: max((m.get(k) or 0) for m in mons)  # noqa: E731
+    return {
+        "monitored": len(mons),
+        "wall_s": round(sum(m.get("wall_s") or 0 for m in mons), 1),
+        "cpu_s": round(sum((m.get("cpu_user_s") or 0) + (m.get("cpu_sys_s") or 0) for m in mons), 1),
+        "peak_rss_kb": max(peak("peak_rss_max_proc_kb"), peak("peak_rss_tree_kb")),
+        "peak_open_files": peak("peak_open_files"),
+        "peak_disk_bytes": peak("peak_disk_bytes"),
+        "peak_disk_inodes": peak("peak_disk_inodes"),
+    }
 
 
 def _summary(sessions: dict, fpr: dict[str, float], samples: int, shard_bytes: int) -> dict:
@@ -151,6 +178,12 @@ def _summary(sessions: dict, fpr: dict[str, float], samples: int, shard_bytes: i
         "disk_bytes": shard_bytes,
         "disk_size": _size(shard_bytes),
     }
+    builds = _monitored(chunks)
+    if builds:
+        summary["builds"] = builds
+    merges = _monitored([{"monitor": m} for p in publishes for m in (p.get("merges") or {}).values()])
+    if merges:
+        summary["merges"] = merges
     summary.update(fpr_summary(fpr))
     return summary
 
@@ -193,6 +226,13 @@ def write_shard_stats(
     publish: dict = {"disk_bytes": shard_bytes, "disk_size": _size(shard_bytes)}
     if publish_seconds is not None:
         publish["duration_s"] = round(publish_seconds, 1)
+    merges = {}
+    for path in sorted(glob.glob(os.path.join(glob.escape(os.path.dirname(out) or "."), "merge_*.monitor.json"))):
+        m = load_monitor(path)
+        if m:
+            merges[os.path.basename(path)[len("merge_") : -len(".monitor.json")]] = m
+    if merges:
+        publish["merges"] = merges
     sessions[session] = {"chunks": chunks, "publish": publish}
 
     fof = os.path.join(shard_dir, "kmtricks.fof")

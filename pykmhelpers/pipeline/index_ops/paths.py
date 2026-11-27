@@ -95,6 +95,11 @@ class BuildPaths:
         """Stats of the run ``run``, written by its chunk script."""
         return os.path.join(self.task_logs(task_dir), f"{run}.stats.json")
 
+    def monitor_stats(self, task_dir: str, name: str) -> str:
+        """Resources of the build of run ``name``, or of the merge step ``merge_<step>``
+        (``kmhelpers manage monitor``)."""
+        return os.path.join(self.task_logs(task_dir), f"{name}.monitor.json")
+
     def shard_stats(self, task_dir: str) -> str:
         """Stats of the shard of one task, every session it was built in."""
         return os.path.join(self.task_logs(task_dir), STATS_FILE)

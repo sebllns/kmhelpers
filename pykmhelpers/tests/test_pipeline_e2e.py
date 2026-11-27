@@ -974,6 +974,7 @@ class TestChunkedBuild(PipelineE2EBase):
             self.assertTrue(chunk.with_suffix(".fof").is_file())
             # stats, then superkmers removed: after a build and for a reused run
             self.assertEqual(chunk.read_text().count("manage run-stats"), 2)
+            self.assertEqual(chunk.read_text().count("manage monitor"), 1)
             self.assertEqual("--fpr" in chunk.read_text(), fpr)
             self.assertEqual(chunk.read_text().count("/superkmers"), 2)
 
@@ -982,11 +983,13 @@ class TestChunkedBuild(PipelineE2EBase):
         for chunk in chunks:
             stats = json.loads((logs / f"{chunk.stem}.stats.json").read_text())
             self.assertGreater(stats["disk_bytes"], 0)
+            self.assertGreater(stats["monitor"]["wall_s"], 0)
             if fpr:
                 names = {f"sample_{i}" for i in range(N_SAMPLES)}
                 self.assertLessEqual(set(stats["fpr"]), names)
         self.assertLess(text.rindex("[publish] cleanup"), text.rindex("manage -r"))
         self.assertIn("shard-stats", text)
+        self.assertLess(text.index("manage monitor"), text.index("kmindex merge"))
         shard_stats = yaml.safe_load((logs / "stats.yaml").read_text())
         self.assertEqual(shard_stats["summary"]["samples"], N_SAMPLES)
         self.assertEqual(shard_stats["summary"]["chunks"], len(chunks))

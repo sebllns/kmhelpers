@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import shutil
+import sys
 
 import click
 
@@ -907,6 +908,26 @@ def registry_move(source, destination, missing_ok):
             )
         raise click.ClickException(f"Move failed: {e}")
     click.echo(f"✓ Moved {source} -> {destination}")
+
+
+# Internal: wraps kmtricks and kmindex merge in the chunk and publish scripts
+@registry.command(
+    name="monitor",
+    hidden=True,
+    context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False},
+)
+@click.option("--out", required=True, type=click.Path(dir_okay=False), help="JSON of the resources")
+@click.option("--watch", multiple=True, type=click.Path(file_okay=False), help="Directory whose storage peak is sampled")
+@click.option("--interval", default=5.0, show_default=True, help="Seconds between RSS and open-file samples")
+@click.option("--disk-interval", default=60.0, show_default=True, help="Seconds between storage samples")
+@click.option("--timeline", type=click.Path(dir_okay=False), help="TSV of every sample")
+@click.option("--label", default="", help="Name recorded in OUT")
+@click.argument("command", nargs=-1, required=True, type=click.UNPROCESSED)
+def registry_monitor(out, watch, interval, disk_interval, timeline, label, command):
+    """Run COMMAND and write its wall and CPU time, peak RAM, open files and storage to OUT."""
+    from pykmhelpers.core.monitor import run_monitored
+
+    sys.exit(run_monitored(command, out, watch, interval, disk_interval, timeline, label))
 
 
 # Internal: written by the chunk scripts of plan/apply/build
