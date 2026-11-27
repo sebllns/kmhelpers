@@ -38,7 +38,7 @@ JOB_KINDS = ("build", "publish", "check")
 # Keys a job kind may set, also accepted at the top level as defaults
 JOB_KEYS = {"partition", "time", "exclude", "account", "qos", "constraint", "cpus", "mem", "extra"}
 TOP_KEYS = JOB_KEYS | {"type", "max_parallel", "output", "setup", "jobs", "limits"}
-LIMIT_KEYS = {"files", "maps"}
+LIMIT_KEYS = {"files", "maps", "merge_ram"}
 DEFAULTS = {"output": "logs/slurm/%x_%A_%a.out", "max_parallel": 0, "setup": ""}
 # The check job only reads the registry
 CHECK_DEFAULTS = {"cpus": 1, "mem": "4G"}
@@ -76,6 +76,8 @@ def load_cluster(path: str) -> dict:
             f"{path}: unknown limit(s) {', '.join(sorted(unknown))} "
             f"(cpus and mem are set per job kind, under jobs)"
         )
+    if limits.get("merge_ram", "soft") not in ("soft", "hard"):
+        raise ValueError(f'{path}: limits.merge_ram must be "soft" or "hard", got {limits["merge_ram"]!r}')
 
     resolved: dict = {k: data.get(k, DEFAULTS.get(k)) for k in ("type", "max_parallel", "output", "setup")}
     resolved["source"] = os.path.realpath(path)

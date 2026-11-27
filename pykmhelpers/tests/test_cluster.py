@@ -61,6 +61,10 @@ class TestLoadCluster(ClusterCase):
         self.assertEqual(build, {"ram": 60 << 30, "threads": 24, "files": 131072, "maps": 65530})
         self.assertEqual(json.loads(limits_for(cluster, "publish"))["threads"], 8)
 
+    def test_merge_ram_limit_reaches_the_limits_line(self):
+        cluster = self.load({**CLUSTER, "limits": {**CLUSTER["limits"], "merge_ram": "hard"}})
+        self.assertEqual(json.loads(limits_for(cluster, "publish"))["merge_ram"], "hard")
+
     def test_errors(self):
         for data, msg in [
             ({**CLUSTER, "nope": 1}, "unknown key"),
@@ -69,6 +73,7 @@ class TestLoadCluster(ClusterCase):
             ({**CLUSTER, "jobs": {"build": {"cpus": 1}}}, "needs cpus and mem"),
             ({**CLUSTER, "jobs": {**CLUSTER["jobs"], "other": {}}}, "unknown job kind"),
             ({**CLUSTER, "limits": {"ram": 1}}, "unknown limit"),
+            ({**CLUSTER, "limits": {"merge_ram": "firm"}}, "merge_ram must be"),
             ({**CLUSTER, "jobs": {**CLUSTER["jobs"], "build": {"cpus": 2, "mem": "lots"}}}, "Invalid memory"),
         ]:
             with self.subTest(msg=msg), self.assertRaisesRegex(ValueError, msg):
