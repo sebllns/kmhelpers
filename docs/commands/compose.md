@@ -73,7 +73,12 @@ merged with updates built with the same N. By default `compose` leaves it open, 
    (`apply` after `plan`, a resumed build);
 3. the count the layout records for the shard, once published;
 4. the count fixed at design with `-P`;
-5. otherwise, a count sized from the resource limits (`--limits`) for a full shard.
+5. otherwise, a count sized from the resource limits (`--limits`) for a full shard: the fewest
+   partitions whose kmtricks count stage fits the RAM at the most threads. With
+   `"merge_ram": "hard"` in the limits of the merge job (when it is killed above its RAM), the count
+   is also raised so that the merge of a full shard keeps its mapped inputs in RAM. By default this
+   bound is soft (the kernel reclaims the mapped inputs, the merge only runs slower) and `plan`
+   only warns.
 
 `plan`, `apply` and `build` have no `-P`: they never write the design, and each machine sizes the
 shards it builds first. Fixing `-P` at design is inherited by every later session and is no longer

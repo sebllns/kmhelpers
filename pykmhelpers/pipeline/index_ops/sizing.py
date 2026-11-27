@@ -5,7 +5,12 @@ from typing import Optional
 
 from pykmhelpers.core.bloom_filter import bf_max_kmers
 from pykmhelpers.core.byte import ByteCounter, SizeFormat
-from pykmhelpers.core.build_params import _resolve_limits, auto_params, params_for_partitions
+from pykmhelpers.core.build_params import (
+    _resolve_limits,
+    auto_params,
+    params_for_partitions,
+    ram_chunk,
+)
 from pykmhelpers.pipeline.composer import budget_samples_for
 from pykmhelpers.pipeline.index_db import IndexDefinition
 from pykmhelpers.pipeline.index_ops.layout import LayoutStore
@@ -153,14 +158,22 @@ def resolve_partitions(
             f"{AUTO_MAX_PARTITIONS}: fewer threads fit the RAM limit"
         )
 
-    # The merges of the shard must fit too: a merge thread maps 1/P of the shard
+    # The merges of the shard: a merge thread maps 1/P of the shard. Raise P for
+    # them only when the job is killed on RSS ("merge_ram": "hard")
     merge_limits, merge_cpus = merge_resources(config)
     build_threads = config.kmindex_threads or params.threads
     merge_t = min(build_threads, merge_cpus or build_threads)
     size = shard_bytes(i.bf_size, max(1, samples), getattr(i, "bitw", 0))
     for_merge = merge_partitions(size, merge_t, merge_limits.ram)
     side = "build RAM"
-    if for_merge > partitions:
+    if for_merge > partitions and not merge_limits.hard_ram:
+        logger.warning(
+            f"  └── Merges of a full shard ({ByteCounter.auto(size, SizeFormat.BYTE)}) "
+            f"would need {for_merge} partitions for {merge_t} thread(s) to keep their "
+            f"inputs in RAM: kept {partitions} (soft bound, merges may run up to 1.8x "
+            'slower); set "merge_ram": "hard" in --limits to raise it'
+        )
+    elif for_merge > partitions:
         side = "merge RAM"
         # the superk stage opens P + 1 files at 1 thread: a larger P cannot build
         files = _resolve_limits(config.limits or "{}", config.safety_margin)[1]
@@ -197,18 +210,27 @@ def chunk_bound(
 ) -> str:
     """What bounds a kmtricks chunk of ``i`` at ``chunk_size`` samples, for the
     splitting message (``_chunk_size``): the chunk budget, the ``--max-chunks``
-    cap raising the chunk, or the open files of the merge stage, which holds
-    ``min(threads, partitions) * (samples + 1)`` files."""
+    cap raising the chunk, or the merge stage, which holds
+    ``min(threads, partitions) * (samples + 1)`` open files and
+    ``merge_stage_ram`` of RAM."""
     if max_chunk_samples and chunk_size == max_chunk_samples:
         return (
             f"the chunk budget allows at span {i.span} "
             f"({budget_text(config.chunk_budget)} k-mers, --chunk-budget)"
         )
-    _, files, threads, _ = _resolve_limits(config.limits or "{}", config.safety_margin)
+    ram, files, threads, _ = _resolve_limits(config.limits or "{}", config.safety_margin)
     tasks = max(1, min(threads, partitions))
+    by_files = files // tasks - 1
+    by_ram = ram_chunk(ram, tasks)
     if config.max_chunks and chunk_size == math.ceil(sample_count / config.max_chunks) \
-            and chunk_size > files // tasks - 1:
+            and chunk_size > min(by_files, by_ram):
         return f"--max-chunks {config.max_chunks} asks for"
+    if chunk_size == by_ram and by_ram < by_files:
+        return (
+            f"the merge-stage RAM allows ({ByteCounter.auto(ram, SizeFormat.BYTE)} for "
+            f"{tasks} merge tasks, min({threads} threads, {partitions} partitions): "
+            "each holds 169 KiB per open sample)"
+        )
     return (
         f"the open-files limit allows ({files} files for {tasks} merge tasks, "
         f"min({threads} threads, {partitions} partitions): "

@@ -69,6 +69,15 @@ class TestMergeLimits(unittest.TestCase):
             limits = MergeLimits.resolve('{"ram": 1000, "files": 10}')
         self.assertEqual(limits.maps, 12345)
 
+    def test_merge_ram_soft_by_default(self):
+        self.assertFalse(MergeLimits.resolve('{"ram": 1000, "files": 10}').hard_ram)
+        limits = MergeLimits.resolve('{"ram": 1000, "files": 10, "merge_ram": "hard"}')
+        self.assertTrue(limits.hard_ram)
+
+    def test_merge_ram_rejects_other_values(self):
+        with self.assertRaises(ValueError):
+            MergeLimits.resolve('{"ram": 1000, "files": 10, "merge_ram": "strict"}')
+
 
 class TestFootprint(unittest.TestCase):
     def test_matches_span_168_measurement(self):
@@ -89,8 +98,8 @@ class TestMergePartitions(unittest.TestCase):
         self.assertEqual(merge_partitions(10 * MiB, 64, 100 * MiB), 1)
 
     def test_one_partition_per_thread_share(self):
-        # 0.9 * 4 * 1000 MiB / 360 MiB = 10 partitions
-        self.assertEqual(merge_partitions(1000 * MiB, 4, 360 * MiB), 10)
+        # 0.96 * 4 * 1000 MiB / 360 MiB = 10.7: 11 partitions
+        self.assertEqual(merge_partitions(1000 * MiB, 4, 360 * MiB), 11)
 
     def test_default_shard_budget(self):
         # 2**43 k-mers at span 85 (base 1.1): about 3.5 TB, 3 threads in 13.6 GB

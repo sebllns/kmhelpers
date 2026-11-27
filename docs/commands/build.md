@@ -25,7 +25,7 @@ Validate paths then build k-mer indices from an index definition file in a singl
 |--------|-------------|
 | `--bp, --base-path DIR` | Base path to resolve relative sample paths |
 | `--threads INT` | Hidden. Force the number of kmtricks threads instead of sizing them from `--limits` |
-| `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`); see [build - Builds and merges](build.md#builds-and-merges) |
+| `--limits JSON` | Resource limits used to auto-size threads/partitions when `--threads` is not set (`ram`, `files`, `threads`), and the inputs of one merge (`ram`, `files`, `maps` = `vm.max_map_count`, `merge_ram` = `soft` or `hard`, see [compose - Partitioning](compose.md#description)); see [build - Builds and merges](build.md#builds-and-merges) |
 | `--safety-margin FLOAT` | Fraction of a detected system limit to use for any key missing from `--limits` (default: 0.9) |
 | `--max-chunks INT` | Max number of kmtricks chunks a shard is built in; bigger chunks mean fewer build/merge passes but fewer threads. 0 disables the cap (default: 64) |
 | `--cb, --chunk-budget INT` | K-mer budget of one kmtricks chunk: a chunk of span `s` holds at most `ceil8(budget / base^s)` samples. 0 for no limit (default: `2**37`), see [build - Shards and chunks](build.md#shards-and-chunks) |
@@ -159,14 +159,15 @@ A shard is fixed at design: a span is split into shards of at most `ceil8(shard_
 samples, see [compose - Sharding](compose.md#description). Each build then splits the new
 samples of a shard into kmtricks runs (chunks), `<part>_chunk<N>`. A chunk holds the smallest of:
 
-1. **Open files**: `files / threads - 1`, from `--limits files` (or the hard open-files limit, `ulimit -Hn`, x `--safety-margin`: kmhelpers and its generated scripts raise the soft limit to the hard one before running anything);
-2. **Chunk budget**: `ceil8(chunk_budget / base^s)` samples (`--chunk-budget`, default `2**37`, 0 for no limit);
-3. the samples of the part.
+1. **Open files**: `files / min(threads, partitions) - 1`, from `--limits files` (or the hard open-files limit, `ulimit -Hn`, x `--safety-margin`: kmhelpers and its generated scripts raise the soft limit to the hard one before running anything): the kmtricks merge stage runs one task per partition, each holding `samples + 1` files;
+2. **Merge-stage RAM**: `(ram - 0.07 GiB) / (169 KiB x min(threads, partitions))`, from `--limits ram`: each merge task holds 169 KiB per open sample;
+3. **Chunk budget**: `ceil8(chunk_budget / base^s)` samples (`--chunk-budget`, default `2**37`, 0 for no limit);
+4. the samples of the part.
 
 `--max-chunks` (default 64, 0 disables it) then raises the chunk to `ceil(samples / max_chunks)`,
 so a shard is built in at most that many runs, with fewer threads to stay within the open
-files. It never goes above bounds 1 and 2: when it would have to, `plan` warns and uses more
-chunks. With the default budgets, a full shard fits 64 chunks (`2**43 = 64 x 2**37`).
+files and the RAM of the merge stage. It never goes above bounds 1 to 3 at one thread: when it
+would have to, `plan` warns and uses more chunks. With the default budgets, a full shard fits 64 chunks (`2**43 = 64 x 2**37`).
 
 ### Builds and merges
 

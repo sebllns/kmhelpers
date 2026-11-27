@@ -11,7 +11,9 @@ import unittest
 from pykmhelpers.core.build_params import (
     auto_params,
     get_best_params,
+    merge_stage_ram,
     params_for_partitions,
+    ram_chunk,
 )
 
 KMERS = 10**9
@@ -151,3 +153,35 @@ class TestParamsForPartitions(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestMergeStageRam(unittest.TestCase):
+    """The merge stage holds 0.07 GiB + 169 KiB per open sample and task (E2)."""
+
+    # 10**7 k-mers: the count stage fits 64 threads, the merge stage binds
+    RAM = 200 * 10**6
+    LIMITS = f'{{"ram": {RAM}, "files": {ULIMIT}, "threads": {THREADS}}}'
+
+    def fixed(self, **kwargs):
+        return params_for_partitions(
+            kmers=10**7, samples=SAMPLES, partitions=32, limits=self.LIMITS, **kwargs
+        )
+
+    def test_ram_binds_the_chunk(self):
+        p = self.fixed()
+        self.assertEqual(p.threads, THREADS)
+        self.assertEqual(p.samples, ram_chunk(self.RAM, 32))
+        self.assertLess(p.samples, ULIMIT // 32 - 1)
+        self.assertLessEqual(merge_stage_ram(32, p.samples), self.RAM)
+
+    def test_cap_lowers_the_threads_to_fit_ram(self):
+        """250 samples per chunk fit 16 merge tasks in files, 2 in RAM."""
+        p = self.fixed(max_chunks=4)
+        self.assertEqual(p.samples, 250)
+        self.assertEqual(p.threads, 2)
+        self.assertLessEqual(merge_stage_ram(p.threads, p.samples), self.RAM)
+
+    def test_large_ram_keeps_the_files_bound(self):
+        p = best()
+        self.assertEqual(p.samples, ULIMIT // PARTS - 1)
+        self.assertLess(p.samples, ram_chunk(RAM, PARTS))

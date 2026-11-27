@@ -4,7 +4,7 @@ Model (kmindex 0.7.1, measured on Vista, see the merge RAM report):
 
 * Each partition task mmaps the whole partition file of every input
   (``lib/src/index/merge.cpp:145-159``), ``min(T, P)`` tasks at a time: file-backed
-  page cache, reclaimable, about ``0.9 * T_eff / P`` of the input size at the peak.
+  page cache, reclaimable, about ``0.96 * T_eff / P`` of the input size at the peak.
 * ``kmindex merge`` loads the repartition table (``uint16[4^m]``) of every sub-index
   registered in the global index it runs in (``lib/src/index/index.cpp:22-47``,
   ``index_infos.cpp:73-74``): anonymous memory ``R * 2 * 4^m``, whatever is merged.
@@ -12,9 +12,12 @@ Model (kmindex 0.7.1, measured on Vista, see the merge RAM report):
 
 So the number of inputs of a merge is bounded by the anonymous memory of its
 registry, by the number of mmaps (``vm.max_map_count``) and by the open-file
-limit. The mapped inputs are fitted in RAM by the thread count: the partition
-count is sized at plan for the merge of a full shard (``merge_partitions``), and
-each merge step runs with the threads that fit (``fit_threads``).
+limit. The mapped inputs are fitted in RAM by the thread count: each merge step
+runs with the threads that fit (``fit_threads``). The bound is soft where the
+job is not killed on RSS (gh: a merge 60x above its cap succeeds, at most 1.8x
+slower, kmtricks_tacc_benchmarks Step 5); with ``"merge_ram": "hard"`` the
+partition count is also sized at plan for the merge of a full shard
+(``merge_partitions``).
 """
 
 import json
@@ -27,7 +30,7 @@ from pykmhelpers.core.build_params import _resolve_limits
 logger = logging.getLogger(__name__)
 
 HEADER_BYTES = 49  # .cmbf header
-MAPPED_FRACTION = 0.9  # resident share of the mapped inputs at the peak (measured)
+MAPPED_FRACTION = 0.96  # resident share of the mapped inputs at the peak (Step 5)
 MAP_MARGIN = 1000  # mmaps used by the binary and its libraries
 DEFAULT_MAX_MAPS = 65530  # Linux default vm.max_map_count
 MAX_MAP_COUNT_PATH = "/proc/sys/vm/max_map_count"
@@ -58,7 +61,7 @@ def shard_bytes(bf_size: int, samples: int, bw: int = 1) -> int:
 
 def merge_partitions(size: int, threads: int, ram: int) -> int:
     """Fewest partitions letting ``threads`` merge threads keep the mapped part
-    of ``size`` bytes of inputs in ``ram`` (``0.9 * min(T, P) / P * size``).
+    of ``size`` bytes of inputs in ``ram`` (``0.96 * min(T, P) / P * size``).
 
     1 when the whole input fits: the partition count does not matter then.
     """
@@ -82,22 +85,34 @@ def fit_threads(inputs: int, anon: int, partitions: int, threads: int, ram: int)
 
 @dataclass(frozen=True)
 class MergeLimits:
-    """Resources one ``kmindex merge`` may use."""
+    """Resources one ``kmindex merge`` may use.
+
+    ``hard_ram``: the job is killed when its RSS exceeds ``ram``, so the mapped
+    inputs must fit (partitions are raised at plan). Otherwise the kernel
+    reclaims them during the merge, which only slows it down.
+    """
 
     ram: int
     files: int
     maps: int
+    hard_ram: bool = False
 
     @classmethod
     def resolve(cls, limits: str | None, safety_margin: float = 1.0) -> "MergeLimits":
-        """Read ``ram``, ``files`` and ``maps`` from the ``--limits`` JSON line.
+        """Read ``ram``, ``files``, ``maps`` and ``merge_ram`` from the
+        ``--limits`` JSON line.
 
         Missing keys fall back to the system values, like the build limits:
         ``maps`` is ``vm.max_map_count`` of this machine (65530 if unreadable).
+        ``merge_ram`` is ``"soft"`` (default) or ``"hard"``.
         """
         ram, files, _, _ = _resolve_limits(limits or "{}", safety_margin)
-        maps = json.loads(limits or "{}").get("maps")
-        return cls(int(ram), int(files), int(maps or _system_max_maps()))
+        parsed = json.loads(limits or "{}")
+        bound = parsed.get("merge_ram") or "soft"
+        if bound not in ("soft", "hard"):
+            raise ValueError(f'"merge_ram" must be "soft" or "hard", got {bound!r}')
+        maps = parsed.get("maps")
+        return cls(int(ram), int(files), int(maps or _system_max_maps()), bound == "hard")
 
 
 def merge_resources(config) -> tuple[MergeLimits, int | None]:

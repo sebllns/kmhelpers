@@ -189,7 +189,8 @@ class TestResolveBuildParams(unittest.TestCase):
 
     def test_partitions_sized_for_the_merge_of_a_full_shard(self):
         """A full shard of 100000 samples weighs 339 MB: in 100 MB, 4 merge
-        threads need 0.9 * 4 * 339 / 100 = 13 partitions, rounded to 16."""
+        threads need 0.96 * 4 * 339 / 100 = 14 partitions, rounded to 16,
+        when the merge RAM bound is hard."""
         limits = '{"ram": 8000000000, "files": 4096, "threads": 4}'
         layout = self.layout(max_samples=100000)
         build_only = resolve_build_params(
@@ -198,15 +199,29 @@ class TestResolveBuildParams(unittest.TestCase):
         self.assertEqual(build_only.partitions, 4)
 
         config = make_config(
-            limits=limits, publish_limits='{"ram": 100000000, "threads": 4}'
+            limits=limits,
+            publish_limits='{"ram": 100000000, "threads": 4, "merge_ram": "hard"}',
         )
         params = resolve_build_params(make_definition(), 5, config, layout)
         self.assertEqual(params.partitions, 16)
 
+    def test_soft_merge_ram_keeps_the_build_partitions(self):
+        """By default the merge RAM bound is soft: P stays at the build minimum."""
+        config = make_config(
+            limits='{"ram": 8000000000, "files": 4096, "threads": 4}',
+            publish_limits='{"ram": 100000000, "threads": 4}',
+        )
+        with self.assertLogs("pykmhelpers.pipeline.index_ops.sizing", "WARNING") as logs:
+            params = resolve_build_params(
+                make_definition(), 5, config, self.layout(max_samples=100000)
+            )
+        self.assertEqual(params.partitions, 4)
+        self.assertIn("soft bound", logs.output[0])
+
     def test_merge_partitions_capped(self):
         config = make_config(
             limits='{"ram": 8000000000, "files": 4096, "threads": 4}',
-            publish_limits='{"ram": 1000000, "threads": 4}',
+            publish_limits='{"ram": 1000000, "threads": 4, "merge_ram": "hard"}',
         )
         with self.assertLogs("pykmhelpers.pipeline.index_ops.sizing", "WARNING") as logs:
             params = resolve_build_params(
@@ -219,7 +234,7 @@ class TestResolveBuildParams(unittest.TestCase):
         """The superk stage opens P + 1 files at 1 thread: 64 files allow 32."""
         config = make_config(
             limits='{"ram": 8000000000, "files": 64, "threads": 4}',
-            publish_limits='{"ram": 1000000, "threads": 4}',
+            publish_limits='{"ram": 1000000, "threads": 4, "merge_ram": "hard"}',
         )
         with self.assertLogs("pykmhelpers.pipeline.index_ops.sizing", "WARNING"):
             params = resolve_build_params(
@@ -333,6 +348,10 @@ class TestResolveBuildParams(unittest.TestCase):
              "the 200 the chunk budget allows at span 1 (220 k-mers, --chunk-budget)"),
             (make_config(limits=limits, max_chunks=4, chunk_budget=2**8),
              "the 240 the chunk budget allows at span 1 (2**8 k-mers"),
+            # (200 MB - 0.07 GiB) // (169 KiB x 4 merge tasks) = 180
+            (make_config(limits='{"ram": 200000000, "files": 4096, "threads": 64}',
+                         max_chunks=0),
+             "the 180 the merge-stage RAM allows ("),
         ]
         for config, expected in cases:
             with self.assertLogs("pykmhelpers.pipeline.index_ops.sizing", "INFO") as logs:

@@ -308,7 +308,8 @@ _limits_option = click.option(
     required=False,
     help="⚙   JSON line of resource limits used to auto-size threads/partitions "
     'when --threads is not set, e.g. \'{"ram": 8000000000, "files": 4096, "threads": 8}\'. '
-    '"maps" (vm.max_map_count) also bounds the inputs of one merge. '
+    '"maps" (vm.max_map_count) also bounds the inputs of one merge; '
+    '"merge_ram": "hard" raises the partitions so merges fit RAM (default "soft": warn). '
     "Keys omitted from the JSON are auto-detected from the system.",
 )
 _safety_margin_option = click.option(
