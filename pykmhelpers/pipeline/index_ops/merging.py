@@ -70,16 +70,23 @@ def merge_partitions(size: int, threads: int, ram: int) -> int:
     return math.ceil(MAPPED_FRACTION * max(threads, 1) * size / max(ram, 1))
 
 
-def fit_threads(inputs: int, anon: int, partitions: int, threads: int, ram: int) -> int:
+def fit_threads(
+    inputs: int, anon: int, partitions: int, threads: int, ram: int, soft: bool = False
+) -> int:
     """Most merge threads, at most ``merge_threads(threads, partitions)``, whose
     footprint (``anon`` plus the mapped share of ``inputs`` bytes) fits ``ram``.
 
-    At least 1, even when one thread does not fit.
+    At least 1, even when one thread does not fit. With ``soft`` (the job is not
+    killed on RSS), when even one thread does not fit, cutting threads cannot
+    make the merge fit and only slows it down: all ``merge_threads`` are kept, and
+    the kernel reclaims the mapped pages (kmtricks_tacc_benchmarks Step 5).
     """
     t_max = merge_threads(threads, partitions)
     if not inputs:
         return t_max
     per_thread = MAPPED_FRACTION * inputs / max(partitions, 1)
+    if soft and anon + per_thread > ram:
+        return t_max
     return max(1, min(t_max, math.floor((ram - anon) / per_thread)))
 
 

@@ -578,7 +578,8 @@ class IndexExecutor:
                 sizes, len(sizes), partitions, params.minim_size, i.bf_size, threads, bw=bw
             )
             step_threads = fit_threads(
-                fp["inputs"], fp["anon"], partitions, threads, limits.ram
+                fp["inputs"], fp["anon"], partitions, threads, limits.ram,
+                soft=not limits.hard_ram,
             )
             if step_threads < threads:
                 fp = footprint(
