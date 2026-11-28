@@ -125,9 +125,9 @@ class TestFitThreads(unittest.TestCase):
         # one thread maps 0.96 * 2**40 / 4 bytes, far above 1 MiB: cutting cannot fit
         self.assertEqual(fit_threads(2**40, 0, 4, 8, MiB, soft=True), 4)
 
-    def test_soft_still_cuts_when_some_threads_fit(self):
+    def test_soft_keeps_all_threads_when_some_fit(self):
         fp_inputs, ram = 8 * 2**30, 4 * 2**30  # 1.92 GiB per thread at P = 4
-        self.assertEqual(fit_threads(fp_inputs, 0, 4, 4, ram, soft=True), 2)
+        self.assertEqual(fit_threads(fp_inputs, 0, 4, 4, ram, soft=True), 4)
         self.assertEqual(fit_threads(fp_inputs, 0, 4, 4, ram), 2)
 
 
