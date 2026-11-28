@@ -38,7 +38,7 @@ JOB_KINDS = ("build", "publish", "check")
 # Keys a job kind may set, also accepted at the top level as defaults
 JOB_KEYS = {"partition", "time", "exclude", "account", "qos", "constraint", "cpus", "mem", "extra"}
 TOP_KEYS = JOB_KEYS | {"type", "max_parallel", "output", "setup", "jobs", "limits"}
-LIMIT_KEYS = {"files", "maps"}
+LIMIT_KEYS = {"files", "maps", "min_partitions"}
 DEFAULTS = {"output": "logs/slurm/%x_%A_%a.out", "max_parallel": 0, "setup": ""}
 # The check job only reads the registry
 CHECK_DEFAULTS = {"cpus": 1, "mem": "4G"}

@@ -1,3 +1,4 @@
+import json
 import logging
 import math
 from dataclasses import dataclass, field
@@ -186,6 +187,13 @@ def resolve_partitions(
                 f"{partitions} (at most {AUTO_MAX_PARTITIONS}, open files {files}): "
                 "they will use fewer threads"
             )
+    # a floor from the limits ("min_partitions"): more merge threads fit the RAM,
+    # and the kmtricks merge stage runs min(T, P) tasks (Logan E-B3: P=16 builds as
+    # fast as P=4 on a 15k-sample chunk)
+    floor = int(json.loads(config.limits or "{}").get("min_partitions") or 0)
+    if floor and partitions < floor:
+        partitions = min(round_auto_partitions(floor), AUTO_MAX_PARTITIONS)
+        side = "min_partitions"
     logger.info(
         f"  └── Partitions: {partitions} (auto from the {side} limit, "
         f"k-mer ratio {i.kmer_ratio})"

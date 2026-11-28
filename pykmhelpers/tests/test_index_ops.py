@@ -218,6 +218,22 @@ class TestResolveBuildParams(unittest.TestCase):
         self.assertEqual(params.partitions, 4)
         self.assertIn("soft bound", logs.output[0])
 
+    def test_min_partitions_floor(self):
+        """"min_partitions" raises the auto count, never lowers it."""
+        base = '"ram": 8000000000, "files": 4096, "threads": 4'
+        for floor, want in ((16, 16), (10, 16), (2, 4)):
+            config = make_config(
+                limits=f'{{{base}, "min_partitions": {floor}}}',
+                publish_limits='{"ram": 100000000, "threads": 4}',
+            )
+            with self.subTest(floor=floor), self.assertLogs(
+                "pykmhelpers.pipeline.index_ops.sizing", "WARNING"
+            ):
+                params = resolve_build_params(
+                    make_definition(), 5, config, self.layout(max_samples=100000)
+                )
+                self.assertEqual(params.partitions, want)
+
     def test_merge_partitions_capped(self):
         config = make_config(
             limits='{"ram": 8000000000, "files": 4096, "threads": 4}',
